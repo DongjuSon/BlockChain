@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>블록체인 장부 교실</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F4F6F9; --surface:#FFFFFF; --surface-2:#EDF1F6; --ink:#16202B; --ink-2:#3B4855; --muted:#66727F; --line:#D8DEE6; --line-2:#C3CBD5;
+  --accent:#1F4FD8; --accent-soft:#E4EBFC; --accent-ink:#173FB0; --on-accent:#FFFFFF;
+  --chain:#1E8A5B; --chain-soft:#DFF3E8;
+  --op:#8A4FC7; --op-soft:#EFE6FA;
+  --warn:#B9700F; --warn-soft:#FCEFD9;
+  --bad:#C43B3B; --bad-soft:#FBE3E3;
+  --code-bg:#1B2431; --code-ink:#DCE6F2;
+  --shadow:0 1px 2px rgba(22,32,43,.06),0 8px 24px -12px rgba(22,32,43,.18);
+  --radius:10px;
+  --font-display:"IBM Plex Sans KR","Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-body:"Noto Sans KR","IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1319; --surface:#161D25; --surface-2:#1E2731; --ink:#E9EEF4; --ink-2:#C4CDD7; --muted:#8E9AA7; --line:#2A343F; --line-2:#3A4652;
+    --accent:#7FA3FF; --accent-soft:#1C2A4A; --accent-ink:#A9C1FF; --on-accent:#0E1319;
+    --chain:#4CC38A; --chain-soft:#143024;
+    --op:#B48BEA; --op-soft:#2B1F40;
+    --warn:#E3A24A; --warn-soft:#3A2A12;
+    --bad:#F07B7B; --bad-soft:#3E1B1B;
+    --code-bg:#0A0F15; --code-ink:#D5DFEA;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1319; --surface:#161D25; --surface-2:#1E2731; --ink:#E9EEF4; --ink-2:#C4CDD7; --muted:#8E9AA7; --line:#2A343F; --line-2:#3A4652;
+  --accent:#7FA3FF; --accent-soft:#1C2A4A; --accent-ink:#A9C1FF; --on-accent:#0E1319;
+  --chain:#4CC38A; --chain-soft:#143024;
+  --op:#B48BEA; --op-soft:#2B1F40;
+  --warn:#E3A24A; --warn-soft:#3A2A12;
+  --bad:#F07B7B; --bad-soft:#3E1B1B;
+  --code-bg:#0A0F15; --code-ink:#D5DFEA;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important} }
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.75;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+h1,h2,h3,h4{font-family:var(--font-display);text-wrap:balance;line-height:1.25;margin:0;color:var(--ink)}
+p{margin:0 0 1em}
+code,.mono{font-family:var(--font-mono);font-size:.92em}
+strong{font-weight:700;color:var(--ink)}
+
+/* ===== shell ===== */
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);gap:0;min-height:100vh}
+.side{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto;background:var(--surface);border-right:1px solid var(--line);padding:22px 14px 30px;display:flex;flex-direction:column;gap:6px}
+.brand{padding:4px 10px 14px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.brand .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.brand h1{font-size:19px;font-weight:700;margin-top:4px}
+.brand p{font-size:12.5px;color:var(--muted);margin:6px 0 0;line-height:1.5}
+.nav a{display:flex;gap:10px;align-items:baseline;padding:7px 10px;border-radius:8px;color:var(--ink-2);font-size:13.5px;line-height:1.35}
+.nav a .n{font-family:var(--font-mono);font-size:11px;color:var(--muted);min-width:22px}
+.nav a:hover{background:var(--surface-2);text-decoration:none}
+.nav a.active{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.nav a.active .n{color:var(--accent-ink)}
+.nav .group{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 10px 4px}
+.progress{margin-top:auto;padding:12px 10px 0;font-size:12px;color:var(--muted)}
+.progress .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+.progress .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+.main{padding-inline:clamp(16px,4vw,56px);padding-block:8px 80px;min-width:0}
+.hero{max-width:820px;padding:44px 0 26px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.hero .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink)}
+.hero h1{font-size:clamp(30px,4vw,44px);margin:10px 0 14px;letter-spacing:-.01em}
+.hero .lede{font-size:18px;color:var(--ink-2);max-width:62ch;margin:0 0 20px}
+.hero .three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.hero .three div{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;font-size:14px}
+.hero .three b{display:block;font-family:var(--font-display);font-size:15px;margin-bottom:4px}
+.hero .three span{color:var(--muted)}
+.meta{font-size:12.5px;color:var(--muted);margin-top:18px}
+
+section.ch{max-width:820px;padding:52px 0 18px;border-bottom:1px solid var(--line);scroll-margin-top:12px}
+section.ch:last-of-type{border-bottom:0}
+.ch .eyebrow{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;gap:10px;align-items:center}
+.ch .eyebrow .tag{font-family:var(--font-body);letter-spacing:0;text-transform:none;font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.ch h2{font-size:clamp(24px,3vw,31px);margin:8px 0 18px;letter-spacing:-.01em}
+.ch h3{font-size:19px;margin:34px 0 10px}
+.ch h4{font-size:15.5px;margin:22px 0 8px}
+.prose{max-width:68ch}
+.prose ul,.prose ol{padding-left:1.3em;margin:0 0 1em}
+.prose li{margin:.25em 0}
+
+/* analogy callout */
+.analogy{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;background:var(--accent-soft);border-left:3px solid var(--accent);padding:14px 18px;border-radius:0 var(--radius) var(--radius) 0;margin:0 0 22px;max-width:760px}
+.analogy .lbl{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent-ink);padding-top:5px;white-space:nowrap}
+.analogy p{margin:0;color:var(--ink);font-size:15.5px}
+
+/* audit note */
+.audit{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;margin:26px 0 10px;max-width:760px;box-shadow:var(--shadow)}
+.audit .lbl{display:inline-flex;gap:8px;align-items:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--chain);margin-bottom:8px}
+.audit .lbl::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--chain)}
+.audit ul{margin:0;padding-left:1.2em;font-size:14.5px;color:var(--ink-2)}
+.audit li{margin:.3em 0}
+.audit li b{color:var(--ink)}
+
+/* figure */
+figure{margin:22px 0;max-width:100%}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+.fig-frame{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px;overflow-x:auto}
+svg text{font-family:var(--font-body)}
+svg .mono{font-family:var(--font-mono)}
+svg .t{fill:var(--ink)} svg .m{fill:var(--muted)} svg .a{fill:var(--accent-ink)} svg .g{fill:var(--chain)} svg .o{fill:var(--op)}
+svg .box{fill:var(--surface);stroke:var(--line-2);stroke-width:1.2}
+svg .box-a{fill:var(--accent-soft);stroke:var(--accent)}
+svg .box-g{fill:var(--chain-soft);stroke:var(--chain)}
+svg .box-o{fill:var(--op-soft);stroke:var(--op)}
+svg .box-w{fill:var(--warn-soft);stroke:var(--warn)}
+svg .box-b{fill:var(--bad-soft);stroke:var(--bad)}
+svg .ln{stroke:var(--line-2);stroke-width:1.4;fill:none}
+svg .ln-a{stroke:var(--accent);stroke-width:1.6;fill:none}
+svg .ln-g{stroke:var(--chain);stroke-width:1.6;fill:none}
+svg .ln-o{stroke:var(--op);stroke-width:1.6;fill:none}
+svg .ln-b{stroke:var(--bad);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+
+/* compare table */
+.cmp{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.cmp th,.cmp td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.cmp th{background:var(--surface-2);font-weight:600;font-size:13px}
+.cmp tr:last-child td{border-bottom:0}
+.cmp td:first-child{color:var(--muted);white-space:nowrap}
+.cmp .u{color:var(--accent-ink);font-weight:600}
+.cmp .o{color:var(--op);font-weight:600}
+.tbl-wrap{overflow-x:auto;max-width:100%}
+
+/* widget */
+.widget{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin:20px 0;box-shadow:var(--shadow);max-width:100%}
+.widget .wlbl{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.widget .wlbl b{font-family:var(--font-display);font-size:15px}
+.widget .wlbl span{font-size:12.5px;color:var(--muted)}
+.btn{font:inherit;font-size:13.5px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+.field input,.field textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--ground);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;width:100%}
+.field input.mono,.field textarea.mono{font-family:var(--font-mono);font-size:13px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px;margin-top:10px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--font-mono);font-size:12.5px;word-break:break-all}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid transparent}
+.pill.ok{background:var(--chain-soft);color:var(--chain);border-color:var(--chain)}
+.pill.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.pill.info{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent)}
+.pill.op{background:var(--op-soft);color:var(--op);border-color:var(--op)}
+.pill.muted{background:var(--surface-2);color:var(--muted);border-color:var(--line-2)}
+
+/* ledger display */
+.ledger{background:var(--code-bg);color:var(--code-ink);font-family:var(--font-mono);font-size:13px;border-radius:8px;padding:12px 14px;line-height:1.7;overflow-x:auto;white-space:pre}
+.ledger .hl{color:#FFD479}
+.ledger .up{color:#7FE3A9} .ledger .dn{color:#FF9B9B}
+.ledgers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ledgers > div{min-width:0}
+.ledgers .cap{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
+
+/* stepper */
+.steps{display:flex;flex-direction:column;gap:0;margin-top:12px}
+.step{display:grid;grid-template-columns:28px 1fr;gap:12px;padding:10px 0;border-top:1px dashed var(--line);opacity:.5;transition:opacity .2s}
+.step:first-child{border-top:0}
+.step.on{opacity:1}
+.step.done{opacity:.85}
+.step .num{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-family:var(--font-mono);font-size:12px;color:var(--muted);background:var(--surface)}
+.step.on .num{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+.step.done .num{border-color:var(--chain);color:var(--chain)}
+.step b{display:block;font-size:14.5px}
+.step p{margin:2px 0 0;font-size:13.5px;color:var(--ink-2)}
+.step .who{font-size:11.5px;font-family:var(--font-mono);color:var(--muted);letter-spacing:.06em}
+
+/* block sim */
+.blocks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.blk{border:1.5px solid var(--chain);background:var(--chain-soft);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;transition:border-color .2s,background .2s;min-width:0}
+.blk.broken{border-color:var(--bad);background:var(--bad-soft)}
+.blk .h{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-display);font-weight:600;font-size:13.5px}
+.blk textarea{font:inherit;font-size:13px;min-height:58px;resize:vertical;background:var(--surface);color:var(--ink);border:1px solid var(--line-2);border-radius:6px;padding:6px 8px;width:100%}
+.blk .row{font-size:11.5px;color:var(--muted)}
+.blk .row code{display:block;color:var(--ink);word-break:break-all;font-size:11.5px}
+.blk .row.prev code{color:var(--ink-2)}
+.blk.broken .row.hash code{color:var(--bad)}
+
+/* confirm sim */
+.conf{display:flex;align-items:flex-end;gap:6px;height:64px;margin:10px 0}
+.conf i{display:block;width:34px;border-radius:5px 5px 2px 2px;background:var(--line-2);height:40px;transition:background .3s,height .3s;position:relative}
+.conf i.tx{background:var(--accent);height:48px}
+.conf i.new{background:var(--chain)}
+.conf i::after{content:attr(data-n);position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+.status-line{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:24px;font-size:13.5px}
+
+/* classifier */
+.qs{display:flex;flex-direction:column;gap:10px}
+.q{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--ground)}
+.q span{font-size:14px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;padding:6px 12px;border:0;background:var(--surface);color:var(--ink-2);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button.on-u{background:var(--accent);color:var(--on-accent)}
+.seg button.on-o{background:var(--op);color:var(--on-accent)}
+.verdict{margin-top:14px;padding:14px 16px;border-radius:8px;border:1px solid var(--line);font-size:14.5px}
+.verdict.u{background:var(--accent-soft);border-color:var(--accent)}
+.verdict.o{background:var(--op-soft);border-color:var(--op)}
+.verdict.mix{background:var(--warn-soft);border-color:var(--warn)}
+.verdict b{font-family:var(--font-display);display:block;font-size:16px;margin-bottom:4px}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:6px 0 4px}
+.pipe div{border:1.5px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center;font-size:12px;line-height:1.3;background:var(--ground);transition:all .2s;min-width:0}
+.pipe div b{display:block;font-family:var(--font-display);font-size:12.5px;margin-bottom:2px}
+.pipe div.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft)}
+.pipe div.done{border-color:var(--chain);background:var(--chain-soft)}
+.pipe div.lock{border-style:dashed}
+
+/* glossary */
+.gl-search{margin-bottom:12px}
+.gl{display:grid;grid-template-columns:1fr;gap:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+.gl .g{display:grid;grid-template-columns:170px 1fr;gap:14px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:14px}
+.gl .g:last-child{border-bottom:0}
+.gl .g b{font-family:var(--font-display);font-size:14px}
+.gl .g small{display:block;color:var(--muted);font-family:var(--font-mono);font-size:11.5px;font-weight:400}
+.gl .g p{margin:0;color:var(--ink-2)}
+.gl .g[hidden]{display:none}
+
+/* quiz */
+.quiz{display:flex;flex-direction:column;gap:14px}
+.qz{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.qz .qn{font-family:var(--font-mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
+.qz .qt{font-weight:600;margin:6px 0 10px;font-size:15px}
+.qz .opts{display:flex;flex-direction:column;gap:6px}
+.qz .opts button{font:inherit;text-align:left;font-size:14px;padding:8px 12px;border-radius:8px;border:1px solid var(--line-2);background:var(--ground);color:var(--ink);cursor:pointer}
+.qz .opts button:hover{border-color:var(--accent)}
+.qz .opts button.ok{border-color:var(--chain);background:var(--chain-soft)}
+.qz .opts button.bad{border-color:var(--bad);background:var(--bad-soft)}
+.qz .opts button:disabled{cursor:default}
+.qz .exp{margin-top:10px;font-size:13.5px;color:var(--ink-2);padding:10px 12px;border-radius:8px;background:var(--surface-2)}
+.score{font-family:var(--font-display);font-size:18px;margin-top:6px}
+
+.note{font-size:13.5px;color:var(--muted);border-left:2px solid var(--line-2);padding-left:12px;margin:12px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two > div{min-width:0}
+.src{font-size:12.5px;color:var(--muted);margin-top:8px}
+
+.topbar{display:none}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .side{display:none}
+  .topbar{display:block;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding:8px 12px 0}
+  .topbar .brand{display:flex;justify-content:space-between;align-items:baseline;border:0;padding:0 4px 6px;margin:0}
+  .topbar .brand h1{font-size:15px}
+  .topbar .brand p{display:none}
+  .topbar .strip{display:flex;gap:6px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
+  .topbar .strip::-webkit-scrollbar{display:none}
+  .topbar .strip a{white-space:nowrap;font-size:12.5px;padding:5px 10px;border-radius:999px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--ground)}
+  .topbar .strip a.active{background:var(--accent-soft);color:var(--accent-ink);border-color:var(--accent)}
+  .hero .three,.two,.ledgers,.blocks{grid-template-columns:1fr}
+  .pipe{grid-template-columns:repeat(3,1fr)}
+  .gl .g{grid-template-columns:1fr;gap:4px}
+  .analogy{grid-template-columns:1fr;gap:4px}
+  .q{grid-template-columns:1fr}
+}
+</style>
+</head><body>
+<div class="topbar">
+  <div class="brand"><h1>블록체인 장부 교실</h1><span class="eyebrow" style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">ITGC · ISMS</span></div>
+  <div class="strip" id="strip"></div>
+</div>
+<div class="shell">
+<aside class="side">
+  <div class="brand">
+    <div class="eyebrow">Blockchain Foundation · 학습</div>
+    <h1>블록체인 장부 교실</h1>
+    <p>자산이 어디에 있고, 누가 움직일 수 있는가. 비수탁·수탁 지갑을 기준으로 블록체인을 처음부터 끝까지.</p>
+  </div>
+  <nav class="nav" id="nav">
+    <div class="group">A. 기초</div>
+    <a href="#c1"><span class="n">01</span>공유 장부와 신뢰</a>
+    <a href="#c2"><span class="n">02</span>주소·개인키·서명</a>
+    <a href="#c3"><span class="n">03</span>트랜잭션과 수수료</a>
+    <a href="#c4"><span class="n">04</span>블록·해시·컨펌</a>
+    <a href="#c5"><span class="n">05</span>체인은 네트워크마다 따로</a>
+    <a href="#c6"><span class="n">06</span>지갑은 도구다</a>
+    <div class="group">B. 지갑 유형</div>
+    <a href="#c7"><span class="n">07</span>비수탁 vs 수탁</a>
+    <a href="#c8"><span class="n">08</span>비수탁 송금 과정</a>
+    <a href="#c9"><span class="n">09</span>수탁형 입출금 과정</a>
+    <a href="#c10"><span class="n">10</span>수탁형 결제·정산</a>
+    <div class="group">C. 통제와 감사</div>
+    <a href="#c11"><span class="n">11</span>키 관리 절차</a>
+    <a href="#c12"><span class="n">12</span>감사 체크리스트</a>
+    <div class="group">부록</div>
+    <a href="#gl"><span class="n">G</span>용어사전</a>
+    <a href="#qz"><span class="n">Q</span>이해도 퀴즈</a>
+  </nav>
+  <div class="progress"><span id="progTxt">읽은 진도 0%</span><div class="bar"><i id="progBar"></i></div></div>
+</aside>
+
+<main class="main">
+<header class="hero" id="top">
+  <div class="eyebrow">Blockchain 101 → 비수탁·수탁 지갑</div>
+  <h1>자산이 어디에 있고,<br>누가 움직일 수 있는가</h1>
+  <p class="lede">블록체인을 처음 접하면 용어부터 파고들다 전체 흐름을 놓치기 쉬워요. 이 교실은 딱 세 가지 질문만 붙들고 갑니다. 이 세 질문에 답할 수 있으면 비수탁 지갑과 수탁형 지갑의 차이, 그리고 감사에서 무엇을 봐야 하는지가 한 줄로 정리돼요.</p>
+  <div class="three">
+    <div><b>① 자산은 어디에 기록되는가</b><span>블록체인 장부인가, 사업자의 내부 원장인가</span></div>
+    <div><b>② 옮길 권한은 어디서 오는가</b><span>주소와 짝을 이루는 개인키의 서명</span></div>
+    <div><b>③ 그 권한을 누가 가지는가</b><span>사용자인가, 사업자인가 — 수탁/비수탁이 갈리는 지점</span></div>
+  </div>
+  <p class="meta">대상: 감사 준비(ITGC·ISMS) 담당자와 사내 비기술 직군 · 출처: Blockchain Foundation Team 문서모음(Blockchain 101, 비수탁지갑 구조 설명, 수탁 원장 설계, 결제 구조 정리, 키 보관 절차 등) · 토스 구조는 예시로만 등장해요.</p>
+</header>
+
+<!-- ============ 01 ============ -->
+<section class="ch" id="c1">
+  <div class="eyebrow">Chapter 01 <span class="tag">기초</span></div>
+  <h2>공유 장부와 신뢰 — 관리하는 회사가 없는 장부</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>은행 장부는 <b>한 명의 회계 담당자</b>가 쓰는 노트예요. 블록체인은 <b>반 전체가 똑같은 출석부를 한 권씩</b> 들고 있고, 누가 몰래 고쳐도 나머지가 "내 것과 다른데?" 하며 받아주지 않는 구조예요.</p></div>
+  <div class="prose">
+    <p>토스페이머니에서는 토스 내부 원장이 잔고의 기준이에요. "A가 1,000원을 갖고 있다"는 사실을 토스가 기록하고, 사용자는 토스가 그 장부를 정확히 관리한다고 믿어요.</p>
+    <p>블록체인에는 장부를 관리하는 하나의 회사가 없어요. 여러 참여자가 같은 거래 내역을 각자 보관·검증하고, 새로 들어온 거래가 정해진 규칙에 맞는지 확인해요. 한 참여자가 자기 기록을 마음대로 바꿔도 다른 참여자들이 받아들이지 않으면 블록체인의 기록이 되지 못해요.</p>
+    <p>이들이 장부를 지키는 이유는 선의가 아니에요. 거래를 검증하고 블록을 만들면 <b>수수료와 보상</b>을 받고, 규칙을 어긴 기록은 인정받지 못해요. 돈을 벌려면 같은 규칙을 따르는 편이 유리한 구조예요. 토스에서는 회사를 믿고, 블록체인에서는 <b>경제적 동기가 참여자들에게 같은 규칙을 지키게 만드는 구조</b>를 믿어요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 250" role="img" aria-label="중앙 원장과 분산 원장 비교">
+      <text x="20" y="26" class="t" font-size="14" font-weight="600">중앙 원장 (토스머니)</text>
+      <rect x="20" y="40" width="330" height="190" rx="10" class="box"/>
+      <rect x="140" y="70" width="90" height="56" rx="8" class="box-o"/>
+      <text x="185" y="94" text-anchor="middle" class="o" font-size="12" font-weight="600">토스</text>
+      <text x="185" y="112" text-anchor="middle" class="m" font-size="11">내부 원장</text>
+      <g class="ln"><line x1="60" y1="190" x2="150" y2="126"/><line x1="185" y1="190" x2="185" y2="126"/><line x1="310" y1="190" x2="220" y2="126"/></g>
+      <circle cx="60" cy="200" r="14" class="box"/><circle cx="185" cy="200" r="14" class="box"/><circle cx="310" cy="200" r="14" class="box"/>
+      <text x="60" y="204" text-anchor="middle" class="t" font-size="11">A</text><text x="185" y="204" text-anchor="middle" class="t" font-size="11">B</text><text x="310" y="204" text-anchor="middle" class="t" font-size="11">C</text>
+      <text x="185" y="160" text-anchor="middle" class="m" font-size="11">"회사가 정확히 적는다"를 믿음</text>
+
+      <text x="410" y="26" class="t" font-size="14" font-weight="600">분산 원장 (블록체인)</text>
+      <rect x="410" y="40" width="330" height="190" rx="10" class="box"/>
+      <g>
+        <rect x="440" y="70" width="70" height="44" rx="6" class="box-g"/><text x="475" y="88" text-anchor="middle" class="g" font-size="11" font-weight="600">노드 1</text><text x="475" y="104" text-anchor="middle" class="m" font-size="10">장부 사본</text>
+        <rect x="540" y="70" width="70" height="44" rx="6" class="box-g"/><text x="575" y="88" text-anchor="middle" class="g" font-size="11" font-weight="600">노드 2</text><text x="575" y="104" text-anchor="middle" class="m" font-size="10">장부 사본</text>
+        <rect x="640" y="70" width="70" height="44" rx="6" class="box-g"/><text x="675" y="88" text-anchor="middle" class="g" font-size="11" font-weight="600">노드 3</text><text x="675" y="104" text-anchor="middle" class="m" font-size="10">장부 사본</text>
+        <rect x="490" y="150" width="70" height="44" rx="6" class="box-g"/><text x="525" y="168" text-anchor="middle" class="g" font-size="11" font-weight="600">노드 4</text><text x="525" y="184" text-anchor="middle" class="m" font-size="10">장부 사본</text>
+        <rect x="590" y="150" width="70" height="44" rx="6" class="box-b"/><text x="625" y="168" text-anchor="middle" font-size="11" font-weight="600" style="fill:var(--bad)">노드 5</text><text x="625" y="184" text-anchor="middle" class="m" font-size="10">몰래 고침 ✕</text>
+      </g>
+      <g class="ln-g"><line x1="510" y1="92" x2="540" y2="92"/><line x1="610" y1="92" x2="640" y2="92"/><line x1="500" y1="114" x2="515" y2="150"/><line x1="560" y1="172" x2="590" y2="172"/><line x1="650" y1="114" x2="640" y2="150"/></g>
+      <text x="575" y="218" text-anchor="middle" class="m" font-size="11">다수가 같은 규칙으로 검증 · 어긋난 기록은 거부</text>
+    </svg>
+    </div>
+    <figcaption>왼쪽은 회사가 장부를 쓰는 구조, 오른쪽은 여러 노드가 같은 장부 사본을 들고 서로 검증하는 구조예요. 노드 5가 자기 사본만 고쳐도 나머지가 받아주지 않아요.</figcaption>
+  </figure>
+  <div class="prose">
+    <p>검증을 통과한 거래는 블록에 담기고, 블록은 앞선 블록 뒤에 이어져요. 이렇게 여러 참여자가 함께 확인하는 기록이 쌓여 하나의 공유 장부가 돼요. (블록이 어떻게 이어지는지는 <a href="#c4">04장</a>에서 직접 만져봐요.)</p>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li><b>잔고의 기준이 무엇인지</b>부터 확인해요. 온체인(블록체인 장부)인지, 사업자의 내부 원장인지에 따라 증적의 원천이 달라져요.</li>
+    <li>블록체인 기록은 회사가 임의로 정정할 수 없어요. 그래서 수탁형 서비스에서는 <b>내부 원장 ↔ 온체인 잔고의 대사</b>가 핵심 통제가 돼요(09장).</li>
+  </ul></div>
+</section>
+
+<!-- ============ 02 ============ -->
+<section class="ch" id="c2">
+  <div class="eyebrow">Chapter 02 <span class="tag">기초</span></div>
+  <h2>주소·개인키·서명 — 이름 대신 주소, 신분증 대신 서명</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p><b>주소</b>는 계좌번호, <b>개인키</b>는 인감도장, <b>서명</b>은 도장을 찍은 자국이에요. 도장(개인키)은 절대 남에게 보여주지 않지만, 찍힌 자국(서명)은 누구나 "이 도장 주인이 찍은 게 맞다"고 확인할 수 있어요.</p></div>
+  <div class="prose">
+    <h3>장부에는 이름 대신 주소가 적혀요</h3>
+    <p>블록체인 장부에는 "오은택이 100 USDT를 갖고 있다"가 아니라 <code>0xABC... 주소에 100 USDT가 있음</code>이라고 적혀요. 블록체인은 주민등록번호나 토스 계정으로 주인을 확인하지 않아요. <b>주소와 연결된 개인키로 올바른 서명을 만들 수 있는지</b>만 확인해요.</p>
+    <p>이름이 없다고 익명 장부는 아니에요. 어떤 주소가 언제, 어느 주소로, 얼마를 보냈는지가 누구에게나 공개돼 있고 이력이 계속 남아요. KYT(거래 추적)와 체인 분석이 가능한 이유가 여기 있어요.</p>
+    <h3>개인키 → 공개키 → 주소, 한 방향으로만</h3>
+    <p>개인키는 그냥 <b>아주 큰 난수</b>예요(256비트, 가능한 값이 약 10<sup>77</sup>개). 우연히 겹치거나 하나씩 대입해 맞힐 가능성은 현실적으로 무시할 수 있어요. 이 난수에서 공개키가, 공개키에서 주소가 만들어지는데 <b>거꾸로는 계산할 수 없어요.</b> 그래서 주소는 마음껏 공개해도 돼요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 150" role="img" aria-label="개인키에서 공개키, 주소로 이어지는 단방향 계산">
+      <rect x="20" y="40" width="200" height="70" rx="10" class="box-b"/>
+      <text x="120" y="66" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--bad)">개인키</text>
+      <text x="120" y="86" text-anchor="middle" class="m" font-size="11">256비트 난수 · 절대 노출 금지</text>
+      <rect x="280" y="40" width="200" height="70" rx="10" class="box"/>
+      <text x="380" y="66" text-anchor="middle" class="t" font-size="14" font-weight="700">공개키</text>
+      <text x="380" y="86" text-anchor="middle" class="m" font-size="11">서명 검증용 · 알려져도 됨</text>
+      <rect x="540" y="40" width="200" height="70" rx="10" class="box-g"/>
+      <text x="640" y="66" text-anchor="middle" class="g" font-size="14" font-weight="700">주소</text>
+      <text x="640" y="86" text-anchor="middle" class="m" font-size="11">받을 때 공유하는 식별자</text>
+      <g class="ln-a"><path d="M220 75 L280 75"/><path d="M480 75 L540 75"/></g>
+      <polygon points="274,70 282,75 274,80" style="fill:var(--accent)"/><polygon points="534,70 542,75 534,80" style="fill:var(--accent)"/>
+      <text x="250" y="66" text-anchor="middle" class="a" font-size="10">계산 쉬움</text>
+      <text x="510" y="66" text-anchor="middle" class="a" font-size="10">계산 쉬움</text>
+      <path d="M640 118 C 640 140, 120 140, 120 118" class="ln-b"/>
+      <polygon points="115,120 120,112 125,120" style="fill:var(--bad)"/>
+      <text x="380" y="141" text-anchor="middle" font-size="11" style="fill:var(--bad)">역방향은 사실상 불가능</text>
+    </svg>
+    </div>
+    <figcaption>개인키만 잘 지키면 됩니다. 공개키와 주소는 개인키에서 나오지만, 그것들로 개인키를 되찾을 수는 없어요.</figcaption>
+  </figure>
+  <div class="prose">
+    <h3>개인키는 "보여주지 않고" 권한을 증명해요</h3>
+    <p>자산을 보낼 때 지갑은 <b>거래 내용 + 개인키 → 서명</b>을 만들어요. 네트워크로 나가는 것은 거래 내용과 서명뿐, 개인키는 나가지 않아요. 네트워크는 <b>거래 내용 + 서명 + 공개키</b>로 검증해요. 통과하면 두 가지가 확인된 거예요.</p>
+    <ul>
+      <li>해당 주소와 연결된 개인키를 가진 쪽이 거래를 승인했다.</li>
+      <li>서명한 뒤 거래 내용이 바뀌지 않았다.</li>
+    </ul>
+    <p>직접 해보면 감이 와요. 아래에서 거래 내용을 서명한 다음, <b>서명 후에 금액을 슬쩍 바꿔</b> 보세요.</p>
+  </div>
+
+  <div class="widget" id="w-sign">
+    <div class="wlbl"><b>서명 검증 시뮬레이터</b><span>실제 타원곡선 서명 대신 SHA-256으로 원리만 재현</span></div>
+    <div class="two">
+      <div>
+        <div class="field"><label for="sg-key">개인키 (지갑만 알고 있음)</label><input id="sg-key" class="mono" value="7f3a...c91e (이 값은 밖으로 나가지 않아요)" readonly></div>
+        <div class="field" style="margin-top:10px"><label for="sg-msg">거래 내용 (서명 후 바꿔보세요)</label><textarea id="sg-msg" class="mono" rows="3">0xABC…에서 0xDEF…로 10 USDT 보내기</textarea></div>
+        <div class="btn-row" style="margin-top:12px"><button class="btn primary" id="sg-sign">① 개인키로 서명</button><button class="btn" id="sg-verify" disabled>② 네트워크가 검증</button><button class="btn ghost" id="sg-reset">초기화</button></div>
+      </div>
+      <div>
+        <dl class="kv">
+          <dt>서명값</dt><dd id="sg-sig">—</dd>
+          <dt>검증 결과</dt><dd id="sg-res"><span class="pill muted">아직 서명 전</span></dd>
+        </dl>
+        <p class="note" id="sg-note">서명은 "거래 내용 + 개인키"에서 나와요. 내용이 한 글자라도 바뀌면 같은 서명이 나올 수 없어요.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>개인키를 아는 쪽이 자산을 움직여요</h3>
+    <p>블록체인은 누가 원래 주인이었는지 판단하지 않아요. <b>지금 올바른 서명을 만들 수 있는 쪽</b>만 확인해요. 그래서 개인키를 잃으면 자산이 주소에 남아 있어도 움직일 수 없고, 개인키가 유출되면 훔친 사람도 유효한 서명을 만들 수 있어요. 블록체인이 확인하는 것은 사람의 신원이 아니라 <b>서명 권한</b>이에요.</p>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li>ITGC의 <b>접근통제</b>가 블록체인에서는 곧 "누가 서명할 수 있는가"예요. 개인키(또는 키를 쓰는 수단)의 생성·보관·사용 경로가 접근권한 검토의 대상이 돼요.</li>
+    <li>서명 자체가 <b>부인방지</b> 증적이에요. 서명이 붙은 트랜잭션과 그 tx hash(04장)가 "이 권한으로 실행됐다"는 변경 불가능한 기록이 돼요.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 03 ============ -->
+<section class="ch" id="c3">
+  <div class="eyebrow">Chapter 03 <span class="tag">기초</span></div>
+  <h2>트랜잭션과 수수료 — 장부를 바꾸는 한 건의 거래</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>트랜잭션은 <b>"장부 이렇게 고쳐 주세요"라는 서명된 신청서</b> 한 장이에요. 신청서를 처리해 주는 네트워크에 내는 처리비가 <b>네트워크 수수료(가스비)</b>고, 이건 앱 이용료와는 별개예요.</p></div>
+  <div class="prose">
+    <p>블록체인에서 자산을 보낸다는 것은 장부에 적힌 잔고를 바꾼다는 뜻이에요. 사용자가 보는 것은 "보내기" 버튼이지만, 실제 처리 단위는 <b>서명이 붙은 트랜잭션</b>이에요. 송금뿐 아니라 토큰 사용 승인, 스마트컨트랙트 실행, NFT 발행처럼 기록을 바꾸는 작업도 각각 한 건의 트랜잭션이에요.</p>
+  </div>
+
+  <div class="widget" id="w-tx">
+    <div class="wlbl"><b>트랜잭션 한 건 따라가기</b><span>0xABC…가 0xDEF…에게 10 USDT를 보내는 경우</span></div>
+    <div class="ledgers">
+      <div><div class="cap">블록체인 장부 (잔고)</div><div class="ledger" id="tx-ledger">0xABC…  <span class="hl">100 USDT</span>   0.05 ETH
+0xDEF…  <span class="hl">  0 USDT</span>   0.00 ETH</div></div>
+      <div><div class="cap">진행 단계</div>
+        <div class="steps" id="tx-steps">
+          <div class="step on"><div class="num">1</div><div><b>지갑이 트랜잭션을 만든다</b><p>"0xABC…에서 0xDEF…로 10 USDT" — 아직 장부는 그대로.</p></div></div>
+          <div class="step"><div class="num">2</div><div><b>보내는 주소의 개인키로 서명</b><p>서명이 붙어야 네트워크가 받아줘요.</p></div></div>
+          <div class="step"><div class="num">3</div><div><b>네트워크 제출, 수수료 산정</b><p>USDT를 보내도 수수료는 이더리움의 <b>ETH</b>로 내요. ETH가 0이면 USDT가 아무리 많아도 못 보내요.</p></div></div>
+          <div class="step"><div class="num">4</div><div><b>검증 통과 → 장부 반영</b><p>0xABC… 90 USDT, 0xDEF… 10 USDT. 가스비만큼 ETH가 줄어요.</p></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:14px"><button class="btn primary" id="tx-next">다음 단계 →</button><button class="btn ghost" id="tx-reset">처음으로</button></div>
+  </div>
+
+  <div class="prose">
+    <h3>수수료는 체인의 네이티브 코인으로</h3>
+    <p>네트워크 참여자는 트랜잭션이 규칙에 맞는지 검증하고 계산을 실행한 뒤 기록해요. 이 처리 비용이 네트워크 수수료이고, 보통 그 체인의 네이티브 코인으로 내요. 이더리움은 ETH, 솔라나는 SOL, 트론은 TRX. 이더리움 위의 USDT를 보낼 때도 <b>보내는 자산은 USDT, 수수료는 ETH</b>예요.</p>
+    <p class="note">수탁형 서비스에서는 사업자가 핫월렛에 가스비용 ETH를 따로 운영하고, 고객에게는 출금 자산과 같은 통화로 고정 수수료를 받는 것이 업계 표준이에요(09장). 그래서 고객은 ETH를 따로 들고 있을 필요가 없어요.</p>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li>거래 증적의 최소 단위는 트랜잭션이에요. <b>보내는 주소·받는 주소·자산·금액·체인·수수료·성공 여부</b>가 한 건에 묶여요.</li>
+    <li>가스비는 변동비예요. 수탁형이라면 <b>수수료자금(ETH) 계정과 네트워크비용 계정</b>의 잔고 추적이 운영통제 항목이 돼요.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 04 ============ -->
+<section class="ch" id="c4">
+  <div class="eyebrow">Chapter 04 <span class="tag">기초</span></div>
+  <h2>블록·해시·컨펌 — 과거를 고치기 어려운 이유</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>블록은 <b>거래 여러 건을 묶은 상자</b>, 해시는 그 상자 내용으로 계산한 <b>지문</b>이에요. 다음 상자에는 앞 상자의 지문이 적혀 있어서, 옛날 상자 하나를 몰래 바꾸면 그 뒤에 이어진 상자들의 지문이 전부 어긋나요.</p></div>
+  <div class="prose">
+    <p>블록체인은 거래를 한 건씩 따로 보관하지 않아요. 여러 거래를 하나의 블록에 담고, 그 블록을 차례로 이어 붙여요. 각 블록에는 자기 내용의 해시와 <b>바로 앞 블록의 해시</b>가 함께 들어가요. 아래 블록 2의 거래 내용을 바꿔 보세요.</p>
+  </div>
+
+  <div class="widget" id="w-chain">
+    <div class="wlbl"><b>블록체인 시뮬레이터</b><span>내용을 고치면 해시가 바뀌고, 뒤 블록의 "이전 해시"와 어긋나요</span></div>
+    <div class="blocks" id="blocks"></div>
+    <div class="status-line"><span id="chain-status" class="pill ok">체인 정상</span><span id="chain-msg" style="color:var(--muted)">모든 블록의 이전 해시가 앞 블록의 해시와 일치해요.</span></div>
+    <div class="btn-row" style="margin-top:12px"><button class="btn" id="chain-remine">고친 블록부터 전부 다시 계산 (공격자가 해야 할 일)</button><button class="btn ghost" id="chain-reset">원래대로</button></div>
+    <p class="note" style="margin-top:12px">실제 네트워크에서는 "다시 계산"에 막대한 비용이 들고, 그 사이에도 정직한 노드들이 새 블록을 계속 붙여요. 뒤에 블록이 많이 쌓일수록 따라잡기가 불가능해져요. 그래서 과거 기록을 고치기 어렵다고 해요.</p>
+  </div>
+
+  <div class="prose">
+    <h3>컨펌 — 거래가 "충분히 확정"되는 과정</h3>
+    <p>거래가 어떤 블록에 들어갔다고 곧바로 끝은 아니에요. 그 블록 뒤에 새 블록이 쌓일수록 뒤집기 어려워져요. 서비스는 보통 <b>뒤에 몇 개의 블록이 더 쌓였는지</b>를 보고 확정 여부를 판단하고, 이를 컨펌(confirmation)이라고 불러요. 거래소나 지갑에서 입금 직후 "확인 대기"가 뜨는 이유예요.</p>
+  </div>
+  <div class="widget" id="w-conf">
+    <div class="wlbl"><b>컨펌 쌓이기</b><span>파란 블록이 내 거래가 들어간 블록, 초록이 그 뒤에 쌓인 블록</span></div>
+    <div class="conf" id="conf"></div>
+    <div class="status-line"><span id="conf-pill" class="pill warn">제출됨 · 블록 포함 대기</span><span id="conf-msg" style="color:var(--muted)">네트워크에 제출됐지만 아직 어떤 블록에도 들어가지 않았어요.</span></div>
+    <div class="btn-row" style="margin-top:12px"><button class="btn primary" id="conf-next">블록 하나 더 쌓기</button><button class="btn ghost" id="conf-reset">처음으로</button></div>
+    <p class="note" style="margin-top:12px">예시 기준: 이 시뮬레이터는 6컨펌에서 확정으로 표시해요. 실제 기준은 체인과 서비스마다 달라서, 예를 들어 어떤 수탁 원장 설계에서는 이더리움 입금을 12블록(약 3분) 확인 후 가용잔고로 전환해요.</p>
+  </div>
+
+  <div class="prose">
+    <h3>tx hash — 특정 거래를 찾는 조회번호</h3>
+    <p>블록에는 여러 거래가 함께 담기니, 한 건을 다시 찾으려면 식별자가 필요해요. 그게 <b>tx hash</b>(transaction hash)예요. 택배 운송장 번호나 은행 거래 조회번호처럼 생각하면 돼요. <code>0x8a42...f91c</code> 같은 형태고, 같은 금액을 같은 주소로 두 번 보내도 각각 다른 tx hash를 가져요.</p>
+    <p>tx hash를 블록체인 탐색기에 넣으면 보내는/받는 주소, 자산과 금액, 수수료, 성공 여부, 포함된 블록, 현재 컨펌 수를 확인할 수 있어요. 고객 문의("보냈는데 안 들어왔어요")도, 사고 조사와 의심거래 분석도 tx hash에서 시작해요.</p>
+    <p class="note">주의: tx hash가 있다고 거래가 끝났다는 뜻은 아니에요. tx hash는 조회번호일 뿐이고, 실제로는 블록에 포함됐는지·성공했는지·얼마나 확정됐는지를 함께 봐야 해요.</p>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li>입출금 증적에는 <b>tx hash · 주소 · 체인 · 자산 · 금액</b>이 남아야 해요. tx hash 하나로 온체인 원본 기록과 대조할 수 있어요.</li>
+    <li>"확정 기준(컨펌 수)"이 시스템 어디에 정의돼 있고, <b>미확정 상태를 어떻게 다루는지</b>(실패로 단정하지 않는지)가 설계 검토 포인트예요.</li>
+  </ul></div>
+</section>
+<!-- ============ 05 ============ -->
+<section class="ch" id="c5">
+  <div class="eyebrow">Chapter 05 <span class="tag">기초</span></div>
+  <h2>체인은 네트워크마다 따로 존재해요</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>이더리움·솔라나·트론은 <b>서로 다른 나라의 우체국</b>이에요. "USDT"라는 같은 이름의 소포도 어느 우체국 장부에 적혔느냐에 따라 전혀 다른 물건이고, 다른 우체국 주소로 보내면 찾기 어려워요.</p></div>
+  <div class="prose">
+    <p>해시로 이어진 블록의 줄은 네트워크마다 따로 있어요. 이더리움 메인넷의 블록은 세폴리아 테스트넷이나 솔라나의 블록과 이어지지 않아요. 같은 이더리움 계열이라도 <b>메인넷</b>(실제 자산)과 <b>테스트넷</b>(개발·테스트용)은 다른 체인이고, 테스트넷에서 받은 ETH는 메인넷 ETH와 별개예요.</p>
+    <p>USDT 같은 토큰도 체인마다 따로 존재해요. 앱에서는 모두 "USDT"로 보여도 실제로는 이더리움 장부의 USDT, 트론 장부의 USDT, 솔라나 장부의 USDT가 서로 다른 토큰이에요. 그래서 입출금할 때는 <b>무슨 자산인가 + 어느 체인의 자산인가</b>를 함께 확인해야 해요. 체인을 고른다는 것은 전송 경로가 아니라 <b>어느 장부에 기록할지</b>를 고르는 일이에요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 210" role="img" aria-label="체인별로 분리된 블록 줄과 각 체인의 USDT">
+      <g>
+        <text x="20" y="30" class="t" font-size="13" font-weight="600">Ethereum Mainnet</text>
+        <text x="180" y="30" class="m" font-size="11">수수료 ETH · 주소 0x…</text>
+        <rect x="20" y="42" width="60" height="30" rx="5" class="box-g"/><rect x="100" y="42" width="60" height="30" rx="5" class="box-g"/><rect x="180" y="42" width="60" height="30" rx="5" class="box-g"/><rect x="260" y="42" width="60" height="30" rx="5" class="box-g"/>
+        <g class="ln-g"><line x1="80" y1="57" x2="100" y2="57"/><line x1="160" y1="57" x2="180" y2="57"/><line x1="240" y1="57" x2="260" y2="57"/></g>
+        <text x="50" y="62" text-anchor="middle" class="g" font-size="10">A</text><text x="130" y="62" text-anchor="middle" class="g" font-size="10">B</text><text x="210" y="62" text-anchor="middle" class="g" font-size="10">C</text><text x="290" y="62" text-anchor="middle" class="g" font-size="10">D</text>
+        <rect x="360" y="40" width="120" height="34" rx="17" class="box-a"/><text x="420" y="61" text-anchor="middle" class="a" font-size="12" font-weight="600">USDT (ERC-20)</text>
+      </g>
+      <g>
+        <text x="20" y="102" class="t" font-size="13" font-weight="600">Tron Mainnet</text>
+        <text x="180" y="102" class="m" font-size="11">수수료 TRX · 주소 T…</text>
+        <rect x="20" y="114" width="60" height="30" rx="5" class="box-g"/><rect x="100" y="114" width="60" height="30" rx="5" class="box-g"/><rect x="180" y="114" width="60" height="30" rx="5" class="box-g"/><rect x="260" y="114" width="60" height="30" rx="5" class="box-g"/>
+        <g class="ln-g"><line x1="80" y1="129" x2="100" y2="129"/><line x1="160" y1="129" x2="180" y2="129"/><line x1="240" y1="129" x2="260" y2="129"/></g>
+        <text x="50" y="134" text-anchor="middle" class="g" font-size="10">1</text><text x="130" y="134" text-anchor="middle" class="g" font-size="10">2</text><text x="210" y="134" text-anchor="middle" class="g" font-size="10">3</text><text x="290" y="134" text-anchor="middle" class="g" font-size="10">4</text>
+        <rect x="360" y="112" width="120" height="34" rx="17" class="box-a"/><text x="420" y="133" text-anchor="middle" class="a" font-size="12" font-weight="600">USDT (TRC-20)</text>
+      </g>
+      <g>
+        <text x="20" y="174" class="t" font-size="13" font-weight="600">Ethereum Sepolia (테스트넷)</text>
+        <rect x="20" y="186" width="60" height="20" rx="5" class="box"/><rect x="100" y="186" width="60" height="20" rx="5" class="box"/><rect x="180" y="186" width="60" height="20" rx="5" class="box"/>
+        <g class="ln"><line x1="80" y1="196" x2="100" y2="196"/><line x1="160" y1="196" x2="180" y2="196"/></g>
+        <text x="260" y="200" class="m" font-size="11">실제 자산 아님 · 메인넷과 연결되지 않음</text>
+      </g>
+      <line x1="520" y1="40" x2="520" y2="150" class="ln-b"/>
+      <text x="640" y="62" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--bad)">같은 "USDT"지만</text>
+      <text x="640" y="82" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--bad)">서로 다른 장부의 다른 토큰</text>
+      <text x="640" y="112" text-anchor="middle" class="m" font-size="11">이더리움 USDT 입금 주소에</text>
+      <text x="640" y="128" text-anchor="middle" class="m" font-size="11">트론 네트워크로 보내면</text>
+      <text x="640" y="144" text-anchor="middle" class="m" font-size="11">회수 못 할 수 있음</text>
+    </svg>
+    </div>
+    <figcaption>체인마다 거래 규칙, 주소 형식, 처리 속도, 확정 기준, 수수료 코인이 달라요.</figcaption>
+  </figure>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li>테스트 환경 통제: 테스트 자동화가 <b>메인넷을 건드릴 수 없도록</b> 차단되어 있는지(예: 알파 도메인 외 실행 거부, MAINNET 차단) 확인해요.</li>
+    <li>오입금(미지원 토큰·잘못된 네트워크) 처리 정책과 그 복구 절차가 <b>원장 밖 수동 작업</b>이라면 별도 승인·기록 통제가 필요해요.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 06 ============ -->
+<section class="ch" id="c6">
+  <div class="eyebrow">Chapter 06 <span class="tag">기초</span></div>
+  <h2>지갑은 자산을 담는 곳이 아니라, 자산을 다루는 도구예요</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>지갑 앱은 <b>인터넷뱅킹 앱</b>과 비슷해요. 돈은 앱 안이 아니라 장부(블록체인)에 있고, 앱은 장부를 조회해서 보여주고 서명·제출을 편하게 해줄 뿐이에요. 앱을 지워도 돈은 그대로예요. 대신 지갑이 실제로 쥐고 있는 것은 <b>개인키(도장)</b>예요.</p></div>
+  <div class="prose">
+    <p>가상자산은 지갑 앱 안에 들어 있지 않아요. 블록체인 장부에 "어떤 주소가 무엇을 얼마나 가지고 있는지"가 기록돼 있고, 지갑 앱은 그 주소의 정보를 노드에 요청해 보여줘요. 그래서 앱을 삭제해도 자산은 사라지지 않고, 같은 개인키나 복구 구문으로 다시 연결하면 같은 주소와 잔고가 다시 보여요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 200" role="img" aria-label="지갑 앱과 블록체인 장부의 관계">
+      <rect x="30" y="30" width="200" height="140" rx="12" class="box-a"/>
+      <text x="130" y="58" text-anchor="middle" class="a" font-size="14" font-weight="700">지갑 앱</text>
+      <text x="130" y="82" text-anchor="middle" class="t" font-size="12">잔고·내역 표시</text>
+      <text x="130" y="100" text-anchor="middle" class="t" font-size="12">거래 만들기 · 서명</text>
+      <text x="130" y="118" text-anchor="middle" class="t" font-size="12">서명된 거래 제출</text>
+      <rect x="60" y="132" width="140" height="26" rx="13" class="box-b"/>
+      <text x="130" y="149" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:var(--bad)">보관: 개인키(또는 키 수단)</text>
+
+      <rect x="530" y="30" width="200" height="140" rx="12" class="box-g"/>
+      <text x="630" y="58" text-anchor="middle" class="g" font-size="14" font-weight="700">블록체인 장부</text>
+      <text x="630" y="86" text-anchor="middle" class="mono t" font-size="12">0xABC…</text>
+      <text x="630" y="106" text-anchor="middle" class="mono t" font-size="12">100 USDT · 0.5 ETH</text>
+      <text x="630" y="126" text-anchor="middle" class="m" font-size="11">거래 내역 전부</text>
+      <text x="630" y="150" text-anchor="middle" class="m" font-size="11">자산은 여기 있음</text>
+
+      <path d="M230 80 L530 80" class="ln-a"/><polygon points="524,75 532,80 524,85" style="fill:var(--accent)"/>
+      <text x="380" y="72" text-anchor="middle" class="a" font-size="11">"0xABC… 잔고 알려줘" (조회)</text>
+      <path d="M530 120 L230 120" class="ln-g"/><polygon points="236,115 228,120 236,125" style="fill:var(--chain)"/>
+      <text x="380" y="138" text-anchor="middle" class="g" font-size="11">장부에서 읽은 결과 (응답)</text>
+      <text x="380" y="188" text-anchor="middle" class="m" font-size="11.5">앱 삭제 → 장부는 그대로 → 같은 키로 복구 → 같은 잔고</text>
+    </svg>
+    </div>
+  </figure>
+  <div class="prose">
+    <p>지갑 앱은 잔고 표시, 거래 내역 조회, 개인키·복구 구문 보관, 거래 만들기, 사용자가 승인한 거래에 서명, 네트워크 제출 같은 기능을 제공해요. 모든 지갑이 이 기능을 다 맡는 건 아니에요. 어떤 지갑은 키를 기기에 보관하고, 어떤 지갑은 하드웨어 장치에 서명을 요청하고, 수탁형 서비스에서는 사업자가 키와 서명을 관리하고 앱은 결과만 보여주기도 해요.</p>
+    <p><b>여기서 수탁과 비수탁이 갈려요.</b> 화면이 아니라, 실제 서명 권한을 누가 통제하는지가 차이를 가르죠. 다음 장에서 본격적으로 다뤄요.</p>
+  </div>
+</section>
+
+<!-- ============ 07 ============ -->
+<section class="ch" id="c7">
+  <div class="eyebrow">Chapter 07 <span class="tag">지갑 유형</span></div>
+  <h2>비수탁 vs 수탁 — 버튼 뒤에서 누가 서명하는가</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p><b>비수탁</b>은 내 금고에 내 열쇠로 — 열쇠를 잃으면 아무도 못 열어요. <b>수탁</b>은 은행 대여금고 — 은행이 열쇠와 장부를 관리하고, 나는 "꺼내 주세요"라고 요청해요. 화면에는 둘 다 똑같이 "보내기" 버튼이 있어요.</p></div>
+  <div class="prose">
+    <p>지갑 구조는 앱 화면만으로는 판단할 수 없어요. 같은 잔고, 같은 보내기 버튼 뒤에서 <b>실제 자산이 사용자 주소에 있는지 사업자 주소에 있는지</b>, <b>누가 서명하는지</b>, <b>사업자가 사용자 승인 없이도 옮길 수 있는지</b>가 다를 수 있어요. 판단 기준은 이 세 가지예요.</p>
+  </div>
+  <div class="tbl-wrap">
+  <table class="cmp">
+    <tr><th>구분</th><th class="u">비수탁 지갑 (사용자 통제)</th><th class="o">수탁형 지갑 (사업자 통제)</th></tr>
+    <tr><td>자산 위치</td><td><span class="u">사용자별 온체인 주소</span></td><td><span class="o">사업자가 관리하는 지갑</span> (핫/콜드월렛)</td></tr>
+    <tr><td>잔고의 기준</td><td>블록체인 장부</td><td>사업자의 <span class="o">내부 수탁원장</span> (고객별 몫)</td></tr>
+    <tr><td>"보내기"의 의미</td><td>사용자가 <span class="u">직접 서명</span>해 온체인 이전</td><td>사업자에게 <span class="o">이전을 요청</span> → 사업자가 서명</td></tr>
+    <tr><td>사업자 역할</td><td>화면·주소 확인·위험 경고·브로드캐스트 보조</td><td>잔고·한도·위험 확인 → 서명·전송 → 원장 반영</td></tr>
+    <tr><td>단독 이전 가능성</td><td><span class="u">사업자 단독 불가</span></td><td><span class="o">사업자가 승인·보류·실행 가능</span></td></tr>
+    <tr><td>내부 고객 간 송금</td><td>항상 온체인 거래 (tx hash 생김)</td><td>내부 원장만 바뀜 (온체인 흔적 없을 수 있음)</td></tr>
+    <tr><td>키 분실·오송금 위험</td><td>사용자가 부담 → 보호 기능이 중요</td><td>사업자가 운영 절차로 관리</td></tr>
+    <tr><td>규제 관점</td><td>사업자에게 <b>독립적 통제권</b>이 없으면 VASP 신고 대상 아닐 수 있음</td><td>가상자산사업자(VASP) 신고 · ISMS · AML 체계 필요</td></tr>
+  </table>
+  </div>
+
+  <div class="widget" id="w-cls">
+    <div class="wlbl"><b>지갑 판별기</b><span>어떤 서비스든 이 세 질문으로 성격을 가를 수 있어요</span></div>
+    <div class="qs">
+      <div class="q"><span>① 온체인 자산이 어디에 있나요?</span><div class="seg" data-q="1"><button data-v="u">사용자별 주소</button><button data-v="o">사업자 통합 지갑</button></div></div>
+      <div class="q"><span>② 이전할 때 누가 서명하나요?</span><div class="seg" data-q="2"><button data-v="u">사용자 승인·서명</button><button data-v="o">사업자가 대신 서명</button></div></div>
+      <div class="q"><span>③ 사업자가 사용자 승인 없이 혼자 옮길 수 있나요?</span><div class="seg" data-q="3"><button data-v="u">불가능</button><button data-v="o">가능</button></div></div>
+    </div>
+    <div class="verdict" id="cls-verdict"><b>세 질문에 답해 보세요</b>판정은 명칭이나 기술 이름이 아니라 실제 통제 구조로 내려요.</div>
+  </div>
+
+  <div class="prose">
+    <h3>"보호 기능이 있으면 수탁 아닌가요?" — 경계 긋기</h3>
+    <p>비수탁 지갑을 일반 이용자에게 제공하려면 피싱 주소 경고, 제재 주소 차단, 복구 지원, 브로드캐스트 보조 같은 <b>보호 기능</b>이 필요해요. 그런데 보호 기능이 있다는 사실 자체가 사업자의 자산 통제를 뜻하진 않아요. 확인할 것은 <b>그 기능이 사용자 승인 없는 자산 이전 권한으로 이어지는가</b>예요.</p>
+    <ul>
+      <li><b>위험 경고</b> — 사용자가 위험을 인지하고 승인하도록 돕는 기능. 통제권과 무관.</li>
+      <li><b>고위험 주소 차단</b> — 피싱·제재 대응. 기준이 명확해야 하고, 사업자가 자산을 다른 주소로 옮기는 권한과는 구분.</li>
+      <li><b>복구 기능</b> — 접근권 상실 방지 절차. 평시 사용자 인증 없이 자산을 옮기는 경로와 분리되어야 함.</li>
+      <li><b>브로드캐스트 보조</b> — 사용자가 승인한 거래를 전달하는 것. 사업자가 거래 내용을 정하거나 승인 없이 전송하는 것과 다름.</li>
+    </ul>
+    <p>해외 사례도 한 가지 방식만 쓰지 않아요. MetaMask는 시드 구문을 사용자가 직접 관리하고, Bitkey는 2-of-3 다중서명(앱 키·하드웨어 키·서버 키, 서버 단독 이동 불가)으로 통제권과 복구를 함께 잡고, Coinbase Smart Wallet은 패스키·스마트 계정으로 시드 구문 부담을 줄이고, Privy·Turnkey는 Enclave·키 분할·정책 엔진을 써요. 기술 이름이 아니라 <b>사업자가 혼자 유효한 서명을 만들 수 있는가</b>가 기준이에요.</p>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점 · 규제</div><ul>
+    <li>FIU 신고매뉴얼은 개인 암호키 보관 프로그램만 제공할 뿐 <b>독립적 통제권</b>이 없어 이전·보관·교환에 관여하지 않는 경우를 사업자 범위에서 제외할 수 있다고 설명해요. FATF도 VASP 요소를 <b>① 영업으로 ② 고객을 대신하여 ③ 가상자산 활동을 적극 촉진</b>으로 봐요.</li>
+    <li>따라서 비수탁 주장의 근거는 "키를 전혀 보관하지 않는다"가 아니라 <b>"보관은 있어도 단독 사용 경로는 없다"</b>를 기술 구조·권한 설계·운영 절차·로그로 설명·검증할 수 있는가예요.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 08 ============ -->
+<section class="ch" id="c8">
+  <div class="eyebrow">Chapter 08 <span class="tag">지갑 유형</span></div>
+  <h2>비수탁 지갑의 송금 과정 — 사용자 없이는 서명이 완성되지 않아요</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>사업자가 보관하는 것은 <b>잠긴 봉투 속 도장</b>이에요. 봉투를 여는 열쇠 조각은 사용자 인증에서만 나오고, 여는 장소는 <b>봉인된 방(Enclave)</b> 하나뿐이며 그 방에서 실행되는 코드는 미리 등록된 것만 허용돼요. 사업자 서버에 저장된 것만으로는 도장을 꺼낼 수 없어요.</p></div>
+  <div class="prose">
+    <p>대표적인 모바일 비수탁 지갑은 개인키를 사용자 기기 안에 보관하고, 사용자가 승인하면 같은 기기에서 서명해요. 대중 서비스에서는 기기 변경·인증수단 분실로 접근권을 잃는 상황이 흔하기 때문에, <b>암호화된 개인키 봉투를 사업자가 보관하되 사업자 혼자서는 열 수 없게</b> 설계하는 방식도 있어요. 아래는 그런 구조의 송금 흐름 예시예요(토스월렛 구조를 단순화).</p>
+  </div>
+  <div class="widget" id="w-nc">
+    <div class="wlbl"><b>비수탁 송금 플레이어</b><span>사용자 → 앱 → 서비스 → 플랫폼 → 서명 → 네트워크</span></div>
+    <div class="pipe" id="nc-pipe">
+      <div data-i="0"><b>사용자·앱</b>인증값 생성</div>
+      <div data-i="1"><b>Wallet Backend</b>서비스 계층</div>
+      <div data-i="2"><b>Wallet Platform</b>검증·오케스트레이션</div>
+      <div data-i="3" class="lock"><b>Signer (Enclave)</b>봉투 열고 서명</div>
+      <div data-i="4"><b>Network Platform</b>브로드캐스트·추적</div>
+      <div data-i="5"><b>블록체인</b>블록 포함·확정</div>
+    </div>
+    <div class="steps" id="nc-steps">
+      <div class="step"><div class="num">1</div><div><span class="who">사용자 · 앱(Native)</span><b>사용자가 송금을 승인하고 인증해요</b><p>인증에서 만들어지는 값(authValue)은 기기 안에서 생성·보관돼요. 앱은 이 값을 평문으로 서버에 보내지 않고, Enclave의 공개키로 <b>암호화한 package</b>만 보내요.</p></div></div>
+      <div class="step"><div class="num">2</div><div><span class="who">Wallet Backend</span><b>서비스 계층이 요청 상태를 기록해요</b><p>토스 유저 기준 지갑 상태(없음·생성 중·사용 가능·복구 필요)와 출금 요청 진행 상태를 관리해요. 평문 인증값·개인키는 보지 못하고, 받은 package를 플랫폼으로 넘겨요.</p></div></div>
+      <div class="step"><div class="num">3</div><div><span class="who">Wallet Platform</span><b>서명 전 검증이 먼저예요</b><p>계정·주소·소유권, 멱등키(같은 요청 두 번 방지), nonce(주소당 순번)를 확인해요. 여기서 실패하면 Signer까지 가지 않아요.</p></div></div>
+      <div class="step"><div class="num">4</div><div><span class="who">Signer · TEE-KMS (Enclave)</span><b>봉인된 환경에서만 봉투가 열려요</b><p>암호화된 개인키 봉투를 여는 데는 사용자 인증값 + 미리 등록된 Enclave 코드(PCR0로 식별) + 허용 정책이 함께 필요해요. 평문 키는 Enclave 밖으로 나가지 않고, <b>서명 결과만</b> 돌려줘요. 정책 변경은 분리된 m-of-n 승인이 필요하고 키 호출 이력이 남아요.</p></div></div>
+      <div class="step"><div class="num">5</div><div><span class="who">Network Platform</span><b>서명 후에도 한 번 더 검증하고 내보내요</b><p>서명자·chainId·전송 전용 여부를 재검증한 뒤 노드로 브로드캐스트하고 온체인 상태(pending → confirmed → finalized / failed)를 추적해요.</p></div></div>
+      <div class="step"><div class="num">6</div><div><span class="who">블록체인</span><b>블록에 포함되고 컨펌이 쌓여요</b><p>상태 이벤트가 Platform → Backend → 앱으로 돌아와요. 사용자는 tx hash로 탐색기에서 직접 확인할 수 있어요.</p></div></div>
+    </div>
+    <div class="btn-row" style="margin-top:14px"><button class="btn primary" id="nc-next">다음 단계 →</button><button class="btn ghost" id="nc-reset">처음으로</button></div>
+  </div>
+
+  <div class="prose">
+    <h3>복구는 평시 경로와 분리돼요</h3>
+    <p>복구 수단이 있다는 사실만으로 사업자가 평시에 자산을 단독으로 옮길 수 있다고 보긴 어려워요. 핵심은 <b>복구 경로가 평시 사용 경로와 다른 실행 조건·증적 체계</b> 아래에서만 작동하는지예요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 210" role="img" aria-label="암호화된 키 봉투를 여는 세 경로">
+      <rect x="300" y="20" width="160" height="60" rx="10" class="box-b"/>
+      <text x="380" y="45" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--bad)">암호화된 개인키 봉투</text>
+      <text x="380" y="64" text-anchor="middle" class="m" font-size="11">사업자 보관 · 단독으로는 못 엶</text>
+      <rect x="20" y="130" width="220" height="64" rx="10" class="box-a"/>
+      <text x="130" y="152" text-anchor="middle" class="a" font-size="13" font-weight="700">평시 사용</text>
+      <text x="130" y="170" text-anchor="middle" class="t" font-size="11">사용자 인증값 + 등록된 Enclave 코드</text>
+      <text x="130" y="185" text-anchor="middle" class="m" font-size="10.5">허용 코드(PCR0)만 봉투 처리</text>
+      <rect x="270" y="130" width="220" height="64" rx="10" class="box-w"/>
+      <text x="380" y="152" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--warn)">일반 복구 / dr 복구</text>
+      <text x="380" y="170" text-anchor="middle" class="t" font-size="11">본인확인 후 새 인증수단 등록</text>
+      <text x="380" y="185" text-anchor="middle" class="m" font-size="10.5">dr: 별도 복구 코드 + 수기 승인</text>
+      <rect x="520" y="130" width="220" height="64" rx="10" class="box-o"/>
+      <text x="630" y="152" text-anchor="middle" class="o" font-size="13" font-weight="700">비상 복구</text>
+      <text x="630" y="170" text-anchor="middle" class="t" font-size="11">클라우드 자체를 신뢰 못 할 때만</text>
+      <text x="630" y="185" text-anchor="middle" class="m" font-size="10.5">봉인된 오프라인 키 · 승인 절차(11장)</text>
+      <g class="ln"><path d="M330 80 C 330 110, 130 100, 130 130"/><path d="M380 80 L380 130"/><path d="M430 80 C 430 110, 630 100, 630 130"/></g>
+      <text x="200" y="104" text-anchor="middle" class="m" font-size="10.5">다른 조건 · 다른 코드 · 다른 증적</text>
+    </svg>
+    </div>
+    <figcaption>세 경로는 서로 다른 실행 조건과 승인·기록 체계를 가져요. "보관은 있으나 단독 사용 경로는 없다"를 설명하는 그림이에요.</figcaption>
+  </figure>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li><b>접근통제</b>: Enclave 허용 코드(PCR0) 목록과 정책 변경의 m-of-n 승인, 키 호출 이력(누가·언제·어느 코드로)이 핵심 증적이에요.</li>
+    <li><b>변경관리</b>: Enclave 코드 배포는 곧 PCR0 변경이에요. 코어와 같은 배포 승인 경로(요건정의 → 개발 → QA → 인수테스트 → 배포 승인)를 타는지, 긴급 배포의 후승인 체인이 있는지 확인해요.</li>
+    <li><b>이중송금 방지</b>: 멱등키·주소당 단일 진행(single-flight) nonce·전송 전용(transfer-only) 제한처럼 <b>구조적으로 막는 장치</b>와 이를 실증한 QA 시나리오가 있는지 봐요.</li>
+  </ul></div>
+</section>
+<!-- ============ 09 ============ -->
+<section class="ch" id="c9">
+  <div class="eyebrow">Chapter 09 <span class="tag">지갑 유형</span></div>
+  <h2>수탁형 지갑의 입출금 과정 — 두 개의 장부가 함께 움직여요</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>수탁형은 <b>은행 예금</b>과 같아요. 내 돈은 은행 금고(사업자 지갑)에 다른 고객 돈과 섞여 있고, "내 잔고 100"은 은행 장부(내부 수탁원장)의 기록이에요. 같은 은행 고객끼리 보내면 금고는 그대로고 장부만 바뀌고, 외부로 보낼 때만 실제로 돈이 금고를 나가요.</p></div>
+  <div class="prose">
+    <p>수탁형에서는 사용자가 출금을 요청하고, 사업자가 잔고·조건을 확인한 뒤 <b>자신이 관리하는 서명 권한</b>으로 온체인 이전을 실행해요. 앱에 보이는 잔고는 온체인 값이 아니라 <b>내부 수탁원장</b>의 고객별 몫이에요. 그래서 수탁형에는 항상 두 장부가 있어요.</p>
+    <ul>
+      <li><b>블록체인 장부</b>: 주소별 잔고. 입금주소·핫월렛·콜드월렛 같은 사업자 관리 주소에 자산이 실제로 어디 있는지.</li>
+      <li><b>내부 수탁원장</b>: 고객별 잔고. 누구 몫이 얼마인지. 가용 / 미확정 / 잠금 세 칸으로 나눠요.</li>
+    </ul>
+    <p>아래 플레이어로 외부 입금 → 재집금 → 외부 출금이 두 장부에 어떻게 다르게 기록되는지 따라가 보세요.</p>
+  </div>
+
+  <div class="widget" id="w-cu">
+    <div class="wlbl"><b>수탁 원장 플레이어</b><span>고객 A에게 30 USDT가 외부에서 들어오고, 나중에 20 USDT를 외부로 보내는 경우</span></div>
+    <div class="ledgers">
+      <div><div class="cap">블록체인 장부 (사업자 관리 주소)</div><div class="ledger" id="cu-chain"></div></div>
+      <div><div class="cap">내부 수탁원장 (고객 A)</div><div class="ledger" id="cu-book"></div></div>
+    </div>
+    <div class="steps" id="cu-steps" style="margin-top:14px">
+      <div class="step"><div class="num">1</div><div><span class="who">외부 → 입금주소</span><b>외부 지갑이 고객 A 전용 입금주소로 30 USDT 전송</b><p>온체인: 입금주소 +30. 원장: 아직 반영 전 — 블록체인에서 도착을 확인한 뒤에만 기록해요("외부 확인 먼저, 원장 나중").</p></div></div>
+      <div class="step"><div class="num">2</div><div><span class="who">정책 검증</span><b>입금 4단계 검증 — KYT · OFAC · Travel Rule · FDS</b><p>보낸 주소가 범죄·제재와 연관됐는지, 거래소 간 송수신자 정보, 이상거래를 확인해요. 은행이 대신해 주던 일을 수탁에서는 직접 해요. 하나라도 거부되면 원장에 반영하지 않아요.</p></div></div>
+      <div class="step"><div class="num">3</div><div><span class="who">원장 · 미확정</span><b>고객 A 미확정잔고 +30</b><p>블록 확인이 끝나기 전이라 아직 쓸 수 없어요. "결과를 알 수 없는 상태를 실패로 단정하지 않는다"는 원칙 그대로예요.</p></div></div>
+      <div class="step"><div class="num">4</div><div><span class="who">원장 · 확정</span><b>컨펌 충족(예: 12블록, 약 3분) → 미확정 -30, 가용 +30</b><p>이제부터 고객이 출금·송금에 쓸 수 있어요.</p></div></div>
+      <div class="step"><div class="num">5</div><div><span class="who">재집금 (Sweep)</span><b>입금주소 → 핫월렛으로 30 USDT 이동</b><p>온체인만 바뀌고 고객 잔고는 그대로예요. 보관 위치만 바꾸는 사업자 내부 거래이고, 가스비는 회사가 부담해요. 수천 개 입금주소를 배칭(일괄 전송)으로 모아 가스비를 크게 줄여요.</p></div></div>
+      <div class="step"><div class="num">6</div><div><span class="who">출금 요청 · 8단계 검증</span><b>고객 A가 외부 주소로 20 USDT 출금 요청</b><p>고객 상태 · 한도 · FDS + 수신 주소 통제(화이트리스트) · KYT · OFAC · Travel Rule · 고액 승인. 통과하면 원장이 가용 -21 → 잠금 +21(수수료 1 USDT 포함). 총액은 그대로, 칸만 이동. 만료 30분을 걸어둬요.</p></div></div>
+      <div class="step"><div class="num">7</div><div><span class="who">TEE-KMS 서명 · 핫월렛 전송</span><b>사업자 관리 키로 서명 후 핫월렛 → 외부 주소 20 USDT</b><p>서명은 원장이 아니라 보안 격리 환경(TEE-KMS)에서 이뤄지고, 원장은 결과만 기록해요. 온체인 tx hash가 부인방지 증거가 돼요.</p></div></div>
+      <div class="step"><div class="num">8</div><div><span class="who">원장 · 확정</span><b>블록 확인 → 잠금 -21 최종 차감, 수수료 수입 +1</b><p>실패·서명 오류·30분 만료 시에는 잠금 -21 → 가용 +21로 전액 복원돼요. AML이 의심 판정하면 30분 만료를 면제하고 14일 심사 대기로 넘어가요.</p></div></div>
+    </div>
+    <div class="btn-row" style="margin-top:14px"><button class="btn primary" id="cu-next">다음 단계 →</button><button class="btn ghost" id="cu-reset">처음으로</button></div>
+  </div>
+
+  <div class="prose">
+    <h3>핫월렛과 콜드월렛 — 보관 주소를 역할로 나눠요</h3>
+    <p>입금주소는 <b>수신 전용</b>(고객마다 하나, 수천~수만 개), 핫월렛은 <b>전송 전용</b>(소수, 출금·환불의 출발지), 콜드월렛은 <b>보관 전용</b>(오프라인, 법적으로 전체 자산의 70% 이상). 핫월렛 소수 주소에서만 서명하면 키 관리 범위가 좁아져 보안이 강해지고, 입금주소마다 가스비를 넣어줄 필요도 없어요. 핫 비율이 밴드(예: 25~35%)를 벗어나면 핫↔콜드 재배치가 자동으로 걸리고, 그 이동은 온체인에 남지만 고객별 잔고는 바뀌지 않아요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 230" role="img" aria-label="수탁형 자금 경로 맵">
+      <rect x="20" y="90" width="110" height="50" rx="8" class="box"/><text x="75" y="112" text-anchor="middle" class="t" font-size="12" font-weight="600">외부 지갑</text><text x="75" y="128" text-anchor="middle" class="m" font-size="10.5">고객·거래소</text>
+      <rect x="190" y="30" width="130" height="50" rx="8" class="box-g"/><text x="255" y="52" text-anchor="middle" class="g" font-size="12" font-weight="600">입금주소 ×N</text><text x="255" y="68" text-anchor="middle" class="m" font-size="10.5">수신 전용 · 고객별</text>
+      <rect x="400" y="30" width="130" height="50" rx="8" class="box-o"/><text x="465" y="52" text-anchor="middle" class="o" font-size="12" font-weight="600">핫월렛</text><text x="465" y="68" text-anchor="middle" class="m" font-size="10.5">전송 전용 · 소수</text>
+      <rect x="400" y="150" width="130" height="50" rx="8" class="box-w"/><text x="465" y="172" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--warn)">콜드월렛</text><text x="465" y="188" text-anchor="middle" class="m" font-size="10.5">보관 전용 · 오프라인 70%+</text>
+      <rect x="610" y="90" width="130" height="50" rx="8" class="box"/><text x="675" y="112" text-anchor="middle" class="t" font-size="12" font-weight="600">외부 수신주소</text><text x="675" y="128" text-anchor="middle" class="m" font-size="10.5">출금·환불 대상</text>
+      <g class="ln-g"><path d="M130 105 L190 60"/><path d="M320 55 L400 55"/></g>
+      <polygon points="184,58 192,58 187,66" style="fill:var(--chain)"/><polygon points="394,50 402,55 394,60" style="fill:var(--chain)"/>
+      <text x="150" y="70" class="g" font-size="10.5">① 입금</text><text x="335" y="47" class="g" font-size="10.5">② 재집금(배칭)</text>
+      <g class="ln-o"><path d="M530 55 C 580 55, 600 90, 610 105"/></g><polygon points="604,100 612,106 603,110" style="fill:var(--op)"/>
+      <text x="575" y="72" class="o" font-size="10.5">③ 출금·환불</text>
+      <g class="ln"><path d="M450 80 L450 150"/><path d="M480 150 L480 80"/></g>
+      <polygon points="445,144 450,152 455,144" style="fill:var(--line-2)"/><polygon points="475,86 480,78 485,86" style="fill:var(--line-2)"/>
+      <text x="545" y="118" text-anchor="start" class="m" font-size="10.5">④ 리밸런싱 (핫 25~35% 밴드)</text>
+      <text x="380" y="222" text-anchor="middle" class="m" font-size="11">①~④ 모두 온체인 거래 · 고객별 잔고가 바뀌는 것은 ①의 확정과 ③뿐</text>
+    </svg>
+    </div>
+  </figure>
+  <div class="prose">
+    <h3>대사 — 두 장부가 맞는지 매일 확인해요</h3>
+    <p>핵심 검증식은 <b>고객 잔고 합 = 블록체인 자산 합</b>이에요. 원장 데이터(DW 적재)와 블록체인 노드에서 직접 조회한 핫·콜드·입금주소 잔고를 매일 정해진 시각에 대조하고, 수수료 수입과 네트워크비용(ETH)도 함께 검증해요. 불일치가 나면 즉시 출금을 중단하고 원인을 조사해요. 블록체인은 24시간 돌아가므로 은행 영업일 대신 임의의 컷오프 시각을 정해요.</p>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li><b>운영통제</b>: 일일 대사(원장 합 = 온체인 합), 잠금 만료 배치(30분), 재처리 배치(최대 3회 후 에스컬레이션), 핫/콜드 비율 모니터링 — 각각 실행 증적과 예외 처리 기록을 확인해요.</li>
+    <li><b>접근통제</b>: 원장에 직접 기장할 수 있는 시스템을 최소(예: 입출금 시스템·내부 송금 처리 2개)로 제한하고, 모든 요청에 <b>정책 판단 ID</b>를 붙여 "검증을 통과했다"는 증거를 남기는지 봐요.</li>
+    <li><b>완전성·정확성</b>: 원자적 처리, 동일 TXID 중복 무시, 차변=대변, 음수 잔고 금지, 삭제 불가 감사 이력 — 원장 설계 원칙이 실제로 구현·테스트됐는지.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="ch" id="c10">
+  <div class="eyebrow">Chapter 10 <span class="tag">지갑 유형</span></div>
+  <h2>수탁형 결제와 정산 — 결제 시점과 정산 시점은 달라요</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>카드 결제와 같아요. 결제 순간에는 "승인"만 나고, 가맹점에 돈이 가는 건 나중 <b>정산일</b>이에요. 수탁형 결제는 카드사 승인 자리에 <b>수탁 원장 잔액 확인</b>이 들어가요.</p></div>
+  <div class="prose">
+    <p>온라인 결제는 결제 시점과 정산 시점이 분리돼요. <b>결제 시점</b>에는 결제 가능 여부를 확인하고 성공을 확정하고, <b>정산 시점</b>에는 성공 건을 기준으로 가맹점에 지급할 금액과 방식을 확정해요. 수탁형 지갑 결제의 기본형은 <b>수탁 원장 기반 결제</b>예요. 서버가 인증·잔액·한도·위험을 확인하고, 문제가 없으면 원장에서 결제 금액을 차감하거나 hold해요. 이 시점에 결제 성공이 결정돼요.</p>
+  </div>
+  <div class="tbl-wrap">
+  <table class="cmp">
+    <tr><th>Phase</th><th>결제 성공 기준</th><th>가맹점 수취 방식</th><th>설명</th></tr>
+    <tr><td>Phase 1 · 원화 정산형</td><td>수탁 원장 잔액 차감 또는 hold</td><td>원화 정산</td><td>사용자는 가상자산으로 결제, 가맹점은 기존 PG처럼 원화로 받음. 가맹점이 지갑·온체인을 몰라도 됨</td></tr>
+    <tr><td>Phase 2 · 코인 수취형</td><td>수탁 원장 잔액 차감</td><td>가상자산 수취</td><td>가맹점 수탁 지갑 잔액을 늘림. 가맹점이 가상자산을 보유하는 모델</td></tr>
+    <tr><td>Phase 3 · 외부 월렛 결제형</td><td>온체인 입금 감지 + 주문 매칭</td><td>원화 정산 또는 가상자산 수취</td><td>사용자가 외부 월렛의 온체인 잔액으로 결제. 결제 intent → 입금 주소 발급 → 감지 → 주문·금액·토큰·체인·중복 매칭</td></tr>
+  </table>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 170" role="img" aria-label="원화 정산형 결제 흐름">
+      <g>
+        <rect x="20" y="30" width="120" height="52" rx="8" class="box-a"/><text x="80" y="52" text-anchor="middle" class="a" font-size="12" font-weight="600">① 결제 요청</text><text x="80" y="70" text-anchor="middle" class="m" font-size="10.5">사용자 · 가맹점 앱</text>
+        <rect x="170" y="30" width="130" height="52" rx="8" class="box-o"/><text x="235" y="52" text-anchor="middle" class="o" font-size="12" font-weight="600">② 원장 확인·차감</text><text x="235" y="70" text-anchor="middle" class="m" font-size="10.5">인증·잔액·한도·위험</text>
+        <rect x="330" y="30" width="120" height="52" rx="8" class="box-g"/><text x="390" y="52" text-anchor="middle" class="g" font-size="12" font-weight="600">③ 결제 성공</text><text x="390" y="70" text-anchor="middle" class="m" font-size="10.5">가맹점에 응답</text>
+        <rect x="480" y="30" width="120" height="52" rx="8" class="box"/><text x="540" y="52" text-anchor="middle" class="t" font-size="12" font-weight="600">④ 원화 확정</text><text x="540" y="70" text-anchor="middle" class="m" font-size="10.5">정산예정금 생성</text>
+        <rect x="630" y="30" width="110" height="52" rx="8" class="box-w"/><text x="685" y="52" text-anchor="middle" font-size="12" font-weight="600" style="fill:var(--warn)">⑤ 정산일</text><text x="685" y="70" text-anchor="middle" class="m" font-size="10.5">원화 지급</text>
+      </g>
+      <g class="ln"><line x1="140" y1="56" x2="170" y2="56"/><line x1="300" y1="56" x2="330" y2="56"/><line x1="450" y1="56" x2="480" y2="56"/><line x1="600" y1="56" x2="630" y2="56"/></g>
+      <line x1="470" y1="20" x2="470" y2="100" class="ln-b"/>
+      <text x="240" y="120" text-anchor="middle" class="m" font-size="11.5">결제 시점 — 수탁 원장에서 즉시 확정 (온체인 거래 없음)</text>
+      <text x="605" y="120" text-anchor="middle" class="m" font-size="11.5">정산 시점 — 별도 일정</text>
+      <text x="380" y="152" text-anchor="middle" class="m" font-size="11">결제 재원: KRW 스테이블코인 · USDT · USDC · 일반 가상자산</text>
+    </svg>
+    </div>
+    <figcaption>Phase 1(원화 정산형). 결제 자체는 내부 원장 연산이라 tx hash가 생기지 않을 수 있다는 점이 감사에서 중요해요.</figcaption>
+  </figure>
+  <div class="audit"><div class="lbl">감사 관점</div><ul>
+    <li>결제·정산은 <b>재무제표에 직접 연결</b>돼요. 결제 성공 건 → 정산예정금 → 지급의 완전성과, 원장 차감/hold 로직의 정확성이 ITAC(자동통제) 대상이에요.</li>
+    <li>내부 원장 결제는 온체인 흔적이 없어요. <b>원장 트랜잭션 로그와 감사 이력</b>이 유일한 증적이므로 로그의 무결성(삭제 불가)과 접근통제를 확인해요.</li>
+    <li>수탁형은 원장 잔액 확인이 "승인"이므로, 결제정산에 필요한 가상자산사업자 <b>신고 범위</b>가 별도로 정리돼야 해요.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="ch" id="c11">
+  <div class="eyebrow">Chapter 11 <span class="tag">통제와 감사</span></div>
+  <h2>키 관리 절차 — 개인키는 어떻게 만들고, 나누고, 잠그는가</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>금고 마스터키를 <b>인터넷이 끊긴 방에서 만들고</b>, 키는 봉인된 USB에, 키를 다시 만들 수 있는 <b>24개 단어(니모닉)</b>는 종이에 적어 다른 금고에 넣어요. 둘을 같은 곳에 두지 않고, 열 때마다 승인·봉인번호·이력을 남겨요.</p></div>
+  <div class="prose">
+    <p>비상 복구용·재해복구용 키처럼 <b>평시에는 쓰지 않지만 잃어버리면 안 되는 키</b>는 오프라인에서 만들어 물리적으로 보관해요. 아래는 그런 절차의 예시예요. 핵심은 "밖으로 나가도 되는 것"과 "절대 나가면 안 되는 것"을 처음부터 구분하는 거예요.</p>
+    <h3>니모닉이란?</h3>
+    <p>256비트 난수를 사람이 옮겨 적을 수 있도록 <b>24개 영어 단어</b>로 바꾼 것(BIP-39)이에요. 이 단어들에서 seed가, seed에서 개인키가, 개인키에서 공개키가 정해진 규칙으로 다시 만들어져요. 그래서 니모닉 백업본만 있으면 USB가 고장 나도 <b>같은 키를 복원</b>할 수 있고, 반대로 니모닉이 유출되면 키 전체가 유출된 것과 같아요.</p>
+  </div>
+  <figure>
+    <div class="fig-frame">
+    <svg viewBox="0 0 760 300" role="img" aria-label="오프라인 키 생성과 분리 보관 절차">
+      <rect x="20" y="20" width="230" height="260" rx="12" class="box"/>
+      <text x="135" y="46" text-anchor="middle" class="t" font-size="13" font-weight="700">오프라인 데스크톱 (망 분리)</text>
+      <rect x="40" y="62" width="190" height="34" rx="6" class="box"/><text x="135" y="84" text-anchor="middle" class="t" font-size="11.5">① 프로그램 해시 재검증</text>
+      <rect x="40" y="106" width="190" height="34" rx="6" class="box-b"/><text x="135" y="128" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:var(--bad)">② 24단어 니모닉 생성 (화면만)</text>
+      <rect x="40" y="150" width="190" height="34" rx="6" class="box-b"/><text x="135" y="172" text-anchor="middle" font-size="11.5" font-weight="600" style="fill:var(--bad)">③ seed → 개인키 → 공개키</text>
+      <rect x="40" y="194" width="190" height="34" rx="6" class="box"/><text x="135" y="216" text-anchor="middle" class="t" font-size="11.5">④ 니모닉·seed·키 파일 전부 삭제</text>
+      <text x="135" y="256" text-anchor="middle" class="m" font-size="10.5">라이브 OS 권장 · 로그·히스토리 확인</text>
+
+      <g class="ln"><path d="M250 120 L330 70"/><path d="M250 170 L330 170"/><path d="M250 175 L330 250"/></g>
+      <polygon points="324,68 332,70 326,77" style="fill:var(--line-2)"/><polygon points="324,165 332,170 324,175" style="fill:var(--line-2)"/><polygon points="323,246 332,250 326,255" style="fill:var(--line-2)"/>
+
+      <rect x="340" y="40" width="190" height="60" rx="8" class="box-w"/>
+      <text x="435" y="62" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--warn)">니모닉 백업본 (종이·금속판)</text>
+      <text x="435" y="80" text-anchor="middle" class="m" font-size="10.5">번호+단어 · 작성자·검증자 서명</text>
+      <text x="435" y="93" text-anchor="middle" class="m" font-size="10.5">사진·스캔·복사 금지</text>
+      <rect x="340" y="140" width="190" height="60" rx="8" class="box-b"/>
+      <text x="435" y="162" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--bad)">private key USB</text>
+      <text x="435" y="180" text-anchor="middle" class="m" font-size="10.5">봉인 봉투 · 변조방지 스티커</text>
+      <text x="435" y="193" text-anchor="middle" class="m" font-size="10.5">겉면에 키값 기재 금지</text>
+      <rect x="340" y="230" width="190" height="50" rx="8" class="box-g"/>
+      <text x="435" y="252" text-anchor="middle" class="g" font-size="12" font-weight="700">public key 파일</text>
+      <text x="435" y="269" text-anchor="middle" class="m" font-size="10.5">밖으로 나가도 되는 유일한 것</text>
+
+      <g class="ln"><path d="M530 70 L600 70"/><path d="M530 170 L600 170"/><path d="M530 255 L600 255"/></g>
+      <polygon points="594,65 602,70 594,75" style="fill:var(--line-2)"/><polygon points="594,165 602,170 594,175" style="fill:var(--line-2)"/><polygon points="594,250 602,255 594,260" style="fill:var(--line-2)"/>
+      <rect x="610" y="46" width="130" height="48" rx="8" class="box"/><text x="675" y="66" text-anchor="middle" class="t" font-size="12" font-weight="600">금고 A</text><text x="675" y="83" text-anchor="middle" class="m" font-size="10.5">입고 일시·입고자·확인자</text>
+      <rect x="610" y="146" width="130" height="48" rx="8" class="box"/><text x="675" y="166" text-anchor="middle" class="t" font-size="12" font-weight="600">지정 보관자</text><text x="675" y="183" text-anchor="middle" class="m" font-size="10.5">금고 A와 다른 장소</text>
+      <rect x="610" y="231" width="130" height="48" rx="8" class="box"/><text x="675" y="251" text-anchor="middle" class="t" font-size="12" font-weight="600">온라인 시스템 등록</text><text x="675" y="268" text-anchor="middle" class="m" font-size="10.5">봉투 암호화에 사용</text>
+    </svg>
+    </div>
+    <figcaption>니모닉 백업본과 private key USB는 절대 같은 장소에 두지 않아요. 등록되는 것은 공개키뿐이에요.</figcaption>
+  </figure>
+  <div class="prose">
+    <h3>절차의 뼈대</h3>
+    <ol>
+      <li><b>프로그램 무결성</b>: 온라인 PC에서 준비한 키 생성 프로그램의 해시를 오프라인 데스크톱에서 다시 계산해 일치할 때만 실행.</li>
+      <li><b>생성</b>: 오프라인 CSPRNG로 256비트 난수 → 24단어 니모닉(화면에만 표시, 파일 저장 금지) → seed → 개인키 → 공개키.</li>
+      <li><b>백업본 작성</b>: 번호와 함께 24단어를 손으로 적고, 작성자가 소리 내어 읽고 검증자가 대조 후 둘 다 서명. 키 용도(dr/recovery)·식별자·생성일·봉인번호 기재.</li>
+      <li><b>봉인·보관</b>: 봉인 봉투 + 변조 방지 스티커, 봉인번호 기록, 금고 입고 일시·입고자·확인자 기록. USB와 백업본은 분리 보관.</li>
+      <li><b>공개키 등록</b>: 반출용 USB로 공개키만 온라인 시스템에 등록해 봉투 암호화에 사용, 이후 USB 폐기·초기화.</li>
+      <li><b>정리</b>: 오프라인 데스크톱의 니모닉·seed·키 파일·실행 로그·쉘 히스토리 삭제, 라이브 OS면 전원 차단.</li>
+      <li><b>사용·복원</b>: 비상 봉투를 풀 때는 복구 승인 절차 → 봉인 개봉 → 사용 → 재봉인·새 봉인번호·사용 이력 기록. USB 분실 시 니모닉으로 복원한 뒤 <b>공개키가 기존 등록값과 같은지</b>로 검증.</li>
+    </ol>
+  </div>
+  <div class="audit"><div class="lbl">감사 관점 · ISMS 암호키 관리</div><ul>
+    <li>암호키 <b>생성·이용·보관·배포·파기</b> 절차와 책임자(작성자·검증자·보관자)가 문서화되고 실제 기록(봉인번호, 입고·개봉 이력, 승인)이 있는지.</li>
+    <li>물리적 보안: 금고·봉인·분리 보관, 개봉 승인 필요 여부가 겉면에 표시되는지. 망 분리: 키 생성 환경이 네트워크와 격리되는지.</li>
+    <li>"밖으로 나가면 안 되는 것" 목록(seed·니모닉 파일·키 임시 파일·생성 로그·니모닉 사진/스캔/디지털 사본)이 통제 항목으로 관리되는지.</li>
+  </ul></div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section class="ch" id="c12">
+  <div class="eyebrow">Chapter 12 <span class="tag">통제와 감사</span></div>
+  <h2>감사 체크리스트 — ITGC·ISMS 관점으로 다시 묶기</h2>
+  <div class="analogy"><div class="lbl">한 줄 비유</div><p>앞의 11개 장을 감사인의 서랍 네 칸에 다시 넣어요. <b>접근</b>(누가 서명·기장할 수 있나), <b>변경</b>(서명 코드·정책은 어떻게 바뀌나), <b>운영</b>(대사·배치·모니터링), <b>증적</b>(무엇이 남나).</p></div>
+  <div class="prose">
+    <p>블록체인 서비스를 검토할 때는 기능 이름("지갑", "송금", "결제")보다 <b>자산과 권한의 구조</b>를 먼저 봐요. 순서는 이래요.</p>
+    <ol>
+      <li>자산이 사용자 주소에 있는가, 사업자 지갑에 있는가.</li>
+      <li>잔고의 기준이 체인인가, 내부 원장인가.</li>
+      <li>주소와 연결된 개인키 또는 서명 권한을 누가 통제하는가.</li>
+      <li>사용자가 승인하지 않아도 사업자가 자산을 움직일 수 있는가.</li>
+      <li>입출금 증적으로 tx hash, 주소, 체인, 자산, 금액이 남는가.</li>
+      <li>거래가 이미 확정됐는가. 확정에 필요한 컨펌 기준은 무엇인가.</li>
+      <li>어떤 거래를 보류·차단·신고·감사해야 하는가.</li>
+      <li>주소 위험도, Travel Rule, STR, 고객 안내 기준을 어느 시스템에서 처리하는가.</li>
+    </ol>
+  </div>
+  <div class="tbl-wrap">
+  <table class="cmp">
+    <tr><th>ITGC 영역</th><th class="u">비수탁 지갑에서 볼 것</th><th class="o">수탁형 지갑에서 볼 것</th><th>ISMS 연결</th></tr>
+    <tr><td>접근통제</td><td>Enclave 허용 코드(PCR0) 목록 · 정책 변경 m-of-n 승인 · 키 호출 이력 · 평시/복구/비상 경로 분리</td><td>핫월렛 서명 권한(TEE-KMS) · 원장 직접 기장 시스템 최소화 · 콜드월렛 키 봉인·분리 보관 · 고액 출금 승인</td><td>2.5 인증·권한, 2.7 암호화, 2.4 물리보안</td></tr>
+    <tr><td>변경관리</td><td>Enclave 코드 배포 = PCR0 변경 → 분리 승인 · 이력 · 긴급 배포 후승인 체인</td><td>원장 정책(한도·검증 단계·만료 시간) 변경 승인 · 배칭 컨트랙트 배포 통제</td><td>2.8 정보시스템 도입·개발 보안</td></tr>
+    <tr><td>운영통제</td><td>서명 전후 이중 검증 · 이중송금 구조적 차단(멱등키·nonce) · 온체인 상태 추적·확정 기준 · 테스트넷 격리</td><td>일일 대사(원장 합=온체인 합) · 잠금 만료·재처리 배치 · 핫/콜드 비율 밴드 · 장애관리·대응 절차 · 오입금 복구 승인</td><td>2.9 시스템·서비스 운영관리, 2.11 사고 예방·대응</td></tr>
+    <tr><td>증적</td><td>tx hash · 서명 요청/결과 로그 · QA 시나리오 실증 결과 · 복구 승인 기록</td><td>정책 판단 ID · 원장 감사 이력(삭제 불가) · 대사 결과 · AML 잠금·심사 기록 · 봉인번호·개봉 이력</td><td>2.9.4 로그 및 접속기록 관리</td></tr>
+  </table>
+  </div>
+  <div class="prose">
+    <h3>한 문장으로 정리하면</h3>
+    <p>블록체인은 주소를 기준으로 자산을 기록하는 장부예요. 그 주소와 연결된 개인키로 만든 서명이 자산을 움직일 권한을 증명하고, 지갑은 개인키를 안전하게 보관하고 서명하게 해주는 도구예요. 수탁과 비수탁의 차이는 결국 <b>서명 권한과 잔고의 기준을 누가 통제하느냐</b>에 있어요. 이 장부는 모두에게 공개돼 있고, 한번 확정된 거래는 되돌릴 수 없어요. AML과 GRC 검토도, ITGC 검토도 이 두 성질에서 시작해요.</p>
+  </div>
+</section>
+
+<!-- ============ 용어사전 ============ -->
+<section class="ch" id="gl">
+  <div class="eyebrow">부록 G <span class="tag">용어사전</span></div>
+  <h2>용어사전</h2>
+  <div class="field gl-search" style="max-width:420px"><label for="gl-q">검색</label><input id="gl-q" placeholder="예: 컨펌, 핫월렛, PCR0"></div>
+  <div class="gl" id="gl-list"></div>
+</section>
+
+<!-- ============ 퀴즈 ============ -->
+<section class="ch" id="qz">
+  <div class="eyebrow">부록 Q <span class="tag">이해도 퀴즈</span></div>
+  <h2>이해도 퀴즈 — 10문항</h2>
+  <p class="prose" style="color:var(--ink-2)">각 문항을 고르면 바로 해설이 나와요. 감사 인터뷰에서 자주 나오는 질문 위주로 뽑았어요.</p>
+  <div class="quiz" id="quiz"></div>
+  <div class="score" id="score"></div>
+  <div class="btn-row" style="margin-top:12px"><button class="btn" id="qz-reset">다시 풀기</button></div>
+</section>
+</main>
+</div>
+<style>
+.edit-bar{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:8px 10px;box-shadow:var(--shadow);font-size:13px}
+.edit-bar .st{color:var(--muted);max-width:260px;line-height:1.35}
+.edit-bar .st b{color:var(--ink)}
+html.editing [contenteditable="true"]{outline:1.5px dashed var(--accent);outline-offset:3px;border-radius:4px;cursor:text}
+html.editing [contenteditable="true"]:hover{background:var(--accent-soft)}
+html.editing .edit-bar{border-color:var(--accent)}
+.edit-help{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:50;max-width:340px;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);font-size:13px;line-height:1.5}
+.edit-help b{display:block;font-family:var(--font-display);margin-bottom:4px}
+.edit-help ul{margin:6px 0 0;padding-left:1.2em;color:var(--ink-2)}
+@media (max-width:900px){.edit-help{display:none}.edit-bar .st{display:none}}
+@media print{.edit-bar,.edit-help,.side,.topbar{display:none!important}.shell{display:block}.main{padding:0}}
+</style>
+<div class="edit-bar" id="editBar">
+  <span class="st" id="editSt"><b>보기 모드</b> · 수정하려면 편집 모드를 켜세요</span>
+  <button class="btn" id="editToggle" type="button">편집 모드</button>
+  <button class="btn primary" id="editSave" type="button" hidden>HTML로 저장</button>
+</div>
+<div class="edit-help" id="editHelp" hidden>
+  <b>편집 모드 사용법</b>
+  점선 테두리가 있는 글은 클릭해서 바로 고칠 수 있어요. 다 고치면 <b style="display:inline">HTML로 저장</b>을 눌러 파일을 내려받고, 원래 파일을 그 파일로 바꿔치기하면 돼요.
+  <ul>
+    <li>제목·본문·비유·감사 관점·표·단계 설명·용어사전·퀴즈 문항이 편집 대상이에요.</li>
+    <li>도식(SVG)과 시뮬레이터 동작은 파일을 텍스트 편집기로 열어 고쳐요.</li>
+    <li>퀴즈 정답을 바꾸려면 각 문항의 <code>data-a</code>(0부터 시작하는 보기 번호)를 고쳐요.</li>
+  </ul>
+</div>
+<script>
+(function(){
+  const SEL='.hero h1,.hero .lede,.hero .three div,.hero .meta,.ch h2,.ch h3,.ch h4,.prose,.analogy p,.audit ul,figcaption,.cmp td,.cmp th,.step > div:last-child,.note,.wlbl b,.wlbl span,.gl .g,.qz .qt,.qz .opts button,.qz .exp,.brand p,.side .brand h1,.pipe div';
+  const html=document.documentElement, toggle=document.getElementById('editToggle'), save=document.getElementById('editSave'), st=document.getElementById('editSt'), help=document.getElementById('editHelp');
+  let on=false;
+  function setEdit(v){
+    on=v; html.classList.toggle('editing',v);
+    document.querySelectorAll(SEL).forEach(el=>{ if(v) el.setAttribute('contenteditable','true'); else el.removeAttribute('contenteditable'); });
+    toggle.textContent=v?'편집 끝내기':'편집 모드';
+    save.hidden=!v; help.hidden=!v;
+    st.innerHTML=v?'<b>편집 모드</b> · 점선 영역을 클릭해 수정':'<b>보기 모드</b> · 수정하려면 편집 모드를 켜세요';
+  }
+  toggle.addEventListener('click',()=>setEdit(!on));
+  save.addEventListener('click',()=>{
+    const wasOn=on; setEdit(false);
+    // JS가 다시 그리는 위젯은 비워서 저장 (용어사전·퀴즈는 편집 내용을 유지)
+    const clone=html.cloneNode(true);
+    ['#blocks','#conf','#strip'].forEach(s=>{const e=clone.querySelector(s); if(e) e.innerHTML='';});
+    clone.querySelectorAll('.qz .opts button').forEach(b=>{b.disabled=false;b.classList.remove('ok','bad');});
+    clone.querySelectorAll('.qz .exp').forEach(e=>{ if(e.dataset.raw){e.textContent=e.dataset.raw; delete e.dataset.raw;} e.hidden=true; });
+    clone.querySelectorAll('.gl .g').forEach(g=>g.hidden=false);
+    clone.classList.remove('editing');
+    const out='<!DOCTYPE html>\n'+clone.outerHTML;
+    const blob=new Blob([out],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    const d=new Date(), pad=n=>String(n).padStart(2,'0');
+    a.download='블록체인-장부-교실_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'.html';
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500);
+    if(wasOn) setEdit(true);
+  });
+  // 편집 중 실수로 닫는 것 방지
+  let dirty=false;
+  document.addEventListener('input',e=>{ if(on&&e.target.closest('[contenteditable="true"]')) dirty=true; });
+  save.addEventListener('click',()=>{dirty=false;});
+  window.addEventListener('beforeunload',e=>{ if(dirty){e.preventDefault(); e.returnValue='';} });
+})();
+</script>
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+
+/* ---------- hashing (SHA-256 with fallback) ---------- */
+async function sha(str){
+  try{
+    if(window.crypto&&crypto.subtle){
+      const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(e){}
+  // FNV-1a 32bit x4 fallback (원리 시연용)
+  let out='';
+  for(let k=0;k<4;k++){let h=0x811c9dc5^k;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}out+=h.toString(16).padStart(8,'0');}
+  return out.repeat(2);
+}
+const short=h=>'0x'+h.slice(0,10)+'…'+h.slice(-6);
+
+/* ---------- nav / progress ---------- */
+const navLinks=$$('#nav a');
+const strip=$('#strip');
+navLinks.forEach(a=>{const c=a.cloneNode(true);c.querySelector('.n')&&c.querySelector('.n').remove();strip.appendChild(c);});
+const stripLinks=$$('#strip a');
+const sections=$$('section.ch');
+function setActive(id){
+  navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id));
+  stripLinks.forEach(a=>{const on=a.getAttribute('href')==='#'+id;a.classList.toggle('active',on);if(on)a.scrollIntoView({block:'nearest',inline:'center'});});
+}
+const seen=new Set();
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){ setActive(e.target.id); seen.add(e.target.id); const p=Math.round(seen.size/sections.length*100); $('#progTxt').textContent='읽은 진도 '+p+'%'; $('#progBar').style.width=p+'%'; } });
+},{rootMargin:'-20% 0px -65% 0px',threshold:0});
+sections.forEach(s=>io.observe(s));
+
+/* ---------- 02 signature simulator ---------- */
+(function(){
+  const KEY='7f3a-private-key-c91e';
+  const msg=$('#sg-msg'), sig=$('#sg-sig'), res=$('#sg-res'), note=$('#sg-note');
+  let signed=null, signedMsg=null;
+  $('#sg-sign').addEventListener('click',async()=>{
+    signedMsg=msg.value; signed=await sha(signedMsg+'|'+KEY);
+    sig.textContent=short(signed); res.innerHTML='<span class="pill info">서명 생성됨 — 아직 검증 전</span>';
+    note.textContent='이제 네트워크가 검증할 차례예요. 그 전에 거래 내용을 바꿔 보면 무슨 일이 생길까요?';
+    $('#sg-verify').disabled=false;
+  });
+  $('#sg-verify').addEventListener('click',async()=>{
+    if(!signed) return;
+    const now=await sha(msg.value+'|'+KEY);
+    if(now===signed){ res.innerHTML='<span class="pill ok">유효 — 이 주소의 키로 서명했고, 내용이 바뀌지 않았어요</span>'; note.textContent='검증 통과. 개인키는 한 번도 밖으로 나가지 않았지만, 개인키를 가진 쪽이 승인했다는 사실이 증명됐어요.'; }
+    else { res.innerHTML='<span class="pill bad">무효 — 서명 이후 거래 내용이 바뀌었어요</span>'; note.textContent='"'+signedMsg+'" 에 대한 서명인데 지금 내용은 "'+msg.value+'" 이에요. 서명이 맞지 않으니 네트워크는 이 거래를 거부해요. 내용을 되돌리고 다시 검증해 보세요.'; }
+  });
+  $('#sg-reset').addEventListener('click',()=>{ msg.value='0xABC…에서 0xDEF…로 10 USDT 보내기'; signed=null; sig.textContent='—'; res.innerHTML='<span class="pill muted">아직 서명 전</span>'; $('#sg-verify').disabled=true; note.textContent='서명은 "거래 내용 + 개인키"에서 나와요. 내용이 한 글자라도 바뀌면 같은 서명이 나올 수 없어요.'; });
+})();
+
+/* ---------- generic stepper ---------- */
+function stepper(stepsSel,nextSel,resetSel,onChange){
+  const steps=$$(stepsSel+' .step'); let i=0;
+  function render(){ steps.forEach((s,k)=>{s.classList.toggle('on',k===i);s.classList.toggle('done',k<i);}); $(nextSel).disabled=i>=steps.length-1; onChange&&onChange(i); }
+  $(nextSel).addEventListener('click',()=>{ if(i<steps.length-1){i++;render();} });
+  $(resetSel).addEventListener('click',()=>{ i=0; render(); });
+  render();
+}
+
+/* ---------- 03 tx stepper ---------- */
+stepper('#tx-steps','#tx-next','#tx-reset',i=>{
+  const L=$('#tx-ledger');
+  const st=[
+    '0xABC…  <span class="hl">100 USDT</span>   0.050 ETH\n0xDEF…  <span class="hl">  0 USDT</span>   0.000 ETH',
+    '0xABC…  <span class="hl">100 USDT</span>   0.050 ETH\n0xDEF…  <span class="hl">  0 USDT</span>   0.000 ETH\n\n[서명됨] 0xABC… → 0xDEF… 10 USDT\n         sig 0x3f9c…a21e',
+    '0xABC…  <span class="hl">100 USDT</span>   0.050 ETH\n0xDEF…  <span class="hl">  0 USDT</span>   0.000 ETH\n\n[제출됨] 대기 중 · 수수료 견적 0.0004 ETH\n         ETH 잔고 0.050 ≥ 0.0004 ✓',
+    '0xABC…  <span class="dn"> 90 USDT</span>   <span class="dn">0.0496 ETH</span>\n0xDEF…  <span class="up"> 10 USDT</span>   0.000 ETH\n\n[확정] tx 0x8a42…f91c · 블록 #21,904,118'
+  ];
+  L.innerHTML=st[i];
+});
+
+/* ---------- 04 blockchain simulator ---------- */
+(function(){
+  const DEF=['0xA1 → 0xB2  5 ETH\n0xC3 → 0xD4  120 USDT','0xE5 → 0xF6  0.3 ETH\n0xB2 → 0xA1  2 ETH','0xD4 → 0xC3  40 USDT'];
+  const wrap=$('#blocks'); let blocks=[];
+  function el(k){
+    const d=document.createElement('div'); d.className='blk';
+    d.innerHTML='<div class="h"><span>블록 '+(k+1)+'</span><span class="pill muted" style="font-size:10.5px">'+(k===0?'제네시스':'#'+(k+1))+'</span></div>'
+      +'<textarea aria-label="블록 '+(k+1)+' 거래 내용" id="blk-data-'+k+'"></textarea>'
+      +'<div class="row prev">이전 해시<code id="blk-prev-'+k+'"></code></div>'
+      +'<div class="row hash">이 블록의 해시<code id="blk-hash-'+k+'"></code></div>';
+    return d;
+  }
+  async function computeAll(fromIdx){
+    for(let k=fromIdx;k<3;k++){
+      const prev=k===0?'0'.repeat(64):blocks[k-1].hash;
+      blocks[k].prev=prev;
+      blocks[k].hash=await sha(k+'|'+prev+'|'+blocks[k].data);
+      blocks[k].orig=blocks[k].hash;
+    }
+  }
+  function paint(){
+    let broken=false;
+    for(let k=0;k<3;k++){
+      const expectPrev=k===0?'0'.repeat(64):blocks[k-1].hash;
+      const bad=blocks[k].prev!==expectPrev||blocks[k].hash!==blocks[k].orig;
+      broken=broken||bad;
+      $('#blk-prev-'+k).textContent=short(blocks[k].prev);
+      $('#blk-hash-'+k).textContent=short(blocks[k].hash);
+      wrap.children[k].classList.toggle('broken',bad);
+    }
+    $('#chain-status').className='pill '+(broken?'bad':'ok');
+    $('#chain-status').textContent=broken?'체인 깨짐':'체인 정상';
+    $('#chain-msg').textContent=broken?'수정한 블록의 해시가 바뀌어 다음 블록의 "이전 해시"와 맞지 않아요. 뒤 블록들도 연쇄적으로 어긋나요.':'모든 블록의 이전 해시가 앞 블록의 해시와 일치해요.';
+  }
+  async function init(){
+    wrap.innerHTML=''; blocks=DEF.map((d,k)=>({data:d,prev:'',hash:'',orig:''}));
+    DEF.forEach((d,k)=>wrap.appendChild(el(k)));
+    await computeAll(0);
+    for(let k=0;k<3;k++){ const ta=$('#blk-data-'+k); ta.value=blocks[k].data; ta.addEventListener('input',async()=>{ blocks[k].data=ta.value; const newHash=await sha(k+'|'+blocks[k].prev+'|'+blocks[k].data); blocks[k].hash=newHash; paint(); }); }
+    paint();
+  }
+  $('#chain-remine').addEventListener('click',async()=>{ await computeAll(0); paint(); $('#chain-msg').textContent='세 블록을 전부 다시 계산해 이어 붙였어요. 현실에서는 이 작업에 막대한 비용이 들고, 그 사이 정직한 노드들은 이미 다음 블록을 쌓아 버려요. 그래서 실제로는 성공하지 못해요.'; });
+  $('#chain-reset').addEventListener('click',init);
+  init();
+})();
+
+/* ---------- 04 confirmations ---------- */
+(function(){
+  const wrap=$('#conf'); let n=-1; // -1: pending, 0: included, k: k confirmations
+  const pill=$('#conf-pill'), msg=$('#conf-msg');
+  function render(){
+    wrap.innerHTML='';
+    const total=9;
+    for(let k=0;k<total;k++){ const i=document.createElement('i'); i.dataset.n='#'+(100+k); if(n>=0&&k===2)i.classList.add('tx'); else if(n>=0&&k>2&&k-2<=n)i.classList.add('new'); if(n<0&&k>=2)i.style.opacity='.25'; else if(k>2+n)i.style.opacity='.25'; wrap.appendChild(i); }
+    if(n<0){pill.className='pill warn';pill.textContent='제출됨 · 블록 포함 대기';msg.textContent='네트워크에 제출됐지만 아직 어떤 블록에도 들어가지 않았어요. tx hash는 이미 있어요.';}
+    else if(n===0){pill.className='pill info';pill.textContent='블록 #102에 포함 · 0 컨펌';msg.textContent='블록에 들어갔어요. 하지만 아직 뒤에 쌓인 블록이 없어 뒤집힐 가능성이 남아 있어요.';}
+    else if(n<6){pill.className='pill info';pill.textContent=n+' 컨펌 · 확인 대기';msg.textContent='뒤에 '+n+'개 블록이 쌓였어요. 서비스 기준(6)에 아직 못 미쳐 "확인 대기"로 표시돼요.';}
+    else {pill.className='pill ok';pill.textContent=n+' 컨펌 · 확정';msg.textContent='기준을 충족했어요. 이제 되돌리기 사실상 불가능하다고 보고 서비스가 확정 처리해요.';}
+    $('#conf-next').disabled=n>=6;
+  }
+  $('#conf-next').addEventListener('click',()=>{ if(n<6){n++;render();} });
+  $('#conf-reset').addEventListener('click',()=>{n=-1;render();});
+  render();
+})();
+
+/* ---------- 07 classifier ---------- */
+(function(){
+  const ans={};
+  const v=$('#cls-verdict');
+  $$('#w-cls .seg').forEach(seg=>{
+    seg.addEventListener('click',e=>{
+      const b=e.target.closest('button'); if(!b) return;
+      $$('button',seg).forEach(x=>x.className='');
+      b.className=b.dataset.v==='u'?'on-u':'on-o';
+      ans[seg.dataset.q]=b.dataset.v; judge();
+    });
+  });
+  function judge(){
+    if(Object.keys(ans).length<3){ v.className='verdict'; v.innerHTML='<b>'+(3-Object.keys(ans).length)+'개 더 답해 주세요</b>판정은 명칭이나 기술 이름이 아니라 실제 통제 구조로 내려요.'; return; }
+    const u=Object.values(ans).filter(x=>x==='u').length;
+    if(u===3){ v.className='verdict u'; v.innerHTML='<b>비수탁 지갑 (사용자 통제)</b>자산은 사용자 주소에, 서명은 사용자가, 사업자는 단독으로 옮길 수 없어요. 사업자에게 "독립적 통제권"이 없다고 설명할 수 있는 구조예요. 보호·복구 기능이 있다면 그것이 평시 단독 이전 권한으로 이어지지 않는지(08장)를 추가로 확인해요.'; }
+    else if(u===0){ v.className='verdict o'; v.innerHTML='<b>수탁형 지갑 (사업자 통제)</b>사업자 지갑에 자산이 모이고, 사업자가 대신 서명하며, 사용자 승인 없이도 이전이 가능해요. 가상자산사업자(VASP) 신고·ISMS·AML 체계와 내부 수탁원장 통제(09장)가 필요해요.'; }
+    else { v.className='verdict mix'; v.innerHTML='<b>혼합 구조 — 회색지대</b>세 답이 엇갈려요. 예를 들어 자산은 사용자 주소에 있지만 사업자가 혼자 옮길 수 있다면, 주소가 사용자 것이어도 실질은 수탁에 가까워요. 반대로 사업자가 키 봉투를 보관해도 혼자 열 수 없다면 비수탁으로 설명할 수 있어요. 결정적 기준은 ③ "사업자가 사용자 승인 없이 혼자 옮길 수 있는가"예요.'; }
+  }
+})();
+
+/* ---------- 08 non-custodial pipeline ---------- */
+stepper('#nc-steps','#nc-next','#nc-reset',i=>{
+  $$('#nc-pipe div').forEach((d,k)=>{d.classList.toggle('on',k===i);d.classList.toggle('done',k<i);});
+});
+
+/* ---------- 09 custodial ledgers ---------- */
+(function(){
+  const chain=$('#cu-chain'), book=$('#cu-book');
+  const C=(dep,hot,cold,extra)=>'입금주소(A)   '+dep+'\n핫월렛        '+hot+'\n콜드월렛      '+cold+(extra?'\n'+extra:'');
+  const B=(av,pd,lk,extra)=>'가용잔고      '+av+'\n미확정잔고    '+pd+'\n잠금잔고      '+lk+(extra?'\n'+extra:'');
+  const st=[
+    [C('<span class="up"> 30 USDT</span>','100 USDT','400 USDT','\n<span class="hl">tx 0x7c1a… 감지 · 컨펌 대기</span>'), B('  0','  0','  0','\n(원장 반영 전 — 외부 확인 먼저)')],
+    [C(' 30 USDT','100 USDT','400 USDT','\n<span class="hl">KYT ✓ OFAC ✓ Travel Rule ✓ FDS ✓</span>'), B('  0','  0','  0','\n(검증 통과 → 기록 가능)')],
+    [C(' 30 USDT','100 USDT','400 USDT'), B('  0','<span class="up"> 30 USDT</span>','  0','\n<span class="hl">입금 대기 이벤트 발행</span>')],
+    [C(' 30 USDT','100 USDT','400 USDT','\n12 컨펌 ✓'), B('<span class="up"> 30 USDT</span>','<span class="dn">  0</span>','  0','\n<span class="hl">입금 확정 이벤트 발행</span>')],
+    [C('<span class="dn">  0</span>','<span class="up">130 USDT</span>','400 USDT','\n가스비 -0.000005 ETH (회사 부담)'), B(' 30 USDT','  0','  0','\n(고객 잔고 변화 없음)')],
+    [C('  0','130 USDT','400 USDT','\n8단계 검증 ✓ · 정책 판단 ID #P-4471'), B('<span class="dn">  9 USDT</span>','  0','<span class="up"> 21 USDT</span>','\n<span class="hl">만료 30분 설정</span>')],
+    [C('  0','<span class="dn">110 USDT</span>','400 USDT','\n<span class="hl">tx 0x9d3e… 브로드캐스트 (TEE-KMS 서명)</span>'), B('  9 USDT','  0',' 21 USDT','\n(전송 결과 대기)')],
+    [C('  0','110 USDT','400 USDT','\n12 컨펌 ✓ · 수수료자금 -0.000008 ETH'), B('  9 USDT','  0','<span class="dn">  0</span>','\n<span class="hl">수수료 수입 +1 USDT · 출금 확정 이벤트</span>')]
+  ];
+  stepper('#cu-steps','#cu-next','#cu-reset',i=>{ chain.innerHTML=st[i][0]; book.innerHTML=st[i][1]; });
+})();
+
+/* ---------- glossary ---------- */
+const GL=[
+ ['블록체인','blockchain','여러 참여자가 같은 거래 기록을 각자 보관·검증하며 만드는 공유 장부. 거래를 블록 단위로 묶고 해시로 이어 붙여요.'],
+ ['노드','node','블록체인 네트워크에 참여해 장부 사본을 보관하고 거래를 검증·전파하는 컴퓨터.'],
+ ['주소','address','장부에 이름 대신 적히는 식별자. 공개키에서 만들어지고, 자산을 받을 때 공유해요. 0x…(이더리움), T…(트론) 등 체인마다 형식이 달라요.'],
+ ['개인키','private key','256비트 난수. 이 값으로 서명을 만들 수 있으면 그 주소의 자산을 움직일 수 있어요. 절대 외부에 노출하면 안 돼요.'],
+ ['공개키','public key','개인키에서 만들어지는 값. 서명을 검증하는 데 쓰이고 공개돼도 괜찮아요.'],
+ ['서명','signature','거래 내용 + 개인키로 만드는 값. 개인키를 보여주지 않고 "개인키를 가진 쪽이 승인했고 내용이 바뀌지 않았다"를 증명해요.'],
+ ['트랜잭션','transaction, tx','장부를 바꾸는 한 건의 거래. 송금뿐 아니라 토큰 승인, 컨트랙트 실행, NFT 발행도 각각 한 건이에요.'],
+ ['tx hash','transaction hash','특정 트랜잭션 한 건을 가리키는 조회번호. 탐색기에 넣으면 주소·금액·수수료·성공 여부·블록·컨펌 수를 볼 수 있어요.'],
+ ['가스비 · 네트워크 수수료','gas fee','트랜잭션 처리 대가로 네트워크에 내는 비용. 체인의 네이티브 코인(ETH, SOL, TRX)으로 내요. 앱 이용료와 별개예요.'],
+ ['네이티브 코인','native coin','해당 체인의 기본 자산. 이더리움의 ETH처럼 수수료를 내는 데 쓰여요.'],
+ ['토큰','token','체인 위에서 발행된 자산(예: USDT, USDC). 같은 이름이라도 체인마다 별개예요.'],
+ ['스테이블코인','stablecoin','법정화폐 가치에 연동되도록 설계된 토큰. USDT·USDC·KRW 스테이블코인 등.'],
+ ['블록','block','여러 거래를 묶은 단위. 자기 내용의 해시와 이전 블록의 해시를 함께 담아요.'],
+ ['해시','hash','데이터 내용으로 계산한 고정 길이 식별값. 내용이 조금만 바뀌어도 완전히 달라져요.'],
+ ['컨펌','confirmation','내 거래가 든 블록 뒤에 쌓인 블록 수. 많을수록 되돌리기 어려워지고, 서비스마다 확정 기준이 달라요.'],
+ ['메인넷 / 테스트넷','mainnet / testnet','실제 자산이 오가는 네트워크 / 개발·테스트용 네트워크. 서로 다른 체인이고 자산도 별개예요.'],
+ ['L1 / L2','layer 1 / layer 2','기본 체인(이더리움 등) / 그 위에서 처리 비용을 낮추는 확장 체인(Optimism, Arbitrum, Base 등).'],
+ ['지갑','wallet','자산을 담는 곳이 아니라 장부를 조회하고 서명·제출을 도와주는 도구. 보관하는 것은 개인키(또는 키 수단)예요.'],
+ ['비수탁 지갑','non-custodial wallet','사용자가 서명 권한을 통제하는 지갑. 사업자가 사용자 없이 유효한 서명을 만들 수 없어야 해요.'],
+ ['수탁형 지갑','custodial wallet','사업자가 키와 서명을 관리하고 고객별 잔고를 내부 원장으로 관리하는 지갑. VASP 신고 대상.'],
+ ['독립적 통제권','independent control','사업자가 사용자 승인 없이 자산을 이전·처분할 수 있는 권한. VASP 해당성 판단의 핵심 기준.'],
+ ['VASP · 가상자산사업자','virtual asset service provider','가상자산의 매도·매수·교환·이전·보관관리·중개를 영업으로 하는 자. FATF는 ①영업으로 ②고객을 대신하여 ③적극 촉진을 요소로 봐요.'],
+ ['시드 구문 · 니모닉','seed phrase, mnemonic','256비트 난수를 24개(또는 12개) 단어로 표현한 것(BIP-39). 이것만 있으면 키를 다시 만들 수 있어요.'],
+ ['authValue','auth value','(예시) 사용자 인증에서 기기 안에 만들어지는 값. 암호화된 키 봉투를 여는 재료 중 하나로, 서버에는 암호화된 package로만 전달돼요.'],
+ ['키 봉투','key envelope','개인키를 암호화해 감싼 것. 사업자가 보관하더라도 사용자 인증값·허용 코드 없이는 열 수 없게 설계해요.'],
+ ['Enclave · TEE','trusted execution environment','격리된 실행 환경. 평문 키를 이 안에서만 열고, 밖으로는 서명 결과만 내보내요. AWS Nitro Enclave 등.'],
+ ['PCR0','platform configuration register 0','Enclave에서 실행되는 코드의 지문. 허용된 PCR0의 코드만 키 봉투를 다룰 수 있게 정책을 걸어요.'],
+ ['m-of-n 승인','m-of-n approval','n명 중 m명이 승인해야 실행되는 방식. 정책 변경이나 배포에 적용해 단독 변경을 막아요.'],
+ ['KMS','key management service','키를 생성·보관·사용하는 관리 시스템. TEE-KMS는 격리 환경에서 서명까지 수행해요.'],
+ ['멱등키','idempotency key','같은 요청이 두 번 와도 한 번만 처리되게 하는 식별자. 이중송금 방지의 핵심.'],
+ ['nonce','nonce','주소별 트랜잭션 순번. 같은 nonce로 두 거래를 보낼 수 없어 중복·순서 오류를 막아요.'],
+ ['브로드캐스트','broadcast','서명된 트랜잭션을 노드에 전파하는 것. 비수탁에서 사업자가 이를 보조해도 통제권과는 무관해요.'],
+ ['내부 수탁원장','custody ledger','수탁형 사업자가 고객별 잔고를 기록하는 내부 장부. 가용·미확정·잠금 세 칸으로 나눠요.'],
+ ['가용 / 미확정 / 잠금 잔고','available / pending / locked','쓸 수 있는 잔고 / 입금됐지만 컨펌 전 / 출금 요청으로 묶인 잔고.'],
+ ['입금주소','deposit address','수탁형에서 고객별로 발급하는 수신 전용 주소. 여기서 직접 출금하지 않아요.'],
+ ['핫월렛','hot wallet','온라인에 연결된 전송 전용 지갑. 소수만 운영해 키 관리 범위를 좁혀요.'],
+ ['콜드월렛','cold wallet','오프라인 보관 전용 지갑. 법적으로 전체 자산의 70% 이상 보관 의무.'],
+ ['재집금 · 스윕','sweep','입금주소에 흩어진 자산을 핫월렛으로 모으는 작업. 고객 잔고는 바뀌지 않아요.'],
+ ['배칭','batching','여러 전송을 하나의 트랜잭션으로 묶어 가스비를 줄이는 것.'],
+ ['리밸런싱','rebalancing','핫·콜드월렛 비율을 밴드 안에 유지하도록 자산을 재배치하는 것.'],
+ ['대사','reconciliation','고객 잔고 합 = 온체인 자산 합을 매일 검증하는 절차. 불일치 시 출금 중단.'],
+ ['KYT','know your transaction','거래 상대 주소가 범죄·제재와 연관됐는지 온체인 이력으로 확인하는 것.'],
+ ['OFAC','Office of Foreign Assets Control','미국 재무부 제재 목록. 제재 주소와의 거래를 차단해야 해요.'],
+ ['Travel Rule','travel rule','일정 금액 이상 가상자산 이전 시 송·수신 사업자 간 고객 정보를 교환하는 규칙.'],
+ ['FDS','fraud detection system','이상거래 탐지 시스템.'],
+ ['STR','suspicious transaction report','의심거래보고. AML 심사 결과에 따라 FIU에 보고.'],
+ ['AML','anti-money laundering','자금세탁방지. 수탁형에서는 출금 시 실시간 스크리닝과 잠금 연장(예: 14일)이 있어요.'],
+ ['오입금','misdeposit','미지원 토큰·잘못된 네트워크로 들어온 입금. 복구는 원장 밖 수동 작업이라 별도 승인·기록이 필요해요.'],
+ ['부인방지','non-repudiation','거래를 했다는 사실을 나중에 부인할 수 없게 하는 것. 블록체인에서는 서명과 tx hash가 그 증거예요.'],
+ ['정책 판단 ID','policy decision id','원장 기장 요청마다 붙이는 "정책 검증을 통과했다"는 증거 식별자.']
+];
+(function(){
+  const list=$('#gl-list');
+  if(!list.children.length){ GL.forEach(([k,en,d])=>{ const g=document.createElement('div'); g.className='g'; g.innerHTML='<div><b>'+k+'</b><small>'+en+'</small></div><p>'+d+'</p>'; list.appendChild(g); }); }
+  $('#gl-q').addEventListener('input',e=>{ const q=e.target.value.trim().toLowerCase(); $$('.g',list).forEach(g=>{g.hidden=q&&!g.textContent.toLowerCase().includes(q);}); });
+})();
+
+/* ---------- quiz ---------- */
+const QZ=[
+ {q:'블록체인 장부에서 어떤 주소의 자산을 움직일 수 있는 사람은 누구인가요?',o:['그 주소를 처음 만든 사람','신분증으로 본인 확인을 받은 사람','그 주소와 짝을 이루는 개인키로 유효한 서명을 만들 수 있는 사람','거래소에 계정이 있는 사람'],a:2,e:'블록체인은 신원이 아니라 서명 권한을 확인해요. 개인키가 유출되면 훔친 사람도 유효한 서명을 만들 수 있어요.'},
+ {q:'이더리움 위의 USDT를 보내려는데 ETH가 0이에요. 어떻게 되나요?',o:['USDT에서 자동으로 수수료가 차감된다','ETH가 없어도 USDT만 있으면 보낼 수 있다','네트워크 수수료(가스비)는 ETH로 내야 하므로 트랜잭션을 제출·처리할 수 없다','토스가 대신 내준다'],a:2,e:'보내는 자산은 USDT, 수수료는 그 체인의 네이티브 코인인 ETH예요. (수탁형은 사업자가 핫월렛 ETH로 가스비를 부담하고 고객에게 USDT로 고정 수수료를 받는 방식이 일반적이에요.)'},
+ {q:'과거 블록 하나의 거래 내용을 몰래 바꾸면 무슨 일이 생기나요?',o:['그 블록만 조용히 바뀐다','그 블록의 해시가 바뀌어 다음 블록의 "이전 해시"와 어긋나고, 뒤 블록들이 연쇄적으로 무효가 된다','네트워크가 자동으로 고쳐준다','tx hash만 바뀐다'],a:1,e:'각 블록이 앞 블록의 해시를 담고 있어서, 과거를 고치려면 그 뒤 전부를 다시 계산해야 해요. 그동안 정직한 노드들은 새 블록을 계속 쌓아요.'},
+ {q:'tx hash가 있다는 것은 무엇을 뜻하나요?',o:['거래가 확정되어 되돌릴 수 없다','거래가 네트워크에 제출됐고 그 거래를 조회할 수 있는 번호가 생겼다 — 확정 여부는 따로 봐야 한다','상대방이 돈을 받았다','수수료가 환불됐다'],a:1,e:'tx hash는 운송장 번호와 같아요. 블록 포함 여부, 성공/실패, 컨펌 수를 함께 확인해야 해요.'},
+ {q:'지갑 앱을 삭제하면 그 안의 자산은 어떻게 되나요?',o:['함께 사라진다','앱 제작사에 반환된다','블록체인 장부에 그대로 남아 있고, 같은 키·복구 구문으로 다시 볼 수 있다','24시간 뒤 소각된다'],a:2,e:'지갑은 자산을 담는 곳이 아니라 장부를 읽고 서명하는 도구예요. 지갑이 보관하는 것은 개인키(또는 키 수단)예요.'},
+ {q:'비수탁/수탁을 가르는 결정적 기준은 무엇인가요?',o:['앱 화면에 "보내기" 버튼이 있는지','고객별로 주소가 발급되는지','사업자가 키 관련 정보를 조금이라도 보관하는지','사업자가 사용자 승인 없이 혼자 유효한 서명을 만들어 자산을 옮길 수 있는지'],a:3,e:'자산 위치·서명 주체도 보지만, 핵심은 "단독 이전 가능성"이에요. 암호화된 키 봉투를 보관하더라도 사용자 인증값·허용 코드 없이 열 수 없다면 독립적 통제권이 없다고 설명할 수 있어요.'},
+ {q:'수탁형 지갑에서 같은 서비스의 고객 A가 고객 B에게 10 USDT를 보냈어요. 온체인에는 무엇이 남나요?',o:['A 주소 → B 주소 트랜잭션','아무것도 남지 않을 수 있다 — 내부 수탁원장의 고객별 잔고만 바뀐다','사업자 핫월렛 → 콜드월렛 이동','B의 입금주소로 10 USDT 입금'],a:1,e:'내부 송금은 오프체인에서 즉시 처리되고 수수료도 없어요. 그래서 체인 분석만으로는 내부 송금을 볼 수 없고, 원장의 감사 이력이 유일한 증적이에요.'},
+ {q:'수탁 원장에서 입금이 감지됐지만 아직 컨펌이 부족해요. 원장은 어떻게 기록하나요?',o:['가용잔고에 바로 반영한다','실패로 처리한다','미확정잔고에 임시로 잡아두고, 확인이 끝나면 가용잔고로 전환한다','아무것도 기록하지 않는다'],a:2,e:'"결과를 알 수 없는 상태를 실패로 단정하지 않는다"가 원칙이에요. 확정 전 잔고는 미확정 칸에, 출금 요청 잔고는 잠금 칸에 둬요.'},
+ {q:'수탁형 사업자가 입금주소의 자산을 핫월렛으로 재집금(sweep)했어요. 고객 잔고는?',o:['줄어든다','늘어난다','바뀌지 않는다 — 보관 위치만 바뀐 사업자 내부 거래다','가스비만큼 줄어든다'],a:2,e:'재집금·핫↔콜드 리밸런싱은 온체인에는 남지만 내부 수탁원장의 고객별 잔고는 그대로예요. 가스비는 회사가 부담해요.'},
+ {q:'ITGC 접근통제 관점에서 비수탁 지갑의 서명 환경(Enclave)에서 가장 먼저 확인할 증적은?',o:['앱 다운로드 수','허용된 코드(PCR0) 목록, 정책 변경의 m-of-n 승인 기록, 키 호출 이력','고객 만족도 조사','블록 생성 속도'],a:1,e:'"보관은 있어도 단독 사용 경로는 없다"를 증명하는 것이 이 세 가지예요. 코드 변경(=PCR0 변경)은 변경관리 증적과도 연결돼요.'}
+];
+(function(){
+  const box=$('#quiz'), score=$('#score'); let got=0, done=0;
+  function build(){
+    box.innerHTML='';
+    QZ.forEach((it,i)=>{
+      const d=document.createElement('div'); d.className='qz'; d.dataset.a=it.a;
+      d.innerHTML='<div class="qn">Q'+String(i+1).padStart(2,'0')+'</div><div class="qt">'+it.q+'</div><div class="opts">'+it.o.map(o=>'<button type="button">'+o+'</button>').join('')+'</div><div class="exp" hidden>'+it.e+'</div>';
+      box.appendChild(d);
+    });
+  }
+  function wire(){
+    got=0; done=0; score.textContent='';
+    $$('.qz',box).forEach(d=>{
+      const a=parseInt(d.dataset.a,10), opts=$('.opts',d), exp=$('.exp',d), btns=$$('button',opts);
+      btns.forEach(b=>{ b.disabled=false; b.classList.remove('ok','bad'); }); exp.hidden=true;
+      btns.forEach((b,k)=>{ b.onclick=()=>{ if(document.documentElement.classList.contains('editing')) return; btns.forEach(x=>x.disabled=true); if(k===a){b.classList.add('ok');got++;} else {b.classList.add('bad'); btns[a]&&btns[a].classList.add('ok');} exp.hidden=false; if(!exp.dataset.raw) exp.dataset.raw=exp.textContent; exp.textContent=(k===a?'정답. ':'오답. ')+exp.dataset.raw; done++; const N=$$('.qz',box).length; score.textContent='점수 '+got+' / '+done+(done===N?(got>=N*0.8?' — 훌륭해요. 감사 인터뷰 준비 완료.':got>=N*0.5?' — 절반 이상. 틀린 장을 다시 읽어 보세요.':' — 기초 장(01~04)부터 다시 보는 걸 권해요.'):''); }; });
+    });
+  }
+  if(!box.children.length) build();
+  wire();
+  $('#qz-reset').addEventListener('click',()=>{ $$('.qz .exp',box).forEach(e=>{ if(e.dataset.raw) e.textContent=e.dataset.raw; }); wire(); });
+})();
+})();
+</script>
+</body></html>
