@@ -1,0 +1,1655 @@
+{
+  "category": "app-architecture",
+  "categoryLabel": "애플리케이션 아키텍처·개발 실무",
+  "entries": [
+    {
+      "id": "app-scheduler-lock",
+      "title": "스케줄러와 분산 락",
+      "titleEn": "Schedulers & Distributed Locking",
+      "aliases": [
+        "크론",
+        "CronJob",
+        "ShedLock",
+        "분산 락",
+        "스케줄링",
+        "중복 실행 방지"
+      ],
+      "tags": [
+        "operations",
+        "batch",
+        "concurrency"
+      ],
+      "level": "중급",
+      "oneLiner": "정해진 시각에 작업을 돌리되 여러 서버에서 중복 실행되지 않게 막는 장치",
+      "analogy": "분산 락은 회의실 문에 거는 '사용 중' 팻말과 같다. 여러 부서가 같은 시각에 같은 회의실을 예약했을 때, 먼저 도착한 팀이 팻말을 걸면 나머지는 돌아간다. 팻말을 거는 것을 잊으면 두 팀이 동시에 들어가 회의가 엉킨다. 그리고 팻말에는 반드시 '언제까지'를 적어야 한다. 팀이 쓰러져 팻말을 못 떼면 회의실이 영원히 잠기기 때문이다.",
+      "explanation": "<p>서버 한 대로 운영하던 시절에는 <code>@Scheduled</code> 애노테이션 하나로 끝났다. 하지만 쿠버네티스에서 같은 애플리케이션이 Pod 5개로 떠 있으면 <strong>같은 스케줄 작업이 5번 동시에 실행된다</strong>. 정산 배치가 5번 돌면 정산 데이터가 5배가 되고, 알림 발송이 5번 돌면 고객이 문자를 5통 받는다. 이것이 분산 환경에서 스케줄링의 첫 번째 문제다.</p><p><strong>해법은 두 가지 방향</strong>이다. 첫째, <strong>스케줄 실행 주체를 분리</strong>한다. 쿠버네티스 <strong>CronJob</strong>이나 Airflow 같은 외부 스케줄러가 작업 전용 Pod를 하나 띄우는 방식으로, 애플리케이션 Pod 수와 무관해져 가장 깔끔하다. 둘째, <strong>분산 락</strong>으로 하나만 실행되게 한다. ShedLock(Spring), Redis 기반 락, DB 락 등을 쓴다.</p><p><strong>분산 락의 구현 원리</strong>는 공유 저장소에 '내가 잡았다'는 레코드를 원자적으로 만드는 것이다. Redis에서는 <code>SET key value NX PX 60000</code>(없을 때만 설정, 60초 후 자동 만료), DB에서는 유니크 제약이 있는 테이블에 INSERT를 시도한다. 성공한 인스턴스만 작업을 수행한다.</p><p><strong>반드시 알아야 할 함정</strong>이 있다. (1) <strong>만료 시간(TTL)은 필수</strong>다. 락을 잡은 인스턴스가 죽으면 락이 영원히 남아 작업이 다시는 실행되지 않는다. (2) 반대로 <strong>TTL이 작업 시간보다 짧으면</strong> 작업이 끝나기 전에 락이 풀려 두 번째 인스턴스가 끼어든다. 그래서 작업 중 주기적으로 TTL을 연장(lock extension)하거나 최대 예상 시간보다 넉넉히 잡는다. (3) <strong>락은 안전장치이지 정합성 보장이 아니다</strong>. 네트워크 지연, GC 정지 등으로 이론상 두 인스턴스가 동시에 자신이 락을 가졌다고 믿을 수 있다. 따라서 <strong>작업 자체도 멱등하게</strong> 만들어야 한다(예: 처리 결과 테이블에 기준일자 유니크 제약).</p><p><strong>시간 관련 주의점</strong>도 실무에서 크다. 서버 타임존이 UTC인데 업무 기준은 KST라면 '매일 자정'이 9시간 어긋난다. 금융 배치는 <strong>영업일 기준</strong>이 필요해 주말·공휴일 달력을 별도 관리해야 하고, 서머타임이나 윤초 같은 이슈도 있다.</p><p><strong>감사 관점</strong>에서 볼 것은 (1) <strong>중복 실행 방지 장치가 있는가</strong>와 그 증거, (2) <strong>미실행(누락) 탐지</strong>가 있는가 — 중복보다 더 위험한 것이 '돌았어야 하는데 안 돈' 경우다. 락이 남아 있거나 Pod가 안 떠서 정산이 누락됐는데 아무도 모르는 상황이 실제로 발생한다. 그래서 <strong>'예정 시각 + N분 내 완료 기록이 없으면 알림'</strong>이라는 데드맨 스위치형 모니터링이 필요하다. (3) <strong>스케줄 변경 권한</strong>: 스케줄(cron 표현식)을 바꾸면 업무 처리 시점이 바뀌므로 변경관리 대상이다. (4) 스케줄러 자체의 접근 권한과 <strong>수동 트리거 이력</strong>.</p>",
+      "howItWorks": "<ol><li>스케줄 시각이 되면 여러 애플리케이션 인스턴스가 동시에 작업 실행을 시도한다.</li><li>각 인스턴스가 공유 저장소(Redis/DB)에 락 획득을 원자적으로 시도한다.</li><li>하나만 성공한다. 나머지는 즉시 실행을 포기하고 로그만 남긴다.</li><li>락에는 소유자 식별자와 만료 시각이 함께 기록된다.</li><li>락을 획득한 인스턴스가 작업을 수행하며, 긴 작업이면 주기적으로 만료 시각을 연장한다.</li><li>작업 결과가 실행 이력 테이블에 기준일자와 함께 기록된다(유니크 제약으로 이중 처리 방지).</li><li>작업이 끝나면 락을 해제한다. 인스턴스가 죽어도 TTL로 자동 해제된다.</li><li>모니터링이 '예정 시각 이후 X분 내 완료 기록 존재 여부'를 확인해 누락을 탐지하고 알림을 보낸다.</li></ol>",
+      "example": "<p>'페이나우'는 애플리케이션 내부 <code>@Scheduled</code>를 원칙적으로 금지하고, 정기 작업은 모두 쿠버네티스 CronJob 또는 Airflow DAG로 분리했다. 불가피하게 애플리케이션 내에서 도는 소수 작업에는 ShedLock을 적용한다. 2025년 알림 발송 작업이 Pod 4개에서 동시에 실행돼 고객 3만 명에게 중복 문자가 발송된 사고 이후 도입한 조치다. 또한 각 작업의 '완료 신호'를 Prometheus Pushgateway로 보내고, 예정 시각 + 15분까지 신호가 없으면 온콜 알림이 울리는 누락 탐지를 운영한다. 2026년 3월 Redis 장애로 락이 해제되지 않아 정산 준비 작업이 누락된 건이 이 알림으로 12분 만에 발견됐다.</p><pre><code>// ShedLock: 클러스터에서 한 인스턴스만 실행\n@Scheduled(cron = \"0 10 2 * * *\", zone = \"Asia/Seoul\")   // 타임존 명시 필수\n@SchedulerLock(name = \"settlementPrepare\",\n               lockAtMostFor = \"50m\",      // 죽어도 50분 뒤 자동 해제\n               lockAtLeastFor = \"1m\")      // 너무 빨리 끝나도 1분간 유지\nfun prepareSettlement() {\n    val bizDate = businessCalendar.previousBusinessDay()   // now() 직접 사용 금지\n    settlementService.prepare(bizDate)     // 내부적으로 멱등 (biz_date UNIQUE)\n}\n\n# Redis 락의 본질\nSET lock:settlementPrepare &lt;instance-id&gt; NX PX 3000000\n\n-- 누락 탐지: 완료 기록이 없으면 알림\nSELECT 1 FROM job_execution\n WHERE job_name='settlementPrepare' AND biz_date = current_date\n   AND status='COMPLETED';   -- 02:25까지 행이 없으면 온콜 호출</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' text-anchor='start' fill='currentColor' font-size='12'>02:10 스케줄 도달</text><rect x='20' y='32' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>Pod A</text><rect x='20' y='70' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='89.0' text-anchor='middle' fill='currentColor' font-size='12'>Pod B</text><rect x='20' y='108' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='127.0' text-anchor='middle' fill='currentColor' font-size='12'>Pod C</text><line x1='130' y1='47' x2='200' y2='70' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='85' x2='200' y2='85' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='123' x2='200' y2='100' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='60' width='140' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270.0' y='89.0' text-anchor='middle' fill='currentColor' font-size='12'>분산 락 저장소</text><text x='270' y='128' text-anchor='middle' fill='currentColor' font-size='11'>SET NX PX (TTL 필수)</text><line x1='340' y1='85' x2='400' y2='85' stroke='currentColor' marker-end='url(#ar)'/><text x='370' y='77' text-anchor='middle' fill='currentColor' font-size='11'>1개만 성공</text><rect x='400' y='62' width='130' height='46' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='465.0' y='89.0' text-anchor='middle' fill='currentColor' font-size='13'>작업 실행</text><line x1='465' y1='108' x2='465' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='140' width='230' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='505.0' y='160.0' text-anchor='middle' fill='currentColor' font-size='12'>실행 이력 기록 (기준일자 UNIQUE)</text><rect x='140' y='180' width='480' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='380.0' y='200.0' text-anchor='middle' fill='currentColor' font-size='12'>누락 탐지: 예정시각 +15분 내 완료 기록 없으면 알림</text><line x1='465' y1='172' x2='465' y2='180' stroke='currentColor' marker-end='url(#ar)'/><text x='380' y='235' text-anchor='middle' fill='currentColor' font-size='11'>중복 실행보다 '안 돈 것'이 더 위험하다</text><text x='70' y='165' text-anchor='middle' fill='currentColor' font-size='11'>나머지는</text><text x='70' y='183' text-anchor='middle' fill='currentColor' font-size='11'>포기 + 로그</text></svg>",
+      "keyTerms": [
+        {
+          "term": "분산 락",
+          "meaning": "여러 인스턴스 중 하나만 작업하도록 공유 저장소로 조율하는 장치"
+        },
+        {
+          "term": "ShedLock",
+          "meaning": "Spring 스케줄러의 중복 실행을 막는 라이브러리"
+        },
+        {
+          "term": "TTL / lockAtMostFor",
+          "meaning": "락의 최대 유지 시간. 인스턴스 사망 시 자동 해제를 보장"
+        },
+        {
+          "term": "쿠버네티스 CronJob",
+          "meaning": "일정에 따라 작업 전용 Pod를 생성하는 리소스"
+        },
+        {
+          "term": "데드맨 스위치",
+          "meaning": "정해진 신호가 오지 않으면 경보를 울리는 누락 탐지 방식"
+        },
+        {
+          "term": "영업일 달력",
+          "meaning": "주말·공휴일을 반영해 업무 기준일을 계산하는 기준 데이터"
+        },
+        {
+          "term": "타임존 명시",
+          "meaning": "cron 표현식에 업무 기준 타임존을 지정하는 것(UTC 혼동 방지)"
+        },
+        {
+          "term": "멱등 작업",
+          "meaning": "두 번 실행돼도 결과가 같은 작업. 락과 함께 이중 방어"
+        }
+      ],
+      "pitfalls": [
+        "여러 Pod에서 @Scheduled가 그대로 돌아 작업이 중복 실행된다.",
+        "락에 만료 시간을 두지 않아 인스턴스가 죽으면 작업이 영구히 실행되지 않는다.",
+        "락 TTL이 실제 작업 시간보다 짧아 작업 도중 다른 인스턴스가 끼어든다.",
+        "분산 락만 믿고 작업을 멱등하게 만들지 않아 드문 경합에서 이중 처리가 발생한다.",
+        "서버 타임존(UTC)과 업무 기준(KST) 차이로 배치가 의도한 날짜와 다른 날짜를 처리한다.",
+        "작업이 실행되지 않은 것(누락)을 탐지하는 장치가 없어 며칠 뒤 결산에서 발견한다.",
+        "cron 표현식 변경이 코드 리뷰 없이 운영에서 직접 수정된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 정기 작업의 중복 실행을 방지하는 장치가 구현되어 있고 작업 자체도 멱등한가",
+          "[ITAC] 작업 미실행(누락)을 탐지하는 모니터링이 존재하고 알림·조치 이력이 있는가",
+          "[변경] 스케줄(실행 주기·시각) 변경이 형상관리와 승인 절차를 거치는가",
+          "[접근] 스케줄러 콘솔 접근 및 수동 실행 권한이 제한되고 이력이 기록되는가",
+          "[운영] 업무 기준일 계산(영업일·타임존)이 명시적으로 관리되는가"
+        ],
+        "fss": [
+          "정기 처리 업무의 실행 여부와 결과가 확인·기록되는가",
+          "미실행·중복 실행 발생 시 대응 절차와 책임이 정의되어 있는가",
+          "업무 처리 시점 변경 시 사전 승인 절차를 거치는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 작업 실패·누락 탐지",
+          "2.9.4 로그 및 접속기록 관리: 실행 이력 기록",
+          "2.9.1 변경관리: 스케줄 변경 통제"
+        ],
+        "evidence": [
+          "정기 작업 목록과 각 작업의 스케줄·중복 방지 방식",
+          "분산 락 구현 설정(TTL 값 포함) 및 락 저장소 상태 조회 결과",
+          "작업 실행 이력 테이블 조회 결과(최근 3개월, 누락 여부 확인)",
+          "누락 탐지 알림 설정과 최근 알림 발생·조치 이력",
+          "스케줄 변경 이력(Git 커밋/변경 티켓)과 수동 실행 승인 기록"
+        ],
+        "auditorQuestions": [
+          "같은 작업이 여러 서버에서 동시에 실행되지 않는다는 것을 어떻게 보장하는가?",
+          "락을 잡은 서버가 죽으면 어떻게 되는가?",
+          "어제 돌았어야 할 작업이 안 돌았다면 누가 언제 알게 되는가?",
+          "배치 실행 시각을 바꾸려면 어떤 절차가 필요한가?",
+          "스케줄러에서 작업을 수동으로 실행할 수 있는 사람은 누구인가?"
+        ],
+        "controlExample": "클러스터 환경의 정기 작업은 분산 락으로 단일 실행을 보장하고 작업 결과는 기준일자 유니크 제약으로 이중 처리를 방지한다. 각 작업의 완료 신호를 모니터링해 예정 시각 후 15분 내 완료가 확인되지 않으면 담당자에게 자동 알림이 발송된다."
+      },
+      "related": [
+        "app-batch",
+        "app-idempotency",
+        "app-payment-ledger",
+        "app-12factor",
+        "k8s-cronjob",
+        "obs-prometheus",
+        "db-redis"
+      ],
+      "learnMore": [
+        "ShedLock 공식 문서",
+        "Kubernetes CronJob 공식 문서",
+        "Redis 공식 문서 - Distributed Locks(Redlock)"
+      ]
+    },
+    {
+      "id": "app-test-pyramid",
+      "title": "테스트 피라미드",
+      "titleEn": "The Test Pyramid",
+      "aliases": [
+        "단위테스트",
+        "통합테스트",
+        "E2E",
+        "자동화 테스트",
+        "테스트 전략"
+      ],
+      "tags": [
+        "quality",
+        "testing",
+        "sdlc"
+      ],
+      "level": "기초",
+      "oneLiner": "빠르고 많은 단위 테스트를 바탕으로 위로 갈수록 적게 두는 테스트 구성 전략",
+      "analogy": "테스트 피라미드는 건물 점검과 같다. 벽돌 하나하나의 강도 시험(단위 테스트)은 싸고 빠르니 수천 번 한다. 벽 한 면을 세워보는 시험(통합 테스트)은 그보다 적게, 완성된 건물에 사람을 들여보내는 시험(E2E)은 비싸고 오래 걸리니 핵심 동선만 확인한다. 반대로 벽돌 시험 없이 완공 후에만 점검하면, 문제를 찾아도 어느 벽돌이 문제인지 알 수 없다.",
+      "explanation": "<p><strong>테스트 피라미드</strong>는 자동화 테스트를 어떤 비율로 구성할지에 대한 지침이다. 아래부터 <strong>단위 테스트(Unit)</strong>가 가장 많고, <strong>통합 테스트(Integration)</strong>가 중간, <strong>E2E(End-to-End) 테스트</strong>가 가장 적다.</p><p><strong>단위 테스트</strong>는 하나의 클래스·함수를 외부 의존 없이 검증한다. 밀리초 단위로 실행되므로 수천 개를 돌려도 몇 초면 끝난다. 수수료 계산, 상태 전이 규칙, 검증 로직처럼 <strong>업무 규칙이 모인 곳에 집중</strong>해야 한다. 감사 관점에서 <strong>'수수료율 2.31% 적용 시 49,000원 거래의 수수료는 1,132원'같은 단위 테스트는 그 자체가 업무 규칙이 코드로 구현됐다는 증거</strong>가 된다.</p><p><strong>통합 테스트</strong>는 DB·메시지 브로커 등 실제 의존성과 함께 검증한다. Testcontainers로 실제 PostgreSQL·Kafka를 컨테이너로 띄워 테스트하는 방식이 표준이 됐다. 목(mock)으로 대체하면 통과하는데 실제로는 깨지는 SQL·트랜잭션 문제를 잡아준다.</p><p><strong>E2E 테스트</strong>는 실제 화면부터 DB까지 전 구간을 검증한다. 가장 현실적이지만 느리고 잘 깨진다(flaky). 그래서 <strong>'결제 성공', '로그인', '정산 지급'처럼 망가지면 사업이 멈추는 핵심 시나리오</strong>만 유지하는 것이 정석이다. 이 비율이 뒤집힌 상태를 <strong>아이스크림 콘 안티패턴</strong>이라 부르며, 테스트 실행에 2시간이 걸리고 실패해도 원인을 모르는 상태가 된다.</p><p><strong>추가로 중요한 테스트</strong>가 있다. <strong>계약 테스트</strong>는 서비스 간 인터페이스 약속을 검증해 MSA에서 E2E를 줄여준다. <strong>회귀 테스트</strong>는 과거 버그가 재발하지 않음을 보장한다. 금융에서는 <strong>경계값 테스트</strong>(한도 정확히 일치, 0원, 최대값, 음수, 소수점 반올림)가 특히 중요하다.</p><p><strong>감사 관점</strong>에서 테스트는 <strong>변경관리 통제의 핵심 증거</strong>다. SOX ITGC의 '변경 테스트' 통제는 '운영 반영 전 적절한 테스트가 수행되고 승인되었는가'를 묻는데, 자동화 테스트가 CI에서 강제 실행되고 통과해야만 병합·배포되는 구조라면 <strong>그 파이프라인 설정 자체가 통제 증거</strong>가 된다. 확인할 것은 (1) 테스트 실패 시 배포가 실제로 차단되는가(우회 가능한 관리자 권한이 있는지), (2) 재무 영향 로직에 테스트가 존재하는가, (3) <strong>테스트 데이터에 실 고객 개인정보를 쓰지 않는가</strong> — 이는 ISMS-P와 개인정보보호법 이슈로, 운영 DB를 그대로 복사해 테스트 환경에 쓰는 관행이 여전히 흔한 지적 사항이다. (4) UAT(사용자 인수 테스트) 결과가 기록·승인되는가.</p>",
+      "howItWorks": "<ol><li>개발자가 기능 코드와 함께 단위 테스트를 작성하고 로컬에서 실행한다.</li><li>PR을 올리면 CI가 자동으로 전체 단위 테스트를 실행한다(보통 수 분 이내).</li><li>통합 테스트 단계에서 Testcontainers가 실제 DB·브로커 컨테이너를 띄워 검증한다.</li><li>커버리지가 측정되고 기준 미달(예: 변경 라인 80% 미만)이면 빌드가 실패한다.</li><li>스테이징 배포 후 핵심 시나리오에 대한 E2E 테스트가 실행된다.</li><li>재무·업무 영향이 큰 변경은 현업 담당자의 UAT를 거쳐 승인 기록을 남긴다.</li><li>모든 게이트를 통과해야 운영 배포가 가능하며, 실패 시 병합·배포가 차단된다.</li><li>운영 장애 발생 시 재발 방지를 위한 회귀 테스트가 추가된다.</li></ol>",
+      "example": "<p>'페이나우'의 결제 서비스는 단위 테스트 3,412개(평균 실행 48초), 통합 테스트 186개(4분), E2E 시나리오 22개(11분)를 운영한다. 수수료 계산 로직에는 카드사별·금액구간별 경계값 테스트 140여 개가 있으며, 2026년 2월 수수료 정책 변경 시 이 테스트가 반올림 방향 오류를 사전에 잡아냈다. CI는 변경 라인 커버리지 80% 미만이면 병합을 차단하며, 이 규칙을 우회할 수 있는 권한은 없다(관리자 병합도 차단 설정). 테스트 데이터는 운영 DB 복사 대신 합성 데이터 생성기로 만들며, 부득이한 경우 비식별 처리 후 반입하고 그 승인 이력을 보관한다.</p><pre><code>// 업무 규칙 = 실행 가능한 명세이자 감사 증거\n@ParameterizedTest\n@CsvSource(\n  \"49000, 0.0231, 1132\",     // 반올림: 1131.9 → 1132 (HALF_UP)\n  \"10000, 0.0231,  231\",\n  \"     1, 0.0231,    0\",     // 경계값: 최소 금액\n  \"100000000, 0.0231, 2310000\"\n)\nfun `카드 수수료 계산`(amount: Long, rate: String, expected: Long) {\n    assertThat(FeeCalculator.calc(amount, BigDecimal(rate))).isEqualTo(expected)\n}\n\n# CI 게이트 (통과 못 하면 병합 불가)\n- run: ./gradlew test jacocoTestCoverageVerification\n- run: ./gradlew integrationTest      # Testcontainers 사용\n- uses: github/branch-protection      # 관리자 우회 금지 설정</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='320' y='20' text-anchor='middle' fill='currentColor' font-size='13'>테스트 피라미드</text><rect x='240' y='32' width='160' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='53.0' text-anchor='middle' fill='currentColor' font-size='12'>E2E 22개 (11분)</text><rect x='180' y='74' width='280' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='95.0' text-anchor='middle' fill='currentColor' font-size='12'>통합 186개 (4분)</text><rect x='100' y='116' width='440' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='137.0' text-anchor='middle' fill='currentColor' font-size='12'>단위 3,412개 (48초)</text><text x='560' y='49' text-anchor='middle' fill='currentColor' font-size='11'>느림·불안정</text><text x='560' y='91' text-anchor='middle' fill='currentColor' font-size='11'>실제 DB 검증</text><text x='560' y='133' text-anchor='middle' fill='currentColor' font-size='11'>빠름·정밀</text><rect x='100' y='170' width='200' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='200.0' y='190.0' text-anchor='middle' fill='currentColor' font-size='12'>CI 게이트: 실패 시 병합 차단</text><line x1='300' y1='186' x2='340' y2='186' stroke='currentColor' marker-end='url(#ar)'/><rect x='340' y='170' width='200' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='440.0' y='190.0' text-anchor='middle' fill='currentColor' font-size='12'>UAT 승인 (업무 영향 변경)</text><line x1='440' y1='202' x2='440' y2='222' stroke='currentColor' marker-end='url(#ar)'/><rect x='340' y='222' width='200' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='440.0' y='241.0' text-anchor='middle' fill='currentColor' font-size='12'>운영 배포</text><rect x='100' y='212' width='200' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='200.0' y='232.0' text-anchor='middle' fill='currentColor' font-size='11'>테스트 데이터 = 비식별/합성</text><line x1='320' y1='150' x2='200' y2='170' stroke='currentColor' stroke-dasharray='4 3' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "단위 테스트",
+          "meaning": "외부 의존 없이 하나의 코드 단위를 검증하는 가장 빠른 테스트"
+        },
+        {
+          "term": "통합 테스트",
+          "meaning": "DB·브로커 등 실제 의존성과 함께 검증하는 테스트"
+        },
+        {
+          "term": "E2E 테스트",
+          "meaning": "화면부터 DB까지 전 구간을 실제와 동일하게 검증하는 테스트"
+        },
+        {
+          "term": "Testcontainers",
+          "meaning": "테스트 시 실제 미들웨어를 컨테이너로 띄워주는 도구"
+        },
+        {
+          "term": "아이스크림 콘 안티패턴",
+          "meaning": "E2E가 많고 단위가 적어 느리고 불안정한 테스트 구성"
+        },
+        {
+          "term": "flaky 테스트",
+          "meaning": "같은 코드에서 성공과 실패를 오가는 불안정한 테스트"
+        },
+        {
+          "term": "경계값 테스트",
+          "meaning": "한도·0·최대값·반올림 경계를 검증하는 테스트. 금융에서 필수"
+        },
+        {
+          "term": "UAT",
+          "meaning": "현업 사용자가 업무 관점에서 수행하는 인수 테스트"
+        }
+      ],
+      "pitfalls": [
+        "커버리지 숫자만 채우려고 단정문(assert) 없는 테스트를 작성해 의미 없는 지표를 만든다.",
+        "E2E에 의존해 테스트가 2시간 걸리고 자주 깨져 결국 아무도 신뢰하지 않게 된다.",
+        "테스트 실패 시 관리자 권한으로 병합을 강행할 수 있어 게이트가 무력화된다.",
+        "운영 DB를 복사해 테스트 환경에 사용해 실 고객 개인정보가 개발망에 유통된다.",
+        "금액 경계값·반올림 테스트가 없어 수수료 1원 차이가 대량 건수에서 큰 차액이 된다.",
+        "UAT 결과를 구두로만 확인하고 승인 기록을 남기지 않아 변경 통제 증빙이 없다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 반영 전 자동화 테스트가 수행되고 실패 시 배포가 차단되는가",
+          "[변경] 업무 영향이 큰 변경에 대해 현업 UAT 승인 기록이 존재하는가",
+          "[ITAC] 금액 계산·한도 등 재무 영향 로직에 대한 테스트가 존재하는가",
+          "[접근] 테스트 게이트를 우회할 수 있는 권한이 제한·기록되는가",
+          "[운영] 테스트 데이터에 실 고객 개인정보가 사용되지 않도록 통제되는가"
+        ],
+        "fss": [
+          "정보시스템 변경 시 사전 시험을 수행하고 결과를 기록·보존하는가",
+          "시험 환경과 운영 환경이 분리되어 있고 시험 데이터가 보호되는가",
+          "중요 업무 변경에 대해 업무 담당 부서의 확인을 받는가"
+        ],
+        "isms": [
+          "2.8.2 보안 요구사항 검토 및 시험: 시험 수행·기록",
+          "2.8.3 시험과 운영 환경 분리 / 2.8.4 시험 데이터 보안",
+          "3.x 개인정보 처리: 시험 목적 개인정보 이용 제한"
+        ],
+        "evidence": [
+          "CI 파이프라인 정의(테스트 단계, 커버리지 기준, 실패 시 차단 설정)",
+          "최근 릴리스의 테스트 실행 결과 리포트와 커버리지",
+          "브랜치 보호 규칙 설정(우회 권한 보유자 목록 포함)",
+          "UAT 수행 결과서와 현업 승인 기록 샘플",
+          "테스트 데이터 생성·비식별 절차 문서 및 반입 승인 이력"
+        ],
+        "auditorQuestions": [
+          "테스트가 실패하면 배포가 실제로 막히는가? 강제로 배포할 수 있는 사람이 있는가?",
+          "수수료 계산 로직에 대한 테스트를 보여줄 수 있는가?",
+          "테스트 환경의 데이터는 어디서 왔는가? 실 고객 정보인가?",
+          "현업이 확인했다는 기록은 어디에 남는가?",
+          "최근 릴리스의 테스트 결과를 조회할 수 있는가?"
+        ],
+        "controlExample": "모든 소스 변경은 CI에서 단위·통합 테스트와 커버리지 기준을 통과해야 병합되며, 실패 시 배포가 자동 차단된다. 업무 영향이 있는 변경은 현업 담당자의 인수 테스트 승인을 거치고 그 결과는 변경관리 시스템에 보존된다."
+      },
+      "related": [
+        "app-code-quality",
+        "app-openapi",
+        "app-api-versioning",
+        "app-idempotency",
+        "cicd-github-actions",
+        "plat-change-management",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "Martin Fowler - TestPyramid",
+        "Testcontainers 공식 문서",
+        "Google Testing Blog - Test Sizes"
+      ]
+    },
+    {
+      "id": "app-code-quality",
+      "title": "코드 품질: 린트·정적분석·커버리지",
+      "titleEn": "Code Quality: Lint, Static Analysis, Coverage",
+      "aliases": [
+        "정적분석",
+        "SAST",
+        "SonarQube",
+        "린트",
+        "코드리뷰",
+        "커버리지"
+      ],
+      "tags": [
+        "quality",
+        "security",
+        "sdlc"
+      ],
+      "level": "중급",
+      "oneLiner": "사람이 보기 전에 도구가 먼저 코드의 결함과 취약점을 찾아내는 체계",
+      "analogy": "정적 분석은 글을 인쇄하기 전에 돌리는 맞춤법 검사기와 같다. 사람이 읽어도 놓치는 오타와 비문을 기계가 일관되게 잡아준다. 다만 검사기는 '문법은 맞지만 논리가 이상한 문장'은 못 잡으므로, 편집자의 검토(코드 리뷰)를 대체하지는 못한다. 둘 다 있어야 원고가 안전하게 인쇄된다.",
+      "explanation": "<p>코드 품질 도구는 목적에 따라 몇 갈래로 나뉜다. <strong>포매터/린터</strong>(ktlint, Prettier, Black)는 스타일을 통일해 리뷰에서 형식 논쟁을 없앤다. <strong>정적 분석</strong>은 코드를 실행하지 않고 결함 패턴을 찾는다. 이 중 보안에 특화된 것이 <strong>SAST(Static Application Security Testing)</strong>로, SQL 인젝션 가능성, 하드코딩된 비밀, 안전하지 않은 암호 알고리즘, 인증 누락 등을 탐지한다. <strong>SCA(Software Composition Analysis)</strong>는 사용 중인 오픈소스 라이브러리의 알려진 취약점을 찾는다. <strong>DAST</strong>는 실행 중인 애플리케이션을 공격해보는 방식으로 성격이 다르다.</p><p><strong>커버리지(Coverage)</strong>는 테스트가 코드의 몇 %를 실행했는지의 지표다. 오해가 많은 지표인데, <strong>높다고 품질이 좋은 것은 아니고 낮으면 확실히 위험하다</strong>는 정도로 이해하는 것이 맞다. 실무에서는 전체 커버리지보다 <strong>변경분 커버리지(new code coverage)</strong>를 기준으로 삼는 것이 효과적이다. 레거시 전체를 80%로 만드는 것은 불가능하지만, 새로 쓰는 코드를 80%로 유지하는 것은 가능하다.</p><p><strong>Quality Gate</strong>는 이 지표들을 배포 조건으로 묶는 장치다. SonarQube 등이 '신규 코드 커버리지 80% 이상, 신규 심각 이슈 0건, 중복률 3% 이하'같은 기준을 두고, 미달이면 파이프라인을 실패시킨다. <strong>도구가 있는 것과 게이트가 작동하는 것은 완전히 다른 이야기</strong>이며, 감사에서는 후자를 봐야 한다.</p><p><strong>코드 리뷰</strong>는 도구가 대체할 수 없는 부분을 담당한다. 업무 규칙이 요구사항과 맞는지, 권한 검사가 빠지지 않았는지, 설계가 적절한지는 사람만 판단할 수 있다. 통제 관점에서 코드 리뷰는 <strong>'개발자 한 명이 단독으로 운영 코드를 바꿀 수 없다'는 직무분리(SoD)</strong>를 구현하는 수단이다. 그래서 확인할 것은 (1) <strong>본인 승인(self-approval)이 차단되는가</strong>, (2) 승인자가 <strong>실제로 코드를 볼 수 있는 사람</strong>인가, (3) 리뷰 없이 병합할 수 있는 예외 경로(관리자 권한, 직접 push)가 막혀 있는가다.</p><p><strong>감사 관점 정리.</strong> ITGC 변경관리에서 이 영역의 핵심 질문은 <strong>'승인되지 않은 코드가 운영에 갈 수 있는가'</strong>다. 확인 증거는 브랜치 보호 규칙 설정(필수 리뷰 수, 본인 승인 금지, force push 금지), 최근 병합 이력의 승인자 목록, Quality Gate 실패 시 실제로 배포가 막힌 사례, SAST/SCA 실행 결과와 <strong>발견된 취약점의 조치 이력</strong>이다. 마지막이 특히 중요하다. 스캔만 돌리고 결과를 아무도 안 보면 통제가 아니라 <strong>'알고도 방치했다'는 증거</strong>가 되어 오히려 불리해진다.</p>",
+      "howItWorks": "<ol><li>개발자가 커밋하면 pre-commit 훅이 포매터와 시크릿 스캐너를 실행한다.</li><li>PR을 올리면 CI가 린트, 단위 테스트, 커버리지, SAST, SCA를 병렬 실행한다.</li><li>SonarQube 등이 결과를 모아 Quality Gate를 평가한다(신규 코드 기준).</li><li>게이트 실패 시 PR 상태가 실패로 표시되어 병합 버튼이 비활성화된다.</li><li>동시에 지정된 코드 소유자(CODEOWNERS)에게 리뷰가 요청된다.</li><li>리뷰어가 승인하되 작성자 본인 승인은 인정되지 않는다.</li><li>모든 필수 체크와 리뷰 승인이 충족되어야 병합이 가능하다.</li><li>병합 후 발견된 취약점은 티켓으로 등록되어 심각도별 SLA 내 조치되고 재스캔으로 확인된다.</li></ol>",
+      "example": "<p>'페이나우'는 GitHub + SonarQube + Snyk 조합을 사용한다. 브랜치 보호 규칙으로 <code>main</code>에는 직접 push가 금지되고, PR당 승인 2인(그중 1인은 코드 소유자)이 필요하며 본인 승인은 카운트되지 않는다. Quality Gate 기준은 신규 코드 커버리지 80%, 신규 Blocker/Critical 이슈 0건이다. 2026년 상반기 Quality Gate로 차단된 PR은 214건이었고, SAST가 잡은 실제 취약점 중 Critical 3건(하드코딩 키 1건, SQL 인젝션 가능 코드 2건)은 모두 병합 전에 수정됐다. 취약점 조치 SLA는 Critical 7일, High 30일이며 초과 건은 주간 보안 회의에 상정된다.</p><pre><code># 브랜치 보호 = 직무분리의 기술적 구현\nrequired_pull_request_reviews:\n  required_approving_review_count: 2\n  require_code_owner_reviews: true\n  dismiss_stale_reviews: true        # 새 커밋이 오면 기존 승인 무효\nrequired_status_checks:\n  strict: true\n  contexts: [\"build\", \"test\", \"sonarqube\", \"snyk\"]\nenforce_admins: true                 # 관리자도 우회 불가 (중요)\nallow_force_pushes: false\n\n# Quality Gate (신규 코드 기준)\nnew_coverage        &gt;= 80%\nnew_blocker_issues   = 0\nnew_critical_issues  = 0\nnew_security_hotspots_reviewed = 100%</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='100' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70.0' y='61.0' text-anchor='middle' fill='currentColor' font-size='13'>커밋</text><line x1='120' y1='57' x2='165' y2='57' stroke='currentColor' marker-end='url(#ar)'/><rect x='165' y='40' width='120' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='225.0' y='61.0' text-anchor='middle' fill='currentColor' font-size='12'>pre-commit 훅</text><line x1='285' y1='57' x2='330' y2='57' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='25' width='290' height='64' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475.0' y='61.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='475' y='45' text-anchor='middle' fill='currentColor' font-size='12'>CI 검사 (병렬)</text><text x='390' y='68' text-anchor='middle' fill='currentColor' font-size='11'>린트</text><text x='450' y='68' text-anchor='middle' fill='currentColor' font-size='11'>테스트</text><text x='515' y='68' text-anchor='middle' fill='currentColor' font-size='11'>SAST</text><text x='580' y='68' text-anchor='middle' fill='currentColor' font-size='11'>SCA</text><line x1='475' y1='89' x2='475' y2='115' stroke='currentColor' marker-end='url(#ar)'/><rect x='370' y='115' width='210' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475.0' y='136.0' text-anchor='middle' fill='currentColor' font-size='12'>Quality Gate 판정</text><line x1='370' y1='132' x2='300' y2='132' stroke='currentColor' marker-end='url(#ar)'/><text x='335' y='124' text-anchor='middle' fill='currentColor' font-size='11'>실패</text><rect x='150' y='115' width='150' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='225.0' y='136.0' text-anchor='middle' fill='currentColor' font-size='13'>병합 차단</text><line x1='475' y1='149' x2='475' y2='175' stroke='currentColor' marker-end='url(#ar)'/><rect x='370' y='175' width='210' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475.0' y='196.0' text-anchor='middle' fill='currentColor' font-size='12'>코드 리뷰 2인 승인</text><text x='475' y='228' text-anchor='middle' fill='currentColor' font-size='11'>본인 승인 불가 · 관리자 우회 불가</text><rect x='20' y='175' width='300' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='170.0' y='196.0' text-anchor='middle' fill='currentColor' font-size='12'>취약점 발견 시 SLA 내 조치·재스캔</text><text x='170' y='228' text-anchor='middle' fill='currentColor' font-size='11'>스캔만 하고 방치하면 역효과</text></svg>",
+      "keyTerms": [
+        {
+          "term": "SAST",
+          "meaning": "소스코드를 정적으로 분석해 보안 취약점을 찾는 검사"
+        },
+        {
+          "term": "SCA",
+          "meaning": "오픈소스 의존성의 알려진 취약점을 식별하는 검사"
+        },
+        {
+          "term": "DAST",
+          "meaning": "실행 중인 애플리케이션을 외부에서 공격해 취약점을 찾는 검사"
+        },
+        {
+          "term": "Quality Gate",
+          "meaning": "지표 기준 미달 시 파이프라인을 실패시키는 품질 관문"
+        },
+        {
+          "term": "변경분 커버리지",
+          "meaning": "새로 추가·수정된 코드에 대한 테스트 커버리지"
+        },
+        {
+          "term": "CODEOWNERS",
+          "meaning": "경로별 필수 리뷰어를 지정하는 설정 파일"
+        },
+        {
+          "term": "브랜치 보호 규칙",
+          "meaning": "직접 push 금지, 필수 리뷰 등 병합 조건을 강제하는 설정"
+        },
+        {
+          "term": "직무분리(SoD)",
+          "meaning": "한 사람이 작성·승인·배포를 모두 수행하지 못하게 하는 통제 원칙"
+        }
+      ],
+      "pitfalls": [
+        "도구는 도입했으나 Quality Gate를 경고로만 두어 실패해도 배포가 진행된다.",
+        "관리자 권한으로 브랜치 보호를 우회할 수 있어 통제가 형식화된다.",
+        "본인이 올린 PR을 본인이 승인할 수 있어 직무분리가 성립하지 않는다.",
+        "스캔 결과를 아무도 검토하지 않아 취약점을 '인지하고도 방치한' 상태가 된다.",
+        "커버리지 목표만 맞추려고 의미 없는 테스트를 양산한다.",
+        "긴급 배포(hotfix)에는 모든 검사를 건너뛰는 예외 경로가 상시화된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 반영되는 모든 코드가 리뷰 승인을 거치며 본인 승인이 차단되는가",
+          "[변경] 정적분석·취약점 검사가 파이프라인에 포함되고 기준 미달 시 배포가 차단되는가",
+          "[접근] 브랜치 보호 우회 권한 보유자가 최소화되고 우회 이력이 기록·검토되는가",
+          "[운영] 발견된 취약점이 심각도별 SLA에 따라 조치되고 이력이 관리되는가",
+          "[변경] 긴급 변경 시에도 사후 리뷰·승인이 이루어지는가"
+        ],
+        "fss": [
+          "응용프로그램 개발 시 안전한 코딩 기준이 수립·적용되고 점검되는가",
+          "정보시스템 변경에 대한 검토·승인이 이루어지는가",
+          "취약점 점검 결과에 대한 조치가 이행되고 확인되는가"
+        ],
+        "isms": [
+          "2.8.1 보안 요구사항 정의 / 2.8.2 보안 요구사항 검토 및 시험",
+          "2.8.5 소스프로그램 보안: 소스 접근·변경 통제",
+          "2.11.2 취약점 점검 및 조치"
+        ],
+        "evidence": [
+          "브랜치 보호 규칙 설정 화면(필수 승인 수, 본인 승인 금지, 관리자 포함 여부)",
+          "Quality Gate 기준 설정과 최근 차단된 PR 목록",
+          "SAST/SCA 스캔 리포트 및 발견 취약점의 조치 티켓",
+          "최근 릴리스 PR의 승인자 목록(작성자와 승인자 분리 확인)",
+          "긴급 변경 사례의 사후 리뷰·승인 기록"
+        ],
+        "auditorQuestions": [
+          "개발자가 혼자서 운영 코드를 바꿔 배포할 수 있는가?",
+          "정적분석에서 심각 이슈가 나오면 배포가 막히는가? 최근 막힌 사례가 있는가?",
+          "브랜치 보호를 우회할 수 있는 사람은 누구인가?",
+          "발견된 취약점은 언제까지 고치기로 되어 있고 실제로 지켜지는가?",
+          "긴급 배포 시 리뷰를 건너뛰는가? 사후 절차는 있는가?"
+        ],
+        "controlExample": "운영 브랜치는 직접 변경이 금지되며 모든 변경은 자동 검사(빌드·테스트·정적분석) 통과와 작성자 외 2인의 리뷰 승인을 거쳐야 병합된다. 브랜치 보호 규칙은 관리자에게도 적용되며 발견된 심각 취약점은 7일 내 조치 후 재스캔으로 확인한다."
+      },
+      "related": [
+        "app-test-pyramid",
+        "app-dependency-management",
+        "app-owasp-top10",
+        "app-input-validation",
+        "cicd-github-actions",
+        "plat-change-management",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "SonarQube 공식 문서 - Quality Gates",
+        "OWASP Source Code Analysis Tools",
+        "GitHub Docs - Branch protection rules"
+      ]
+    },
+    {
+      "id": "app-logging-standard",
+      "title": "로깅 표준: 구조화 로그와 상관관계 ID",
+      "titleEn": "Logging Standards: Structured Logs & Correlation ID",
+      "aliases": [
+        "구조화 로그",
+        "JSON 로그",
+        "trace ID",
+        "MDC",
+        "감사 로그",
+        "로그 마스킹"
+      ],
+      "tags": [
+        "observability",
+        "logging",
+        "audit"
+      ],
+      "level": "중급",
+      "oneLiner": "기계가 읽을 수 있는 형식으로, 하나의 요청을 끝까지 추적 가능하게 남기는 로그 체계",
+      "analogy": "구조화 로그는 손글씨 일지 대신 정해진 칸이 있는 양식지에 기록하는 것과 같다. 칸이 있으면 '지난달 A담당자가 처리한 반려 건'을 바로 뽑을 수 있지만, 자유 서술 일지는 사람이 전부 읽어야 한다. 상관관계 ID는 그 양식지마다 찍는 접수번호로, 여러 부서를 거친 서류를 하나로 묶어준다.",
+      "explanation": "<p><strong>구조화 로그(Structured Logging)</strong>는 로그를 사람이 읽는 문장이 아니라 <strong>키-값 쌍(주로 JSON)</strong>으로 남기는 방식이다. <code>\"결제 실패: 주문 778812, 사유 잔액부족\"</code> 대신 <code>{\"event\":\"payment_failed\",\"orderId\":\"778812\",\"reason\":\"INSUFFICIENT_BALANCE\",\"amount\":49000}</code>로 남긴다. 그러면 '어제 잔액부족으로 실패한 건의 총 금액'같은 질의가 즉시 가능해진다. MSA에서 서비스가 수십 개면 사람이 문장을 읽는 방식은 성립하지 않는다.</p><p><strong>상관관계 ID(Correlation ID / Trace ID)</strong>는 하나의 사용자 요청이 여러 서비스를 거칠 때 <strong>모든 로그에 같은 식별자</strong>를 붙이는 것이다. 게이트웨이에서 생성해 HTTP 헤더(W3C 표준은 <code>traceparent</code>)로 전파하고, 각 서비스는 MDC(Mapped Diagnostic Context)에 넣어 모든 로그에 자동 포함시킨다. 비동기 경계(메시지 발행·소비)에서도 메시지 헤더로 전달해야 끊기지 않는다. <strong>이것이 없으면 장애 조사에서 '이 고객의 결제가 어디서 실패했는지'를 찾는 데 몇 시간이 걸린다.</strong></p><p><strong>로그는 세 종류로 구분</strong>해야 한다. <strong>애플리케이션 로그</strong>(디버깅·운영용), <strong>액세스 로그</strong>(누가 언제 어떤 API를 호출했는지), <strong>감사 로그(Audit Log)</strong>(누가 무엇을 어떻게 바꿨는지)다. 감사 로그는 성격이 완전히 달라서 <strong>수정·삭제가 불가능해야 하고, 보존기간이 길며(금융권 통상 5년), 접근이 제한</strong>되어야 한다. 애플리케이션 로그와 같은 저장소에 섞어 두고 30일 후 삭제하면 감사 대응이 불가능하다.</p><p><strong>로그 레벨</strong>도 규약이 필요하다. ERROR는 사람이 개입해야 하는 것, WARN은 비정상이지만 자동 복구된 것, INFO는 업무적으로 의미 있는 사건, DEBUG는 개발용이다. <strong>운영에서 DEBUG를 켜두면</strong> 비용이 폭증하고 민감정보가 대량으로 흘러나온다.</p><p><strong>가장 중요한 통제는 마스킹</strong>이다. 로그에 카드번호·주민번호·계좌번호·비밀번호·토큰이 그대로 찍히는 사고는 놀라울 만큼 흔하다. 요청 전문을 통째로 로깅하거나, 예외 객체에 담긴 파라미터가 스택트레이스와 함께 출력되거나, DTO의 toString()이 전체 필드를 뱉는 경우다. 대응은 <strong>공통 로깅 레이어에서 필드 기반 마스킹을 강제</strong>하고, 로그 저장소에서 주기적으로 패턴 스캔(정규식으로 카드번호 형태 탐지)을 돌리는 것이다.</p><p><strong>감사 관점 정리.</strong> (1) 감사 로그의 <strong>무결성</strong>(수정 불가, WORM 저장소·객체 잠금), (2) <strong>보존기간</strong>이 법규·내규에 부합하는가, (3) <strong>접근 권한</strong>과 로그 조회 자체의 기록, (4) <strong>민감정보 미포함</strong>, (5) <strong>시각 동기화</strong>(NTP) — 서버 시계가 어긋나면 로그 순서를 신뢰할 수 없어 사고 조사와 법적 증거력이 약해진다. (6) 로그 수집 실패·유실이 탐지되는가.</p>",
+      "howItWorks": "<ol><li>게이트웨이가 요청을 받으면 trace ID를 생성(또는 클라이언트 전달분 검증)해 헤더에 넣는다.</li><li>각 서비스의 필터가 헤더에서 trace ID를 꺼내 MDC에 저장한다.</li><li>로거가 모든 로그 라인에 trace ID, 서비스명, 사용자 ID, 환경을 자동으로 포함시킨다.</li><li>로그는 JSON 한 줄로 표준출력에 기록된다(파일 아님).</li><li>마스킹 레이어가 사전 정의된 민감 필드를 변환한다(카드번호 → 앞6·뒤4만).</li><li>노드의 수집 에이전트가 로그를 중앙 저장소(CloudWatch/OpenSearch)로 전송한다.</li><li>금액·권한 변경 등 감사 대상 이벤트는 별도 감사 로그 스트림과 불변 저장소(S3 Object Lock)로 보내진다.</li><li>운영자가 trace ID로 검색하면 전 서비스의 관련 로그가 시간순으로 조회된다.</li></ol>",
+      "example": "<p>'페이나우'는 모든 서비스에 공통 로깅 라이브러리를 배포해 JSON 구조화 로그와 MDC 전파를 강제한다. 2025년 고객 민원 조사에서 trace ID 하나로 게이트웨이→BFF→결제→PG→원장 5개 구간의 로그를 3분 만에 확인해 PG 응답 지연이 원인임을 특정했다. 감사 로그는 애플리케이션 로그와 분리해 S3 Object Lock(거버넌스 모드, 5년)에 적재되며, 조회는 감사팀·보안팀만 가능하고 조회 행위 자체도 CloudTrail에 남는다. 분기마다 로그 저장소에 카드번호 정규식 스캔을 돌려 마스킹 누락을 점검하며, 2026년 1분기 1건(신규 배치 서비스의 오류 로그)이 발견돼 즉시 수정·삭제 처리했다.</p><pre><code>// 구조화 로그 + MDC (같은 요청은 같은 traceId)\nMDC.put(\"traceId\", traceId); MDC.put(\"userId\", user.maskedId())\nlog.info(\"payment_completed\",\n    kv(\"orderId\", order.id), kv(\"amount\", 49000),\n    kv(\"cardNo\", mask(card.no)),      // 542211******4412\n    kv(\"elapsedMs\", 212))\n\n// 출력\n{\"@timestamp\":\"2026-09-14T10:22:31.442+09:00\",\"level\":\"INFO\",\n \"service\":\"payment-api\",\"env\":\"prod\",\n \"traceId\":\"8f3c1c0e7a2b4c19\",\"userId\":\"u_***821\",\n \"event\":\"payment_completed\",\"orderId\":\"ord-778812\",\n \"amount\":49000,\"cardNo\":\"542211******4412\",\"elapsedMs\":212}\n\n# 금지 패턴\nlog.info(\"request: {}\", requestBody)        // 전문 통째 로깅 → 개인정보 유출\nlog.error(\"failed\", e)                      // 파라미터 포함 스택트레이스 주의</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='100' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='70.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>게이트웨이</text><text x='70' y='82' text-anchor='middle' fill='currentColor' font-size='11'>traceId 생성</text><line x1='120' y1='47' x2='175' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='175' y='30' width='90' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='220.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='13'>BFF</text><line x1='265' y1='47' x2='320' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='30' width='100' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='370.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='13'>결제 서비스</text><line x1='420' y1='47' x2='475' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='475' y='30' width='100' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='13'>원장 서비스</text><line x1='70' y1='100' x2='70' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='220' y1='64' x2='220' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='64' x2='370' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='525' y1='64' x2='525' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='125' width='600' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='145.0' text-anchor='middle' fill='currentColor' font-size='12'>같은 traceId가 모든 로그에 포함 → 한 번에 조회</text><line x1='200' y1='157' x2='200' y2='185' stroke='currentColor' marker-end='url(#ar)'/><line x1='440' y1='157' x2='440' y2='185' stroke='currentColor' marker-end='url(#ar)'/><rect x='60' y='185' width='280' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='200.0' y='206.0' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션 로그 (90일)</text><rect x='360' y='185' width='260' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='490.0' y='206.0' text-anchor='middle' fill='currentColor' font-size='12'>감사 로그 (불변, 5년)</text><text x='200' y='240' text-anchor='middle' fill='currentColor' font-size='11'>마스킹 필수</text><text x='490' y='240' text-anchor='middle' fill='currentColor' font-size='11'>수정 불가 · 접근 제한 · 조회도 기록</text></svg>",
+      "keyTerms": [
+        {
+          "term": "구조화 로그",
+          "meaning": "키-값 형식(JSON)으로 남겨 기계가 질의할 수 있는 로그"
+        },
+        {
+          "term": "상관관계 ID / trace ID",
+          "meaning": "하나의 요청 흐름을 전 구간에서 묶어주는 식별자"
+        },
+        {
+          "term": "MDC",
+          "meaning": "스레드 단위로 공통 로그 필드를 보관하는 컨텍스트"
+        },
+        {
+          "term": "traceparent",
+          "meaning": "분산 추적 컨텍스트 전파를 위한 W3C 표준 헤더"
+        },
+        {
+          "term": "감사 로그(Audit Log)",
+          "meaning": "누가 무엇을 변경했는지 남기는 불변 기록. 보존기간이 길다"
+        },
+        {
+          "term": "마스킹",
+          "meaning": "민감 항목 일부를 가려 기록하는 처리"
+        },
+        {
+          "term": "WORM / Object Lock",
+          "meaning": "한 번 쓰면 수정·삭제할 수 없게 하는 저장 방식"
+        },
+        {
+          "term": "NTP 시각 동기화",
+          "meaning": "서버 시계를 표준시에 맞춰 로그 순서의 신뢰성을 확보하는 것"
+        }
+      ],
+      "pitfalls": [
+        "요청·응답 전문을 통째로 로깅해 주민번호·카드번호가 로그 저장소에 축적된다.",
+        "감사 로그를 애플리케이션 로그와 같은 저장소·보존기간으로 관리해 필요할 때 이미 삭제되어 있다.",
+        "운영에서 DEBUG 레벨을 켜둬 비용이 급증하고 민감정보가 노출된다.",
+        "비동기 경계(메시지 발행/소비)에서 trace ID 전파가 끊겨 흐름 추적이 중단된다.",
+        "서버 시각이 동기화되지 않아 로그 순서가 뒤엉키고 사고 조사가 어려워진다.",
+        "로그 수집 에이전트 장애를 모니터링하지 않아 특정 기간 로그가 통째로 비어 있다.",
+        "감사 로그를 운영자가 수정·삭제할 수 있어 증거력이 없다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 감사 로그가 불변 저장소에 보관되고 법규·내규에 맞는 기간 동안 보존되는가",
+          "[접근] 로그 조회·관리 권한이 제한되고 조회 행위 자체가 기록되는가",
+          "[ITAC] 로그에 민감정보가 포함되지 않도록 마스킹이 적용되고 주기적으로 점검되는가",
+          "[운영] 전 구간 추적이 가능한 상관관계 ID 체계가 표준으로 적용되는가",
+          "[운영] 로그 수집 실패·유실이 탐지되고 서버 시각이 동기화되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록의 생성·보존(통상 5년) 요건이 충족되는가",
+          "접속기록의 위·변조 방지 조치가 적용되어 있는가",
+          "이용자 정보가 로그에 노출되지 않도록 보호 조치가 적용되는가"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 / 2.9.5 로그 및 접속기록 점검",
+          "2.7.1 암호정책 적용: 로그 내 민감정보 보호",
+          "2.10.x 시스템 보안관리: 시각 동기화 및 로그 무결성"
+        ],
+        "evidence": [
+          "로깅 표준 문서와 공통 로깅 라이브러리 적용 서비스 목록",
+          "감사 로그 저장소의 불변성 설정(S3 Object Lock 등)과 보존기간 설정 화면",
+          "로그 조회 권한 목록과 조회 이력 샘플",
+          "민감정보 패턴 스캔 결과 및 마스킹 누락 조치 이력",
+          "trace ID로 전 구간을 조회한 화면 캡처",
+          "NTP 동기화 설정과 로그 수집 실패 모니터링 대시보드"
+        ],
+        "auditorQuestions": [
+          "특정 고객의 특정 거래가 어느 서비스에서 실패했는지 추적할 수 있는가? 시연 가능한가?",
+          "감사 로그는 누가 수정하거나 삭제할 수 있는가?",
+          "로그는 얼마나 보관되며 그 기준은 무엇인가?",
+          "로그에 카드번호가 남지 않는다는 것을 어떻게 확인하는가?",
+          "로그 수집이 멈추면 누가 알게 되는가?"
+        ],
+        "controlExample": "모든 서비스는 공통 로깅 표준에 따라 상관관계 ID를 포함한 구조화 로그를 생성하며, 민감정보는 공통 계층에서 마스킹된다. 감사 대상 이벤트는 별도 스트림으로 분리되어 변경 불가 저장소에 5년간 보존되고, 조회 권한은 감사·보안 담당자로 제한되며 조회 이력이 기록된다."
+      },
+      "related": [
+        "app-error-monitoring",
+        "app-msa",
+        "app-12factor",
+        "app-itac-identification",
+        "obs-tracing",
+        "obs-elk",
+        "awssec-cloudtrail"
+      ],
+      "learnMore": [
+        "W3C Trace Context 표준",
+        "OpenTelemetry 공식 문서 - Logs",
+        "OWASP Logging Cheat Sheet"
+      ]
+    },
+    {
+      "id": "app-error-monitoring",
+      "title": "예외 모니터링 (Sentry)",
+      "titleEn": "Error & Exception Monitoring",
+      "aliases": [
+        "센트리",
+        "Sentry",
+        "에러 트래킹",
+        "크래시 리포팅",
+        "예외 수집"
+      ],
+      "tags": [
+        "observability",
+        "operations",
+        "quality"
+      ],
+      "level": "기초",
+      "oneLiner": "애플리케이션에서 발생한 예외를 자동 수집·그룹화해 즉시 알려주는 체계",
+      "analogy": "예외 모니터링은 공장 라인마다 달린 경보등과 같다. 불량이 나올 때마다 누군가 기록지를 뒤져 세는 대신, 경보등이 즉시 켜지고 '3번 라인, 같은 유형 불량 142건'이라고 묶어서 알려준다. 다만 경보등이 너무 자주 울리면 작업자들이 무시하게 되므로, 울리는 기준을 관리하는 것이 장치를 다는 것만큼 중요하다.",
+      "explanation": "<p><strong>예외 모니터링 도구</strong>(Sentry, Datadog Error Tracking, Firebase Crashlytics 등)는 애플리케이션에서 발생한 예외를 자동으로 수집해 스택트레이스·발생 빈도·영향받은 사용자 수와 함께 보여준다. 로그 검색과 다른 점은 <strong>같은 원인의 예외를 하나의 이슈로 묶어준다</strong>는 것이다. 동일한 NullPointerException 5,000건이 로그에서는 5,000줄이지만 Sentry에서는 '이슈 1건, 발생 5,000회, 영향 사용자 1,203명'으로 보인다.</p><p><strong>수집되는 정보</strong>는 예외 타입과 메시지, 스택트레이스, 발생 위치(서비스·버전·환경), 요청 컨텍스트(URL, 파라미터, 헤더), 사용자 식별자, 그리고 <strong>브레드크럼(breadcrumb)</strong>이라 불리는 직전 동작 이력이다. 소스맵이나 디버그 심볼을 업로드하면 난독화된 프론트엔드·모바일 스택도 원본 코드 위치로 보여준다.</p><p><strong>운영에서의 핵심은 '노이즈 관리'</strong>다. 모든 예외를 알림으로 보내면 며칠 만에 아무도 보지 않게 된다(경보 피로, alert fatigue). 실무에서는 <strong>새로 나타난 이슈(regression)</strong>, <strong>급증하는 이슈(spike)</strong>, <strong>영향 사용자 수가 임계치를 넘는 이슈</strong>만 알림으로 보내고 나머지는 대시보드에서 주기적으로 검토한다. 릴리스 버전을 태깅해 두면 <strong>'이 배포 이후 새로 생긴 오류'</strong>를 정확히 가려낼 수 있어 롤백 판단에 직결된다.</p><p><strong>가장 중요하고 자주 실패하는 통제는 개인정보 유출 방지</strong>다. 예외 리포트에는 요청 본문과 변수 값이 포함되기 쉬운데, 그 안에 카드번호·주민번호·비밀번호가 들어 있으면 <strong>개인정보가 외부 SaaS로 전송</strong>된다. Sentry는 <code>beforeSend</code> 훅과 데이터 스크러빙(scrubbing) 설정을 제공하지만, <strong>기본 설정만 믿으면 안 되고 필드 화이트리스트 방식으로 명시적으로 제한</strong>해야 한다. 금융권에서는 아예 자체 호스팅(self-hosted) Sentry를 쓰거나, 전송 전 프록시에서 필터링하는 구조를 택하기도 한다.</p><p><strong>감사 관점 정리.</strong> (1) <strong>외부 SaaS로 어떤 데이터가 전송되는가</strong> — 개인정보 국외 이전 및 처리위탁 이슈로, 개인정보 처리방침과 위탁 계약에 반영되어야 한다. (2) <strong>스크러빙 규칙이 실제 작동하는지 검증</strong>된 증거가 있는가. (3) 오류가 <strong>인지되고 조치되는 프로세스</strong>가 있는가 — 도구만 있고 아무도 안 보면 통제가 아니다. (4) <strong>장애로 이어진 오류가 인시던트 관리와 연결</strong>되는가. (5) 접근 권한: Sentry에는 운영 오류의 상세 컨텍스트가 담기므로 <strong>사실상 운영 데이터 조회 경로</strong>이며, 접근 권한 리뷰 대상이다.</p>",
+      "howItWorks": "<ol><li>애플리케이션에 SDK를 설치하고 DSN(전송 주소), 환경, 릴리스 버전을 설정한다.</li><li>처리되지 않은 예외가 발생하면 SDK가 스택트레이스와 컨텍스트를 수집한다.</li><li>전송 전 <code>beforeSend</code> 훅이 민감 필드를 제거하거나 마스킹한다(허용 목록 방식 권장).</li><li>이벤트가 서버로 전송되고, 스택트레이스 지문(fingerprint)으로 동일 원인끼리 이슈로 묶인다.</li><li>이슈에 발생 횟수·영향 사용자·최초/최근 발생 릴리스가 집계된다.</li><li>알림 규칙(신규 이슈, 급증, 영향 사용자 임계 초과)에 해당하면 Slack·온콜로 통보된다.</li><li>담당자가 이슈를 확인해 티켓으로 전환하고, 수정 릴리스 배포 후 이슈를 resolve 한다.</li><li>같은 이슈가 다시 발생하면 regression으로 자동 재오픈되어 알림이 발생한다.</li></ol>",
+      "example": "<p>'페이나우'는 자체 호스팅 Sentry를 사내 VPC에서 운영해 오류 데이터가 외부로 나가지 않도록 했다. SDK는 허용 목록 방식으로 <code>orderId</code>, <code>merchantId</code>, <code>errorCode</code>만 컨텍스트로 전송하고 요청 본문 전체 전송은 비활성화했다. 2026년 5월 앱 5.3.0 배포 직후 신규 이슈 '결제수단 목록 파싱 실패'가 12분 만에 영향 사용자 400명을 넘겨 알림이 발생했고, 단계적 출시를 즉시 중단해 확산을 막았다. 분기마다 스크러빙 설정 검증 테스트(고의로 카드번호 포함 예외 발생 → 저장된 이벤트 확인)를 수행해 증빙으로 보관한다.</p><pre><code>// 민감정보는 '허용 목록' 방식으로만 전송한다\nSentry.init(\n  dsn = env(\"SENTRY_DSN\"),\n  environment = \"prod\",\n  release = \"payment-api@2.7.1\",       // 릴리스별 신규 오류 식별\n  sendDefaultPii = false,               // 기본 PII 수집 끄기\n  beforeSend = { event, _ -&gt;\n      event.request?.data = null        // 요청 본문 전체 제거\n      event.setTag(\"orderId\", ctx.orderId)\n      event.user = User().apply { id = hash(ctx.userId) }   // 해시만\n      event\n  }\n)\n\n# 알림 규칙 (노이즈 관리)\n- 신규 이슈(이전 릴리스에 없던 것)         → 즉시 Slack\n- 1시간 내 영향 사용자 100명 초과          → 온콜 호출\n- 그 외                                     → 일간 다이제스트</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='110' height='36' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='62.0' text-anchor='middle' fill='currentColor' font-size='13'>서비스 A</text><rect x='20' y='90' width='110' height='36' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='112.0' text-anchor='middle' fill='currentColor' font-size='13'>서비스 B</text><rect x='20' y='140' width='110' height='36' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='162.0' text-anchor='middle' fill='currentColor' font-size='13'>모바일 앱</text><line x1='130' y1='58' x2='190' y2='90' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='108' x2='190' y2='108' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='158' x2='190' y2='126' stroke='currentColor' marker-end='url(#ar)'/><rect x='190' y='80' width='130' height='56' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='255.0' y='112.0' text-anchor='middle' fill='currentColor' font-size='12'>SDK 스크러빙</text><text x='255' y='152' text-anchor='middle' fill='currentColor' font-size='11'>민감필드 제거</text><line x1='320' y1='108' x2='380' y2='108' stroke='currentColor' marker-end='url(#ar)'/><rect x='380' y='85' width='150' height='46' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='455.0' y='112.0' text-anchor='middle' fill='currentColor' font-size='12'>이슈 그룹화</text><text x='455' y='148' text-anchor='middle' fill='currentColor' font-size='11'>동일 원인 = 1 이슈</text><line x1='455' y1='131' x2='455' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='360' y='165' width='260' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='490.0' y='185.0' text-anchor='middle' fill='currentColor' font-size='12'>알림 규칙: 신규 / 급증 / 영향 사용자</text><line x1='490' y1='197' x2='490' y2='220' stroke='currentColor' marker-end='url(#ar)'/><rect x='360' y='220' width='260' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='490.0' y='239.0' text-anchor='middle' fill='currentColor' font-size='12'>온콜 → 인시던트 티켓</text><rect x='20' y='190' width='300' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='170.0' y='210.0' text-anchor='middle' fill='currentColor' font-size='11'>외부 SaaS면 개인정보 위탁·국외이전 검토</text><text x='320' y='20' text-anchor='middle' fill='currentColor' font-size='12'>오류를 세는 것이 아니라 '묶어서' 본다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "이슈 그룹화(Fingerprint)",
+          "meaning": "같은 원인의 예외를 하나로 묶는 기준"
+        },
+        {
+          "term": "브레드크럼",
+          "meaning": "예외 직전의 동작 이력. 재현에 필요한 단서"
+        },
+        {
+          "term": "데이터 스크러빙",
+          "meaning": "전송 전 민감 필드를 제거·마스킹하는 처리"
+        },
+        {
+          "term": "릴리스 태깅",
+          "meaning": "오류를 배포 버전과 연결해 신규 오류를 식별하는 기능"
+        },
+        {
+          "term": "regression",
+          "meaning": "해결됐던 이슈가 다시 발생하는 것"
+        },
+        {
+          "term": "경보 피로(Alert Fatigue)",
+          "meaning": "알림이 너무 많아 무시하게 되는 현상"
+        },
+        {
+          "term": "소스맵 / 디버그 심볼",
+          "meaning": "난독화된 스택을 원본 코드 위치로 되돌리는 매핑 파일"
+        },
+        {
+          "term": "자체 호스팅",
+          "meaning": "SaaS 대신 사내에 도구를 직접 운영해 데이터 유출을 막는 방식"
+        }
+      ],
+      "pitfalls": [
+        "요청 본문 전체를 컨텍스트로 전송해 카드번호·주민번호가 외부 SaaS에 저장된다.",
+        "sendDefaultPii 같은 기본 설정을 그대로 두어 IP·쿠키·사용자 정보가 자동 수집된다.",
+        "모든 예외에 알림을 걸어 하루 수백 건이 오고 결국 아무도 보지 않는다.",
+        "릴리스 버전을 태깅하지 않아 어떤 배포가 문제를 일으켰는지 특정하지 못한다.",
+        "도구 도입만 하고 이슈 처리 프로세스(담당자 배정, 티켓화)가 없어 수천 건이 쌓인다.",
+        "Sentry 접근 권한을 전 개발자에게 열어 운영 데이터 컨텍스트가 광범위하게 노출된다.",
+        "예상된 비즈니스 예외(잔액부족 등)까지 오류로 수집해 진짜 장애가 묻힌다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 오류 리포트에 개인정보·인증정보가 포함되지 않도록 필터링되고 검증되는가",
+          "[운영] 중요 오류가 인지·티켓화되어 조치되는 프로세스가 운영되는가",
+          "[접근] 오류 모니터링 도구 접근 권한이 제한되고 주기적으로 검토되는가",
+          "[운영] 배포와 오류 발생이 연계 분석되어 롤백 판단에 활용되는가",
+          "[변경] 외부 SaaS 이용 시 처리위탁·국외이전 검토와 계약이 완료되었는가"
+        ],
+        "fss": [
+          "이용자 정보가 외부로 전송되는 경우 위탁·제공에 대한 절차와 보호조치가 마련되어 있는가",
+          "장애·오류 발생 시 인지 및 대응 체계가 운영되는가",
+          "클라우드·외부 서비스 이용에 대한 안전성 확보조치가 이행되는가"
+        ],
+        "isms": [
+          "2.3.x 외부자 보안: 수탁자 관리 및 점검",
+          "3.3.x 개인정보 제공/위탁 및 국외이전",
+          "2.11.1 사고 예방 및 대응체계: 오류·장애 인지와 대응"
+        ],
+        "evidence": [
+          "오류 수집 SDK 설정(스크러빙 규칙, PII 수집 비활성화) 코드/설정",
+          "스크러빙 동작 검증 테스트 결과(민감정보 미저장 확인)",
+          "오류 모니터링 도구 접근 권한 목록과 최근 권한 검토 기록",
+          "중요 오류의 티켓 전환·조치 이력 샘플",
+          "외부 SaaS 이용 시 위탁 계약서·국외이전 고지 및 개인정보 처리방침 반영 증빙"
+        ],
+        "auditorQuestions": [
+          "오류 리포트에 고객 개인정보가 포함될 가능성이 있는가? 어떻게 막는가?",
+          "이 도구는 어디에서 운영되며 데이터가 국외로 나가는가?",
+          "오류가 발생하면 누가 언제 확인하고 어떻게 처리되는가?",
+          "배포 직후 오류가 늘어나면 어떻게 판단·대응하는가?",
+          "이 도구에 접근할 수 있는 사람은 누구인가?"
+        ],
+        "controlExample": "애플리케이션 오류는 자체 호스팅 오류 추적 시스템으로 수집되며 전송 전 허용 목록 기반 필터링으로 개인정보가 제외되고, 분기별 검증 테스트로 필터링 동작을 확인한다. 영향 사용자 임계치를 초과한 오류는 온콜 알림과 인시던트 티켓으로 연결되어 조치된다."
+      },
+      "related": [
+        "app-logging-standard",
+        "app-resilience",
+        "app-mobile-release",
+        "app-test-pyramid",
+        "obs-prometheus",
+        "plat-incident-management",
+        "sec-privacy"
+      ],
+      "learnMore": [
+        "Sentry 공식 문서 - Data Scrubbing / Filtering",
+        "Google SRE Book - Monitoring Distributed Systems",
+        "Firebase Crashlytics 공식 문서"
+      ]
+    },
+    {
+      "id": "app-owasp-top10",
+      "title": "OWASP Top 10",
+      "titleEn": "OWASP Top 10 Web Application Security Risks",
+      "aliases": [
+        "오와스프",
+        "웹 취약점",
+        "SQL 인젝션",
+        "XSS",
+        "웹 보안 10대 위험"
+      ],
+      "tags": [
+        "security",
+        "owasp",
+        "vulnerability"
+      ],
+      "level": "중급",
+      "oneLiner": "웹 애플리케이션에서 가장 자주·심각하게 발생하는 10가지 보안 위험 목록",
+      "analogy": "OWASP Top 10은 화재 예방 점검표와 같다. 소방서가 '실제 화재의 대부분은 이 열 가지 원인에서 시작된다'고 정리해 준 목록이라, 건물주는 이것만 제대로 점검해도 사고 위험의 대부분을 없앨 수 있다. 모든 위험을 다루지는 않지만, 이것도 안 하면서 다른 걸 하는 것은 순서가 틀린 것이다.",
+      "explanation": "<p><strong>OWASP Top 10</strong>은 국제 웹 보안 비영리단체 OWASP가 수년마다 발표하는 <strong>가장 중요한 웹 애플리케이션 보안 위험 10가지</strong>다. 금융권 보안 점검, 개발 보안 가이드, 취약점 진단 기준의 사실상 표준으로 쓰인다. 2021년판 기준 항목은 다음과 같다.</p><p><strong>A01 접근통제 실패(Broken Access Control)</strong> — 1위다. 로그인은 했지만 <strong>남의 데이터에 접근할 수 있는</strong> 문제로, URL의 ID만 바꿔 다른 사람의 결제내역을 보는 IDOR, 일반 사용자가 관리자 API를 호출하는 권한 상승이 여기 속한다. <strong>화면에서 버튼을 숨기는 것은 대책이 아니다.</strong> <strong>A02 암호화 실패</strong> — 민감정보를 평문 저장·전송하거나 약한 알고리즘(MD5, SHA-1, DES)을 쓰는 문제. <strong>A03 인젝션</strong> — SQL 인젝션, 명령어 인젝션, XSS가 여기 포함된다. 사용자 입력이 코드로 해석되는 것이 본질이며, <strong>파라미터 바인딩(PreparedStatement)</strong>이 근본 해법이다.</p><p><strong>A04 안전하지 않은 설계</strong> — 코드 문제가 아니라 <strong>설계 단계에서 위협 모델링을 하지 않은</strong> 결과. 예: 비밀번호 재설정 흐름에 본인확인이 없음. <strong>A05 보안 설정 오류</strong> — 기본 계정 방치, 디버그 모드 활성화, 불필요한 관리 페이지 노출(앞서 본 actuator, Swagger UI). <strong>A06 취약하고 오래된 구성요소</strong> — 알려진 취약점이 있는 라이브러리 사용. <strong>A07 인증 및 식별 실패</strong> — 무차별 대입 방어 없음, 세션 관리 미흡. <strong>A08 소프트웨어·데이터 무결성 실패</strong> — 검증 없는 역직렬화, 공급망 공격(CI/CD 침해). <strong>A09 로깅·모니터링 실패</strong> — 공격을 탐지·추적할 수 없는 상태. <strong>A10 SSRF</strong> — 서버가 공격자가 지정한 내부 주소로 요청을 보내게 되는 문제로, 클라우드 환경에서 메타데이터 서비스 접근으로 자격증명 탈취까지 이어진다.</p><p><strong>금융권에서 특히 중요한 것</strong>은 A01(접근통제), A02(암호화), A09(로깅)이다. 개인정보보호법과 전자금융감독규정이 직접 요구하는 영역이기 때문이다. API 중심 아키텍처에서는 별도 문서인 <strong>OWASP API Security Top 10</strong>도 함께 봐야 하며, 여기서도 1·3위가 객체 수준 인가 실패(BOLA)와 객체 속성 수준 인가 실패다.</p><p><strong>감사 관점</strong>에서 OWASP Top 10은 <strong>'개발 보안이 체계적으로 이루어지는가'를 검증하는 프레임</strong>이다. 확인할 것은 (1) 안전한 코딩 가이드가 OWASP를 반영해 존재하고 교육이 이루어지는가, (2) 정기 취약점 진단(연 1회 이상, 금융권은 통상 연 1회 모의해킹 포함)이 수행되는가, (3) <strong>발견된 취약점의 조치 완료율과 재점검</strong> 기록이 있는가, (4) 신규 서비스 오픈 전 보안성 검토가 필수 관문인가이다.</p>",
+      "howItWorks": "<ol><li>설계 단계에서 위협 모델링을 수행해 자산·위협·대응을 식별한다(A04 대응).</li><li>개발 단계에서 안전한 코딩 가이드를 적용한다. 파라미터 바인딩, 출력 인코딩, 인가 검사 등.</li><li>CI에서 SAST가 인젝션·하드코딩 비밀 등 패턴을 자동 탐지한다(A03, A02).</li><li>SCA가 취약한 라이브러리를 탐지해 차단한다(A06).</li><li>배포 전 설정 점검(디버그 비활성화, 기본 계정 제거, 관리 페이지 차단)이 수행된다(A05).</li><li>스테이징에서 DAST·모의해킹으로 실제 공격 시나리오를 검증한다(A01, A10).</li><li>운영에서 WAF와 이상행위 탐지가 공격 시도를 차단·기록한다(A09).</li><li>발견 취약점은 심각도별 SLA로 조치되고 재점검으로 확인되며, 결과가 경영진에 보고된다.</li></ol>",
+      "example": "<p>'페이나우'는 연 1회 외부 모의해킹과 반기 1회 내부 취약점 진단을 수행한다. 2025년 하반기 진단에서 A01 사례 2건(가맹점 관리자가 다른 가맹점의 정산 내역을 조회 가능, 뷰어 권한으로 지급 API 호출 가능)과 A10 SSRF 1건(이미지 URL 등록 기능으로 내부 메타데이터 엔드포인트 호출 가능)이 발견됐다. SSRF는 Critical로 분류돼 5일 만에 조치됐고, 대응으로 URL 스킴·호스트 허용 목록과 IMDSv2 강제를 적용했다. 접근통제 결함은 모든 조회·변경 API에 대해 '리소스 소유자 일치 검증' 공통 컴포넌트를 도입하고 자동화 테스트 340건을 추가해 재발을 막았다.</p><pre><code>-- A03 인젝션: 문자열 결합 금지, 바인딩 사용\n-- BAD\n\"SELECT * FROM payment WHERE merchant_id = '\" + input + \"'\"\n-- GOOD (PreparedStatement / JPA 파라미터)\n\"SELECT p FROM Payment p WHERE p.merchantId = :mid\"\n\n// A01 접근통제: 소유자 검증을 공통화\nfun assertOwner(user: AuthUser, merchantId: String) {\n    if (!user.merchantIds.contains(merchantId))\n        throw ForbiddenException(\"MERCHANT_MISMATCH\")   // 403, 감사 로그 기록\n}\n\n# A10 SSRF: 목적지 허용 목록 + 메타데이터 차단\nallowedSchemes: [https]\nallowedHosts:  [\"cdn.paynow.co.kr\", \"images.partner.com\"]\ndenyCidr:      [\"169.254.169.254/32\", \"10.0.0.0/8\", \"127.0.0.0/8\"]</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='320' y='20' text-anchor='middle' fill='currentColor' font-size='12'>OWASP Top 10 (2021) — 위험과 방어 지점</text><rect x='20' y='34' width='190' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='115.0' y='53.0' text-anchor='middle' fill='currentColor' font-size='11'>A01 접근통제 실패</text><rect x='225' y='34' width='190' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='53.0' text-anchor='middle' fill='currentColor' font-size='11'>A02 암호화 실패</text><rect x='430' y='34' width='190' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='525.0' y='53.0' text-anchor='middle' fill='currentColor' font-size='11'>A03 인젝션</text><rect x='20' y='72' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='115.0' y='91.0' text-anchor='middle' fill='currentColor' font-size='11'>A04 안전하지 않은 설계</text><rect x='225' y='72' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='91.0' text-anchor='middle' fill='currentColor' font-size='11'>A05 보안 설정 오류</text><rect x='430' y='72' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='91.0' text-anchor='middle' fill='currentColor' font-size='11'>A06 취약한 구성요소</text><rect x='20' y='110' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='115.0' y='129.0' text-anchor='middle' fill='currentColor' font-size='11'>A07 인증 실패</text><rect x='225' y='110' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='129.0' text-anchor='middle' fill='currentColor' font-size='11'>A08 무결성 실패</text><rect x='430' y='110' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='129.0' text-anchor='middle' fill='currentColor' font-size='11'>A09 로깅·모니터링 실패</text><rect x='225' y='148' width='190' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='167.0' text-anchor='middle' fill='currentColor' font-size='11'>A10 SSRF</text><rect x='20' y='195' width='140' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='216.0' text-anchor='middle' fill='currentColor' font-size='11'>설계: 위협 모델링</text><line x1='160' y1='212' x2='185' y2='212' stroke='currentColor' marker-end='url(#ar)'/><rect x='185' y='195' width='140' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255.0' y='216.0' text-anchor='middle' fill='currentColor' font-size='11'>개발: SAST/SCA</text><line x1='325' y1='212' x2='350' y2='212' stroke='currentColor' marker-end='url(#ar)'/><rect x='350' y='195' width='130' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='415.0' y='216.0' text-anchor='middle' fill='currentColor' font-size='11'>배포 전: DAST</text><line x1='480' y1='212' x2='505' y2='212' stroke='currentColor' marker-end='url(#ar)'/><rect x='505' y='195' width='115' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='562.5' y='216.0' text-anchor='middle' fill='currentColor' font-size='11'>운영: WAF</text></svg>",
+      "keyTerms": [
+        {
+          "term": "IDOR / BOLA",
+          "meaning": "식별자만 바꿔 남의 자원에 접근하는 객체 수준 인가 실패"
+        },
+        {
+          "term": "SQL 인젝션",
+          "meaning": "입력값이 SQL 구문으로 해석되어 DB가 조작되는 취약점"
+        },
+        {
+          "term": "XSS",
+          "meaning": "악성 스크립트가 다른 사용자의 브라우저에서 실행되는 취약점"
+        },
+        {
+          "term": "SSRF",
+          "meaning": "서버가 공격자 지정 주소로 요청을 보내게 되는 취약점"
+        },
+        {
+          "term": "위협 모델링",
+          "meaning": "설계 단계에서 자산·위협·대응책을 체계적으로 식별하는 활동"
+        },
+        {
+          "term": "WAF",
+          "meaning": "웹 공격 패턴을 탐지·차단하는 방화벽"
+        },
+        {
+          "term": "IMDSv2",
+          "meaning": "토큰을 요구해 SSRF로 인한 EC2 자격증명 탈취를 막는 메타데이터 접근 방식"
+        },
+        {
+          "term": "OWASP API Security Top 10",
+          "meaning": "API에 특화된 별도 위험 목록. API 중심 아키텍처에서 필수"
+        }
+      ],
+      "pitfalls": [
+        "인증만 구현하고 인가를 빠뜨려 토큰만 있으면 남의 데이터를 조회할 수 있게 된다.",
+        "WAF를 도입했으니 애플리케이션 보안은 됐다고 판단한다. WAF는 우회 가능한 보조 수단이다.",
+        "취약점 진단은 매년 하지만 발견 항목의 조치 완료 여부를 추적하지 않는다.",
+        "운영에서 디버그 모드·기본 계정·관리 페이지가 남아 있다(A05).",
+        "이미지·URL 미리보기 기능을 만들며 SSRF를 고려하지 않아 클라우드 자격증명이 탈취된다.",
+        "비밀번호를 MD5/SHA-1로 저장한다. 현재 기준은 bcrypt/scrypt/Argon2다.",
+        "공격 시도를 탐지·기록하는 로깅이 없어 침해 사실을 몇 달 뒤 외부 통보로 알게 된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 모든 조회·변경 기능에 리소스 소유자·권한 검증이 구현되어 있는가",
+          "[변경] 안전한 코딩 가이드가 존재하고 개발자 교육·적용 여부가 확인되는가",
+          "[운영] 정기 취약점 진단·모의해킹이 수행되고 발견 사항이 SLA 내 조치·재점검되는가",
+          "[운영] 신규 서비스 오픈 전 보안성 검토가 필수 절차로 수행되는가",
+          "[운영] 공격 시도 탐지·기록 체계(WAF, 이상행위 탐지)가 운영되는가"
+        ],
+        "fss": [
+          "전자금융기반시설에 대한 취약점 분석·평가를 연 1회 이상 수행하고 결과를 보고·조치하는가",
+          "정보처리시스템의 접근통제 및 암호화 조치가 적용되어 있는가",
+          "홈페이지·앱에 대한 웹 취약점 점검과 보완이 이루어지는가"
+        ],
+        "isms": [
+          "2.11.2 취약점 점검 및 조치",
+          "2.8.1/2.8.2 보안 요구사항 정의 및 시험: 안전한 개발",
+          "2.6.x 접근통제 / 2.7.1 암호정책 적용"
+        ],
+        "evidence": [
+          "최근 취약점 진단·모의해킹 보고서와 조치 완료 확인서",
+          "안전한 코딩 가이드 문서와 개발자 보안 교육 수료 기록",
+          "접근통제(소유자 검증) 공통 컴포넌트 구현 코드와 테스트 결과",
+          "WAF 정책 설정과 최근 차단 이력",
+          "신규 서비스 오픈 전 보안성 검토 승인 문서"
+        ],
+        "auditorQuestions": [
+          "다른 가맹점의 데이터를 조회할 수 없다는 것을 어떻게 보장하고 검증했는가?",
+          "최근 취약점 진단에서 발견된 항목은 모두 조치되었는가? 재점검 결과는?",
+          "비밀번호는 어떤 알고리즘으로 저장되는가?",
+          "개발자들은 안전한 코딩 교육을 받는가? 언제 받았는가?",
+          "공격 시도를 탐지하고 있는가? 최근 사례를 보여줄 수 있는가?"
+        ],
+        "controlExample": "전자금융기반시설에 대해 연 1회 이상 취약점 분석·평가와 모의해킹을 수행하고, 발견된 취약점은 심각도별 조치 기한 내 개선 후 재점검으로 확인하며 결과를 정보보호 책임자에게 보고한다."
+      },
+      "related": [
+        "app-input-validation",
+        "app-code-quality",
+        "app-dependency-management",
+        "app-rest",
+        "app-session-stateless",
+        "app-frontend-react",
+        "sec-waf"
+      ],
+      "learnMore": [
+        "OWASP Top 10 (2021)",
+        "OWASP API Security Top 10",
+        "OWASP Application Security Verification Standard (ASVS)"
+      ]
+    },
+    {
+      "id": "app-input-validation",
+      "title": "입력 검증과 출력 인코딩",
+      "titleEn": "Input Validation & Output Encoding",
+      "aliases": [
+        "유효성 검증",
+        "화이트리스트 검증",
+        "출력 이스케이프",
+        "파라미터 바인딩",
+        "검증"
+      ],
+      "tags": [
+        "security",
+        "quality",
+        "development"
+      ],
+      "level": "기초",
+      "oneLiner": "들어오는 값은 엄격히 확인하고, 나가는 값은 상황에 맞게 변환해 안전을 확보하는 원칙",
+      "analogy": "입력 검증은 공항 보안검색과 같다. 가져올 수 있는 물건 목록을 정해두고 그 외는 모두 막는 방식(화이트리스트)이, 위험물 목록을 만들어 그것만 막는 방식(블랙리스트)보다 훨씬 안전하다. 출력 인코딩은 통역과 같다. 같은 문장이라도 듣는 쪽이 한국어인지 영어인지에 따라 다르게 옮겨야 오해가 없듯, 같은 문자열도 HTML로 나갈 때와 SQL로 나갈 때 다르게 변환해야 한다.",
+      "explanation": "<p>보안의 근본 원칙은 <strong>'모든 외부 입력은 신뢰하지 않는다'</strong>이다. 여기서 외부는 사용자 입력만이 아니다. 다른 서비스의 응답, 외부기관 파일, 메시지 큐의 페이로드, DB에 이미 저장된 값(2차 인젝션)도 포함된다.</p><p><strong>입력 검증은 화이트리스트(허용 목록) 방식</strong>이 원칙이다. '<code>&lt;script&gt;</code>를 차단'하는 블랙리스트는 <code>&lt;ScRiPt&gt;</code>, 인코딩 변형 등으로 우회된다. 대신 '주문번호는 영숫자와 하이픈만, 최대 50자', '금액은 1 이상 1억 이하 정수', '상태는 PAID/CANCELLED/REFUNDED 중 하나'처럼 <strong>허용되는 형태를 정의</strong>한다. 검증 항목은 타입, 길이, 범위, 형식(정규식), 그리고 <strong>업무 규칙</strong>(출금액이 잔액 이하인가)이다.</p><p><strong>검증은 반드시 서버에서</strong> 해야 한다. 클라이언트 검증은 사용자 편의를 위한 것이지 통제가 아니다. 또한 <strong>검증 위치는 신뢰 경계(trust boundary)의 안쪽 입구</strong>여야 한다. 컨트롤러에서만 검증하고 배치나 이벤트 소비자 경로에는 검증이 없으면 그쪽으로 잘못된 데이터가 들어온다.</p><p><strong>출력 인코딩</strong>은 인젝션을 막는 다른 축이다. 핵심은 <strong>'데이터가 어디로 나가는지에 따라 변환 방식이 다르다'</strong>는 점이다. HTML 본문으로 나가면 HTML 이스케이프, HTML 속성이면 속성 인코딩, 자바스크립트 문맥이면 JS 인코딩, SQL이면 <strong>인코딩이 아니라 파라미터 바인딩</strong>, 셸 명령이면 아예 문자열 조합을 피하고 인자 배열로 전달한다. 실무 원칙은 <strong>'문자열을 조합해 코드를 만들지 말라'</strong>로 요약된다.</p><p><strong>금융권에서 추가로 중요한 검증</strong>이 있다. <strong>금액</strong>은 음수·0·소수점·상한 검증이 필수이고, 문자열로 받아 암묵적 형변환되지 않도록 타입을 고정해야 한다. <strong>계좌번호·사업자번호·주민번호</strong>는 체크섬 검증이 가능하다. <strong>파일 업로드</strong>는 확장자만이 아니라 실제 내용(magic number)을 확인하고, 실행 가능한 위치에 저장하지 않으며, 파일명을 그대로 쓰지 않는다(경로 조작 방지). <strong>대량 처리 파일</strong>은 헤더의 총건수·총금액과 실제 내용을 대사한다.</p><p><strong>감사 관점</strong>에서 입력 검증은 전형적인 <strong>ITAC(입력 통제)</strong>다. 감사인은 (1) 금액·수량 등 중요 항목에 <strong>범위·형식 검증이 구현</strong>되어 있는지, (2) 검증 실패 시 <strong>거부되고 기록</strong>되는지, (3) 모든 입력 경로(화면, API, 배치 파일, 인터페이스)에 <strong>일관되게</strong> 적용되는지, (4) <strong>마스터 데이터</strong>(수수료율, 한도)의 입력·변경에 승인 통제가 있는지를 본다. 특히 <strong>배치 파일 입력 경로가 검증에서 빠지는 경우</strong>가 많고, 이는 외부기관에서 잘못된 파일이 들어와도 그대로 처리되는 위험으로 이어진다.</p>",
+      "howItWorks": "<ol><li>요청이 도착하면 프레임워크가 본문을 DTO로 역직렬화한다. 정의되지 않은 필드는 거부하도록 설정한다.</li><li>선언적 검증(@Valid, Pydantic 등)이 타입·길이·범위·형식을 확인한다.</li><li>검증 실패 시 공통 핸들러가 400/422와 항목별 오류 코드를 반환하고, 실패 이벤트를 로그로 남긴다.</li><li>업무 규칙 검증(잔액 이상 출금 불가, 한도 초과 불가)이 도메인 계층에서 수행된다.</li><li>DB 접근은 파라미터 바인딩으로만 이루어지며 문자열 결합 SQL은 정적분석이 차단한다.</li><li>저장 시 원본 값을 그대로 보관하고(과도한 사전 변환 지양), 출력 시점에 문맥에 맞게 인코딩한다.</li><li>파일 입력은 형식·크기·내용 타입을 검증하고, 배치 파일은 헤더 건수·금액과 본문을 대사한다.</li><li>검증 규칙 변경은 코드 리뷰와 테스트를 거쳐 반영되고, 업무 파라미터는 별도 승인을 받는다.</li></ol>",
+      "example": "<p>'페이나우'는 모든 API DTO에 선언적 검증을 강제하고, 검증이 없는 필드가 있으면 아키텍처 테스트가 실패하도록 했다. 2025년 카드사 정산 파일 처리에서 헤더 총건수(1,204,382건)와 실제 레코드 수(1,204,380건)가 2건 차이 나는 상황이 발생했는데, 대사 검증 덕분에 처리 전에 중단하고 카드사에 재전송을 요청했다. 이 검증이 없었다면 2건의 거래가 조용히 누락됐을 것이다. 또한 가맹점 등록 화면의 사업자등록번호는 체크섬 검증 후 국세청 API로 실제 존재 여부를 확인하며, 파일 업로드는 magic number 검사와 별도 S3 버킷(실행 불가) 저장을 적용한다.</p><pre><code>// 허용 목록 방식 선언적 검증\ndata class TransferRequest(\n    @field:Pattern(regexp = \"^[0-9]{10,14}$\")          // 형식\n    val toAccount: String,\n    @field:Min(1) @field:Max(100_000_000)              // 범위\n    val amount: Long,                                   // 타입 고정 (문자열 금지)\n    @field:Pattern(regexp = \"^(KRW|USD)$\")             // 열거 허용값\n    val currency: String\n)\n\n-- 파라미터 바인딩 (문자열 결합 금지)\nSELECT * FROM payment WHERE merchant_id = ? AND biz_date = ?\n\n# 배치 파일 입력 통제: 헤더와 본문 대사\nheader.totalCount  == records.size        || abort(\"COUNT_MISMATCH\")\nheader.totalAmount == records.sumOf{amt}  || abort(\"AMOUNT_MISMATCH\")\nheader.hashValue   == sha256(body)        || abort(\"INTEGRITY_FAIL\")</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='49.0' text-anchor='middle' fill='currentColor' font-size='12'>화면 입력</text><rect x='20' y='70' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='89.0' text-anchor='middle' fill='currentColor' font-size='12'>API 호출</text><rect x='20' y='110' width='120' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='80.0' y='129.0' text-anchor='middle' fill='currentColor' font-size='12'>배치 파일</text><rect x='20' y='150' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='169.0' text-anchor='middle' fill='currentColor' font-size='12'>메시지 큐</text><line x1='140' y1='45' x2='200' y2='90' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='85' x2='200' y2='95' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='125' x2='200' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='165' x2='200' y2='115' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='65' width='150' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='275.0' y='109.0' text-anchor='middle' fill='currentColor' font-size='12'>입력 검증 계층</text><text x='275' y='160' text-anchor='middle' fill='currentColor' font-size='11'>타입·길이·범위·형식</text><text x='275' y='178' text-anchor='middle' fill='currentColor' font-size='11'>화이트리스트 방식</text><line x1='350' y1='90' x2='410' y2='90' stroke='currentColor' marker-end='url(#ar)'/><text x='380' y='82' text-anchor='middle' fill='currentColor' font-size='11'>통과</text><rect x='410' y='70' width='110' height='36' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='465.0' y='92.0' text-anchor='middle' fill='currentColor' font-size='13'>업무 로직</text><line x1='350' y1='120' x2='410' y2='140' stroke='currentColor' marker-end='url(#ar)'/><text x='380' y='145' text-anchor='middle' fill='currentColor' font-size='11'>실패</text><rect x='400' y='125' width='150' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475.0' y='145.0' text-anchor='middle' fill='currentColor' font-size='11'>400/422 + 기록</text><line x1='520' y1='88' x2='570' y2='88' stroke='currentColor' marker-end='url(#ar)'/><rect x='545' y='60' width='75' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='582.5' y='80.0' text-anchor='middle' fill='currentColor' font-size='11'>DB</text><text x='300' y='205' text-anchor='middle' fill='currentColor' font-size='11'>출력 시점에 문맥별 인코딩: HTML / JS / SQL(바인딩) / 셸</text><rect x='140' y='218' width='360' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='237.0' text-anchor='middle' fill='currentColor' font-size='11'>배치 파일은 헤더 건수·금액 대사 필수</text></svg>",
+      "keyTerms": [
+        {
+          "term": "화이트리스트 검증",
+          "meaning": "허용되는 형태만 통과시키는 방식. 블랙리스트보다 안전"
+        },
+        {
+          "term": "신뢰 경계",
+          "meaning": "신뢰할 수 없는 영역과 신뢰 영역의 경계. 검증이 놓여야 할 위치"
+        },
+        {
+          "term": "파라미터 바인딩",
+          "meaning": "값을 SQL 구문이 아닌 데이터로 전달해 인젝션을 원천 차단하는 방식"
+        },
+        {
+          "term": "출력 인코딩",
+          "meaning": "데이터가 나가는 문맥에 맞게 특수문자를 변환하는 처리"
+        },
+        {
+          "term": "2차 인젝션",
+          "meaning": "저장된 값이 나중에 다른 문맥에서 실행되며 발생하는 공격"
+        },
+        {
+          "term": "magic number",
+          "meaning": "파일 앞부분의 시그니처. 실제 파일 형식을 확인하는 수단"
+        },
+        {
+          "term": "mass assignment",
+          "meaning": "요청 본문의 필드가 무분별하게 엔티티에 매핑되는 취약점"
+        },
+        {
+          "term": "헤더-본문 대사",
+          "meaning": "배치 파일의 총건수·총금액과 실제 내용을 비교 검증하는 통제"
+        }
+      ],
+      "pitfalls": [
+        "클라이언트 검증만 하고 서버 검증을 생략한다. API 직접 호출로 무력화된다.",
+        "블랙리스트로 위험 문자를 걸러내려다 인코딩 변형으로 우회된다.",
+        "금액을 문자열이나 실수형으로 받아 형변환 오류와 반올림 오차가 발생한다.",
+        "배치 파일·메시지 경로에는 검증이 없어 화면 경로만 안전한 상태가 된다.",
+        "저장 시점에 HTML 이스케이프해 두어 다른 문맥(CSV, PDF)에서 깨지거나 이중 인코딩된다.",
+        "업로드 파일을 확장자만으로 판단하고 원본 파일명 그대로 저장해 경로 조작이 가능해진다.",
+        "검증 실패를 로그로 남기지 않아 공격 시도를 인지하지 못한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 금액·수량·코드 등 중요 입력 항목에 범위·형식 검증이 구현되어 있는가",
+          "[ITAC] 모든 입력 경로(화면·API·배치·인터페이스)에 검증이 일관되게 적용되는가",
+          "[ITAC] 외부 수신 파일에 대해 건수·금액·무결성 대사가 수행되고 불일치 시 처리가 중단되는가",
+          "[운영] 검증 실패 건이 기록되고 비정상 패턴이 모니터링되는가",
+          "[변경] 검증 규칙 및 업무 파라미터 변경이 승인 절차를 거치는가"
+        ],
+        "fss": [
+          "전자금융거래 입력 정보의 정확성 검증 절차가 마련되어 있는가",
+          "외부기관 수신 데이터의 무결성 확인 절차가 있는가",
+          "응용프로그램에 안전한 코딩 기준(입력 검증·출력 인코딩)이 적용되는가"
+        ],
+        "isms": [
+          "2.8.1 보안 요구사항 정의: 입력 검증 요구사항 반영",
+          "2.8.2 보안 요구사항 검토 및 시험: 검증 로직 시험",
+          "2.11.2 취약점 점검 및 조치: 인젝션 취약점 점검"
+        ],
+        "evidence": [
+          "주요 입력 DTO의 검증 규칙 정의 코드",
+          "검증 실패 시 응답·로그 샘플",
+          "배치 파일 대사 로직과 최근 불일치 발생·조치 사례",
+          "SQL 파라미터 바인딩 준수에 대한 정적분석 결과",
+          "파일 업로드 검증 설정(형식·크기·저장 위치)"
+        ],
+        "auditorQuestions": [
+          "금액 필드에 음수나 1억 초과 값을 보내면 어떻게 되는가?",
+          "배치로 들어오는 파일의 건수가 헤더와 다르면 어떻게 처리되는가?",
+          "화면이 아닌 API로 직접 보내도 같은 검증이 적용되는가?",
+          "SQL을 문자열로 조합하는 코드가 없다는 것을 어떻게 확인하는가?",
+          "검증 실패가 반복되면 누가 인지하는가?"
+        ],
+        "controlExample": "중요 거래 입력 항목은 타입·범위·형식에 대한 서버 측 검증을 통과해야 처리되며, 외부기관 수신 파일은 헤더의 총건수·총금액 및 해시값과 본문을 대사해 불일치 시 처리를 중단하고 담당자에게 통보한다."
+      },
+      "related": [
+        "app-owasp-top10",
+        "app-rest",
+        "app-external-interface",
+        "app-batch",
+        "app-payment-ledger",
+        "app-code-quality",
+        "app-node-python"
+      ],
+      "learnMore": [
+        "OWASP Input Validation Cheat Sheet",
+        "OWASP Cross Site Scripting Prevention Cheat Sheet",
+        "OWASP SQL Injection Prevention Cheat Sheet"
+      ]
+    },
+    {
+      "id": "app-dependency-management",
+      "title": "의존성 관리와 취약 라이브러리",
+      "titleEn": "Dependency Management & Vulnerable Libraries",
+      "aliases": [
+        "오픈소스 관리",
+        "SCA",
+        "SBOM",
+        "Log4Shell",
+        "공급망 보안",
+        "라이브러리 취약점"
+      ],
+      "tags": [
+        "security",
+        "supply-chain",
+        "operations"
+      ],
+      "level": "중급",
+      "oneLiner": "우리가 쓰는 오픈소스가 무엇이고 안전한지 파악·관리하는 체계",
+      "analogy": "의존성 관리는 식당의 원산지 표시와 리콜 대응과 같다. 어떤 재료를 어느 공급처에서 받았는지 장부(SBOM)가 있어야, 특정 농장에서 오염이 발견됐을 때 '우리 식당에 그 재료가 들어간 메뉴가 무엇인지' 한 시간 안에 답할 수 있다. 장부가 없으면 전 메뉴를 내리거나 모른 채 계속 파는 수밖에 없다.",
+      "explanation": "<p>현대 애플리케이션 코드의 <strong>70~90%는 직접 작성한 것이 아니라 오픈소스 라이브러리</strong>다. Spring Boot 프로젝트 하나에 전이 의존성까지 포함하면 300~500개, npm 프로젝트는 1,000개를 넘기도 한다. 따라서 <strong>보안의 상당 부분이 '남이 만든 코드'에 달려 있다.</strong></p><p><strong>2021년 Log4Shell 사건</strong>이 이 문제를 각인시켰다. Log4j2의 취약점(CVE-2021-44228) 하나로 전 세계 기업이 며칠간 비상 대응에 들어갔는데, 가장 큰 어려움은 패치 자체가 아니라 <strong>'우리가 어디에 Log4j를 쓰고 있는지 모른다'</strong>는 것이었다. 직접 선언하지 않았어도 다른 라이브러리가 끌고 들어온 <strong>전이 의존성</strong>으로 들어와 있었기 때문이다.</p><p><strong>핵심 도구는 세 가지</strong>다. <strong>SCA(Software Composition Analysis)</strong>는 의존성 목록을 취약점 데이터베이스(NVD, GitHub Advisory)와 대조해 알려진 취약점을 찾는다. <strong>SBOM(Software Bill of Materials)</strong>은 구성요소 명세서로, SPDX나 CycloneDX 형식으로 빌드 시 자동 생성한다. 미국 행정명령 이후 사실상 표준 요구사항이 됐고 국내 금융권에서도 요구가 늘고 있다. <strong>lock 파일</strong>은 설치될 버전을 정확히 고정해 빌드 재현성을 보장한다.</p><p><strong>공급망 공격</strong>도 실질적 위협이다. 유명 패키지와 비슷한 이름을 등록하는 <strong>타이포스쿼팅</strong>, 내부 패키지명을 공개 저장소에 선점해 빌드 시 공개본이 당겨지게 하는 <strong>의존성 혼동(dependency confusion)</strong>, 정상 패키지 유지관리자의 계정을 탈취해 악성 버전을 배포하는 <strong>계정 탈취</strong>가 반복적으로 발생한다. 대응은 <strong>사내 프록시 저장소(Nexus, Artifactory)를 통해서만 패키지를 받도록 강제</strong>하고, 내부 패키지 네임스페이스를 예약하며, 무결성 해시를 검증하는 것이다.</p><p><strong>라이선스</strong>도 의존성 관리의 일부다. GPL 계열을 상용 서비스에 포함하면 소스 공개 의무가 생길 수 있어, 법무 검토와 허용 라이선스 목록 관리가 필요하다.</p><p><strong>감사 관점 정리.</strong> 확인할 것은 (1) <strong>구성요소 목록(SBOM)</strong>이 최신으로 관리되어 '특정 취약 라이브러리를 쓰는 서비스'를 즉시 식별할 수 있는가, (2) SCA가 파이프라인에서 실행되고 <strong>심각도 기준 배포 차단</strong>이 작동하는가, (3) 발견 취약점의 <strong>조치 SLA와 실제 이행률</strong>, (4) 예외(당장 못 고치는 경우) 처리에 <strong>승인과 보완통제·기한</strong>이 있는가, (5) 외부 패키지를 <strong>승인된 저장소를 통해서만</strong> 받는가이다. 금융권에서는 전자금융감독규정상 취약점 조치 의무와 직결되며, '패치 관리' 통제의 범위에 OS·미들웨어뿐 아니라 <strong>애플리케이션 라이브러리도 포함된다</strong>는 점이 자주 간과된다.</p>",
+      "howItWorks": "<ol><li>빌드 파일에 직접 의존성을 선언하고, 빌드 도구가 전이 의존성을 해석해 lock 파일에 정확한 버전을 고정한다.</li><li>패키지는 사내 프록시 저장소를 통해서만 내려받는다(외부 직접 접근 차단).</li><li>CI에서 SCA가 의존성 트리 전체를 취약점 DB와 대조한다.</li><li>심각도 기준(예: Critical/High)을 넘는 취약점이 있으면 빌드가 실패해 배포가 차단된다.</li><li>빌드 시 SBOM(CycloneDX 등)이 생성되어 아티팩트와 함께 보관된다.</li><li>Renovate/Dependabot이 새 버전을 자동 PR로 올리고 테스트가 통과하면 병합된다.</li><li>신규 취약점이 공개되면 SBOM을 검색해 영향 서비스를 즉시 식별하고 우선순위를 정한다.</li><li>즉시 조치 불가한 건은 예외 승인(사유·보완통제·기한)을 받아 등록하고 주기적으로 재검토한다.</li></ol>",
+      "example": "<p>'페이나우'는 모든 빌드에서 CycloneDX SBOM을 생성해 아티팩트 저장소에 보관하며, 서비스별 구성요소를 중앙에서 조회할 수 있다. 2026년 3월 특정 JSON 파싱 라이브러리의 Critical 취약점이 공개됐을 때, SBOM 검색으로 영향 서비스 7개를 8분 만에 식별하고 48시간 내 전부 패치했다. Log4Shell 당시 3일이 걸렸던 것과 대비된다. 패키지는 Nexus 프록시를 통해서만 받으며 사내 네임스페이스 <code>com.paynow.*</code>는 공개 저장소에도 선점 등록해 의존성 혼동을 방지한다. 조치 SLA는 Critical 7일, High 30일, Medium 90일이며, 기한 초과 시 CISO 승인 예외 등록이 필요하다.</p><pre><code># CI: 취약점 발견 시 빌드 실패\n- name: Dependency scan\n  run: |\n    ./gradlew dependencyCheckAnalyze \\\n      --failOnCVSS 7.0            # High 이상이면 실패\n    ./gradlew cyclonedxBom        # SBOM 생성\n\n# SBOM으로 영향 범위 즉시 식별\n$ grep -l \"log4j-core\" sboms/*.json | wc -l\n7\n$ jq '.components[] | select(.name==\"log4j-core\") | .version' sboms/payment-api.json\n\"2.14.1\"      # 취약 버전\n\n# 패키지는 사내 프록시로만\nrepositories {\n    maven { url \"https://nexus.paynow.co.kr/repository/maven-public/\" }\n    // mavenCentral()  ← 직접 접근 금지\n}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>빌드 파일 선언</text><line x1='140' y1='47' x2='195' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='195' y='30' width='140' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>사내 프록시 저장소</text><line x1='335' y1='47' x2='390' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='30' width='120' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='450.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>lock 파일 고정</text><text x='265' y='82' text-anchor='middle' fill='currentColor' font-size='11'>외부 직접 접근 차단 = 공급망 방어</text><line x1='450' y1='64' x2='450' y2='95' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='95' width='240' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='450.0' y='116.0' text-anchor='middle' fill='currentColor' font-size='12'>CI: SCA 스캔 + SBOM 생성</text><line x1='330' y1='112' x2='260' y2='112' stroke='currentColor' marker-end='url(#ar)'/><text x='295' y='104' text-anchor='middle' fill='currentColor' font-size='11'>High 이상</text><rect x='110' y='95' width='150' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='185.0' y='116.0' text-anchor='middle' fill='currentColor' font-size='13'>빌드 실패·배포 차단</text><line x1='450' y1='129' x2='450' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='160' width='240' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='450.0' y='181.0' text-anchor='middle' fill='currentColor' font-size='12'>SBOM 보관 (서비스별)</text><line x1='330' y1='177' x2='260' y2='177' stroke='currentColor' marker-end='url(#ar)'/><text x='290' y='195' text-anchor='middle' fill='currentColor' font-size='11'>취약점 공개 시</text><rect x='70' y='160' width='190' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165.0' y='181.0' text-anchor='middle' fill='currentColor' font-size='13'>영향 서비스 즉시 식별</text><rect x='70' y='215' width='500' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='234.0' text-anchor='middle' fill='currentColor' font-size='12'>조치 SLA: Critical 7일 / High 30일 · 예외는 승인+기한</text></svg>",
+      "keyTerms": [
+        {
+          "term": "전이 의존성",
+          "meaning": "내가 선언하지 않았지만 다른 라이브러리가 끌고 들어온 의존성"
+        },
+        {
+          "term": "SCA",
+          "meaning": "구성요소의 알려진 취약점을 식별하는 분석"
+        },
+        {
+          "term": "SBOM",
+          "meaning": "소프트웨어 구성요소 명세서. 영향 범위 식별의 기반"
+        },
+        {
+          "term": "CVE / CVSS",
+          "meaning": "취약점 식별번호와 심각도 점수(0~10)"
+        },
+        {
+          "term": "lock 파일",
+          "meaning": "설치 버전을 정확히 고정해 빌드 재현성을 보장하는 파일"
+        },
+        {
+          "term": "의존성 혼동",
+          "meaning": "내부 패키지명을 공개 저장소에 선점해 악성 코드를 끌어오게 하는 공격"
+        },
+        {
+          "term": "프록시 저장소",
+          "meaning": "외부 패키지를 중계·캐시하며 정책을 적용하는 사내 저장소"
+        },
+        {
+          "term": "Renovate / Dependabot",
+          "meaning": "의존성 업데이트를 자동 PR로 제안하는 도구"
+        }
+      ],
+      "pitfalls": [
+        "직접 선언한 의존성만 확인하고 전이 의존성을 놓쳐 취약 라이브러리가 남는다.",
+        "SBOM이 없어 새 취약점 공개 시 영향 범위를 며칠 동안 파악하지 못한다.",
+        "스캔은 돌리지만 실패해도 배포가 진행되어 게이트가 형식화된다.",
+        "취약점 조치 예외를 승인·기한 없이 무기한 방치한다.",
+        "개발자가 외부 저장소에서 직접 패키지를 받아 공급망 통제가 우회된다.",
+        "OS·미들웨어 패치만 패치관리 대상으로 보고 애플리케이션 라이브러리를 제외한다.",
+        "라이선스 검토 없이 GPL 계열을 상용 서비스에 포함해 법적 위험이 생긴다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 서비스별 구성요소 목록(SBOM)이 관리되어 취약점 영향 범위를 신속히 식별할 수 있는가",
+          "[변경] 의존성 취약점 스캔이 파이프라인에 포함되고 기준 초과 시 배포가 차단되는가",
+          "[운영] 발견 취약점이 심각도별 SLA 내 조치되고 미조치 건에 대한 예외 승인·기한 관리가 이루어지는가",
+          "[접근] 외부 패키지가 승인된 사내 저장소를 통해서만 도입되는가",
+          "[변경] 오픈소스 라이선스 검토 절차가 존재하는가"
+        ],
+        "fss": [
+          "정보처리시스템의 취약점 조치(패치 관리)가 응용 라이브러리를 포함해 이루어지는가",
+          "취약점 분석·평가 결과에 따른 보완조치가 이행·확인되는가",
+          "외부에서 도입하는 소프트웨어에 대한 검증 절차가 있는가"
+        ],
+        "isms": [
+          "2.10.8 패치관리: 라이브러리 포함 취약점 조치",
+          "2.11.2 취약점 점검 및 조치",
+          "2.8.x 정보시스템 도입 및 개발 보안: 외부 구성요소 검증"
+        ],
+        "evidence": [
+          "서비스별 SBOM 파일 및 중앙 조회 화면",
+          "CI의 SCA 설정(차단 기준)과 최근 차단 이력",
+          "취약점 조치 현황 리포트(심각도별 건수, 평균 조치 소요일)",
+          "미조치 취약점의 예외 승인 문서(사유·보완통제·기한)",
+          "패키지 프록시 저장소 설정과 외부 직접 접근 차단 증빙",
+          "오픈소스 라이선스 검토 기록"
+        ],
+        "auditorQuestions": [
+          "지금 특정 라이브러리를 어느 서비스가 쓰는지 몇 분 안에 알 수 있는가?",
+          "Critical 취약점이 발견되면 언제까지 조치하기로 되어 있는가? 실제 이행률은?",
+          "취약점이 있는 상태로 배포할 수 있는가? 누가 승인하는가?",
+          "개발자가 외부 저장소에서 임의로 패키지를 받을 수 있는가?",
+          "최근 1년간 긴급 취약점 대응 사례를 설명해 줄 수 있는가?"
+        ],
+        "controlExample": "모든 빌드는 구성요소 명세서(SBOM)를 생성해 보관하고 의존성 취약점 스캔에서 High 이상이 발견되면 배포가 차단된다. 조치가 지연되는 건은 보완통제와 기한을 명시한 예외 승인을 거쳐 관리되며 월별로 조치 현황이 보고된다."
+      },
+      "related": [
+        "app-code-quality",
+        "app-owasp-top10",
+        "app-node-python",
+        "app-spring-boot",
+        "cicd-github-actions",
+        "sec-supply-chain",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "OWASP Dependency-Check 공식 문서",
+        "CycloneDX SBOM 표준",
+        "CISA - Software Bill of Materials (SBOM)"
+      ]
+    },
+    {
+      "id": "app-feature-flag",
+      "title": "기능 플래그와 A/B 테스트",
+      "titleEn": "Feature Flags & A/B Testing",
+      "aliases": [
+        "피처 플래그",
+        "토글",
+        "카나리",
+        "A/B 테스트",
+        "점진적 출시"
+      ],
+      "tags": [
+        "release",
+        "operations",
+        "product"
+      ],
+      "level": "중급",
+      "oneLiner": "코드 배포와 기능 공개를 분리해 스위치로 켜고 끄는 운영 기법",
+      "analogy": "기능 플래그는 건물에 미리 설치해 둔 전등 스위치와 같다. 전선 공사(배포)는 미리 끝내두고, 실제로 불을 켜는 시점(공개)은 따로 결정한다. 문제가 생기면 공사를 다시 하는 대신 스위치만 내리면 된다. 다만 스위치가 100개로 늘어나면 어느 스위치가 무슨 등인지 아무도 모르게 되므로 배선도를 관리해야 한다.",
+      "explanation": "<p><strong>기능 플래그(Feature Flag/Toggle)</strong>는 <strong>배포(deploy)와 출시(release)를 분리</strong>하는 기법이다. 새 기능 코드를 운영에 배포하되 플래그를 꺼둔 상태로 두면 사용자에게는 보이지 않는다. 준비가 되면 플래그만 켜서 공개하고, 문제가 생기면 재배포·롤백 없이 <strong>수 초 만에 되돌린다</strong>. 릴리스 리스크를 크게 낮추는 현대 배포의 핵심 도구다.</p><p><strong>플래그의 종류</strong>를 구분하는 것이 중요하다. <strong>릴리스 토글</strong>은 새 기능 공개용으로 수명이 짧다(출시 후 제거). <strong>운영 토글(킬 스위치)</strong>은 장애 시 무거운 기능을 끄기 위한 것으로 오래 유지된다. <strong>실험 토글</strong>은 A/B 테스트용이다. <strong>권한 토글</strong>은 특정 고객군에게만 기능을 여는 용도다. 종류에 따라 <strong>수명과 관리 방식이 달라야</strong> 하며, 이를 구분하지 않으면 플래그가 무한정 쌓인다.</p><p><strong>A/B 테스트</strong>는 사용자를 무작위로 나눠 두 버전의 결과를 비교하는 실험이다. 중요한 것은 <strong>같은 사용자는 항상 같은 그룹</strong>에 배정되어야 한다는 점(sticky bucketing)과, 통계적으로 유의미한 표본이 모일 때까지 기다려야 한다는 점이다.</p><p><strong>기술적 주의점</strong>도 있다. 플래그 평가는 매 요청 수행되므로 <strong>지연이 없어야</strong> 하고, 플래그 서비스가 죽어도 <strong>기본값으로 안전하게 동작</strong>해야 한다(fail-safe). 플래그가 코드에 분기를 늘리므로 <strong>조합 폭발</strong>이 일어나 테스트가 어려워지고, 오래된 플래그는 <strong>기술 부채</strong>가 된다. 그래서 만료일을 두고 정기적으로 정리하는 프로세스가 필요하다.</p><p><strong>감사 관점에서 기능 플래그는 매우 중요하면서도 자주 놓치는 영역</strong>이다. 핵심 논점은 <strong>'플래그를 켜는 행위가 시스템 동작을 바꾸는 변경이라면, 그것은 변경관리 대상인가'</strong>이다. 답은 명확히 '그렇다'이다. 코드 배포는 엄격한 승인을 거치는데 플래그 토글은 PM이 대시보드에서 클릭 한 번으로 한다면, <strong>변경 통제에 구멍이 생긴 것</strong>이다. 특히 수수료 계산 방식, 한도 적용, 승인 로직을 플래그로 전환하는 경우 이는 명백한 ITAC 영향 변경이다.</p><p>따라서 실무 통제는 이렇게 설계한다. 플래그를 <strong>위험 등급으로 분류</strong>해, 화면 문구·UI 실험 같은 저위험 플래그는 담당자 권한으로 즉시 토글 가능하게 하고, <strong>금액·한도·승인 로직에 영향을 주는 고위험 플래그는 승인 필수 + 변경 이력 보존</strong>으로 관리한다. 모든 토글은 <strong>누가·언제·어떤 값으로·왜 바꿨는지</strong>가 기록되어야 하며, 이 이력이 감사 증빙이 된다.</p>",
+      "howItWorks": "<ol><li>개발자가 새 기능을 플래그 분기 안에 구현하고, 기본값은 꺼짐으로 배포한다.</li><li>플래그 정의(이름, 설명, 소유자, 위험등급, 만료일)가 플래그 관리 시스템에 등록된다.</li><li>애플리케이션이 시작 시 플래그 설정을 받아오고 이후 변경은 스트리밍/폴링으로 반영된다.</li><li>요청 처리 시 사용자 속성(ID, 등급, 지역)을 기준으로 플래그 값이 평가된다.</li><li>고위험 플래그 변경은 승인 워크플로를 거쳐야 반영된다. 저위험은 담당자가 즉시 변경한다.</li><li>변경 시 수행자·시각·이전값·새값·사유가 감사 로그에 기록된다.</li><li>점진 공개(1% → 10% → 100%) 중 오류율·전환율 지표를 모니터링한다.</li><li>출시가 완료되면 플래그와 분기 코드를 제거하고, 만료일이 지난 플래그는 정리 대상으로 보고된다.</li></ol>",
+      "example": "<p>'페이나우'는 플래그를 3등급으로 분류해 운영한다. L1(UI 문구·레이아웃)은 PM이 즉시 토글, L2(기능 공개 범위)는 팀 리드 승인, <strong>L3(수수료·한도·승인 로직)은 리스크팀 승인 + 변경관리 티켓 필수</strong>다. 2026년 4월 신규 수수료 체계를 L3 플래그로 가맹점 5%에 먼저 적용했는데, 변경 티켓 CHG-2026-0388과 리스크팀 승인이 선행됐고 적용 시각·대상·승인자가 모두 기록됐다. 이 이력은 분기 감사에서 '수수료 체계 변경 통제' 증빙으로 제출됐다. 또한 플래그 만료일을 필수 입력으로 두어 90일 초과 플래그는 주간 리포트로 소유자에게 통보되며, 2026년 상반기에 41개의 레거시 플래그가 정리됐다.</p><pre><code>// 플래그는 기본값이 안전해야 한다 (서비스 장애 시에도)\nval useNewFeeEngine = flags.boolVariation(\n    key = \"fee-engine-v2\",\n    user = ctx.toFlagUser(),\n    defaultValue = false          // 플래그 서비스 장애 시 기존 로직 유지\n)\nval fee = if (useNewFeeEngine) feeEngineV2.calc(txn) else feeEngineV1.calc(txn)\n\n# 플래그 메타데이터 (등록 필수)\nkey: fee-engine-v2\nowner: settlement-team\nrisk: L3                          # 금액 영향 → 승인 필수\nchangeTicket: CHG-2026-0388\napprovedBy: risk-manager@paynow\nexpiresAt: 2026-07-31             # 만료 후 정리 대상\n\n# 변경 감사 로그\n{\"flag\":\"fee-engine-v2\",\"actor\":\"pm.kim\",\"from\":\"0%\",\"to\":\"5%\",\n \"at\":\"2026-04-12T14:02:11+09:00\",\"ticket\":\"CHG-2026-0388\"}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='130' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>코드 배포 (OFF)</text><line x1='150' y1='47' x2='205' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='205' y='30' width='130' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>플래그 등록</text><text x='270' y='82' text-anchor='middle' fill='currentColor' font-size='11'>소유자·위험등급·만료일</text><line x1='335' y1='47' x2='390' y2='47' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='30' width='230' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='505.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>점진 공개 1% → 10% → 100%</text><line x1='505' y1='64' x2='505' y2='95' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='95' width='230' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505.0' y='115.0' text-anchor='middle' fill='currentColor' font-size='12'>지표 이상 시 즉시 OFF (초 단위)</text><rect x='20' y='130' width='280' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='160.0' y='151.0' text-anchor='middle' fill='currentColor' font-size='12'>L1 UI 문구 → 담당자 즉시</text><rect x='20' y='172' width='280' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='160.0' y='193.0' text-anchor='middle' fill='currentColor' font-size='12'>L2 기능 범위 → 팀 리드 승인</text><rect x='20' y='214' width='280' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='160.0' y='235.0' text-anchor='middle' fill='currentColor' font-size='12'>L3 금액·한도·승인 → 리스크 승인 + CHG</text><rect x='340' y='150' width='280' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='480.0' y='171.0' text-anchor='middle' fill='currentColor' font-size='12'>모든 토글: 누가·언제·전후값·사유 기록</text><text x='480' y='205' text-anchor='middle' fill='currentColor' font-size='12'>플래그 토글도 '변경'이다</text><text x='480' y='232' text-anchor='middle' fill='currentColor' font-size='11'>만료 플래그는 정기 정리</text><line x1='300' y1='231' x2='340' y2='184' stroke='currentColor' stroke-dasharray='4 3' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "기능 플래그",
+          "meaning": "코드 배포와 기능 공개를 분리하는 조건부 스위치"
+        },
+        {
+          "term": "킬 스위치",
+          "meaning": "장애 시 특정 기능을 즉시 끄기 위한 운영용 플래그"
+        },
+        {
+          "term": "카나리 릴리스",
+          "meaning": "일부 사용자에게만 먼저 공개해 위험을 줄이는 배포"
+        },
+        {
+          "term": "sticky bucketing",
+          "meaning": "같은 사용자를 항상 같은 실험군에 배정하는 것"
+        },
+        {
+          "term": "fail-safe 기본값",
+          "meaning": "플래그 조회 실패 시 안전한 쪽으로 동작하게 하는 기본값"
+        },
+        {
+          "term": "플래그 부채",
+          "meaning": "제거되지 않고 쌓인 오래된 플래그와 분기 코드"
+        },
+        {
+          "term": "위험 등급 분류",
+          "meaning": "플래그의 업무 영향도에 따라 승인 수준을 달리하는 체계"
+        },
+        {
+          "term": "A/B 테스트",
+          "meaning": "사용자를 무작위 분할해 두 버전의 성과를 비교하는 실험"
+        }
+      ],
+      "pitfalls": [
+        "금액·한도에 영향을 주는 플래그를 승인 없이 토글할 수 있어 변경 통제에 구멍이 생긴다.",
+        "플래그 변경 이력이 남지 않아 '언제부터 이 로직이 적용됐는지' 사후에 알 수 없다.",
+        "플래그 서비스 장애 시 기본값이 '켜짐'이어서 검증되지 않은 기능이 전면 노출된다.",
+        "출시 후 플래그를 제거하지 않아 수백 개가 쌓이고 코드 분기가 통제 불능이 된다.",
+        "A/B 테스트에서 사용자 배정이 요청마다 달라져 같은 사람이 다른 화면을 번갈아 본다.",
+        "플래그로 결제 흐름을 분기시키면서 양쪽 경로 모두에 대한 테스트를 하지 않는다.",
+        "실험 대상에 개인정보를 기준으로 삼으며 동의·목적 범위를 검토하지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 업무 로직·금액에 영향을 주는 플래그 변경이 승인 절차와 변경관리 티켓을 거치는가",
+          "[변경] 모든 플래그 변경 이력(수행자·시각·전후값·사유)이 기록·보존되는가",
+          "[접근] 플래그 변경 권한이 위험 등급에 따라 분리·제한되는가",
+          "[ITAC] 플래그로 분기되는 양쪽 경로 모두에 대해 테스트와 정합성 검증이 수행되는가",
+          "[운영] 미사용·만료 플래그가 주기적으로 식별·정리되는가"
+        ],
+        "fss": [
+          "전자금융거래 처리 로직 변경 시 사전 승인과 기록이 이루어지는가",
+          "수수료·한도 등 이용자에게 영향을 주는 조건 변경이 통제되는가",
+          "변경 후 정상 처리 여부에 대한 사후 점검이 수행되는가"
+        ],
+        "isms": [
+          "2.9.1 변경관리: 설정 기반 기능 변경의 승인·기록",
+          "2.5.x 접근권한 관리: 변경 권한의 분리",
+          "3.x 개인정보 처리: 실험 대상 선정 시 개인정보 이용 범위 검토"
+        ],
+        "evidence": [
+          "플래그 목록과 각 플래그의 위험등급·소유자·만료일",
+          "고위험 플래그 변경 이력과 대응 변경관리 티켓·승인 기록",
+          "플래그 변경 감사 로그 샘플(전후값 포함)",
+          "플래그 변경 권한 설정(역할별) 화면",
+          "만료 플래그 정리 리포트와 정리 이력"
+        ],
+        "auditorQuestions": [
+          "수수료 계산 방식을 플래그로 바꿀 수 있는가? 누가 바꿀 수 있는가?",
+          "플래그를 켠 기록은 어디에 남으며 승인은 어떻게 받는가?",
+          "플래그 서비스가 장애면 기능은 어떻게 동작하는가?",
+          "현재 켜져 있는 플래그가 몇 개이며 각각 누가 관리하는가?",
+          "A/B 테스트 대상 선정에 개인정보를 사용하는가?"
+        ],
+        "controlExample": "업무 로직·금액에 영향을 주는 기능 플래그는 위험등급 L3으로 분류되어 리스크 담당 부서 승인과 변경관리 티켓 등록 후에만 변경 가능하며, 모든 플래그 변경은 수행자·시각·전후값·사유가 감사 로그에 기록되어 보존된다."
+      },
+      "related": [
+        "app-config-externalization",
+        "app-mobile-release",
+        "app-frontend-react",
+        "app-test-pyramid",
+        "app-itac-identification",
+        "plat-change-management",
+        "cicd-argocd"
+      ],
+      "learnMore": [
+        "Martin Fowler - Feature Toggles (Pete Hodgson)",
+        "LaunchDarkly / Unleash 공식 문서",
+        "Google - Trustworthy Online Controlled Experiments"
+      ]
+    },
+    {
+      "id": "app-performance",
+      "title": "성능 최적화: N+1과 인덱스",
+      "titleEn": "Performance Tuning: N+1 Queries & Indexing",
+      "aliases": [
+        "N+1",
+        "슬로우 쿼리",
+        "인덱스",
+        "쿼리 튜닝",
+        "커넥션 풀",
+        "성능"
+      ],
+      "tags": [
+        "performance",
+        "database",
+        "backend"
+      ],
+      "level": "중급",
+      "oneLiner": "불필요한 반복 조회와 인덱스 부재가 만드는 성능 문제를 찾아 없애는 작업",
+      "analogy": "N+1 문제는 장을 볼 때 목록을 들고 한 번에 담지 않고, 품목 하나 확인할 때마다 집에 돌아갔다 오는 것과 같다. 인덱스가 없는 조회는 책에 목차가 없어 특정 단어를 찾으려고 1,000쪽을 처음부터 넘기는 것과 같다. 둘 다 결과는 맞지만 시간이 수백 배 든다.",
+      "explanation": "<p><strong>N+1 문제</strong>는 ORM 환경에서 가장 흔한 성능 결함이다. 주문 100건을 조회한 뒤 각 주문의 가맹점 정보를 지연 로딩으로 읽으면, 쿼리가 1번(주문 목록) + 100번(가맹점)이 나간다. 목록 화면 하나가 DB에 101번의 왕복을 만드는 것이다. 해법은 <strong>조인 페치(fetch join)</strong>, <strong>배치 사이즈 설정</strong>, <strong>엔티티 그래프</strong>, GraphQL이면 <strong>DataLoader</strong>다. 개발 환경에서는 데이터가 적어 드러나지 않다가 <strong>운영에서 터지는</strong> 전형적 패턴이다.</p><p><strong>인덱스</strong>는 DB 성능의 기본이다. WHERE·JOIN·ORDER BY에 자주 쓰이는 컬럼에 인덱스가 없으면 풀 스캔이 발생한다. 알아야 할 원칙은 <strong>복합 인덱스의 컬럼 순서</strong>(선택도 높은 것, 등치 조건이 앞), <strong>선두 컬럼 없이는 인덱스를 못 탄다</strong>는 점, <strong>컬럼에 함수를 씌우면 인덱스가 무효화</strong>된다는 점(<code>WHERE DATE(created_at) = ...</code> 대신 범위 조건 사용)이다. 반대로 인덱스가 너무 많으면 쓰기 성능이 떨어지므로 균형이 필요하다.</p><p><strong>그 밖의 흔한 병목</strong>도 알아둘 만하다. <strong>커넥션 풀 고갈</strong>(트랜잭션 안에서 외부 API 호출, 풀 크기 오설정), <strong>페이징 미적용</strong>으로 수십만 건을 한 번에 로딩, <strong>OFFSET 기반 페이징</strong>의 깊은 페이지 성능 저하(커서 기반으로 전환), <strong>대량 UPDATE로 인한 락 경합</strong>, <strong>불필요한 직렬화</strong> 등이다.</p><p><strong>측정 없는 최적화는 하지 않는다</strong>는 원칙이 중요하다. APM(Datadog, Pinpoint, Scouter)으로 느린 트랜잭션을 찾고, DB의 슬로우 쿼리 로그와 <code>EXPLAIN</code>으로 실행 계획을 확인한 뒤 고친다. 추측으로 코드를 바꾸면 대개 엉뚱한 곳을 건드린다.</p><p><strong>감사 관점에서 성능은 '가용성 통제'이자 간접적 ITAC</strong>다. 확인할 것은 (1) <strong>성능 기준(SLO)</strong>이 정의되고 모니터링되는가, (2) 슬로우 쿼리·응답 지연이 <strong>탐지·조치</strong>되는가, (3) <strong>용량 계획</strong>과 부하 테스트가 중요 이벤트(대규모 프로모션, 월말 정산) 전에 수행되는가, (4) 성능 문제로 인한 <strong>타임아웃이 거래 누락·중복을 유발하지 않는가</strong> — 이것이 성능과 정합성이 만나는 지점이다. 응답이 느려 클라이언트가 재시도하면서 이중 결제가 생기는 사고가 실제로 발생한다. (5) <strong>운영 DB에 직접 쿼리를 실행할 수 있는 권한</strong>과 그 통제 — 성능 조사 목적이라도 운영 데이터 조회는 접근통제 대상이며, 잘못된 쿼리가 운영 장애를 유발할 수 있다.</p>",
+      "howItWorks": "<ol><li>APM이 트랜잭션별 응답시간을 수집하고 임계치를 넘는 느린 요청을 식별한다.</li><li>해당 트랜잭션의 호출 트리를 열어 어느 구간(DB, 외부 호출, 직렬화)에서 시간이 소모되는지 확인한다.</li><li>DB 구간이면 실행된 쿼리 수를 확인한다. 동일 쿼리가 수십~수백 번이면 N+1이다.</li><li>N+1은 페치 조인이나 배치 사이즈 설정으로 묶어 해결한다.</li><li>단일 쿼리가 느리면 EXPLAIN으로 실행 계획을 보고 인덱스 사용 여부와 스캔 행 수를 확인한다.</li><li>필요한 인덱스를 설계하고, 운영 반영은 변경관리 절차와 무중단 방식(CONCURRENTLY 등)으로 수행한다.</li><li>수정 후 동일 시나리오로 부하 테스트를 수행해 개선을 수치로 확인한다.</li><li>SLO 대시보드와 슬로우 쿼리 알림으로 재발을 감시한다.</li></ol>",
+      "example": "<p>'페이나우'의 가맹점 정산 목록 화면이 8.2초 걸리는 문제가 있었다. APM 확인 결과 한 요청에서 쿼리가 1,204번 실행되는 N+1이었고, 페치 조인 적용 후 3번으로 줄어 응답이 340ms가 됐다. 또 다른 사례로 거래 조회 쿼리가 <code>WHERE DATE(approved_at) = '2026-09-13'</code> 형태여서 인덱스를 타지 못하고 2,100만 행을 스캔했는데, 범위 조건으로 바꾸고 <code>(merchant_id, approved_at)</code> 복합 인덱스를 추가해 1.2초에서 18ms로 개선됐다. 인덱스 추가는 변경관리 티켓과 DBA 검토를 거쳐 <code>CREATE INDEX CONCURRENTLY</code>로 무중단 적용했다. 월말 정산 피크 대비 부하 테스트는 분기마다 수행한다.</p><pre><code>// N+1: 주문 100건 조회가 쿼리 101번을 만든다\nval orders = orderRepo.findByBizDate(date)          // 1번\norders.forEach { println(it.merchant.name) }        // 지연 로딩 100번\n\n// 해결: 페치 조인으로 한 번에\n@Query(\"SELECT o FROM Order o JOIN FETCH o.merchant WHERE o.bizDate = :d\")\nfun findWithMerchant(@Param(\"d\") d: LocalDate): List&lt;Order&gt;\n\n-- 인덱스를 무효화하는 패턴\nWHERE DATE(approved_at) = '2026-09-13'                      -- 풀 스캔\n-- 개선: 범위 조건 + 복합 인덱스\nWHERE approved_at &gt;= '2026-09-13' AND approved_at &lt; '2026-09-14'\n  AND merchant_id = 'M00123'\nCREATE INDEX CONCURRENTLY idx_payment_merchant_time\n    ON payment (merchant_id, approved_at);\n\n-- 실행 계획 확인\nEXPLAIN (ANALYZE, BUFFERS) SELECT ...;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' text-anchor='start' fill='currentColor' font-size='13'>N+1 문제</text><rect x='20' y='32' width='110' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='52.0' text-anchor='middle' fill='currentColor' font-size='12'>목록 조회 1회</text><line x1='130' y1='48' x2='180' y2='48' stroke='currentColor' marker-end='url(#ar)'/><rect x='180' y='32' width='130' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='245.0' y='52.0' text-anchor='middle' fill='currentColor' font-size='12'>건별 조회 x100</text><text x='245' y='80' text-anchor='middle' fill='currentColor' font-size='11'>총 101 쿼리 · 8.2초</text><line x1='320' y1='48' x2='370' y2='48' stroke='currentColor' marker-end='url(#ar)'/><text x='345' y='40' text-anchor='middle' fill='currentColor' font-size='11'>페치 조인</text><rect x='370' y='32' width='130' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='435.0' y='52.0' text-anchor='middle' fill='currentColor' font-size='12'>총 3 쿼리 · 0.34초</text><text x='20' y='115' text-anchor='start' fill='currentColor' font-size='13'>인덱스</text><rect x='20' y='128' width='250' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='145.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>WHERE DATE(col)=... → 풀스캔 2,100만행</text><line x1='270' y1='144' x2='320' y2='144' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='128' width='300' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='470.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>범위조건 + 복합인덱스 → 18ms</text><rect x='20' y='180' width='290' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='165.0' y='201.0' text-anchor='middle' fill='currentColor' font-size='12'>측정 먼저: APM · 슬로우쿼리 · EXPLAIN</text><rect x='330' y='180' width='290' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475.0' y='201.0' text-anchor='middle' fill='currentColor' font-size='12'>인덱스 추가도 변경관리 대상</text><text x='320' y='240' text-anchor='middle' fill='currentColor' font-size='11'>성능 문제 → 타임아웃 → 재시도 → 이중 처리 위험</text></svg>",
+      "keyTerms": [
+        {
+          "term": "N+1 문제",
+          "meaning": "목록 1회 조회 후 건별로 추가 조회가 발생하는 비효율 패턴"
+        },
+        {
+          "term": "페치 조인",
+          "meaning": "연관 엔티티를 한 번의 조인 쿼리로 함께 가져오는 방식"
+        },
+        {
+          "term": "복합 인덱스",
+          "meaning": "여러 컬럼을 묶은 인덱스. 컬럼 순서가 성능을 좌우"
+        },
+        {
+          "term": "실행 계획(EXPLAIN)",
+          "meaning": "DB가 쿼리를 어떻게 수행할지 보여주는 분석 결과"
+        },
+        {
+          "term": "커넥션 풀",
+          "meaning": "DB 연결을 미리 만들어 재사용하는 자원 풀. 고갈 시 전면 장애"
+        },
+        {
+          "term": "커서 기반 페이징",
+          "meaning": "OFFSET 대신 마지막 키를 기준으로 다음 페이지를 읽는 방식"
+        },
+        {
+          "term": "APM",
+          "meaning": "애플리케이션 성능을 트랜잭션 단위로 추적하는 모니터링 도구"
+        },
+        {
+          "term": "SLO",
+          "meaning": "응답시간·가용성 등에 대해 목표로 삼는 서비스 수준"
+        }
+      ],
+      "pitfalls": [
+        "개발 환경 데이터가 적어 N+1이 드러나지 않고 운영에서 처음 터진다.",
+        "느린 원인을 측정하지 않고 추측으로 코드를 고쳐 엉뚱한 곳을 최적화한다.",
+        "WHERE 절 컬럼에 함수를 씌워 인덱스가 무효화된다.",
+        "인덱스를 무분별하게 추가해 쓰기 성능과 저장 공간이 악화된다.",
+        "트랜잭션 안에서 외부 API를 호출해 커넥션 풀이 고갈되고 전면 장애가 된다.",
+        "성능 저하로 타임아웃이 발생하고 클라이언트 재시도가 이중 결제를 만든다.",
+        "운영 DB에 조사 목적의 무거운 쿼리를 직접 실행해 장애를 유발한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 서비스 성능 목표(SLO)가 정의되고 응답시간·오류율이 모니터링되는가",
+          "[운영] 슬로우 쿼리·성능 저하가 탐지되어 조치되는 프로세스가 있는가",
+          "[ITAC] 성능 저하로 인한 타임아웃이 거래 누락·중복으로 이어지지 않도록 멱등성이 확보되어 있는가",
+          "[접근] 운영 DB에 직접 쿼리를 실행할 수 있는 권한이 제한되고 실행 이력이 기록되는가",
+          "[변경] 인덱스 추가·스키마 변경이 변경관리 절차와 무중단 방식으로 수행되는가",
+          "[운영] 중요 이벤트 전 용량 계획과 부하 테스트가 수행되는가"
+        ],
+        "fss": [
+          "정보처리시스템의 성능을 주기적으로 점검하고 용량을 관리하는가",
+          "거래량 증가에 대비한 처리 능력 확보 계획이 수립되어 있는가",
+          "성능 저하·장애 발생 시 대응 절차가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 성능 모니터링과 용량 관리",
+          "2.6.4 데이터베이스 접근: 운영 DB 직접 접근 통제",
+          "2.9.1 변경관리: 스키마·인덱스 변경 통제"
+        ],
+        "evidence": [
+          "SLO 정의 문서와 APM 대시보드(응답시간 p95/p99) 캡처",
+          "슬로우 쿼리 로그 및 개선 조치 이력",
+          "인덱스·스키마 변경의 변경관리 티켓과 DBA 검토 기록",
+          "운영 DB 직접 접근 권한 목록과 쿼리 실행 이력(PAM/DB 감사 로그)",
+          "최근 부하 테스트 결과 보고서와 용량 계획"
+        ],
+        "auditorQuestions": [
+          "주요 화면·API의 목표 응답시간은 얼마이며 현재 지켜지고 있는가?",
+          "느린 쿼리는 어떻게 발견하고 누가 조치하는가?",
+          "운영 DB에 직접 쿼리를 날릴 수 있는 사람은 누구이며 기록이 남는가?",
+          "인덱스를 추가할 때 어떤 절차를 거치는가?",
+          "월말 정산 피크에 시스템이 견딜 수 있는지 어떻게 확인했는가?"
+        ],
+        "controlExample": "주요 서비스는 응답시간 SLO를 정의해 모니터링하며 임계 초과 시 알림이 발생한다. 운영 데이터베이스에 대한 직접 쿼리 실행은 권한이 부여된 담당자가 특권 접근 시스템을 통해서만 수행하고 전체 실행 이력이 기록되며, 인덱스·스키마 변경은 변경관리 승인 후 무중단 방식으로 적용한다."
+      },
+      "related": [
+        "app-caching",
+        "app-cqrs",
+        "app-resilience",
+        "app-idempotency",
+        "app-spring-boot",
+        "db-postgresql",
+        "obs-apm"
+      ],
+      "learnMore": [
+        "Use The Index, Luke! (SQL 인덱싱 가이드)",
+        "PostgreSQL 공식 문서 - EXPLAIN",
+        "Hibernate 공식 문서 - Fetching strategies"
+      ]
+    },
+    {
+      "id": "app-multi-region-dr",
+      "title": "다중 리전과 재해복구 아키텍처",
+      "titleEn": "Multi-Region & Disaster Recovery Architecture",
+      "aliases": [
+        "DR",
+        "재해복구",
+        "RTO",
+        "RPO",
+        "액티브-스탠바이",
+        "이중화"
+      ],
+      "tags": [
+        "architecture",
+        "availability",
+        "dr"
+      ],
+      "level": "심화",
+      "oneLiner": "리전 전체 장애에도 서비스를 이어가기 위한 복제·전환 구조와 목표 설정",
+      "analogy": "재해복구는 본사 건물이 무너졌을 때를 대비한 제2사무소와 같다. 제2사무소에 책상만 있고 서류가 없으면(백업 미복제) 업무를 못 하고, 서류는 있는데 직원이 가는 법을 모르면(전환 절차 미훈련) 며칠이 걸린다. 그래서 정기적으로 '오늘 본사를 못 쓴다고 가정하고' 실제로 옮겨 일해보는 훈련이 필요하다.",
+      "explanation": "<p><strong>재해복구(Disaster Recovery, DR)</strong> 설계는 두 숫자에서 출발한다. <strong>RTO(Recovery Time Objective)</strong>는 '장애 후 몇 분/시간 안에 복구할 것인가', <strong>RPO(Recovery Point Objective)</strong>는 '데이터를 몇 분/시간 전까지 살릴 것인가'다. 결제 시스템의 RPO가 1시간이라면 최악의 경우 1시간치 거래가 사라진다는 뜻이며, 금융에서는 대개 받아들일 수 없다. 이 두 숫자를 <strong>업무 담당자와 합의해 문서화</strong>하는 것이 DR의 첫 단계다.</p><p><strong>구성 방식</strong>은 비용과 RTO에 따라 네 단계로 나뉜다. <strong>백업·복원(Backup & Restore)</strong>은 가장 저렴하고 RTO가 수 시간~수일. <strong>파일럿 라이트(Pilot Light)</strong>는 DB 복제만 켜두고 앱은 꺼둔 상태로 RTO 수십 분. <strong>웜 스탠바이(Warm Standby)</strong>는 축소 규모로 항상 떠 있어 RTO 수 분. <strong>액티브-액티브(Multi-Site Active/Active)</strong>는 양쪽이 동시에 트래픽을 받아 RTO가 거의 0이지만 비용과 <strong>데이터 정합성 난이도</strong>가 가장 높다.</p><p><strong>가장 어려운 부분은 데이터</strong>다. 동기 복제는 데이터 손실이 없지만 거리에 따른 지연이 응답시간에 직접 더해진다(서울-도쿄 왕복 약 30~40ms). 비동기 복제는 빠르지만 <strong>전환 시 복제되지 않은 데이터가 유실</strong>된다. 그래서 실무에서는 <strong>같은 리전의 다중 AZ는 동기 복제, 원격 리전은 비동기 복제</strong>로 구성하는 것이 일반적이다. 또한 <strong>스플릿 브레인</strong>(양쪽이 서로 자기가 주(主)라고 믿는 상태)을 막는 장치가 필요하다.</p><p><strong>전환(failover) 절차</strong>도 설계 대상이다. 자동 전환은 빠르지만 오탐지로 불필요한 전환을 할 수 있고, 수동 전환은 안전하지만 사람이 밤중에 판단해야 한다. 금융권은 보통 <strong>전환 판단은 사람이, 실행은 자동화된 절차(runbook)로</strong> 하는 절충을 택한다. 전환 후 원복(failback) 절차도 반드시 정의해야 한다.</p><p><strong>감사 관점에서 DR은 규제가 직접 요구하는 영역</strong>이다. 전자금융감독규정은 전자금융기반시설의 <strong>재해복구센터 구축과 주기적 복구훈련</strong>을 요구한다. 확인할 것은 (1) RTO/RPO가 업무 중요도에 따라 정의·승인되어 있는가, (2) <strong>실제 복구 훈련이 정기적으로(통상 연 1회 이상) 수행되고 결과가 문서화</strong>되는가 — 문서만 있고 훈련을 안 한 DR은 작동하지 않는다, (3) 훈련에서 <strong>실제로 RTO/RPO를 달성했는가</strong>와 미달 시 개선 조치, (4) <strong>백업의 복원 가능성이 검증</strong>되는가 — 백업은 받고 있지만 복원해 본 적 없는 경우가 실제로 많다, (5) DR 환경도 운영과 동일한 <strong>접근통제·암호화</strong>가 적용되는가, (6) 애플리케이션이 실제로 리전 전환을 견디는가(하드코딩된 엔드포인트, 단일 리전 종속 서비스 사용 여부).</p>",
+      "howItWorks": "<ol><li>업무 영향 분석(BIA)으로 서비스별 중요도를 분류하고 RTO/RPO를 정해 승인받는다.</li><li>운영 리전에서 데이터베이스가 다중 AZ 동기 복제로 구성되고, DR 리전으로는 비동기 복제된다.</li><li>애플리케이션 이미지·설정·시크릿이 DR 리전에도 복제되고 인프라가 코드로 정의되어 있다.</li><li>정상 시에는 DNS/글로벌 로드밸런서가 운영 리전으로 트래픽을 보낸다.</li><li>리전 장애가 감지되면 사전 정의된 판단 기준에 따라 책임자가 전환을 결정한다.</li><li>Runbook에 따라 DR 리전의 DB 복제본을 승격하고 애플리케이션을 정규 규모로 확장한다.</li><li>DNS/GLB 가중치를 변경해 트래픽을 DR 리전으로 전환하고 서비스 정상 여부를 점검한다.</li><li>복제 지연으로 유실된 거래를 식별·보정하고, 상황 종료 후 정의된 절차로 원복한다.</li></ol>",
+      "example": "<p>'페이나우'는 서울 리전(ap-northeast-2)을 운영으로, 도쿄 리전(ap-northeast-1)을 DR로 둔다. 결제·원장은 RTO 30분·RPO 5분, 마케팅·리포트는 RTO 24시간·RPO 24시간으로 차등 설정했다. Aurora Global Database로 도쿄에 비동기 복제(평균 지연 1.2초)하며, 애플리케이션은 웜 스탠바이로 10% 규모가 상시 기동되어 있다. 연 2회 실제 전환 훈련을 수행하며 2026년 상반기 훈련에서 실제 전환 소요 22분, 데이터 유실 3초분으로 목표를 달성했다. 다만 훈련에서 외부 PG 연동의 IP 화이트리스트에 도쿄 대역이 누락된 문제가 발견돼 조치했다. 백업은 월 1회 실제 복원 테스트를 수행해 결과를 기록한다.</p><pre><code># 서비스 등급별 RTO/RPO (승인 문서)\n| 서비스        | 등급 | RTO    | RPO   | 구성          |\n| 결제/원장     | 1등급 | 30분  | 5분   | 웜 스탠바이   |\n| 가맹점 포털   | 2등급 | 4시간 | 1시간 | 파일럿 라이트 |\n| 리포트/마케팅 | 3등급 | 24시간| 24시간| 백업·복원     |\n\n# 전환 시 체크리스트 (Runbook 발췌)\n1. 장애 확인 및 전환 결정 (CTO 또는 대행자 승인)\n2. Aurora Global DB 승격          aws rds failover-global-cluster ...\n3. DR 리전 오토스케일링 목표치 상향 (10% → 100%)\n4. Route53 가중치 변경 (seoul 0 / tokyo 100)\n5. 외부기관 IP 화이트리스트 확인 (도쿄 NAT 대역 포함 여부)\n6. 미복제 거래 식별 쿼리 실행 및 보정\n7. 서비스 정상성 점검 후 대외 공지</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='270' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='155.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>서울 리전 (운영)</text><rect x='30' y='74' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='93.0' text-anchor='middle' fill='currentColor' font-size='11'>AZ-a 앱/DB</text><rect x='160' y='74' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='220.0' y='93.0' text-anchor='middle' fill='currentColor' font-size='11'>AZ-c 앱/DB</text><text x='155' y='122' text-anchor='middle' fill='currentColor' font-size='11'>동기 복제 (RPO 0)</text><line x1='290' y1='90' x2='350' y2='90' stroke='currentColor' marker-end='url(#ar)'/><text x='320' y='82' text-anchor='middle' fill='currentColor' font-size='11'>비동기 복제</text><rect x='350' y='30' width='270' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='485.0' y='51.0' text-anchor='middle' fill='currentColor' font-size='12'>도쿄 리전 (DR)</text><rect x='360' y='74' width='250' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485.0' y='93.0' text-anchor='middle' fill='currentColor' font-size='11'>웜 스탠바이 10% 규모</text><text x='485' y='122' text-anchor='middle' fill='currentColor' font-size='11'>복제 지연 = RPO</text><rect x='140' y='145' width='360' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='165.0' text-anchor='middle' fill='currentColor' font-size='12'>글로벌 DNS / 로드밸런서</text><line x1='230' y1='145' x2='155' y2='108' stroke='currentColor' marker-end='url(#ar)'/><line x1='410' y1='145' x2='485' y2='108' stroke='currentColor' stroke-dasharray='4 3' marker-end='url(#ar)'/><rect x='20' y='195' width='290' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165.0' y='216.0' text-anchor='middle' fill='currentColor' font-size='12'>전환 판단: 사람 · 실행: Runbook</text><rect x='330' y='195' width='290' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475.0' y='216.0' text-anchor='middle' fill='currentColor' font-size='12'>연 1회 이상 실제 훈련 + 결과 기록</text><text x='320' y='250' text-anchor='middle' fill='currentColor' font-size='11'>훈련하지 않은 DR은 작동하지 않는다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "RTO",
+          "meaning": "장애 발생 후 복구까지 허용되는 최대 시간"
+        },
+        {
+          "term": "RPO",
+          "meaning": "복구 시 허용되는 최대 데이터 손실 시간"
+        },
+        {
+          "term": "파일럿 라이트 / 웜 스탠바이",
+          "meaning": "최소 구성만 켜두거나 축소 규모로 상시 운영하는 DR 방식"
+        },
+        {
+          "term": "액티브-액티브",
+          "meaning": "복수 리전이 동시에 트래픽을 처리하는 구성"
+        },
+        {
+          "term": "동기/비동기 복제",
+          "meaning": "쓰기 완료를 기다리는 복제와 나중에 따라가는 복제"
+        },
+        {
+          "term": "스플릿 브레인",
+          "meaning": "양쪽이 서로 주 노드라고 믿어 데이터가 갈라지는 상태"
+        },
+        {
+          "term": "Runbook",
+          "meaning": "장애 시 수행할 절차를 단계별로 문서화한 실행 지침"
+        },
+        {
+          "term": "BIA(업무영향분석)",
+          "meaning": "업무 중단 영향을 분석해 복구 우선순위를 정하는 활동"
+        }
+      ],
+      "pitfalls": [
+        "DR 문서만 만들고 실제 전환 훈련을 하지 않아 정작 필요할 때 작동하지 않는다.",
+        "백업은 받고 있지만 복원 테스트를 해본 적이 없어 복원 불가 상태를 모른다.",
+        "애플리케이션에 리전별 엔드포인트가 하드코딩되어 전환 시 수정이 필요하다.",
+        "외부기관 연계의 IP 화이트리스트에 DR 리전 대역이 빠져 전환 후 연동이 실패한다.",
+        "RPO를 정하지 않아 전환 시 얼마나 유실됐는지, 무엇을 보정해야 하는지 모른다.",
+        "DR 환경의 접근통제·암호화 수준이 운영보다 낮아 새로운 보안 취약점이 된다.",
+        "자동 전환을 무조건 선호해 일시적 네트워크 이상에 불필요한 전환이 발생한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 업무 중요도에 따른 RTO/RPO가 정의·승인되고 실제 구성이 이를 지원하는가",
+          "[운영] 정기 복구 훈련이 수행되고 목표 달성 여부와 개선사항이 기록되는가",
+          "[운영] 백업의 복원 가능성이 주기적으로 검증되는가",
+          "[접근] DR 환경에 운영과 동등한 접근통제·암호화가 적용되는가",
+          "[ITAC] 전환 시 미복제 거래를 식별·보정하는 절차가 정의되어 있는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따른 재해복구센터 구축 및 복구 목표시간 설정 요건을 충족하는가",
+          "재해복구 훈련을 정기적으로 실시하고 결과를 보고하는가",
+          "정보처리시스템의 이중화 및 백업 요건이 충족되는가"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리: 백업 수행과 복구 시험",
+          "2.12.1 재해·재난 대비 안전조치 / 2.12.2 재해 복구 시험 및 개선",
+          "2.10.x 시스템 보안관리: DR 환경 보호 수준 유지"
+        ],
+        "evidence": [
+          "서비스별 RTO/RPO 정의 문서와 승인 기록",
+          "DR 아키텍처 구성도와 복제 설정(복제 지연 모니터링 포함)",
+          "최근 복구 훈련 계획서·수행 결과 보고서(실제 소요 시간, 유실량)",
+          "백업 복원 테스트 결과 기록",
+          "DR 환경의 접근 권한 목록 및 암호화 설정",
+          "훈련 중 발견된 문제의 개선 조치 이행 증빙"
+        ],
+        "auditorQuestions": [
+          "결제 시스템의 복구 목표 시간과 허용 데이터 손실은 얼마이며 누가 승인했는가?",
+          "마지막으로 실제 전환 훈련을 한 것은 언제이며 목표를 달성했는가?",
+          "백업에서 실제로 복원해 본 적이 있는가? 언제인가?",
+          "전환 시 복제되지 않은 거래는 어떻게 찾아내고 처리하는가?",
+          "DR 환경에는 누가 접근할 수 있는가?"
+        ],
+        "controlExample": "핵심 전자금융 서비스는 RTO 30분·RPO 5분 목표로 원격 리전에 복제 구성되며, 연 2회 실제 전환 훈련을 수행해 목표 달성 여부를 측정하고 발견된 개선사항을 조치한다. 백업은 월 1회 복원 테스트로 복구 가능성을 검증한다."
+      },
+      "related": [
+        "app-caching",
+        "app-msa",
+        "app-payment-ledger",
+        "app-batch",
+        "aws-rds",
+        "k8s-cluster",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "AWS Well-Architected - Reliability Pillar (DR 전략)",
+        "전자금융감독규정 - 재해복구 관련 조항",
+        "AWS Disaster Recovery Whitepaper"
+      ]
+    },
+    {
+      "id": "app-payment-ledger",
+      "title": "결제·정산 흐름과 원장 처리",
+      "titleEn": "Payment/Settlement Flow & Ledger (Double-Entry, Reconciliation)",
+      "aliases": [
+        "원장",
+        "이중기록",
+        "복식부기",
+        "대사",
+        "정산",
+        "기표",
+        "reconciliation"
+      ],
+      "tags": [
+        "fintech",
+        "payment",
+        "accounting"
+      ],
+      "level": "심화",
+      "oneLiner": "돈의 이동을 승인·매입·정산·기표로 기록하고 대사로 정확성을 보증하는 구조",
+      "analogy": "원장은 가계부가 아니라 복식 장부다. 지갑에서 5만 원이 나갔다면 반드시 어딘가로 5만 원이 들어간 기록이 함께 있어야 하고, 두 기록의 합은 항상 0이 된다. 대사(reconciliation)는 한 달에 한 번 지갑을 열어 실제 현금과 장부가 맞는지 세어보는 일이다. 장부만 맞고 지갑이 비어 있으면 그 장부는 아무 의미가 없다.",
+      "explanation": "<p>핀테크의 돈 흐름은 단계가 여럿이고 각 단계에서 시점과 금액이 달라질 수 있다. 카드 결제를 예로 들면 <strong>승인(Authorization)</strong> — 카드사가 한도를 확인하고 금액을 잡아둠, <strong>매입(Capture)</strong> — 가맹점이 실제 청구를 올림, <strong>정산(Settlement)</strong> — 카드사가 수수료를 뗀 금액을 가맹점에 지급, <strong>기표/원장 반영(Posting)</strong> — 회계 장부에 기록. <strong>승인과 매입 사이에 취소가 일어나거나, 부분 취소·부분 환불이 발생하면 금액이 달라진다.</strong> 이 단계 구분을 모르면 시스템 설계도 감사도 성립하지 않는다.</p><p><strong>원장(Ledger)의 핵심 원칙</strong>은 세 가지다. (1) <strong>이중기록(복식부기, Double-Entry)</strong>: 모든 거래는 차변(Debit)과 대변(Credit) 두 줄 이상으로 기록되며 <strong>합계가 항상 0</strong>이어야 한다. 이 불변식 덕분에 시스템이 스스로 오류를 탐지할 수 있다. (2) <strong>불변성(Immutability)</strong>: 기록된 원장은 <strong>수정·삭제하지 않는다</strong>. 잘못됐다면 반대 방향의 <strong>역분개(reversal)</strong>를 새로 기록한다. UPDATE로 금액을 고치는 원장은 감사 증거력이 없다. (3) <strong>멱등성</strong>: 같은 거래가 두 번 기표되지 않도록 거래 식별자에 유니크 제약을 건다.</p><p><strong>대사(Reconciliation)</strong>는 서로 다른 출처의 기록을 비교해 일치를 확인하는 통제다. 전형적으로 세 층이 있다. <strong>내부 대사</strong>(결제 테이블 vs 원장), <strong>외부 대사</strong>(우리 기록 vs 카드사·PG가 보낸 정산 파일), <strong>은행 대사</strong>(원장 vs 실제 입출금 내역). 불일치의 유형은 <strong>미기록(우리에게 없음), 미수신(상대에게 없음), 금액 차이, 시점 차이(전일 마감 후 거래)</strong> 등이며, 각 유형별 처리 기준과 담당자가 정해져 있어야 한다.</p><p><strong>정산 계산</strong>도 통제 포인트다. 가맹점 수수료율, VAT, 할부 수수료 부담 주체, 포인트·쿠폰 부담 비율, 지급 주기(D+2 등)가 계약에 따라 다르며, 이 <strong>마스터 데이터의 정확성과 변경 통제</strong>가 정산 금액을 좌우한다. 수수료율 하나가 잘못 입력되면 수만 건에 영향을 준다.</p><p><strong>감사 관점에서 이 영역은 ITAC의 정점</strong>이다. 재무제표의 매출·미지급금·수수료 수익이 여기서 만들어진다. 핵심 검증 항목은 (1) <strong>원장의 이중기록 균형이 시스템적으로 강제</strong>되는가(합계 0 검증), (2) <strong>원장 수정 불가</strong>와 역분개 처리가 구현되어 있는가, (3) <strong>일일 대사가 수행되고 차이가 기한 내 해소</strong>되는가(미해소 차이의 나이 분석, aging), (4) <strong>수수료율 등 마스터 데이터 변경에 승인 통제</strong>가 있는가, (5) <strong>수동 기표(manual journal entry)</strong> 권한이 제한되고 별도 승인·사후 검토를 받는가 — 수동 분개는 분식의 고전적 통로이므로 감사인이 항상 표본을 뽑는다. (6) 미결제·미지급 잔액이 <strong>연령별로 관리</strong>되는가.</p>",
+      "howItWorks": "<ol><li>고객이 결제하면 결제 서비스가 PG/카드사에 승인을 요청하고 승인번호를 받아 결제 테이블에 기록한다.</li><li>결제 완료 이벤트가 발행되고 원장 서비스가 이를 구독한다.</li><li>원장 서비스가 거래 식별자로 중복 여부를 확인한 뒤 차변·대변 두 줄 이상의 분개를 생성한다(합계 0 검증).</li><li>분개는 append-only로 저장되며 수정·삭제가 불가능하다.</li><li>취소·환불이 발생하면 원 분개를 지우지 않고 반대 방향의 역분개를 새로 기록한다.</li><li>매일 새벽 카드사·PG로부터 정산 파일을 수신해 건수·금액 무결성을 검증한다.</li><li>대사 배치가 내부 기록과 외부 파일을 거래 단위로 매칭하고 불일치를 유형별로 분류해 적재한다.</li><li>담당자가 불일치를 조사·조치하고, 필요한 경우 승인된 수동 분개로 보정한다. 미해소 건은 연령별로 보고된다.</li></ol>",
+      "example": "<p>'페이나우'의 원장은 append-only 테이블로 운영되며 DB 권한상 UPDATE·DELETE가 아예 부여되지 않는다. 하루 평균 210만 건의 분개가 생성되고, 매일 05시 대사 배치가 카드 5개사 정산 파일과 내부 원장을 대사한다. 2026년 8월 대사에서 1,204건·금액 41,220,000원의 차이가 발생했는데, 분석 결과 카드사 A의 마감 시각 변경(23:50 → 23:30)으로 인한 <strong>시점 차이</strong>로 확인돼 익일 자동 해소됐다. 반면 진짜 오류였던 3건(부분 취소 금액 반영 누락)은 수동 분개로 보정했으며, 수동 분개는 정산팀 기표 → 재무팀 승인의 2인 절차를 거치고 월별로 전 건이 사후 검토된다. 수수료율 마스터 변경은 영업·재무·리스크 3인 승인 후 반영되며 이력이 보존된다.</p><pre><code>-- 이중기록 원장: 합계는 항상 0 (시스템이 강제)\nCREATE TABLE ledger_entry (\n  entry_id     BIGSERIAL PRIMARY KEY,\n  journal_id   UUID        NOT NULL,      -- 한 거래의 분개 묶음\n  txn_id       VARCHAR(50) NOT NULL,      -- 원 거래 식별자\n  account_code VARCHAR(20) NOT NULL,      -- 계정과목\n  dr_cr        CHAR(1)     NOT NULL,      -- D / C\n  amount       NUMERIC(18,0) NOT NULL CHECK (amount &gt; 0),\n  biz_date     DATE        NOT NULL,\n  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),\n  reversal_of  BIGINT NULL                -- 역분개 대상\n);\nCREATE UNIQUE INDEX uq_ledger_txn ON ledger_entry (txn_id, account_code, dr_cr);\n-- 운영 계정에 UPDATE/DELETE 권한 미부여 (append-only)\n\n-- 분개 균형 검증 (0이 아니면 거부)\nSELECT journal_id,\n       SUM(CASE WHEN dr_cr='D' THEN amount ELSE -amount END) AS diff\n  FROM ledger_entry GROUP BY journal_id HAVING SUM(...) &lt;&gt; 0;\n\n-- 외부 대사: 미기록 / 미수신 / 금액차이\nSELECT COALESCE(i.txn_id, e.txn_id) txn_id,\n       CASE WHEN i.txn_id IS NULL THEN 'NOT_IN_LEDGER'\n            WHEN e.txn_id IS NULL THEN 'NOT_IN_FILE'\n            ELSE 'AMOUNT_DIFF' END AS diff_type,\n       i.amount, e.amount\n  FROM internal_txn i FULL OUTER JOIN external_file e USING (txn_id)\n WHERE i.txn_id IS NULL OR e.txn_id IS NULL OR i.amount &lt;&gt; e.amount;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='28' width='100' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70.0' y='48.0' text-anchor='middle' fill='currentColor' font-size='12'>승인</text><line x1='120' y1='44' x2='155' y2='44' stroke='currentColor' marker-end='url(#ar)'/><rect x='155' y='28' width='100' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='205.0' y='48.0' text-anchor='middle' fill='currentColor' font-size='12'>매입</text><line x1='255' y1='44' x2='290' y2='44' stroke='currentColor' marker-end='url(#ar)'/><rect x='290' y='28' width='100' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='340.0' y='48.0' text-anchor='middle' fill='currentColor' font-size='12'>정산</text><line x1='390' y1='44' x2='425' y2='44' stroke='currentColor' marker-end='url(#ar)'/><rect x='425' y='28' width='195' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='522.5' y='48.0' text-anchor='middle' fill='currentColor' font-size='12'>기표(원장 반영)</text><text x='320' y='78' text-anchor='middle' fill='currentColor' font-size='11'>각 단계에서 취소·부분환불로 금액이 달라질 수 있다</text><rect x='360' y='92' width='260' height='46' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='490.0' y='119.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='490' y='110' text-anchor='middle' fill='currentColor' font-size='12'>이중기록: 차변 = 대변</text><text x='490' y='130' text-anchor='middle' fill='currentColor' font-size='11'>수정 불가 · 취소는 역분개</text><rect x='20' y='92' width='300' height='46' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='170.0' y='119.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='170' y='110' text-anchor='middle' fill='currentColor' font-size='12'>외부 정산 파일 (카드사·PG)</text><text x='170' y='130' text-anchor='middle' fill='currentColor' font-size='11'>건수·금액 무결성 검증</text><line x1='320' y1='115' x2='360' y2='115' stroke='currentColor' marker-end='url(#ar)'/><rect x='120' y='155' width='400' height='34' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='176.0' text-anchor='middle' fill='currentColor' font-size='12'>일일 대사: 미기록 / 미수신 / 금액차이 / 시점차이</text><line x1='320' y1='138' x2='320' y2='155' stroke='currentColor' marker-end='url(#ar)'/><line x1='320' y1='189' x2='320' y2='210' stroke='currentColor' marker-end='url(#ar)'/><rect x='60' y='210' width='250' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='185.0' y='230.0' text-anchor='middle' fill='currentColor' font-size='12'>차이 조사·조치 (연령별 관리)</text><rect x='340' y='210' width='280' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='480.0' y='230.0' text-anchor='middle' fill='currentColor' font-size='12'>수동 분개: 기표/승인 2인 + 사후검토</text></svg>",
+      "keyTerms": [
+        {
+          "term": "승인(Authorization)",
+          "meaning": "한도를 확인하고 금액을 확보하는 단계. 실제 청구는 아직 아님"
+        },
+        {
+          "term": "매입(Capture)",
+          "meaning": "승인된 금액에 대해 실제 청구를 올리는 단계"
+        },
+        {
+          "term": "정산(Settlement)",
+          "meaning": "수수료를 차감한 금액을 가맹점에 지급하는 단계"
+        },
+        {
+          "term": "기표(Posting)",
+          "meaning": "거래를 회계 원장에 분개로 기록하는 행위"
+        },
+        {
+          "term": "이중기록(복식부기)",
+          "meaning": "차변과 대변을 함께 기록해 합계가 0이 되게 하는 원칙"
+        },
+        {
+          "term": "역분개(Reversal)",
+          "meaning": "잘못된 기록을 수정하는 대신 반대 방향으로 새로 기록하는 처리"
+        },
+        {
+          "term": "대사(Reconciliation)",
+          "meaning": "서로 다른 출처의 기록을 비교해 일치를 확인하는 통제"
+        },
+        {
+          "term": "수동 분개(Manual JE)",
+          "meaning": "시스템 자동 생성이 아닌 사람이 직접 입력하는 분개. 고위험 통제 대상"
+        },
+        {
+          "term": "미결 항목 연령분석(Aging)",
+          "meaning": "해소되지 않은 차이를 경과 기간별로 관리하는 방법"
+        }
+      ],
+      "pitfalls": [
+        "원장 레코드를 UPDATE로 수정해 변경 이력이 사라지고 감사 증거력이 없어진다.",
+        "취소를 원 거래 삭제로 처리해 거래 이력이 사라진다. 반드시 역분개로 남겨야 한다.",
+        "대사에서 나온 차이를 '나중에 보자'며 방치해 미해소 건이 수천 건 누적된다.",
+        "승인과 매입을 구분하지 않고 승인 시점에 매출을 인식해 수익 인식 시점이 틀어진다.",
+        "수수료율 마스터를 담당자가 단독으로 수정할 수 있어 정산 금액이 임의로 바뀔 수 있다.",
+        "금액을 부동소수점으로 계산해 대량 건에서 누적 오차가 발생한다.",
+        "수동 분개 권한이 넓게 부여되고 사후 검토가 없어 분식 위험이 통제되지 않는다.",
+        "시점 차이(마감 경계 거래)를 오류로 오인해 불필요한 보정을 반복한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 원장이 이중기록 균형(차변=대변)을 시스템적으로 검증하며 불균형 분개가 거부되는가",
+          "[ITAC] 원장 데이터가 수정·삭제 불가하며 정정은 역분개로만 처리되는가",
+          "[ITAC] 내부 기록과 외부 정산 파일 간 일일 대사가 수행되고 차이가 기한 내 해소되는가",
+          "[접근] 수동 분개 권한이 제한되고 기표자와 승인자가 분리되며 사후 검토가 이루어지는가",
+          "[ITAC] 수수료율·지급주기 등 정산 마스터 변경에 다중 승인과 이력 보존이 적용되는가",
+          "[운영] 미해소 대사 차이가 연령별로 관리·보고되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록의 정확한 생성·보존(통상 5년)과 사후 검증이 가능한가",
+          "가맹점 정산 대금의 정확한 산정과 지급이 이루어지며 오류 시 정정 절차가 있는가",
+          "선불충전금 등 이용자 자금의 별도 관리 및 잔액 일치 여부가 점검되는가",
+          "외부기관과의 거래 대사가 정기적으로 수행되고 차이가 관리되는가"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리: 거래 기록의 무결성 보존",
+          "2.6.4 데이터베이스 접근: 원장 테이블 접근 권한 통제",
+          "2.5.x 접근권한 관리: 기표·승인 권한의 분리"
+        ],
+        "evidence": [
+          "원장 테이블 DDL과 운영 계정의 권한(UPDATE/DELETE 미부여) 증빙",
+          "분개 균형 검증 로직과 거부 사례 로그",
+          "최근 3개월 일일 대사 결과 리포트(차이 건수·금액·유형·해소 여부)",
+          "미해소 차이 연령분석표와 경영진 보고 자료",
+          "수동 분개 전 건 목록(기표자, 승인자, 사유)과 월별 사후 검토 기록",
+          "수수료율 마스터 변경 이력과 승인 문서",
+          "역분개 처리 사례 샘플"
+        ],
+        "auditorQuestions": [
+          "원장 데이터를 수정하거나 삭제할 수 있는 사람이 있는가? 권한을 확인해 줄 수 있는가?",
+          "취소 거래는 원장에 어떻게 기록되는가? 실제 사례를 보여줄 수 있는가?",
+          "어제 카드사 정산 파일과 우리 원장의 차이는 몇 건이며 어떻게 처리했는가?",
+          "해소되지 않은 대사 차이가 얼마나 오래 남아 있는가?",
+          "수동으로 분개를 입력할 수 있는 사람은 누구이며 누가 승인하는가?",
+          "가맹점 수수료율을 바꾸려면 누구의 승인이 필요한가?"
+        ],
+        "controlExample": "모든 거래는 이중기록 원칙에 따라 차변·대변 균형이 시스템적으로 검증된 후에만 원장에 기록되며, 원장은 수정·삭제가 불가능하고 정정은 역분개로만 처리된다. 매 영업일 내부 원장과 외부기관 정산 파일을 대사해 차이를 유형별로 분류·조사하며, 수동 분개는 기표자와 승인자를 분리하고 월별로 전 건을 사후 검토한다."
+      },
+      "related": [
+        "app-idempotency",
+        "app-saga",
+        "app-batch",
+        "app-external-interface",
+        "app-itac-identification",
+        "app-cqrs",
+        "db-postgresql",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "Martin Fowler - Accounting Patterns (Event Sourcing/Ledger)",
+        "전자금융감독규정 - 전자금융거래 기록 보존",
+        "Modern Treasury - Ledgering Best Practices"
+      ]
+    },
+    {
+      "id": "app-external-interface",
+      "title": "외부기관 인터페이스 통제 (SFTP 연계)",
+      "titleEn": "External Interface Controls (SFTP / File Transfer)",
+      "aliases": [
+        "대외계",
+        "인터페이스",
+        "SFTP",
+        "파일 전송",
+        "외부기관 연계",
+        "EDI"
+      ],
+      "tags": [
+        "integration",
+        "security",
+        "fintech"
+      ],
+      "level": "심화",
+      "oneLiner": "은행·카드사·기관과 파일·전문을 주고받는 구간의 보안과 정합성 통제",
+      "analogy": "외부기관 인터페이스는 회사 간 서류 배송과 같다. 봉투를 봉인해 보내고(암호화), 받는 사람이 맞는지 확인하고(인증), 받은 서류의 장수와 총액이 송장과 맞는지 세어보고(건수·금액 대사), 봉투가 오지 않으면 즉시 연락한다(미수신 탐지). 이 중 하나라도 빠지면 서류가 바뀌거나 사라져도 아무도 모른다.",
+      "explanation": "<p>금융권에서 <strong>대외계(외부기관 인터페이스)</strong>는 가장 오래되고 가장 규제가 강한 영역이다. 은행 펌뱅킹, 카드사 정산 파일, 금융결제원, 신용정보원, 국세청, 보험사 연계 등이 모두 여기 해당한다. 방식은 REST API로 옮겨가고 있지만 <strong>여전히 SFTP 파일 전송과 고정길이 전문(FEP) 방식이 대량으로 남아 있다.</strong></p><p><strong>전송 방식</strong>은 세 가지가 흔하다. <strong>SFTP/FTPS</strong>: 대량 파일(정산, 명세) 전송. <strong>전용선/VPN + 소켓 전문</strong>: 실시간 거래(계좌이체, 조회). <strong>HTTPS API</strong>: 신규 연계. 어느 방식이든 통제 요건은 같다. <strong>상호 인증, 전송 암호화, 무결성 검증, 접근 제한, 처리 기록</strong>.</p><p><strong>SFTP 연계의 통제 요소</strong>를 구체적으로 보면 이렇다. (1) <strong>인증</strong>: 비밀번호보다 <strong>SSH 키 기반 인증</strong>이 원칙이며, 키의 발급·보관·교체 주기가 관리되어야 한다. (2) <strong>네트워크 제한</strong>: 출발지 IP 화이트리스트와 전용 네트워크 경로. (3) <strong>디렉터리 권한</strong>: 기관별로 chroot 격리해 다른 기관 파일에 접근할 수 없게 한다. (4) <strong>파일 암호화</strong>: 전송 구간뿐 아니라 파일 자체를 PGP 등으로 암호화하는 경우가 많다(개인정보 포함 시 사실상 필수). (5) <strong>무결성</strong>: 해시값 또는 트레일러 레코드로 검증. (6) <strong>수신 확인</strong>: 파일이 완전히 쓰였는지 확인(임시 파일명으로 올린 뒤 rename하는 관행). (7) <strong>보관·파기</strong>: 처리 후 원본 파일의 보관 위치·기간·파기 절차.</p><p><strong>정합성 통제</strong>는 인터페이스의 핵심이다. 대부분의 금융 파일은 <strong>헤더(생성일시, 기관코드)·본문·트레일러(총건수, 총금액)</strong> 구조를 갖는다. 수신 즉시 <strong>트레일러의 총건수·총금액과 실제 레코드를 대사</strong>하고, 불일치하면 처리하지 않고 재전송을 요청한다. 또한 <strong>미수신 탐지</strong>가 중요하다. 매일 03시에 와야 할 파일이 오지 않았는데 아무도 모르면 그날 정산이 통째로 누락된다. 그래서 <strong>수신 예정 시각 기반 알림</strong>이 필수다.</p><p><strong>감사 관점에서 이 영역은 ITGC와 ITAC가 겹치는 지점</strong>이다. 확인할 것은 (1) <strong>인터페이스 목록(인터페이스 정의서)</strong>이 관리되며 기관·주기·데이터 항목·담당자가 식별되는가, (2) <strong>계정·키의 발급·회수·교체</strong>가 통제되는가 — 퇴사한 직원이 알던 SFTP 비밀번호가 5년째 그대로인 경우가 흔하다, (3) <strong>송수신 이력이 기록·보존</strong>되는가, (4) <strong>건수·금액 대사와 미수신 탐지</strong>가 운영되는가, (5) <strong>개인정보가 포함된 파일의 암호화와 파기</strong>가 이루어지는가, (6) <strong>인터페이스 변경 시 양 기관 합의·테스트·승인</strong> 절차가 있는가. 전자금융감독규정은 외부 연계 구간의 암호화와 접근통제를 명시적으로 요구한다.</p>",
+      "howItWorks": "<ol><li>인터페이스 정의서에 따라 송수신 일정·파일 규격·암호화 방식이 사전 합의된다.</li><li>기관별 전용 계정과 SSH 키가 발급되고 IP 화이트리스트가 설정된다. 계정은 chroot로 격리된다.</li><li>상대 기관이 정해진 시각에 PGP로 암호화된 파일을 임시 파일명으로 업로드한 뒤 정식 파일명으로 변경한다.</li><li>수신 감지 배치가 파일을 발견하고 복호화한 뒤 헤더·트레일러 형식을 검증한다.</li><li>트레일러의 총건수·총금액과 실제 레코드를 대사한다. 불일치면 처리를 중단하고 담당자·상대 기관에 통보한다.</li><li>검증을 통과한 파일만 처리 큐로 넘어가 업무 처리(정산 반영 등)가 수행된다.</li><li>처리 결과와 송수신 이력(파일명, 크기, 해시, 건수, 시각, 처리 결과)이 기록된다.</li><li>수신 예정 시각 + 유예 시간이 지나도 파일이 없으면 미수신 알림이 발생한다. 원본 파일은 정해진 기간 후 파기된다.</li></ol>",
+      "example": "<p>'페이나우'는 카드사 5곳, 은행 3곳, 금융결제원과 총 14개 인터페이스를 운영한다. 모든 SFTP 계정은 SSH 키 인증만 허용하고 비밀번호 인증은 비활성화했으며, 키는 연 1회 교체한다. 기관별 계정은 chroot로 자기 디렉터리만 보이며 다른 기관 파일에 접근할 수 없다. 개인정보가 포함된 파일은 PGP로 암호화되어 전송되고, 복호화 키는 Secrets Manager에서 관리된다. 2026년 6월 카드사 B의 정산 파일이 03:00 예정 시각에 오지 않아 03:20 미수신 알림이 발생했고, 확인 결과 상대 기관 배치 지연으로 04:40에 수신돼 당일 정산에 정상 반영됐다. 만약 알림이 없었다면 그날 지급이 누락됐을 것이다. 모든 송수신 이력은 5년간 보존된다.</p><pre><code># 기관별 격리와 키 기반 인증 (sshd_config)\nMatch User sftp_cardco_b\n    ChrootDirectory /sftp/cardco_b        # 자기 디렉터리만 보임\n    ForceCommand internal-sftp\n    PasswordAuthentication no             # 키 인증만 허용\n    AllowUsers sftp_cardco_b@203.0.113.0/24   # IP 제한\n\n# 수신 검증 (통과해야만 처리 큐로)\n1) 파일 도착 감지 (임시명 → 정식명 rename 완료 확인)\n2) PGP 복호화 및 서명 검증\n3) 헤더 검증   : 기관코드, 기준일자, 파일순번\n4) 트레일러 대사: totalCount == records.size\n                  totalAmount == sum(record.amount)\n5) 중복 수신 확인: (기관코드, 기준일자, 파일순번) UNIQUE\n6) 불일치 시     : 처리 중단 + 담당자/상대기관 통보 + 재전송 요청\n\n# 미수신 탐지 (예정시각 + 20분)\nSELECT iface_code FROM interface_schedule s\n WHERE s.expected_at &lt; now() - interval '20 minutes'\n   AND NOT EXISTS (SELECT 1 FROM interface_receipt r\n                    WHERE r.iface_code = s.iface_code AND r.biz_date = current_date);</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='64.0' text-anchor='middle' fill='currentColor' font-size='12'>외부기관(카드사)</text><line x1='140' y1='60' x2='200' y2='60' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='52' text-anchor='middle' fill='currentColor' font-size='11'>SFTP + PGP</text><rect x='200' y='30' width='150' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='275.0' y='64.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='275' y='50' text-anchor='middle' fill='currentColor' font-size='11'>전용 계정/키</text><text x='275' y='68' text-anchor='middle' fill='currentColor' font-size='11'>IP 제한 · chroot</text><text x='275' y='86' text-anchor='middle' fill='currentColor' font-size='11'>격리 디렉터리</text><line x1='350' y1='60' x2='405' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='405' y='35' width='215' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='512.5' y='64.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='512' y='53' text-anchor='middle' fill='currentColor' font-size='12'>수신 검증</text><text x='512' y='73' text-anchor='middle' fill='currentColor' font-size='11'>헤더·트레일러 대사</text><line x1='512' y1='85' x2='512' y2='115' stroke='currentColor' marker-end='url(#ar)'/><rect x='405' y='115' width='215' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='512.5' y='135.0' text-anchor='middle' fill='currentColor' font-size='12'>건수·금액 일치 → 처리</text><line x1='405' y1='131' x2='330' y2='131' stroke='currentColor' marker-end='url(#ar)'/><text x='365' y='123' text-anchor='middle' fill='currentColor' font-size='11'>불일치</text><rect x='170' y='115' width='160' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='250.0' y='135.0' text-anchor='middle' fill='currentColor' font-size='12'>중단 + 재전송 요청</text><rect x='170' y='165' width='450' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='395.0' y='185.0' text-anchor='middle' fill='currentColor' font-size='12'>미수신 탐지: 예정시각 +20분 알림</text><rect x='170' y='210' width='450' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='395.0' y='230.0' text-anchor='middle' fill='currentColor' font-size='12'>송수신 이력 5년 보존 · 원본 파일 파기 절차</text><text x='90' y='140' text-anchor='middle' fill='currentColor' font-size='11'>가장 위험한 것은</text><text x='90' y='158' text-anchor='middle' fill='currentColor' font-size='11'>'안 온 것'을</text><text x='90' y='176' text-anchor='middle' fill='currentColor' font-size='11'>모르는 상태</text></svg>",
+      "keyTerms": [
+        {
+          "term": "대외계",
+          "meaning": "외부 금융기관과 연계되는 시스템 영역"
+        },
+        {
+          "term": "SFTP",
+          "meaning": "SSH 기반 안전한 파일 전송 프로토콜"
+        },
+        {
+          "term": "chroot 격리",
+          "meaning": "계정이 지정된 디렉터리 밖을 볼 수 없게 제한하는 설정"
+        },
+        {
+          "term": "트레일러 레코드",
+          "meaning": "파일 끝에 총건수·총금액을 담은 검증용 레코드"
+        },
+        {
+          "term": "PGP 암호화",
+          "meaning": "파일 자체를 암호화·서명해 전송 구간 외에도 보호하는 방식"
+        },
+        {
+          "term": "미수신 탐지",
+          "meaning": "예정된 파일이 도착하지 않은 것을 알아채는 통제"
+        },
+        {
+          "term": "고정길이 전문(FEP)",
+          "meaning": "자릿수가 고정된 레거시 금융 전문 형식"
+        },
+        {
+          "term": "인터페이스 정의서",
+          "meaning": "기관·주기·규격·항목·담당자를 정리한 연계 명세 문서"
+        }
+      ],
+      "pitfalls": [
+        "SFTP 계정을 비밀번호 인증으로 운영하고 비밀번호를 수년간 바꾸지 않는다.",
+        "기관별 계정을 격리하지 않아 한 기관 계정으로 다른 기관 파일을 볼 수 있다.",
+        "파일이 완전히 업로드되기 전에 처리를 시작해 잘린 파일을 반영한다.",
+        "트레일러 대사를 하지 않아 건수가 빠진 파일을 그대로 처리한다.",
+        "미수신 탐지가 없어 파일이 안 온 날의 정산이 통째로 누락된다.",
+        "개인정보가 포함된 원본 파일을 서버에 무기한 방치한다.",
+        "동일 파일을 두 번 수신했을 때 중복 처리를 막는 장치가 없다.",
+        "인터페이스 담당자가 퇴사해도 계정·키가 회수되지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 외부 연계 계정·키가 기관별로 분리 발급되고 교체·회수 절차가 운영되는가",
+          "[접근] 출발지 IP 제한과 디렉터리 격리가 적용되어 기관 간 접근이 차단되는가",
+          "[ITAC] 수신 파일의 헤더·트레일러 대사와 중복 수신 방지가 구현되어 있는가",
+          "[ITAC] 미수신·지연을 탐지하는 모니터링이 있고 알림·조치 이력이 존재하는가",
+          "[운영] 송수신 이력이 기록·보존되고 원본 파일의 보관·파기 기준이 준수되는가",
+          "[변경] 인터페이스 규격 변경 시 양 기관 합의·테스트·승인 절차를 거치는가"
+        ],
+        "fss": [
+          "외부기관과의 연계 구간에 대해 전용회선 또는 암호화된 통신이 적용되는가",
+          "전자금융거래 전문·파일의 무결성 확인 및 처리 결과 기록이 이루어지는가",
+          "외부 연계 시스템에 대한 접근통제와 접속기록 관리가 수행되는가",
+          "제휴·위탁 기관에 대한 보안 수준 점검이 정기적으로 이루어지는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 / 2.6.6 원격접근 통제",
+          "2.7.1 암호정책 적용: 전송·저장 파일 암호화",
+          "2.3.x 외부자 보안: 연계 기관 관리",
+          "3.4.1 개인정보 파기: 수신 원본 파일의 파기"
+        ],
+        "evidence": [
+          "인터페이스 목록·정의서(기관, 주기, 방식, 데이터 항목, 담당자)",
+          "SFTP 서버 설정(키 인증 강제, chroot, IP 제한) export",
+          "외부 연계 계정 목록과 최근 키 교체·권한 검토 이력",
+          "수신 파일 대사 결과 및 불일치 조치 이력",
+          "미수신 알림 설정과 최근 발생·대응 기록",
+          "송수신 이력 보존 현황 및 원본 파일 파기 기록",
+          "인터페이스 변경 시 양 기관 합의 문서와 테스트 결과"
+        ],
+        "auditorQuestions": [
+          "운영 중인 외부 인터페이스 목록을 보여줄 수 있는가?",
+          "SFTP 계정은 어떻게 인증하며 키·비밀번호는 언제 마지막으로 바꿨는가?",
+          "A기관 계정으로 B기관 파일을 볼 수 있는가?",
+          "파일이 예정 시각에 오지 않으면 누가 언제 알게 되는가?",
+          "수신한 파일의 건수가 맞는지 어떻게 확인하는가? 최근 불일치 사례는?",
+          "처리 후 원본 파일은 어디에 얼마나 보관되고 어떻게 파기되는가?"
+        ],
+        "controlExample": "외부기관 연계는 기관별 전용 계정과 키 기반 인증, 출발지 IP 제한 및 디렉터리 격리로 통제되며, 수신 파일은 트레일러의 총건수·총금액 대사와 중복 수신 검증을 통과해야만 처리된다. 예정 시각 이후 미수신 시 자동 알림이 발송되고 모든 송수신 이력은 5년간 보존된다."
+      },
+      "related": [
+        "app-batch",
+        "app-input-validation",
+        "app-payment-ledger",
+        "app-api-versioning",
+        "app-messaging-patterns",
+        "app-itac-identification",
+        "net-vpn",
+        "sec-privacy"
+      ],
+      "learnMore": [
+        "전자금융감독규정 - 외부 연계 및 암호화 관련 조항",
+        "OpenSSH sftp-server / ChrootDirectory 공식 문서",
+        "AWS Transfer Family 사용 설명서"
+      ]
+    },
+    {
+      "id": "app-itac-identification",
+      "title": "ITAC 관점의 애플리케이션 통제 식별법",
+      "titleEn": "Identifying IT Application Controls (ITAC)",
+      "aliases": [
+        "ITAC",
+        "애플리케이션 통제",
+        "자동통제",
+        "IPE",
+        "업무통제 식별"
+      ],
+      "tags": [
+        "audit",
+        "itgc",
+        "control"
+      ],
+      "level": "심화",
+      "oneLiner": "시스템 안에서 자동으로 작동하는 업무 통제를 찾아내고 검증하는 방법",
+      "analogy": "ITGC가 '공장 출입문과 설비 관리 규칙'이라면 ITAC는 '생산 라인에 박힌 자동 검사기'다. 출입 통제가 아무리 좋아도 라인의 저울이 잘못 맞춰져 있으면 불량이 그대로 출하된다. 감사인은 출입문만 보는 것이 아니라, 저울이 정확한지·언제 마지막으로 교정했는지·저울을 조정할 수 있는 사람이 누구인지를 확인해야 한다.",
+      "explanation": "<p><strong>ITAC(IT Application Control, 애플리케이션 통제)</strong>는 애플리케이션 내부에 구현되어 <strong>거래의 완전성·정확성·유효성</strong>을 자동으로 보장하는 통제다. ITGC(접근·변경·운영)가 <strong>시스템 환경 전반</strong>을 다룬다면, ITAC는 <strong>특정 업무 프로세스의 특정 지점</strong>에서 작동한다. SOX 대응에서 ITGC가 무너지면 ITAC를 신뢰할 수 없게 되므로 둘은 짝을 이룬다.</p><p><strong>ITAC의 유형</strong>은 전통적으로 네 가지로 분류한다. <strong>입력 통제</strong>: 필수값·형식·범위 검증, 중복 입력 방지, 유효성 매칭. <strong>처리 통제</strong>: 자동 계산(수수료·이자), 순차 검증, 배치 총계 대사, 자동 승인 한도. <strong>출력 통제</strong>: 보고서 생성의 완전성, 배포 제한. <strong>마스터 데이터 통제</strong>: 수수료율·한도·계정과목 등 기준정보의 변경 승인.</p><p><strong>ITAC를 찾는 실무적 방법</strong>은 다음과 같다. (1) <strong>재무제표 계정에서 거꾸로 추적</strong>한다. 매출 → 어느 시스템에서 숫자가 나오나 → 그 숫자는 어떤 로직으로 계산되나 → 그 계산이 맞다고 보장하는 장치가 무엇인가. (2) <strong>프로세스 워크스루</strong>: 실제 거래 한 건을 처음부터 끝까지 따라가며 시스템이 자동 판단·계산·검증하는 지점마다 표시한다. (3) <strong>사람이 개입하는 지점의 반대편을 본다</strong>. 사람이 승인하는 곳에는 수동 통제가, 사람이 손대지 않고 넘어가는 곳에는 반드시 자동 통제가 있어야 한다. (4) <strong>화면의 오류 메시지</strong>를 단서로 삼는다. '한도를 초과했습니다'라는 메시지가 있다면 그것이 ITAC다.</p><p><strong>ITAC 테스트 방법</strong>은 수동 통제와 다르다. 수동 통제는 표본을 뽑아 증빙을 확인하지만, <strong>자동 통제는 원칙적으로 1건만 제대로 테스트해도 된다</strong>. 프로그램은 매번 같게 동작하기 때문이다. 단, 이 논리가 성립하려면 <strong>(가) 통제가 테스트 기간 내내 변경되지 않았고, (나) 변경관리 ITGC가 유효</strong>해야 한다. 그래서 ITAC 테스트는 항상 <strong>'해당 프로그램의 변경 이력 확인'</strong>과 함께 간다. 테스트 방식은 재수행(직접 경계값 입력), 관찰, 그리고 <strong>코드·설정 검토</strong>다.</p><p><strong>IPE(Information Produced by Entity)</strong>도 반드시 함께 이해해야 한다. 통제 수행이나 감사 증거로 사용되는 <strong>시스템 산출물(리포트, 쿼리 결과, 엑셀 다운로드)</strong>의 완전성·정확성을 말한다. '권한 목록을 뽑아 검토했다'는 통제에서, 그 목록 자체가 불완전하면 통제는 무의미하다. 그래서 감사인은 <strong>리포트의 추출 조건(파라미터)과 소스 데이터, 그리고 그 리포트를 만드는 쿼리가 변경 통제 하에 있는지</strong>를 확인한다. 특히 <strong>담당자가 직접 SQL을 짜서 뽑은 결과</strong>는 IPE 신뢰성이 낮아 별도 검증이 필요하다.</p><p>이 위키의 다른 항목들에서 다룬 <strong>멱등성(중복 방지), 대사(완전성), 입력 검증(정확성), 이중기록 균형(정확성), 배치 총계 검증(완전성), 플래그·마스터 변경 승인(유효성)</strong>이 모두 전형적인 ITAC다. 즉 ITAC 식별은 별도의 활동이 아니라 <strong>시스템을 업무 흐름으로 읽는 관점</strong>이다.</p>",
+      "howItWorks": "<ol><li>범위 산정: 재무제표 유의 계정과 그 계정을 만들어내는 업무 프로세스·시스템을 식별한다.</li><li>프로세스 워크스루를 수행해 거래 흐름을 단계별로 그린다(발생 → 승인 → 기록 → 보고).</li><li>각 단계에서 위험(누락, 중복, 금액 오류, 무권한 처리)을 식별한다.</li><li>그 위험을 막는 통제가 사람인지 시스템인지 구분한다. 시스템이면 ITAC 후보다.</li><li>ITAC별로 통제 기술서를 작성한다(무엇을, 언제, 어떻게, 실패 시 어떻게 되는가).</li><li>테스트를 설계한다. 정상값과 경계값·오류값을 넣어 통제가 실제로 막는지 재수행한다.</li><li>해당 로직이 테스트 기간 중 변경되지 않았음을 소스 변경 이력으로 확인한다.</li><li>통제가 산출하는 리포트를 증거로 쓸 경우, IPE 관점에서 완전성·정확성을 별도 검증한다.</li></ol>",
+      "example": "<p>'페이나우'의 SOX 범위에서 식별된 ITAC는 총 27개다. 예를 들어 '가맹점 정산액 자동 계산' 통제는 <strong>거래금액 × 계약 수수료율 - VAT</strong> 로직으로, 테스트 시 감사인이 스테이징에서 5개 시나리오(일반, 할부, 부분취소, 최소금액, 최대금액)를 직접 입력해 기대값과 일치함을 확인하고, 해당 소스 파일의 변경 이력(3회, 모두 승인됨)을 대조했다. 또 다른 ITAC인 '정산 지급 한도 초과 차단'은 1억 원 초과 지급 시 시스템이 자동 보류하고 승인 대기 큐로 보내는 통제로, 100,000,000원과 100,000,001원을 입력해 경계 동작을 확인했다. IPE 사례로는 '분기 권한 검토용 사용자 목록'이 있는데, 담당자가 수기 SQL로 뽑던 것을 표준 리포트로 전환하고 추출 조건과 쿼리를 형상관리 대상으로 편입했다.</p><pre><code># ITAC 식별 워크시트 (예)\n| 프로세스 | 위험            | 통제(ITAC)              | 유형 | 테스트 방법        |\n|---------|----------------|------------------------|-----|------------------|\n| 결제    | 이중 결제       | 멱등키 + UNIQUE 제약    | 입력 | 동일키 재요청 재수행 |\n| 결제    | 금액 오류       | 금액 범위·타입 검증      | 입력 | 경계값 입력       |\n| 정산    | 계산 오류       | 수수료 자동 계산 로직     | 처리 | 5개 시나리오 재수행 |\n| 정산    | 거래 누락       | 승인건수 vs 정산건수 대사 | 처리 | 배치 로그 + 재수행  |\n| 지급    | 무권한 고액 지급 | 1억 초과 자동 보류       | 처리 | 경계값 재수행      |\n| 원장    | 분개 불균형     | 차변=대변 검증           | 처리 | 불균형 분개 입력   |\n| 마스터  | 수수료율 무단변경 | 3인 승인 워크플로        | 마스터| 승인 없이 변경 시도 |\n\n# ITAC 테스트의 전제 (반드시 함께 확인)\n- 테스트 기간 중 해당 로직의 변경 이력 (Git log + 변경 티켓)\n- 변경관리 ITGC의 유효성 (리뷰·승인·배포 통제)\n- 운영 코드와 테스트한 코드의 동일성 (배포 태그/다이제스트)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='600' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='44.0' text-anchor='middle' fill='currentColor' font-size='12'>재무제표 계정 (매출 · 수수료수익 · 미지급금)</text><line x1='320' y1='55' x2='320' y2='78' stroke='currentColor' marker-end='url(#ar)'/><text x='385' y='72' text-anchor='middle' fill='currentColor' font-size='11'>거꾸로 추적</text><rect x='20' y='78' width='600' height='30' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='97.0' text-anchor='middle' fill='currentColor' font-size='12'>업무 프로세스: 결제 → 정산 → 지급 → 기표</text><line x1='110' y1='108' x2='110' y2='132' stroke='currentColor' marker-end='url(#ar)'/><line x1='270' y1='108' x2='270' y2='132' stroke='currentColor' marker-end='url(#ar)'/><line x1='430' y1='108' x2='430' y2='132' stroke='currentColor' marker-end='url(#ar)'/><line x1='570' y1='108' x2='570' y2='132' stroke='currentColor' marker-end='url(#ar)'/><rect x='30' y='132' width='150' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='12'>입력 통제</text><rect x='195' y='132' width='150' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='270.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='12'>처리 통제</text><rect x='360' y='132' width='150' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='12'>출력 통제</text><rect x='500' y='132' width='120' height='34' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='12'>마스터 통제</text><text x='105' y='185' text-anchor='middle' fill='currentColor' font-size='11'>검증·중복방지</text><text x='270' y='185' text-anchor='middle' fill='currentColor' font-size='11'>자동계산·대사</text><text x='435' y='185' text-anchor='middle' fill='currentColor' font-size='11'>리포트 완전성</text><text x='560' y='185' text-anchor='middle' fill='currentColor' font-size='11'>변경 승인</text><rect x='20' y='200' width='290' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='165.0' y='225.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='165' y='218' text-anchor='middle' fill='currentColor' font-size='12'>테스트: 경계값 재수행 1건</text><text x='165' y='236' text-anchor='middle' fill='currentColor' font-size='11'>+ 기간 중 미변경 확인</text><rect x='330' y='200' width='290' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475.0' y='225.0' text-anchor='middle' fill='currentColor' font-size='13'></text><text x='475' y='218' text-anchor='middle' fill='currentColor' font-size='12'>전제: 변경관리 ITGC 유효</text><text x='475' y='236' text-anchor='middle' fill='currentColor' font-size='11'>IPE: 리포트 자체의 신뢰성</text></svg>",
+      "keyTerms": [
+        {
+          "term": "ITAC",
+          "meaning": "애플리케이션 내부에 구현되어 자동 작동하는 업무 통제"
+        },
+        {
+          "term": "ITGC",
+          "meaning": "접근·변경·운영 등 IT 환경 전반의 일반통제. ITAC 신뢰의 전제"
+        },
+        {
+          "term": "완전성(Completeness)",
+          "meaning": "모든 거래가 빠짐없이 기록되었는가"
+        },
+        {
+          "term": "정확성(Accuracy)",
+          "meaning": "금액·항목이 올바르게 기록되었는가"
+        },
+        {
+          "term": "유효성(Validity)",
+          "meaning": "승인되고 실재하는 거래만 기록되었는가"
+        },
+        {
+          "term": "워크스루(Walkthrough)",
+          "meaning": "거래 한 건을 처음부터 끝까지 따라가며 통제를 확인하는 절차"
+        },
+        {
+          "term": "재수행(Reperformance)",
+          "meaning": "감사인이 직접 입력·실행해 통제 작동을 확인하는 테스트"
+        },
+        {
+          "term": "IPE",
+          "meaning": "통제 수행·감사 증거로 쓰이는 시스템 산출물. 완전성·정확성 검증 필요"
+        },
+        {
+          "term": "벤치마킹(Benchmarking)",
+          "meaning": "로직이 변경되지 않았음을 근거로 과거 테스트 결과를 원용하는 접근"
+        }
+      ],
+      "pitfalls": [
+        "ITGC만 점검하고 ITAC를 식별하지 않아 '시스템이 자동으로 한다'는 부분이 통제 공백으로 남는다.",
+        "ITAC를 1건만 테스트하면서 해당 로직의 변경 이력을 확인하지 않는다. 전제가 깨지면 테스트가 무효다.",
+        "테스트를 스테이징에서 수행하고 운영 코드와 동일한지 확인하지 않는다.",
+        "통제 기술서가 '시스템이 검증함' 수준으로 모호해 무엇을 테스트해야 할지 알 수 없다.",
+        "리포트(IPE)의 추출 조건과 소스를 확인하지 않고 그대로 증거로 채택한다.",
+        "담당자가 수기로 작성한 SQL 결과를 IPE로 사용하면서 쿼리의 정확성을 검증하지 않는다.",
+        "설정값·기능 플래그로 구현된 통제를 '코드가 아니니 변경관리 대상이 아니다'라고 판단한다.",
+        "경계값을 테스트하지 않고 정상 케이스만 확인해 '초과 시 차단' 통제를 검증하지 못한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 재무 영향 프로세스별로 ITAC가 식별되고 통제 기술서가 구체적으로 작성되어 있는가",
+          "[ITAC] 각 ITAC에 대해 경계값·오류값을 포함한 재수행 테스트가 수행되었는가",
+          "[변경] 테스트 기간 중 해당 통제 로직이 변경되지 않았음이 소스 변경 이력으로 확인되는가",
+          "[변경] 변경관리 ITGC가 유효해 자동 통제의 지속성이 담보되는가",
+          "[ITAC] 통제 증거로 사용되는 시스템 산출물(IPE)의 완전성·정확성이 검증되는가",
+          "[접근] 통제 로직·설정을 변경할 수 있는 권한이 제한되고 승인되는가"
+        ],
+        "fss": [
+          "전자금융거래의 정확한 처리와 오류 방지를 위한 내부통제 장치가 마련되어 있는가",
+          "중요 업무 처리 로직의 변경이 승인·기록되고 사후 검증되는가",
+          "거래 처리 결과의 정확성을 확인하는 점검 절차가 운영되는가"
+        ],
+        "isms": [
+          "2.8.1/2.8.2 보안 요구사항 정의 및 시험: 업무 검증 로직의 설계·시험",
+          "2.9.1 변경관리: 통제 로직 변경의 승인과 기록",
+          "2.9.4 로그 및 접속기록 관리: 통제 작동 결과의 기록"
+        ],
+        "evidence": [
+          "ITAC 목록과 통제 기술서(프로세스, 위험, 통제, 유형, 주기)",
+          "ITAC 테스트 수행 문서(입력값, 기대 결과, 실제 결과, 스크린샷)",
+          "테스트 대상 로직의 변경 이력(Git log, 변경 티켓)과 운영 배포 버전 대조",
+          "IPE로 사용되는 리포트의 추출 조건·소스 쿼리와 형상관리 증빙",
+          "통제 실패 시 처리 결과(차단 로그, 예외 처리 이력)",
+          "통제 로직·마스터 데이터 변경 권한 목록"
+        ],
+        "auditorQuestions": [
+          "이 프로세스에서 사람이 확인하지 않고 시스템이 자동으로 판단하는 지점은 어디인가?",
+          "한도를 초과한 거래를 시도하면 어떻게 되는가? 지금 해볼 수 있는가?",
+          "이 계산 로직은 올해 몇 번 변경되었고 각각 승인을 받았는가?",
+          "이 리포트는 어떤 조건으로 추출되며 누가 쿼리를 작성했는가?",
+          "테스트한 코드가 운영에 떠 있는 코드와 동일하다는 것을 어떻게 확인하는가?",
+          "통제가 거래를 차단하면 그 기록은 어디에 남는가?"
+        ],
+        "controlExample": "재무보고에 영향을 주는 자동 통제(ITAC)는 통제 기술서로 문서화되어 연 1회 경계값을 포함한 재수행 테스트로 유효성을 확인하며, 테스트 기간 중 해당 로직이 변경되지 않았음을 소스 변경 이력과 운영 배포 버전 대조로 확인한다. 통제 증거로 사용되는 리포트는 추출 조건과 소스 쿼리가 형상관리 대상이다."
+      },
+      "related": [
+        "app-payment-ledger",
+        "app-batch",
+        "app-idempotency",
+        "app-input-validation",
+        "app-feature-flag",
+        "app-external-interface",
+        "app-logging-standard",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "COBIT 2019 - Managed Business Process Controls",
+        "PCAOB AS 2201 - Internal Control over Financial Reporting",
+        "IIA GTAG - Auditing Application Controls"
+      ]
+    }
+  ]
+}

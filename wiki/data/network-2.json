@@ -1,0 +1,867 @@
+{
+  "category": "network",
+  "categoryLabel": "네트워크·프로토콜·엣지·서비스 메시",
+  "entries": [
+    {
+      "id": "net-lb-l4-l7",
+      "title": "로드밸런서 (L4 vs L7)",
+      "titleEn": "Load Balancer: Layer 4 vs Layer 7",
+      "aliases": ["LB", "로드밸런싱", "ALB", "NLB", "부하분산", "헬스체크"],
+      "tags": ["lb", "availability", "l4", "l7"],
+      "level": "중급",
+      "oneLiner": "들어온 요청을 여러 서버에 나눠 보내 가용성과 확장성을 확보하는 장치",
+      "analogy": "로드밸런서는 은행 입구의 번호표 기계와 같다. 창구가 5개 있으면 손님을 골고루 배정하고, 잠시 자리를 비운 창구에는 손님을 보내지 않는다(헬스체크). L4는 손님이 무슨 업무인지 묻지 않고 빈 창구로만 보내고, L7은 \"대출 업무는 3번, 환전은 5번\"처럼 내용을 보고 배정한다.",
+      "explanation": "<p><strong>로드밸런서(Load Balancer)</strong>는 하나의 진입점(도메인·IP)으로 들어온 요청을 뒤에 있는 여러 서버에 분산한다. 목적은 세 가지다. <strong>가용성</strong>(한 대가 죽어도 서비스 지속), <strong>확장성</strong>(서버를 늘려 처리량 증가), <strong>운영 편의</strong>(무중단 배포, 서버 교체).</p><p><strong>L4 로드밸런서</strong>는 4계층, 즉 IP와 포트만 보고 분산한다. 패킷 내용을 해석하지 않으므로 빠르고 가볍고 TCP/UDP 어떤 프로토콜이든 다룬다. AWS의 <strong>NLB(Network Load Balancer)</strong>가 대표이며, 초당 수백만 연결을 처리하고 <strong>고정 IP</strong>를 제공해 파트너사 화이트리스트 등록에 유리하다. 다만 URL 경로나 헤더 기반 라우팅은 불가능하다.</p><p><strong>L7 로드밸런서</strong>는 HTTP 요청을 해석해 <strong>호스트명·경로·헤더·쿠키</strong> 기준으로 라우팅한다. AWS의 <strong>ALB(Application Load Balancer)</strong>가 대표다. <code>/api/*</code>는 API 서버 그룹으로, <code>/admin/*</code>은 관리자 그룹으로 보내거나, 가중치를 줘 신버전에 5%만 흘리는 카나리 배포를 할 수 있다. TLS 종료, 인증 연동(OIDC), WAF 연결, 상세 액세스 로그도 L7의 몫이다. 쉽게 말하면 <strong>L4는 교통정리, L7은 안내데스크</strong>다.</p><p><strong>분산 알고리즘</strong>은 라운드로빈(순서대로), 최소 연결(least connections), 가중치, 해시(출발지 IP 기준 고정) 등이 있다. 세션을 서버 메모리에 두는 레거시 앱은 <strong>스티키 세션</strong>이 필요하지만, 이는 확장성과 무중단 배포를 해치므로 세션을 Redis 같은 외부 저장소로 빼는 것이 현대적 해법이다.</p><p><strong>헬스체크</strong>가 로드밸런서의 핵심 기능이다. 주기적으로 각 대상에 요청을 보내 정상 응답이 오는지 확인하고, 실패하면 대상 그룹에서 제외한다. 헬스체크 경로를 <code>/health</code>처럼 가볍게 만들되, DB 연결 같은 핵심 의존성을 포함할지 여부(shallow vs deep)는 신중히 결정해야 한다. 너무 깊으면 DB 지연 하나로 전 서버가 동시에 빠지는 사고가 난다.</p><p><strong>감사 관점</strong>에서 로드밸런서는 <strong>외부 노출 지점</strong>이자 <strong>액세스 로그의 원천</strong>이다. 인터넷에 붙은 LB 목록과 각각의 리스너·인증서·WAF 연결 여부, 액세스 로그 활성화와 보관 기간, 내부 전용 LB가 실수로 인터넷 노출(internet-facing)로 만들어지지 않았는지가 반복 점검 대상이다. 또 가용성 통제(다중 AZ 구성, 헬스체크 설정)의 증빙으로도 쓰인다.</p>",
+      "howItWorks": "<ol><li>사용자가 도메인을 조회하면 DNS가 로드밸런서의 IP(또는 ALIAS 대상)를 반환한다.</li><li>클라이언트가 로드밸런서에 TCP 연결을 맺는다. L7이면 여기서 TLS도 종료한다.</li><li>L7은 HTTP 요청을 읽어 호스트/경로 규칙에 맞는 대상 그룹을 고른다. L4는 포트 기준 대상 그룹을 고른다.</li><li>대상 그룹 내에서 알고리즘(라운드로빈·최소연결)에 따라 정상 상태인 대상 하나를 선택한다.</li><li>백엔드로 요청을 전달한다. L7은 새 연결을 만들고 X-Forwarded-For에 원 클라이언트 IP를 넣는다.</li><li>백엔드 응답을 받아 클라이언트에 돌려준다.</li><li>동시에 헬스체크 스레드가 주기적으로 각 대상을 점검해 상태를 갱신한다.</li><li>액세스 로그가 S3 등으로 적재되고 지표가 CloudWatch로 전송된다.</li></ol>",
+      "example": "<p>'페이나우'는 앞단에 ALB를 두고 경로 기반으로 나눈다. <code>/api/v1/*</code>는 결제 API 대상 그룹(3개 AZ, 12개 대상), <code>/admin/*</code>은 관리자 그룹이며 ALB의 OIDC 인증 기능으로 사내 SSO를 통과해야만 접근된다. 반면 PG사가 호출하는 콜백 엔드포인트는 고정 IP가 필요해 NLB를 별도로 두고, PG사 방화벽에 NLB의 EIP 3개를 등록했다. 결제 API 배포는 대상 그룹을 두 개 두고 ALB 가중치를 100:0 → 90:10 → 0:100으로 옮기는 방식으로 수행한다. 헬스체크는 <code>/health</code>가 자기 프로세스 상태만 보고, DB 상태는 별도 <code>/health/deep</code>으로 모니터링만 한다.</p><pre><code># ALB 리스너 규칙 확인\naws elbv2 describe-rules --listener-arn arn:aws:elasticloadbalancing:...:listener/app/paynow/abc/def \\\n  --query 'Rules[].[Priority,Conditions[0].Values,Actions[0].TargetGroupArn]' --output table\n\n# 대상 그룹 헬스 상태\naws elbv2 describe-target-health --target-group-arn arn:...:targetgroup/payment-api/123 \\\n  --query 'TargetHealthDescriptions[].[Target.Id,TargetHealth.State,TargetHealth.Reason]' --output table\n\n# 인터넷 노출 LB 전수 점검 (감사 증빙)\naws elbv2 describe-load-balancers \\\n  --query 'LoadBalancers[].[LoadBalancerName,Type,Scheme,DNSName]' --output table\n\n# 액세스 로그 활성화 여부\naws elbv2 describe-load-balancer-attributes --load-balancer-arn arn:... \\\n  --query \"Attributes[?Key=='access_logs.s3.enabled']\"</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='115' width='95' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='142' text-anchor='middle' fill='currentColor' font-size='12'>사용자</text><line x1='117' y1='137' x2='160' y2='137' stroke='currentColor' marker-end='url(#ar)'/><rect x='163' y='95' width='130' height='85' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='228' y='120' text-anchor='middle' fill='currentColor'>L7 ALB</text><text x='228' y='140' text-anchor='middle' fill='currentColor' font-size='11'>TLS 종료 · WAF</text><text x='228' y='157' text-anchor='middle' fill='currentColor' font-size='11'>경로 라우팅</text><text x='228' y='173' text-anchor='middle' fill='currentColor' font-size='11'>액세스 로그</text><line x1='295' y1='112' x2='355' y2='70' stroke='currentColor' marker-end='url(#ar)'/><text x='325' y='82' text-anchor='middle' fill='currentColor' font-size='11'>/api/*</text><line x1='295' y1='160' x2='355' y2='200' stroke='currentColor' marker-end='url(#ar)'/><text x='325' y='196' text-anchor='middle' fill='currentColor' font-size='11'>/admin/*</text><rect x='358' y='40' width='125' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='420' y='65' text-anchor='middle' fill='currentColor' font-size='12'>결제 API TG</text><text x='420' y='85' text-anchor='middle' fill='currentColor' font-size='11'>AZ 3곳 12대</text><rect x='358' y='180' width='125' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='420' y='205' text-anchor='middle' fill='currentColor' font-size='12'>관리자 TG</text><text x='420' y='225' text-anchor='middle' fill='currentColor' font-size='11'>SSO 인증 필요</text><rect x='500' y='95' width='120' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='120' text-anchor='middle' fill='currentColor' font-size='12'>L4 NLB</text><text x='560' y='140' text-anchor='middle' fill='currentColor' font-size='11'>고정 IP 제공</text><text x='560' y='157' text-anchor='middle' fill='currentColor' font-size='11'>내용 미해석</text><text x='560' y='174' text-anchor='middle' fill='currentColor' font-size='11'>PG 콜백용</text><text x='20' y='215' fill='currentColor' font-size='11'>헬스체크 실패 대상은</text><text x='20' y='233' fill='currentColor' font-size='11'>자동 제외</text><text x='20' y='265' fill='currentColor' font-size='11'>감사: internet-facing 여부 · 액세스 로그 활성화 · 다중 AZ 구성 확인</text></svg>",
+      "keyTerms": [
+        {"term": "대상 그룹(Target Group)", "meaning": "로드밸런서가 트래픽을 보낼 서버·파드의 묶음"},
+        {"term": "헬스체크", "meaning": "대상의 정상 여부를 주기적으로 확인해 트래픽 배분에서 제외"},
+        {"term": "스티키 세션", "meaning": "같은 사용자를 항상 같은 서버로 보내는 설정. 확장성 저하 요인"},
+        {"term": "X-Forwarded-For", "meaning": "L7 LB가 원래 클라이언트 IP를 백엔드에 전달하는 헤더"},
+        {"term": "internet-facing / internal", "meaning": "인터넷 노출형 / 내부 전용 로드밸런서 구분"},
+        {"term": "TLS 종료", "meaning": "LB에서 암호를 풀고 백엔드로 전달하는 구성"},
+        {"term": "드레이닝(Deregistration Delay)", "meaning": "대상 제거 시 진행 중 요청을 마칠 때까지 기다리는 시간"},
+        {"term": "가중치 라우팅", "meaning": "대상 그룹별 트래픽 비율 조정. 카나리 배포에 사용"}
+      ],
+      "pitfalls": [
+        "내부 전용 서비스의 LB를 internet-facing으로 만들어 의도치 않게 인터넷에 노출.",
+        "헬스체크에 DB 조회를 포함해 DB 지연 시 전 서버가 동시에 unhealthy가 되는 연쇄 장애.",
+        "액세스 로그를 비활성화한 채 운영해 사고 조사 시 요청 이력이 없음.",
+        "X-Forwarded-For를 처리하지 않아 모든 접속 기록의 IP가 LB IP로 남아 추적 불가.",
+        "스티키 세션에 의존해 무중단 배포 시 세션이 끊기고 사용자 로그아웃 발생.",
+        "드레이닝 시간을 0으로 두어 배포 시 진행 중이던 결제 요청이 중단됨."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 인터넷에 노출된 로드밸런서 목록이 식별되고 노출 필요성이 승인되어 있는가",
+          "[운영] 액세스 로그가 활성화되어 지정 기간 보관되고 접근이 통제되는가",
+          "[운영] 다중 AZ·헬스체크 등 가용성 구성이 표준에 따라 적용되는가",
+          "[변경] 리스너·규칙·대상 그룹 변경이 IaC와 승인 절차를 통해 이루어지는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템의 이중화 요건을 충족하도록 부하분산·다중화 구성이 되어 있는가",
+          "외부 접점 시스템의 접속기록을 생성·보존하고 있는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 외부 노출 지점이 최소화되고 통제되는가",
+          "2.9.2 성능 및 장애관리: 가용성 구성과 모니터링이 이루어지는가",
+          "2.9.4 로그 및 접속기록 관리: 액세스 로그 생성·보관·검토가 수행되는가"
+        ],
+        "evidence": [
+          "전체 로드밸런서 목록과 scheme(internet-facing/internal), 리스너·인증서 정보",
+          "액세스 로그 설정 화면과 S3 버킷 보관 정책(수명주기, 접근 권한)",
+          "대상 그룹별 헬스체크 설정 및 다중 AZ 배치 증적",
+          "최근 LB 설정 변경의 IaC PR과 승인 기록"
+        ],
+        "auditorQuestions": [
+          "인터넷에서 접근 가능한 로드밸런서는 몇 개이며 각각 어떤 서비스인가?",
+          "LB 액세스 로그는 어디에 얼마나 보관되며 누가 조회할 수 있는가?",
+          "서버 한 대가 죽으면 어떻게 탐지·제외되는가?",
+          "LB 설정 변경은 누가 어떤 절차로 하는가?",
+          "관리자 페이지는 인터넷에서 접근 가능한가? 접근 통제 방식은?"
+        ],
+        "controlExample": "인터넷 노출 로드밸런서는 승인된 목록으로 관리되며, 모든 리스너는 TLS 1.2 이상과 WAF가 연결되고 액세스 로그를 S3에 1년간 보관한다. 구성 변경은 Terraform PR 리뷰와 승인을 거쳐 적용된다."
+      },
+      "related": ["net-reverse-proxy", "net-tls", "net-waf", "net-api-gateway", "net-cdn", "net-handshake"],
+      "learnMore": ["Elastic Load Balancing User Guide", "Cloudflare Learning Center - What is Load Balancing"]
+    },
+    {
+      "id": "net-reverse-proxy",
+      "title": "리버스 프록시 (Nginx/HAProxy/Envoy)",
+      "titleEn": "Reverse Proxy",
+      "aliases": ["Nginx", "엔진엑스", "HAProxy", "Envoy", "프록시 서버", "역방향 프록시"],
+      "tags": ["proxy", "l7", "edge"],
+      "level": "중급",
+      "oneLiner": "클라이언트 앞에 서서 요청을 받아 뒤 서버로 대신 전달하는 중계 서버",
+      "analogy": "리버스 프록시는 회사 안내데스크와 같다. 방문객은 담당자 자리를 몰라도 안내데스크에 용건을 말하면 된다. 데스크는 방문 기록을 남기고, 신분 확인을 하고, 필요하면 대기시키고, 적절한 부서로 안내한다. 방문객은 회사 내부 구조를 전혀 알 필요가 없고, 내부 조직이 바뀌어도 데스크 위치는 그대로다.",
+      "explanation": "<p><strong>리버스 프록시(Reverse Proxy)</strong>는 클라이언트 요청을 대신 받아 백엔드 서버로 전달하고 응답을 돌려주는 중계 서버다. 클라이언트를 대신하는 <strong>포워드 프록시</strong>와 방향이 반대여서 '리버스'다. 실무에서 Nginx, HAProxy, Envoy, Apache httpd 등이 쓰이며 클라우드의 ALB도 관리형 리버스 프록시로 볼 수 있다.</p><p><strong>무엇을 해주는가.</strong> (1) <strong>부하 분산</strong>, (2) <strong>TLS 종료</strong>와 인증서 관리 집중, (3) <strong>캐싱</strong>과 압축(gzip/brotli), (4) <strong>경로 기반 라우팅</strong>과 URL 재작성, (5) <strong>헤더 조작</strong>(보안 헤더 추가, X-Forwarded-For 설정), (6) <strong>접근 제어</strong>(IP 허용목록, 기본 인증, rate limit), (7) <strong>액세스 로그</strong> 생성이다. 쉽게 말하면 애플리케이션이 신경 쓰기 싫은 공통 관심사를 앞단에서 한 번에 처리한다.</p><p><strong>세 도구의 성격 차이</strong>가 있다. <strong>Nginx</strong>는 정적 파일 서빙·캐싱까지 잘하는 범용 웹서버 겸 프록시로 설정이 직관적이다. <strong>HAProxy</strong>는 L4/L7 부하 분산에 특화되어 세밀한 헬스체크와 통계 페이지가 강점이다. <strong>Envoy</strong>는 동적 설정(xDS API)과 풍부한 관측 지표를 갖춰 <strong>서비스 메시의 데이터 플레인</strong>으로 쓰인다. Istio의 사이드카가 바로 Envoy다. 설정 파일을 고쳐 reload 하는 방식(Nginx/HAProxy)과 컨트롤 플레인이 실시간으로 설정을 밀어 넣는 방식(Envoy)의 차이가 크다.</p><p><strong>쿠버네티스에서는</strong> Ingress Controller(ingress-nginx, Envoy Gateway 등)가 리버스 프록시 역할을 하며, 최근에는 표준화된 <strong>Gateway API</strong>로 옮겨가는 추세다.</p><p><strong>감사 관점</strong>에서 리버스 프록시는 <strong>통제가 집중된 지점</strong>이다. 좋은 점은 로깅·인증·접근제어를 한곳에서 증명할 수 있다는 것이고, 위험한 점은 이 서버의 설정 파일 한 줄이 전체 서비스의 노출 범위를 바꾼다는 것이다. 그래서 설정 파일이 형상관리(Git)에 있는지, 서버에서 직접 수정(vi)하는 관행이 없는지, 변경 후 reload 이력이 남는지가 핵심 점검 사항이다. 또 프록시가 백엔드로 갈 때 클라이언트 IP·사용자 식별자를 전달하지 않으면 애플리케이션 로그의 추적성이 끊긴다.</p>",
+      "howItWorks": "<ol><li>DNS가 리버스 프록시(또는 그 앞 LB)의 주소를 반환한다.</li><li>클라이언트가 프록시에 TLS 연결을 맺고 HTTP 요청을 보낸다.</li><li>프록시가 TLS를 종료하고 요청 헤더·경로를 읽는다.</li><li>설정된 규칙(server_name, location, ACL)에 맞는 백엔드 업스트림 그룹을 선택한다.</li><li>rate limit·IP 허용목록·인증 등 사전 검사를 수행하고 통과하지 못하면 4xx로 즉시 응답한다.</li><li>캐시에 유효한 응답이 있으면 백엔드를 거치지 않고 바로 반환한다.</li><li>없으면 백엔드로 새 연결(또는 keep-alive 풀)을 통해 요청을 전달하며 X-Forwarded-For/Proto 헤더를 붙인다.</li><li>응답을 받아 압축·보안 헤더 추가 후 클라이언트에 반환하고 액세스 로그를 기록한다.</li></ol>",
+      "example": "<p>'페이나우'의 EKS에는 ingress-nginx가 있고, 그 앞에 NLB가 있다. Nginx 설정은 모두 Kubernetes Ingress 리소스와 ConfigMap으로 선언되어 Git에서 관리되며, 서버에 SSH로 접속해 설정을 고치는 것은 정책상 금지되어 있다(노드 접근 자체가 SSM 세션 기록 대상이다). 관리자 페이지 <code>/admin</code>은 사내 VPN 대역과 오피스 EIP만 허용하고, 로그인 API에는 IP당 분당 20회 rate limit이 걸려 있다. 액세스 로그는 JSON 포맷으로 출력해 Loki로 수집되고, 여기에는 요청 ID, 클라이언트 IP, 사용자 ID(인증 후), 응답 시간이 포함된다.</p><pre><code># Nginx 리버스 프록시 핵심 설정\nserver {\n  listen 443 ssl;\n  server_name api.paynow.co.kr;\n\n  location /admin/ {\n    allow 10.20.0.0/16;      # 사내 VPN\n    allow 43.201.1.10/32;    # 오피스 EIP\n    deny all;\n    proxy_pass http://admin_upstream;\n  }\n\n  location /api/ {\n    limit_req zone=login burst=10 nodelay;\n    proxy_pass http://api_upstream;\n    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    proxy_set_header X-Forwarded-Proto $scheme;\n    proxy_set_header X-Request-Id $request_id;\n  }\n}\n\n# 설정 검증 후 무중단 reload\nnginx -t &amp;&amp; nginx -s reload\n\n# 쿠버네티스 Ingress로 동일 통제 선언\nmetadata:\n  annotations:\n    nginx.ingress.kubernetes.io/whitelist-source-range: \"10.20.0.0/16,43.201.1.10/32\"\n    nginx.ingress.kubernetes.io/limit-rpm: \"1200\"</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='130' text-anchor='middle' fill='currentColor' font-size='12'>클라이언트</text><line x1='117' y1='125' x2='170' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='173' y='45' width='160' height='165' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='253' y='68' text-anchor='middle' fill='currentColor'>리버스 프록시</text><text x='185' y='92' fill='currentColor' font-size='11'>TLS 종료</text><text x='185' y='112' fill='currentColor' font-size='11'>IP 허용목록 / 인증</text><text x='185' y='132' fill='currentColor' font-size='11'>rate limit</text><text x='185' y='152' fill='currentColor' font-size='11'>캐시 · 압축</text><text x='185' y='172' fill='currentColor' font-size='11'>헤더 주입 XFF</text><text x='185' y='192' fill='currentColor' font-size='11'>액세스 로그</text><line x1='335' y1='85' x2='400' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='335' y1='127' x2='400' y2='127' stroke='currentColor' marker-end='url(#ar)'/><line x1='335' y1='170' x2='400' y2='195' stroke='currentColor' marker-end='url(#ar)'/><rect x='403' y='35' width='140' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='473' y='63' text-anchor='middle' fill='currentColor' font-size='12'>API 서버 그룹</text><rect x='403' y='103' width='140' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='473' y='131' text-anchor='middle' fill='currentColor' font-size='12'>관리자 서버</text><rect x='403' y='172' width='140' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='473' y='200' text-anchor='middle' fill='currentColor' font-size='12'>정적 자산</text><text x='20' y='240' fill='currentColor' font-size='11'>설정은 Git으로 관리 · 서버 직접 수정 금지 · reload 이력 보관</text></svg>",
+      "keyTerms": [
+        {"term": "업스트림(Upstream)", "meaning": "프록시가 요청을 전달하는 백엔드 서버 그룹"},
+        {"term": "포워드 프록시", "meaning": "클라이언트를 대신해 외부로 나가는 프록시. 방향이 반대"},
+        {"term": "X-Forwarded-For", "meaning": "원 클라이언트 IP를 백엔드에 전달하는 헤더"},
+        {"term": "Envoy xDS", "meaning": "컨트롤 플레인이 Envoy에 설정을 동적으로 배포하는 API"},
+        {"term": "Ingress Controller", "meaning": "쿠버네티스에서 외부 트래픽을 서비스로 라우팅하는 리버스 프록시"},
+        {"term": "Gateway API", "meaning": "Ingress를 대체하는 표준 쿠버네티스 트래픽 라우팅 API"},
+        {"term": "reload", "meaning": "설정을 무중단으로 다시 읽는 동작. 변경 이력 관리의 대상"},
+        {"term": "커넥션 풀", "meaning": "백엔드로의 연결을 재사용해 핸드셰이크 비용을 줄이는 기능"}
+      ],
+      "pitfalls": [
+        "프록시 서버에 직접 접속해 설정을 수정하고 Git에 반영하지 않아 재배포 시 통제가 사라짐.",
+        "X-Forwarded-For를 신뢰 경계 없이 그대로 받아들여 클라이언트가 IP를 위조할 수 있게 됨.",
+        "location 규칙 순서를 잘못 잡아 관리자 경로가 인증 없이 노출.",
+        "타임아웃 값을 기본값으로 방치해 느린 백엔드 하나가 프록시 워커를 모두 점유.",
+        "액세스 로그에 토큰·카드번호 같은 민감정보가 쿼리스트링으로 그대로 기록됨.",
+        "캐시 설정 실수로 사용자별 개인화 응답이 다른 사용자에게 제공되는 캐시 오염."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 프록시 설정이 형상관리(Git/IaC)에 있고 변경이 리뷰·승인을 거치는가",
+          "[접근] 관리자·내부 경로에 대한 접근 제한(IP·인증)이 설정되고 검증되는가",
+          "[운영] 액세스 로그가 생성·보관되며 민감정보 마스킹이 적용되는가",
+          "[접근] 프록시 서버(또는 노드)에 대한 직접 접근이 제한·기록되는가"
+        ],
+        "fss": [
+          "외부 접점 구간에서 접속기록을 생성·보존하고 있는가(전자금융거래법상 기록 보존)",
+          "관리자 화면 등 중요 기능에 대한 접근이 특정 단말·대역으로 제한되는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 / 2.6.4 데이터베이스 접근: 경로별 접근 통제가 구현되어 있는가",
+          "2.9.1 변경관리: 프록시 설정 변경이 승인 절차를 따르는가",
+          "2.9.4 로그 및 접속기록 관리: 로그 생성·보관·검토가 이루어지는가"
+        ],
+        "evidence": [
+          "프록시 설정 파일 또는 Ingress 리소스의 Git 저장소 이력",
+          "관리자 경로 접근 제한 설정(allow/deny, 인증 연동) 캡처",
+          "액세스 로그 샘플과 보관 정책, 민감정보 마스킹 설정",
+          "프록시 서버 접근 계정 목록과 접속 기록(SSM 세션 로그 등)"
+        ],
+        "auditorQuestions": [
+          "프록시 설정은 어디에 보관되며 변경은 어떤 절차를 거치는가?",
+          "설정을 서버에서 직접 수정하는 경우가 있는가? 있다면 어떻게 탐지하는가?",
+          "관리자 페이지는 누가 어디에서 접근할 수 있는가?",
+          "액세스 로그에 민감정보가 남지 않도록 어떤 조치를 했는가?",
+          "백엔드 애플리케이션은 실제 클라이언트 IP를 어떻게 알 수 있는가?"
+        ],
+        "controlExample": "리버스 프록시 설정은 Git 저장소에서만 관리되며 변경은 코드 리뷰와 승인 후 파이프라인으로 배포된다. 관리자 경로는 사내 대역과 SSO 인증을 모두 통과한 요청만 허용하고, 액세스 로그는 민감정보 마스킹 후 중앙 로그 시스템에 1년간 보관된다."
+      },
+      "related": ["net-lb-l4-l7", "net-api-gateway", "net-service-mesh", "net-rate-limiting", "net-waf", "k8s-ingress"],
+      "learnMore": ["Nginx 공식 문서 - Reverse Proxy", "HAProxy Configuration Manual", "Envoy Proxy 공식 문서"]
+    },
+    {
+      "id": "net-api-gateway",
+      "title": "API 게이트웨이",
+      "titleEn": "API Gateway",
+      "aliases": ["API GW", "Kong", "Apigee", "Amazon API Gateway", "게이트웨이"],
+      "tags": ["api", "l7", "authn", "governance"],
+      "level": "중급",
+      "oneLiner": "여러 API의 단일 진입점에서 인증·제한·변환·기록을 일괄 처리하는 관문",
+      "analogy": "API 게이트웨이는 공항 출국장과 같다. 어느 항공사로 가든 모든 승객은 같은 보안검색대를 지난다. 여권(토큰)을 확인하고, 반입 금지 물품을 거르고, 인원이 몰리면 줄을 세우고(rate limit), 통과 기록을 남긴다. 각 항공사(백엔드 서비스)가 저마다 검색대를 운영하지 않아도 되는 것이 핵심이다.",
+      "explanation": "<p><strong>API 게이트웨이</strong>는 여러 백엔드 API 앞에 서서 <strong>인증·인가, 사용량 제한, 요청/응답 변환, 라우팅, 로깅·과금</strong>을 담당하는 계층이다. 리버스 프록시의 기능을 포함하되, <strong>API 제품 관리</strong>(누가 어떤 API를 얼마나 쓸 수 있는가)라는 비즈니스 관심사가 더해진 것이 차이다.</p><p><strong>핵심 기능.</strong> (1) <strong>인증</strong>: API 키, OAuth2/OIDC 토큰 검증, JWT 서명·만료 검사, mTLS. (2) <strong>인가</strong>: 스코프·플랜별 허용 엔드포인트 제한. (3) <strong>쿼터와 스로틀링</strong>: 고객사별 월 100만 호출, 초당 50건 같은 제한. (4) <strong>변환</strong>: 구버전 요청 포맷을 신버전으로 매핑, 헤더 추가·제거. (5) <strong>집계</strong>: 여러 마이크로서비스 호출을 묶어 하나의 응답으로 반환. (6) <strong>개발자 포털</strong>과 키 발급 셀프서비스. 쉽게 말하면 <strong>API를 상품처럼 관리하는 계산대</strong>다.</p><p><strong>제품 선택.</strong> <strong>Amazon API Gateway</strong>는 관리형으로 Lambda·VPC Link 연동과 사용량 계획(Usage Plan)이 강점이다. <strong>Kong</strong>은 쿠버네티스 친화적이고 플러그인 생태계가 넓은 오픈소스 기반이다. <strong>Apigee</strong>(Google)는 대기업의 API 거버넌스·수익화·분석에 강하다. 최근에는 서비스 메시와 역할이 겹치는데, 통념상 <strong>메시는 내부(east-west) 트래픽</strong>, <strong>게이트웨이는 외부(north-south) 트래픽</strong>을 담당한다고 구분한다.</p><p><strong>왜 중요한가.</strong> 각 마이크로서비스가 인증 로직을 저마다 구현하면 구현 편차가 곧 보안 구멍이 된다. 게이트웨이에서 토큰 검증을 표준화하면 <strong>통제가 한 곳에 모여 감사 가능</strong>해진다. 다만 게이트웨이만 믿고 백엔드를 완전 무방비로 두면, 게이트웨이를 우회한 내부 호출 한 번에 전부 뚫린다. 그래서 백엔드도 최소한의 인증(mTLS·서비스 토큰)을 갖추는 <strong>심층 방어</strong>가 권장된다.</p><p><strong>감사 관점</strong>에서 API 게이트웨이는 외부 연계 통제의 중심이다. 점검 항목은 (1) 인증 없이 호출 가능한 <strong>공개 엔드포인트 목록</strong>과 승인 근거, (2) API 키·클라이언트 시크릿의 <strong>발급·회수 절차</strong>와 보관 위치, (3) 고객사별 쿼터 설정, (4) 호출 로그(누가, 언제, 어떤 API를, 어떤 결과로)의 보존, (5) 게이트웨이 <strong>우회 경로가 없는지</strong>(백엔드가 직접 인터넷에 노출되지 않았는지)다.</p>",
+      "howItWorks": "<ol><li>개발자 포털 또는 운영자가 소비자(파트너)를 등록하고 API 키·클라이언트 자격증명을 발급한다.</li><li>클라이언트가 인증 서버에서 액세스 토큰을 받거나 API 키를 준비한다.</li><li>클라이언트가 게이트웨이 엔드포인트로 요청을 보낸다.</li><li>게이트웨이가 토큰 서명·만료·발급자·스코프를 검증한다(또는 API 키 유효성 확인).</li><li>해당 소비자의 쿼터·초당 제한을 확인하고 초과 시 429 Too Many Requests로 거부한다.</li><li>요청을 정의된 백엔드(Lambda, EKS 서비스, 온프레미스 API)로 라우팅하며 필요한 변환을 수행한다.</li><li>백엔드 응답을 받아 필요한 형식으로 변환해 반환한다.</li><li>호출 메타데이터(소비자 ID, 엔드포인트, 상태코드, 지연)를 로그·지표로 남기고 과금·분석에 활용한다.</li></ol>",
+      "example": "<p>'페이나우'는 가맹점용 공개 API를 Amazon API Gateway로 제공한다. 가맹점은 OAuth2 client_credentials로 토큰을 받고, 게이트웨이는 JWT 서명과 스코프(<code>payment:write</code>, <code>settlement:read</code>)를 검증한다. 요금제는 Basic(초당 10건, 월 50만 건)과 Enterprise(초당 200건)로 Usage Plan을 나눴다. 백엔드는 모두 프라이빗 서브넷에 있고 VPC Link로만 연결되어 게이트웨이 우회 호출이 구조적으로 불가능하다. 호출 로그는 CloudWatch Logs로 남아 가맹점별 월간 사용량 청구와 분쟁 대응 근거가 된다. 키 유출 사고 대응 절차도 문서화되어 있어, 가맹점 요청 시 30분 내 키를 폐기하고 재발급한다.</p><pre><code># API 키·사용량 계획 조회 (증빙)\naws apigateway get-usage-plans --query 'items[].[id,name,throttle,quota]' --output table\naws apigateway get-api-keys --include-values false \\\n  --query 'items[].[id,name,enabled,createdDate]' --output table\n\n# 인증 없이 열린 메서드 탐지\naws apigateway get-resources --rest-api-id abc123 \\\n  --query 'items[].resourceMethods' --output json | grep -i authorizationType\n\n# Kong에서 JWT + rate limit 플러그인 적용\ncurl -X POST http://kong-admin:8001/services/payment-api/plugins \\\n  --data name=jwt\ncurl -X POST http://kong-admin:8001/services/payment-api/plugins \\\n  --data name=rate-limiting --data config.second=10 --data config.month=500000</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='55' width='105' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='82' text-anchor='middle' fill='currentColor' font-size='12'>가맹점 A</text><rect x='20' y='140' width='105' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='167' text-anchor='middle' fill='currentColor' font-size='12'>가맹점 B</text><line x1='127' y1='77' x2='180' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='127' y1='162' x2='180' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='183' y='40' width='170' height='180' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='268' y='63' text-anchor='middle' fill='currentColor'>API 게이트웨이</text><text x='195' y='88' fill='currentColor' font-size='11'>토큰/키 검증</text><text x='195' y='110' fill='currentColor' font-size='11'>스코프 인가</text><text x='195' y='132' fill='currentColor' font-size='11'>쿼터 · 스로틀링</text><text x='195' y='154' fill='currentColor' font-size='11'>요청/응답 변환</text><text x='195' y='176' fill='currentColor' font-size='11'>호출 로그 · 과금</text><text x='195' y='202' fill='currentColor' font-size='11'>429 초과 시 거부</text><line x1='355' y1='85' x2='420' y2='65' stroke='currentColor' marker-end='url(#ar)'/><line x1='355' y1='130' x2='420' y2='130' stroke='currentColor' marker-end='url(#ar)'/><line x1='355' y1='175' x2='420' y2='195' stroke='currentColor' marker-end='url(#ar)'/><rect x='423' y='40' width='165' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='70' text-anchor='middle' fill='currentColor' font-size='12'>결제 서비스</text><rect x='423' y='105' width='165' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='135' text-anchor='middle' fill='currentColor' font-size='12'>정산 서비스</text><rect x='423' y='170' width='165' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='200' text-anchor='middle' fill='currentColor' font-size='12'>조회 서비스</text><text x='20' y='245' fill='currentColor' font-size='11'>백엔드는 프라이빗 구간에만 존재 → 게이트웨이 우회 호출 불가</text><text x='20' y='263' fill='currentColor' font-size='11'>감사: 인증 없는 공개 엔드포인트 목록 · 키 발급/회수 이력 확인</text></svg>",
+      "keyTerms": [
+        {"term": "API 키", "meaning": "소비자를 식별하는 단순 자격증명. 그 자체로는 강한 인증이 아님"},
+        {"term": "OAuth2 / JWT", "meaning": "토큰 기반 인증·인가 표준. 게이트웨이가 서명과 스코프를 검증"},
+        {"term": "Usage Plan / 쿼터", "meaning": "소비자별 허용 호출량과 속도 제한"},
+        {"term": "스로틀링", "meaning": "허용량 초과 요청을 지연·거부(429)하는 제어"},
+        {"term": "VPC Link / 프라이빗 통합", "meaning": "게이트웨이가 사설망 백엔드에 접근하는 연결 방식"},
+        {"term": "오소라이저(Authorizer)", "meaning": "게이트웨이에서 토큰 검증 로직을 수행하는 구성요소"},
+        {"term": "개발자 포털", "meaning": "API 문서·키 발급을 셀프서비스로 제공하는 화면"},
+        {"term": "north-south / east-west", "meaning": "외부↔내부 트래픽 / 내부 서비스 간 트래픽"}
+      ],
+      "pitfalls": [
+        "게이트웨이에만 인증을 두고 백엔드는 무인증으로 열어둬, 내부 침투 시 전면 노출.",
+        "테스트용으로 authorizationType을 NONE으로 둔 엔드포인트가 운영에 그대로 배포됨.",
+        "API 키를 모바일 앱에 하드코딩. 디컴파일로 즉시 추출되어 남용된다.",
+        "쿼터를 설정하지 않아 한 가맹점의 폭주가 전체 서비스 지연으로 번짐.",
+        "호출 로그에 요청 본문 전체를 남겨 카드번호·주민번호가 로그에 적재.",
+        "키 회수 절차가 없어 계약 종료 파트너의 키가 계속 유효한 상태로 남음."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] API 소비자(파트너) 등록·키 발급·회수 절차가 정의되고 승인 기록이 있는가",
+          "[접근] 인증 없이 호출 가능한 엔드포인트 목록이 관리되고 사유가 승인되는가",
+          "[운영] API 호출 로그가 소비자 식별자와 함께 보관되고 이상 사용이 모니터링되는가",
+          "[변경] API 정의·정책(쿼터, 오소라이저) 변경이 IaC와 승인 절차를 거치는가"
+        ],
+        "fss": [
+          "외부기관·가맹점 연계 시 상대방 식별·인증 체계를 갖추고 접근권한을 제한하는가",
+          "전자금융거래 관련 API 호출 기록을 생성·보존하고 있는가",
+          "제3자 제공 인터페이스의 보안 요건(암호화, 인증, 접근통제)이 계약·기술적으로 이행되는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리: API 소비자 계정·키의 생성·변경·삭제가 관리되는가",
+          "2.6.1 네트워크 접근 / 2.10.x: 외부 연계 구간 접근통제가 적용되는가",
+          "2.9.4 로그 및 접속기록 관리: 호출 기록이 보관·검토되는가"
+        ],
+        "evidence": [
+          "API 목록과 엔드포인트별 인증 방식(authorizationType) 설정 export",
+          "API 키·클라이언트 목록(발급일, 소유 파트너, 활성 여부)과 발급 승인 티켓",
+          "Usage Plan(쿼터·스로틀) 설정 화면",
+          "최근 호출 로그 샘플(소비자 ID, 엔드포인트, 상태코드) 및 보관 정책",
+          "백엔드가 게이트웨이 외 경로로 노출되지 않음을 보여주는 네트워크 설정"
+        ],
+        "auditorQuestions": [
+          "외부에 공개된 API는 몇 개이며 각각의 인증 방식은 무엇인가?",
+          "파트너 키는 누가 발급·승인하며 계약 종료 시 어떻게 회수하는가?",
+          "인증 없이 호출 가능한 엔드포인트가 있는가? 그 사유는?",
+          "게이트웨이를 거치지 않고 백엔드를 직접 호출할 수 있는 경로가 있는가?",
+          "특정 파트너의 비정상적 호출 급증은 어떻게 탐지·대응하는가?"
+        ],
+        "controlExample": "외부 공개 API는 모두 API 게이트웨이를 통해서만 제공되며, 호출자는 OAuth2 토큰 검증과 스코프 인가를 통과해야 한다. 파트너 자격증명은 계약 승인 후 발급되고 계약 종료 또는 유출 신고 시 즉시 폐기되며, 발급·폐기 이력과 호출 로그는 1년 이상 보관된다."
+      },
+      "related": ["net-reverse-proxy", "net-rate-limiting", "net-service-mesh", "net-waf", "sec-sso-oidc", "app-msa"],
+      "learnMore": ["Amazon API Gateway Developer Guide", "Kong Gateway 공식 문서", "Google Apigee 공식 문서"]
+    },
+    {
+      "id": "net-service-mesh",
+      "title": "서비스 메시 (Istio/Linkerd)",
+      "titleEn": "Service Mesh",
+      "aliases": ["Istio", "이스티오", "Linkerd", "사이드카", "메시", "Envoy"],
+      "tags": ["mesh", "k8s", "mtls", "observability"],
+      "level": "심화",
+      "oneLiner": "서비스 간 통신의 보안·라우팅·관측을 애플리케이션 밖에서 처리하는 인프라 계층",
+      "analogy": "서비스 메시는 각 부서 사무실 문 앞에 배치된 전담 비서와 같다. 부서 직원(애플리케이션)은 \"정산팀에 이 서류 보내줘\"라고만 말하면 된다. 비서가 상대 비서와 신분을 확인하고(mTLS), 봉인해서 보내고, 상대가 바쁘면 잠시 기다렸다 재시도하고, 오간 내역을 모두 장부에 적는다. 직원들의 업무 방식은 바꾸지 않고도 회사 전체의 보안·기록 수준이 올라간다.",
+      "explanation": "<p><strong>서비스 메시(Service Mesh)</strong>는 마이크로서비스 간 통신(east-west 트래픽)을 담당하는 전용 인프라 계층이다. 각 서비스 옆에 <strong>프록시(사이드카)</strong>를 붙여 모든 인·아웃바운드 트래픽을 가로채고, 중앙의 <strong>컨트롤 플레인</strong>이 그 프록시들에 정책을 배포한다. Istio(데이터 플레인은 Envoy)와 Linkerd(자체 경량 프록시)가 대표 구현이다.</p><p><strong>왜 필요한가.</strong> 서비스가 수십·수백 개가 되면 각 팀이 언어마다 재시도·타임아웃·회로차단·mTLS·트레이싱을 따로 구현하게 된다. 구현 품질이 제각각이고 정책을 바꾸려면 전 서비스를 재배포해야 한다. 메시는 이 공통 관심사를 <strong>애플리케이션 코드 밖으로 빼내</strong> 플랫폼팀이 일괄 관리하게 한다.</p><p><strong>제공 기능은 세 갈래</strong>다. (1) <strong>보안</strong>: 자동 mTLS(서비스 신원 발급·순환), 서비스 단위 인가 정책, 네임스페이스 격리. (2) <strong>트래픽 제어</strong>: 가중치 기반 카나리, 재시도·타임아웃, 회로차단(circuit breaking), 결함 주입, 미러링. (3) <strong>관측</strong>: 모든 호출의 지연·성공률·트래픽량 지표와 분산 추적 span을 코드 수정 없이 수집. 쉽게 말하면 <strong>서비스 간 통신에 대한 공통 통제·기록 장치</strong>다.</p><p><strong>비용도 분명하다.</strong> 파드마다 프록시 컨테이너가 붙어 메모리·CPU를 더 쓰고, 홉이 늘어 지연이 소폭 증가하며, 운영 난도와 학습 곡선이 가파르다. Linkerd는 이 부담을 줄인 경량 대안이고, Istio는 사이드카 없는 <strong>Ambient 모드</strong>를 내놓아 같은 문제를 다르게 풀고 있다.</p><p><strong>감사 관점</strong>에서 서비스 메시는 강력한 증빙 도구다. \"내부 서비스 간 통신이 암호화되고 인증된다\"(PeerAuthentication STRICT), \"결제 서비스만 정산 API를 호출할 수 있다\"(AuthorizationPolicy), \"모든 내부 호출이 기록된다\"(access log·telemetry)를 <strong>선언된 설정 파일</strong>로 제출할 수 있기 때문이다. 반대로 점검 포인트는 예외 목록(mTLS 미적용 네임스페이스, ALLOW-all 정책), 컨트롤 플레인 접근 권한, 그리고 메시 설정 변경이 GitOps로 통제되는지다."
+      ,
+      "howItWorks": "<ol><li>네임스페이스에 사이드카 자동 주입 라벨을 붙이면, 파드 생성 시 프록시 컨테이너가 함께 주입된다.</li><li>초기화 단계에서 iptables 규칙이 설정되어 파드의 모든 트래픽이 프록시를 거치게 된다.</li><li>프록시가 컨트롤 플레인에서 워크로드 신원 인증서(SPIFFE ID)를 발급받는다.</li><li>서비스 A가 서비스 B를 호출하면 요청이 A의 사이드카로 먼저 간다.</li><li>A의 사이드카가 B의 사이드카와 mTLS 연결을 맺고 서로 신원을 검증한다.</li><li>B의 사이드카가 AuthorizationPolicy를 평가해 허용 여부를 결정하고, 허용되면 B 컨테이너로 전달한다.</li><li>응답이 역순으로 돌아오며, 실패 시 정책에 따라 재시도하거나 회로를 차단한다.</li><li>양쪽 사이드카가 지표·트레이스·액세스 로그를 내보내 관측 시스템에 적재된다.</li></ol>",
+      "example": "<p>'페이나우'는 EKS에 Istio를 운영하며 payment, settlement, member 등 12개 네임스페이스에 적용했다. 도입 효과는 세 가지였다. 첫째, 서비스 간 통신이 전부 mTLS로 바뀌어 내부망 평문 통신이 사라졌다. 둘째, 신규 결제 엔진 배포 시 VirtualService 가중치로 5% → 25% → 100% 카나리를 코드 수정 없이 수행했다. 셋째, Kiali 대시보드에서 서비스 의존 관계도가 자동으로 그려져 감사 인터뷰 때 \"어떤 서비스가 DB에 접근하는가\"를 즉시 보여줄 수 있었다. 비용으로는 파드당 약 60MB 메모리 증가와 P99 지연 3~5ms 상승을 감수했다.</p><pre><code># 사이드카 자동 주입\nkubectl label namespace payment istio-injection=enabled\n\n# 카나리 배포: 신버전에 10%만\napiVersion: networking.istio.io/v1\nkind: VirtualService\nmetadata:\n  name: payment-api\n  namespace: payment\nspec:\n  hosts: [\"payment-api\"]\n  http:\n  - route:\n    - destination: { host: payment-api, subset: v1 }\n      weight: 90\n    - destination: { host: payment-api, subset: v2 }\n      weight: 10\n\n# mTLS 적용 여부 전수 점검 (감사 증빙)\nkubectl get peerauthentication -A\nistioctl x describe pod payment-api-7d9f-abcde -n payment | grep -i mtls\n\n# 서비스 간 실제 호출 관계 확인\nkubectl exec -n payment deploy/payment-api -c istio-proxy -- \\\n  pilot-agent request GET stats | grep upstream_rq_total | head</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='200' y='15' width='240' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='38' text-anchor='middle' fill='currentColor'>컨트롤 플레인 (istiod)</text><text x='320' y='58' text-anchor='middle' fill='currentColor' font-size='11'>정책 배포 · 인증서 발급</text><line x1='260' y1='72' x2='150' y2='120' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><line x1='380' y1='72' x2='490' y2='120' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><rect x='40' y='125' width='210' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='145' y='147' text-anchor='middle' fill='currentColor' font-size='12'>결제 파드</text><rect x='55' y='158' width='85' height='60' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='97' y='192' text-anchor='middle' fill='currentColor' font-size='11'>앱 컨테이너</text><rect x='150' y='158' width='85' height='60' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='192' y='185' text-anchor='middle' fill='currentColor' font-size='11'>사이드카</text><text x='192' y='203' text-anchor='middle' fill='currentColor' font-size='11'>Envoy</text><rect x='390' y='125' width='210' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='495' y='147' text-anchor='middle' fill='currentColor' font-size='12'>정산 파드</text><rect x='405' y='158' width='85' height='60' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='447' y='185' text-anchor='middle' fill='currentColor' font-size='11'>사이드카</text><text x='447' y='203' text-anchor='middle' fill='currentColor' font-size='11'>정책 검사</text><rect x='500' y='158' width='85' height='60' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='192' text-anchor='middle' fill='currentColor' font-size='11'>앱 컨테이너</text><line x1='237' y1='188' x2='400' y2='188' stroke='currentColor' marker-end='url(#ar)'/><text x='318' y='180' text-anchor='middle' fill='currentColor' font-size='11'>자동 mTLS</text><text x='40' y='258' fill='currentColor' font-size='11'>앱 코드 수정 없이 암호화 · 인가 · 재시도 · 지표 수집이 적용된다</text><text x='40' y='274' fill='currentColor' font-size='11'>감사: STRICT 여부, 예외 네임스페이스, 정책 변경의 GitOps 통제</text></svg>",
+      "keyTerms": [
+        {"term": "사이드카(Sidecar)", "meaning": "파드에 함께 배치되어 트래픽을 가로채는 프록시 컨테이너"},
+        {"term": "컨트롤 플레인(istiod)", "meaning": "정책·설정·인증서를 프록시들에 배포하는 중앙 구성요소"},
+        {"term": "PeerAuthentication", "meaning": "mTLS 적용 모드(STRICT/PERMISSIVE)를 정의하는 Istio 리소스"},
+        {"term": "AuthorizationPolicy", "meaning": "어떤 신원이 어떤 서비스를 호출할 수 있는지 선언하는 인가 정책"},
+        {"term": "VirtualService / DestinationRule", "meaning": "라우팅 규칙과 대상별 정책(부분집합, 회로차단)을 정의"},
+        {"term": "회로차단(Circuit Breaking)", "meaning": "실패가 잦은 대상으로의 호출을 일시 차단해 연쇄 장애를 막는 기법"},
+        {"term": "Kiali", "meaning": "메시의 서비스 의존 관계와 트래픽을 시각화하는 도구"},
+        {"term": "east-west 트래픽", "meaning": "클러스터 내부 서비스 간 통신"}
+      ],
+      "pitfalls": [
+        "PERMISSIVE 모드로 시작해 STRICT 전환을 미루다 평문 통신이 상시 허용된 상태로 운영.",
+        "메시를 넣으면 모든 보안이 해결된다고 오해. 사용자 권한 통제와 애플리케이션 취약점은 별개다.",
+        "사이드카 리소스 한도를 기본값으로 두어 트래픽 급증 시 프록시가 먼저 OOM.",
+        "AuthorizationPolicy를 ALLOW-all로 두고 mTLS만 켜서, 인증은 되지만 인가는 사실상 없음.",
+        "메시 업그레이드를 미뤄 컨트롤 플레인과 사이드카 버전이 크게 벌어져 장애·취약점 누적.",
+        "장애 원인 분석 시 사이드카 로그를 보지 않아 '앱은 정상인데 통신이 안 된다'에서 헤맴."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 서비스 간 호출 허용 관계가 정책으로 선언되고 예외가 승인·기록되는가",
+          "[변경] 메시 정책(mTLS 모드, 인가 정책, 라우팅) 변경이 GitOps·승인 절차를 거치는가",
+          "[접근] 컨트롤 플레인 네임스페이스에 대한 접근 권한이 최소 인원으로 제한되는가",
+          "[운영] 내부 서비스 호출 로그·지표가 수집되어 이상 호출을 탐지할 수 있는가"
+        ],
+        "fss": [
+          "내부 시스템 간 연계 구간에서 상호 인증과 암호화가 적용되어 있는가",
+          "정보처리시스템 간 접근 권한이 업무상 필요 범위로 제한되어 있음을 입증할 수 있는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 서비스 간 접근이 최소 권한으로 통제되는가",
+          "2.7.1 암호정책 적용: 내부 전송 구간 암호화가 적용되는가",
+          "2.9.4 로그 및 접속기록 관리: 서비스 간 호출 기록이 수집·보관되는가"
+        ],
+        "evidence": [
+          "PeerAuthentication·AuthorizationPolicy 전체 export와 예외 목록",
+          "메시 설정이 관리되는 Git 저장소의 변경 이력(PR·승인)",
+          "Kiali 등 서비스 의존 관계도 캡처",
+          "사이드카 액세스 로그·telemetry 지표 샘플과 보관 정책",
+          "istiod 접근 권한(RBAC) 목록"
+        ],
+        "auditorQuestions": [
+          "내부 서비스 간 통신은 모두 암호화·인증되는가? 예외 네임스페이스는?",
+          "어떤 서비스가 어떤 서비스를 호출할 수 있는지 정의된 문서 또는 정책이 있는가?",
+          "메시 정책은 누가 변경할 수 있으며 변경 이력은 어디에 남는가?",
+          "내부 호출 로그는 얼마나 보관하며 이상 호출은 어떻게 탐지하는가?",
+          "메시 도입 이후 발생한 통신 장애와 원인은?"
+        ],
+        "controlExample": "운영 클러스터의 모든 업무 네임스페이스는 Istio PeerAuthentication STRICT로 서비스 간 mTLS를 강제하며, 서비스 호출 허용 관계는 AuthorizationPolicy로 선언되어 Git에서 리뷰·승인 후 ArgoCD로 배포된다. 예외는 보안팀 승인 목록으로 관리되고 분기별로 재검토한다."
+      },
+      "related": ["net-ambient-mesh", "net-mtls", "net-api-gateway", "net-reverse-proxy", "k8s-rbac", "obs-tracing"],
+      "learnMore": ["Istio 공식 문서", "Linkerd 공식 문서", "CNCF Service Mesh Landscape"]
+    },
+    {
+      "id": "net-ambient-mesh",
+      "title": "Ambient 메시 (사이드카 없는 메시)",
+      "titleEn": "Ambient Mesh / Sidecar-less Service Mesh",
+      "aliases": ["앰비언트", "ztunnel", "waypoint", "사이드카리스", "sidecar-less"],
+      "tags": ["mesh", "k8s", "mtls"],
+      "level": "심화",
+      "oneLiner": "파드마다 프록시를 붙이지 않고 노드 단위로 메시 기능을 제공하는 방식",
+      "analogy": "기존 사이드카 메시가 직원 한 명마다 전담 비서를 붙이는 방식이라면, Ambient는 층마다 공용 안내실을 두는 방식이다. 신분 확인과 봉인(mTLS) 같은 기본 업무는 층 안내실(ztunnel)이 처리하고, 계약 검토처럼 더 복잡한 업무가 필요한 부서만 별도 전담 창구(waypoint)를 둔다. 인건비(리소스)가 크게 줄고, 직원이 바뀔 때마다 비서를 새로 배치할 필요도 없다.",
+      "explanation": "<p><strong>Ambient 메시</strong>는 Istio가 제시한 사이드카 없는(sidecar-less) 메시 아키텍처로, 2024년 GA 이후 2026년 현재 신규 도입에서 표준 선택지로 자리 잡았다. 기존 방식의 세 가지 부담 — 파드마다 프록시 리소스, 사이드카 주입을 위한 <strong>파드 재시작</strong>, 앱과 프록시의 생명주기 결합 — 을 없애는 것이 목표다.</p><p><strong>두 개의 계층으로 나눈 것이 핵심 아이디어</strong>다. (1) <strong>보안 계층(ztunnel)</strong>: 노드마다 하나씩 DaemonSet으로 뜨는 경량 프록시가 파드들의 트래픽을 가로채 <strong>mTLS 암호화와 L4 인가</strong>, 기본 텔레메트리를 제공한다. (2) <strong>L7 계층(waypoint proxy)</strong>: HTTP 단위 라우팅·재시도·헤더 기반 인가처럼 7계층 기능이 필요한 네임스페이스·서비스에만 별도 Envoy를 배치한다. 쉽게 말하면 <strong>필요한 만큼만 비용을 지불하는 구조</strong>다.</p><p><strong>실무적 장점.</strong> 기존 워크로드를 재시작하지 않고 네임스페이스에 라벨만 붙이면 메시에 편입된다. 파드당 메모리 오버헤드가 사라져 대규모 클러스터의 비용이 눈에 띄게 줄고, 사이드카 버전 업그레이드 때마다 전 파드를 롤링 재시작하던 운영 부담도 없어진다. 애플리케이션 컨테이너와 프록시의 시작 순서 문제(앱이 먼저 떠서 통신 실패)도 사라진다.</p><p><strong>트레이드오프</strong>도 있다. 노드 단위 공유 프록시이므로 <strong>ztunnel 장애의 영향 범위가 노드 전체</strong>이고, 파드 단위의 세밀한 격리는 사이드카보다 약하다. L7 기능이 필요하면 결국 waypoint를 띄워야 하므로 구성 요소가 두 종류로 늘어 이해해야 할 개념이 오히려 많아질 수 있다. 기존 사이드카 메시에서의 전환도 점진적으로 계획해야 한다.</p><p><strong>감사 관점</strong>에서 중요한 것은 <strong>통제 효과가 동일하게 입증되는가</strong>이다. mTLS 강제와 서비스 단위 인가는 ztunnel에서, HTTP 경로·메서드 기반 인가는 waypoint에서 수행되므로, 감사인은 \"이 서비스의 인가 정책이 실제로 어느 구성요소에서 평가되는가\"를 확인해야 한다. waypoint 없이 L7 정책을 선언하면 <strong>정책이 조용히 적용되지 않을 수 있다</strong>는 점이 이 아키텍처의 대표적 함정이며, 감사 시 실제 적용 여부를 명령으로 검증하는 것이 바람직하다.</p>",
+      "howItWorks": "<ol><li>네임스페이스에 <code>istio.io/dataplane-mode=ambient</code> 라벨을 붙인다. 파드 재시작은 필요 없다.</li><li>노드의 ztunnel이 해당 파드들의 트래픽을 리다이렉트하도록 설정된다.</li><li>ztunnel이 각 워크로드의 신원 인증서를 컨트롤 플레인에서 발급받는다.</li><li>파드 A가 파드 B를 호출하면 트래픽이 A 노드의 ztunnel로 향한다.</li><li>ztunnel이 B 노드의 ztunnel과 mTLS(HBONE 터널) 연결을 맺고 L4 인가 정책을 평가한다.</li><li>L7 정책이 필요한 서비스라면 트래픽이 해당 네임스페이스의 waypoint 프록시를 경유한다.</li><li>waypoint가 HTTP 경로·메서드·헤더 기준 인가와 라우팅·재시도를 수행한다.</li><li>목적지 파드로 전달되고, 양 계층에서 지표와 로그가 수집된다.</li></ol>",
+      "example": "<p>'페이나우'는 EKS 노드 90대, 파드 2,400개 규모에서 사이드카 메시를 운영하다 파드당 약 60MB의 프록시 메모리, 총 140GB 가량의 오버헤드를 감당하고 있었다. Ambient로 전환하면서 먼저 내부 배치·조회 서비스 등 L7 정책이 필요 없는 네임스페이스 7개를 ztunnel만으로 편입해 메모리 사용을 크게 줄였다. 결제·정산처럼 경로 단위 인가(<code>POST /v1/settlements</code>는 정산팀 서비스만 허용)가 필요한 2개 네임스페이스에는 waypoint를 배치했다. 전환 중 한 번은 waypoint 없이 L7 AuthorizationPolicy를 적용해 정책이 반영되지 않은 상태로 하루가 지났고, 이후 <code>istioctl analyze</code>를 CI에 넣어 이런 구성 오류를 사전에 잡도록 했다.</p><pre><code># 네임스페이스를 Ambient 모드로 편입 (파드 재시작 불필요)\nkubectl label namespace settlement istio.io/dataplane-mode=ambient\n\n# L7 정책이 필요한 네임스페이스에만 waypoint 배치\nistioctl waypoint apply -n payment --enroll-namespace\n\n# 적용 상태 확인 (감사 검증용)\nkubectl get gateway -n payment           # waypoint 존재 여부\nistioctl ztunnel-config workload | head  # ztunnel이 인식한 워크로드와 신원\nistioctl analyze -n payment              # L7 정책이 적용 불가한 구성 탐지\n\n# L4 인가 (ztunnel에서 평가)\napiVersion: security.istio.io/v1\nkind: AuthorizationPolicy\nmetadata:\n  name: settlement-l4\n  namespace: settlement\nspec:\n  action: ALLOW\n  rules:\n  - from:\n    - source:\n        principals: [\"cluster.local/ns/payment/sa/payment-api\"]</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='60' width='250' height='150' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='145' y='82' text-anchor='middle' fill='currentColor' font-size='12'>노드 1</text><rect x='35' y='95' width='100' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='120' text-anchor='middle' fill='currentColor' font-size='11'>파드 A</text><rect x='150' y='95' width='105' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='202' y='120' text-anchor='middle' fill='currentColor' font-size='11'>파드 B</text><rect x='35' y='150' width='220' height='45' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='145' y='170' text-anchor='middle' fill='currentColor' font-size='12'>ztunnel (노드 1개)</text><text x='145' y='188' text-anchor='middle' fill='currentColor' font-size='11'>mTLS + L4 인가</text><rect x='370' y='60' width='250' height='150' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='495' y='82' text-anchor='middle' fill='currentColor' font-size='12'>노드 2</text><rect x='385' y='95' width='100' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='120' text-anchor='middle' fill='currentColor' font-size='11'>파드 C</text><rect x='500' y='95' width='105' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='552' y='120' text-anchor='middle' fill='currentColor' font-size='11'>파드 D</text><rect x='385' y='150' width='220' height='45' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='495' y='170' text-anchor='middle' fill='currentColor' font-size='12'>ztunnel (노드 1개)</text><text x='495' y='188' text-anchor='middle' fill='currentColor' font-size='11'>mTLS + L4 인가</text><line x1='258' y1='172' x2='380' y2='172' stroke='currentColor' marker-end='url(#ar)'/><text x='319' y='165' text-anchor='middle' fill='currentColor' font-size='11'>HBONE mTLS</text><rect x='240' y='15' width='160' height='35' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='38' text-anchor='middle' fill='currentColor' font-size='12'>waypoint (L7 필요시)</text><line x1='300' y1='52' x2='230' y2='92' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><line x1='345' y1='52' x2='420' y2='92' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><text x='20' y='240' fill='currentColor' font-size='11'>파드마다 사이드카 없음 → 메모리 절감, 재시작 없이 편입</text><text x='20' y='262' fill='currentColor' font-size='11'>주의: waypoint 없이 L7 정책을 쓰면 조용히 미적용될 수 있다</text></svg>",
+      "keyTerms": [
+        {"term": "ztunnel", "meaning": "노드마다 하나씩 뜨는 경량 프록시. mTLS와 L4 인가 담당"},
+        {"term": "waypoint proxy", "meaning": "L7 기능이 필요한 네임스페이스·서비스에만 배치하는 Envoy"},
+        {"term": "HBONE", "meaning": "ztunnel 간 트래픽을 mTLS로 감싸 전달하는 터널 방식"},
+        {"term": "dataplane-mode 라벨", "meaning": "네임스페이스를 Ambient 모드로 편입하는 설정"},
+        {"term": "L4 인가 / L7 인가", "meaning": "서비스 신원·포트 기준 / HTTP 경로·메서드 기준 접근 통제"},
+        {"term": "DaemonSet", "meaning": "노드마다 파드를 하나씩 배치하는 쿠버네티스 리소스"},
+        {"term": "점진 전환", "meaning": "사이드카와 Ambient를 네임스페이스 단위로 병행 운영하며 옮기는 방식"}
+      ],
+      "pitfalls": [
+        "waypoint 없이 L7 AuthorizationPolicy를 선언하면 정책이 적용되지 않는데 오류도 나지 않아 인지하지 못함.",
+        "ztunnel이 노드 단위 공유 자원임을 간과해 리소스 한도·장애 영향 범위를 과소평가.",
+        "사이드카 메시와 Ambient를 뒤섞어 운영하며 어느 경로로 정책이 평가되는지 문서화하지 않음.",
+        "Ambient 도입으로 L7 관측 지표(HTTP 상태코드별 지표)가 줄었는데 대시보드를 그대로 두어 공백 발생.",
+        "CNI·노드 네트워크 플러그인과의 호환성을 검증하지 않고 도입해 트래픽 리다이렉션 문제 발생.",
+        "'사이드카가 없으니 리소스 관리가 필요 없다'는 오해. ztunnel·waypoint의 용량 계획은 여전히 필요하다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 서비스 간 인가 정책이 실제로 평가되는 지점(ztunnel/waypoint)이 확인·검증되는가",
+          "[변경] Ambient 편입·waypoint 배치 변경이 GitOps와 승인 절차를 거치는가",
+          "[운영] mTLS 적용 범위와 예외 네임스페이스가 목록으로 관리되는가",
+          "[운영] ztunnel·waypoint 장애 시 영향 범위와 대응 절차가 정의되어 있는가"
+        ],
+        "fss": [
+          "내부 시스템 간 통신에 대한 암호화·인증 통제가 아키텍처 변경 후에도 동일하게 유지됨을 입증할 수 있는가",
+          "인프라 구조 변경 시 위험평가와 변경절차를 이행했는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 서비스 간 접근이 최소 권한으로 통제되는가",
+          "2.7.1 암호정책 적용: 내부 전송 구간 암호화 적용 범위가 정의·유지되는가",
+          "2.9.1 변경관리: 데이터 플레인 아키텍처 변경이 승인·검증되는가"
+        ],
+        "evidence": [
+          "Ambient 모드 네임스페이스 목록(라벨 조회 결과)과 미편입 네임스페이스 사유",
+          "waypoint 배치 현황과 L7 정책 목록의 매핑표",
+          "istioctl analyze / ztunnel-config 출력 등 정책 적용 검증 결과",
+          "메시 아키텍처 전환 계획서와 변경 승인 문서"
+        ],
+        "auditorQuestions": [
+          "메시에 편입되지 않은 네임스페이스가 있는가? 그 트래픽은 어떻게 보호되는가?",
+          "HTTP 경로 단위 인가가 필요한 서비스는 무엇이며 waypoint가 배치되어 있는가?",
+          "정책이 실제로 적용되고 있음을 어떻게 검증하는가?",
+          "ztunnel 장애 시 해당 노드의 서비스는 어떻게 되는가?",
+          "사이드카에서 Ambient로 전환하며 변경관리 절차를 어떻게 이행했는가?"
+        ],
+        "controlExample": "운영 클러스터의 업무 네임스페이스는 Ambient 모드로 편입되어 ztunnel이 mTLS와 서비스 단위 인가를 강제하며, HTTP 경로 기반 인가가 필요한 결제·정산 네임스페이스에는 waypoint를 배치한다. 정책 적용 여부는 배포 파이프라인의 istioctl analyze 단계에서 자동 검증된다."
+      },
+      "related": ["net-service-mesh", "net-mtls", "net-segmentation", "net-zero-trust", "k8s-rbac", "k8s-network-policy"],
+      "learnMore": ["Istio Ambient Mode 공식 문서", "Istio Blog - Ambient Mesh GA", "CNCF - Sidecar-less Service Mesh"]
+    },
+    {
+      "id": "net-cdn",
+      "title": "CDN",
+      "titleEn": "Content Delivery Network",
+      "aliases": ["씨디엔", "CloudFront", "엣지", "캐시서버", "콘텐츠전송망"],
+      "tags": ["cdn", "edge", "performance", "ddos"],
+      "level": "중급",
+      "oneLiner": "전 세계 엣지 서버에 콘텐츠를 캐싱해 빠르고 안전하게 전달하는 망",
+      "analogy": "CDN은 전국 편의점 물류 체계와 같다. 모든 손님이 본사 창고까지 갈 필요 없이 가까운 편의점에서 물건을 받는다. 잘 팔리는 상품은 편의점에 미리 쌓아 두고(캐시), 없는 물건만 본사에 주문한다. 손님은 빨라서 좋고, 본사는 몰리는 손님을 직접 상대하지 않아 안전하다.",
+      "explanation": "<p><strong>CDN(Content Delivery Network)</strong>은 전 세계에 분산된 <strong>엣지 로케이션(PoP)</strong>에 콘텐츠 사본을 두고, 사용자에게 가장 가까운 지점에서 응답하는 서비스다. AWS CloudFront, Cloudflare, Akamai, Fastly 등이 있다.</p><p><strong>효과는 네 가지다.</strong> (1) <strong>지연 감소</strong>: 서울 사용자가 버지니아 오리진까지 왕복(180ms)하지 않고 서울 엣지(5ms)에서 받는다. (2) <strong>오리진 부하 감소</strong>: 캐시 적중률이 90%면 오리진 트래픽이 10분의 1로 준다. (3) <strong>보안</strong>: 오리진 IP를 숨기고, 엣지에서 DDoS를 흡수하며, WAF를 붙일 수 있다. (4) <strong>비용</strong>: 오리진 데이터 전송 비용을 줄인다.</p><p><strong>캐시 제어가 핵심 기술</strong>이다. 응답의 <code>Cache-Control</code> 헤더로 얼마나 캐싱할지(max-age), 공용 캐시에 저장해도 되는지(public/private)를 정한다. <strong>캐시 키</strong>(URL + 선택한 헤더·쿠키·쿼리스트링)를 어떻게 구성하느냐에 따라 적중률과 정확성이 갈린다. 사용자별로 다른 개인화 응답에 캐시 키를 잘못 잡으면 <strong>A 사용자의 응답이 B에게 노출되는 캐시 오염</strong> 사고가 난다. 금융 서비스에서 가장 경계해야 할 CDN 리스크다.</p><p><strong>동적 콘텐츠도 CDN을 지난다.</strong> 요즘은 정적 파일만이 아니라 API 트래픽도 CDN을 경유시켜 TLS 종료를 엣지에서 하고(핸드셰이크 지연 감소), 엣지 함수(CloudFront Functions, Lambda@Edge, Cloudflare Workers)로 인증 헤더 검사·리다이렉트·A/B 분기를 처리한다.</p><p><strong>감사 관점</strong>의 점검 포인트는 (1) <strong>오리진 보호</strong>: 오리진이 CDN을 우회해 직접 접근 가능한가(OAC/OAI, 원본 방화벽에 CDN 대역만 허용), (2) <strong>캐시 정책</strong>: 인증·개인정보 응답이 캐싱되지 않도록 <code>Cache-Control: private, no-store</code>가 적용되는가, (3) <strong>액세스 로그</strong>: 엣지 로그가 활성화되고 보관되는가, (4) <strong>지리적 제한</strong>과 서명된 URL 등 콘텐츠 접근 통제, (5) TLS 정책과 인증서 관리다. 특히 (1)은 \"CDN에 WAF를 붙였다\"는 통제가 오리진 직접 호출로 우회되면 무의미해지므로 반드시 확인된다.</p>",
+      "howItWorks": "<ol><li>사용자가 도메인을 조회하면 DNS가 가장 가까운 엣지 로케이션으로 안내한다.</li><li>사용자가 엣지에 TLS 연결을 맺고 요청을 보낸다.</li><li>엣지가 캐시 키를 계산해 캐시에 유효한 사본이 있는지 확인한다(HIT/MISS).</li><li>HIT이면 즉시 응답한다. 이때 오리진은 트래픽을 전혀 받지 않는다.</li><li>MISS이면 리전 엣지 캐시를 거쳐 오리진으로 요청을 전달한다(오리진 실드).</li><li>오리진이 응답하면서 Cache-Control 헤더로 캐싱 가능 여부와 기간을 지시한다.</li><li>엣지가 응답을 저장하고 사용자에게 전달한다.</li><li>배포 등으로 캐시를 즉시 비워야 하면 무효화(invalidation)를 실행하거나 파일명에 버전을 넣어 새 URL을 쓴다.</li></ol>",
+      "example": "<p>'페이나우' 앱의 정적 자산(JS·CSS·이미지)은 CloudFront를 통해 제공되며 파일명에 해시가 붙어 있어 <code>max-age=31536000, immutable</code>로 1년 캐싱한다. 반면 <code>/api/v1/me</code>처럼 사용자별 응답에는 <code>Cache-Control: private, no-store</code>를 강제하고, CloudFront 캐시 정책에서 Authorization 헤더를 캐시 키에 포함하지 않는 대신 <strong>캐싱 자체를 비활성화</strong>했다. S3 오리진은 OAC(Origin Access Control)로 CloudFront에서만 접근 가능하고, ALB 오리진은 보안그룹에서 CloudFront 관리형 prefix list만 허용한다. 엣지 액세스 로그는 S3에 적재되어 Athena로 조회하며, 결제 장애 시 지역별 오류율 분석에 활용된다.</p><pre><code># 캐시 적중 여부 확인\ncurl -sI https://cdn.paynow.co.kr/app.4f2a1c.js | grep -i -E 'x-cache|cache-control|age'\n# x-cache: Hit from cloudfront\n# cache-control: max-age=31536000, immutable\n\n# 개인화 응답이 캐싱되지 않는지 점검 (감사 항목)\ncurl -sI https://api.paynow.co.kr/v1/me -H 'Authorization: Bearer xxx' | grep -i -E 'cache-control|x-cache'\n# cache-control: private, no-store\n# x-cache: Miss from cloudfront\n\n# 오리진 직접 접근 차단 확인\ncurl -s -o /dev/null -w '%{http_code}\\n' https://origin-alb.paynow.internal/v1/health\n# 403 (CDN 경유가 아니면 거부)\n\n# 배포 후 캐시 무효화\naws cloudfront create-invalidation --distribution-id E123ABC --paths '/index.html'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='65' text-anchor='middle' fill='currentColor' font-size='12'>서울 사용자</text><rect x='20' y='170' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='195' text-anchor='middle' fill='currentColor' font-size='12'>도쿄 사용자</text><line x1='112' y1='60' x2='165' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='112' y1='190' x2='165' y2='170' stroke='currentColor' marker-end='url(#ar)'/><rect x='168' y='60' width='130' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='233' y='82' text-anchor='middle' fill='currentColor' font-size='12'>엣지 서울</text><text x='233' y='102' text-anchor='middle' fill='currentColor' font-size='11'>캐시 HIT 5ms</text><rect x='168' y='140' width='130' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='233' y='162' text-anchor='middle' fill='currentColor' font-size='12'>엣지 도쿄</text><text x='233' y='182' text-anchor='middle' fill='currentColor' font-size='11'>WAF · 엣지 함수</text><line x1='300' y1='90' x2='370' y2='115' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><line x1='300' y1='165' x2='370' y2='140' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><text x='335' y='105' text-anchor='middle' fill='currentColor' font-size='11'>MISS만</text><rect x='373' y='100' width='120' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='433' y='122' text-anchor='middle' fill='currentColor' font-size='12'>오리진 실드</text><text x='433' y='142' text-anchor='middle' fill='currentColor' font-size='11'>리전 캐시</text><line x1='495' y1='127' x2='530' y2='127' stroke='currentColor' marker-end='url(#ar)'/><rect x='533' y='95' width='90' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='578' y='120' text-anchor='middle' fill='currentColor' font-size='12'>오리진</text><text x='578' y='140' text-anchor='middle' fill='currentColor' font-size='11'>OAC로 보호</text><text x='20' y='240' fill='currentColor' font-size='11'>개인화·인증 응답은 no-store로 캐싱 금지 (캐시 오염 방지)</text><text x='20' y='260' fill='currentColor' font-size='11'>오리진은 CDN 경유 요청만 허용 → WAF 우회 차단</text></svg>",
+      "keyTerms": [
+        {"term": "엣지 로케이션 / PoP", "meaning": "사용자 가까이 배치된 캐시·처리 지점"},
+        {"term": "캐시 키", "meaning": "캐시 사본을 구분하는 기준(URL·헤더·쿠키·쿼리스트링 조합)"},
+        {"term": "Cache-Control", "meaning": "응답의 캐싱 가능 여부와 기간을 지시하는 HTTP 헤더"},
+        {"term": "TTL / 무효화(Invalidation)", "meaning": "캐시 보관 기간 / 배포 시 캐시를 강제로 비우는 작업"},
+        {"term": "OAC(Origin Access Control)", "meaning": "오리진에 CDN만 접근하도록 제한하는 AWS 기능(구 OAI)"},
+        {"term": "오리진 실드", "meaning": "엣지와 오리진 사이의 중간 캐시 계층. 오리진 부하 추가 감소"},
+        {"term": "엣지 함수", "meaning": "엣지에서 실행되는 경량 코드(리다이렉트, 헤더 검사 등)"},
+        {"term": "서명된 URL / 쿠키", "meaning": "유효기간과 권한이 담긴 접근 토큰으로 콘텐츠를 보호하는 방식"}
+      ],
+      "pitfalls": [
+        "캐시 키에 Authorization·사용자 쿠키를 반영하지 않아 다른 사용자의 개인화 응답이 전달되는 캐시 오염.",
+        "오리진이 CDN을 우회해 직접 접근 가능해 WAF·rate limit 통제가 무력화.",
+        "배포 후 캐시 무효화를 잊어 사용자가 구버전 화면을 계속 봄.",
+        "무효화를 남발해 비용 증가. 파일명 해시(버저닝)가 정석이다.",
+        "엣지 액세스 로그를 끄고 운영해 지역별 장애·공격 분석이 불가능.",
+        "오리진 장애 시 stale 응답 제공 정책이 없어 짧은 장애가 전면 오류로 노출."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 오리진이 CDN 경유 요청만 허용하도록 구성되고 우회 경로가 없는지 검증되는가",
+          "[운영] 인증·개인정보 응답에 대한 캐싱 금지 정책이 정의·적용되는가",
+          "[운영] 엣지 액세스 로그가 활성화되어 보관되고 접근이 통제되는가",
+          "[변경] 배포 정책(캐시 무효화, 버저닝)이 절차로 정의되어 있는가"
+        ],
+        "fss": [
+          "이용자 구간 트래픽을 처리하는 외부 서비스(CDN) 이용에 대해 클라우드 이용 절차상 위험평가와 계약상 보안요건을 이행했는가",
+          "이용자 정보가 외부 캐시에 저장되지 않도록 통제하고 있는가"
+        ],
+        "isms": [
+          "2.10.2 클라우드 보안 / 3.x 개인정보: 외부 서비스에 개인정보가 저장·캐싱되지 않도록 통제하는가",
+          "2.6.1 네트워크 접근: 오리진 접근이 CDN으로 제한되는가",
+          "2.9.4 로그 및 접속기록 관리: 엣지 접속기록이 보관·검토되는가"
+        ],
+        "evidence": [
+          "CDN 배포 설정 export(오리진, 캐시 정책, TLS 정책, WAF 연결)",
+          "오리진 접근 통제 설정(OAC 정책, 보안그룹의 CDN prefix list 허용) 캡처",
+          "개인화·인증 API 응답 헤더 샘플(no-store 적용 확인)",
+          "엣지 액세스 로그 샘플과 S3 보관 정책",
+          "CDN 이용에 대한 위험평가·계약 보안요건 문서"
+        ],
+        "auditorQuestions": [
+          "CDN을 거치지 않고 오리진에 직접 접근할 수 있는가? 어떻게 막는가?",
+          "개인정보가 포함된 응답이 엣지에 캐싱될 가능성은 없는가?",
+          "엣지 로그는 어디에 얼마나 보관되며 누가 조회할 수 있는가?",
+          "배포 시 캐시는 어떻게 갱신하는가?",
+          "CDN 사업자와의 계약에 보안·개인정보 처리 조항이 포함되어 있는가?"
+        ],
+        "controlExample": "정적 콘텐츠는 CDN을 통해 제공되며 오리진은 OAC 및 보안그룹 설정으로 CDN 경유 요청만 허용한다. 인증이 필요한 API 응답에는 Cache-Control: private, no-store를 강제해 엣지 캐싱을 금지하며, 엣지 액세스 로그는 S3에 1년간 보관된다."
+      },
+      "related": ["net-dns", "net-waf", "net-ddos", "net-tls", "net-http-versions", "net-rate-limiting"],
+      "learnMore": ["Amazon CloudFront Developer Guide", "RFC 9111 - HTTP Caching", "Cloudflare Learning Center - What is a CDN"]
+    },
+    {
+      "id": "net-firewall",
+      "title": "방화벽 (상태기반·NGFW)",
+      "titleEn": "Firewall, Stateful Inspection and NGFW",
+      "aliases": ["파이어월", "FW", "차세대방화벽", "NGFW", "보안그룹", "ACL"],
+      "tags": ["firewall", "l3", "l4", "perimeter"],
+      "level": "중급",
+      "oneLiner": "허용된 통신만 통과시키는 네트워크 관문 장비·기능",
+      "analogy": "방화벽은 건물 출입 게이트와 같다. 출입증에 적힌 층과 시간대만 통과시키고 나머지는 막는다. 상태기반 방화벽은 \"이 사람은 아까 3층에서 나와 로비로 내려온 사람\"이라는 동선을 기억해서, 나갈 때는 따로 허가를 요구하지 않는다. 차세대 방화벽은 출입증뿐 아니라 가방 안까지 열어보고 \"이 앱은 업무용이 아니다\"라고 판단한다.",
+      "explanation": "<p><strong>방화벽(Firewall)</strong>은 네트워크 경계에서 정책에 부합하는 트래픽만 통과시키는 장치·기능이다. 발전 단계는 세 가지로 정리된다. (1) <strong>패킷 필터</strong>: 출발지·목적지 IP와 포트만 보고 개별 패킷을 판단. 단순하지만 응답 트래픽까지 일일이 열어줘야 한다. (2) <strong>상태기반 검사(Stateful Inspection)</strong>: 연결 상태를 <strong>세션 테이블</strong>에 기억해, 내부에서 나간 연결의 응답은 자동으로 허용한다. 오늘날 기본이다. (3) <strong>차세대 방화벽(NGFW)</strong>: 여기에 <strong>애플리케이션 식별</strong>(포트가 아니라 실제 앱이 무엇인지), 사용자 식별(AD 연동), IPS, URL 필터링, TLS 복호화 검사, 위협 인텔리전스가 더해진다.</p><p><strong>클라우드에서의 대응물</strong>을 알아야 한다. AWS <strong>보안그룹(Security Group)</strong>은 인스턴스(ENI) 단위의 <strong>상태기반</strong> 허용 전용 방화벽이다. 거부 규칙이 없고 허용만 적는다. <strong>네트워크 ACL</strong>은 서브넷 단위의 <strong>무상태(stateless)</strong> 필터로 허용·거부가 모두 가능하지만 응답 포트를 직접 열어야 해 실수가 잦다. <strong>AWS Network Firewall</strong>은 VPC 경계에서 도메인·시그니처 기반 검사까지 하는 관리형 NGFW에 가깝다. 쉽게 말하면 <strong>보안그룹이 일상 통제, ACL은 보조, Network Firewall은 심층 검사</strong>다.</p><p><strong>정책 설계 원칙</strong>은 <strong>기본 거부(default deny) + 필요한 것만 명시적 허용</strong>이다. 규칙에는 출발지, 목적지, 프로토콜/포트, 그리고 반드시 <strong>사유와 소유자, 유효기간</strong>이 함께 기록되어야 한다. 실무에서 방화벽이 무너지는 이유는 기술이 아니라 관리 부재다. 임시로 연 규칙이 회수되지 않고, 사유를 모르는 규칙이 수천 개 쌓여 아무도 손대지 못하게 된다.</p><p><strong>감사 관점</strong>에서 방화벽은 ITGC 접근통제의 대표 증빙이다. 점검 항목은 (1) <strong>0.0.0.0/0 허용</strong> 규칙과 관리 포트(22, 3389, 3306, 1433) 인터넷 개방 여부, (2) 규칙 <strong>신청·승인 기록</strong>, (3) <strong>정기 리뷰</strong>와 미사용 규칙 제거, (4) 정책 변경 로그와 관리자 계정 통제, (5) 차단·허용 로그의 보관과 검토다. 금감원 검사나 ISMS-P 심사에서 \"방화벽 룰 전체 export와 최근 리뷰 결과\"는 거의 항상 요구된다.</p>",
+      "howItWorks": "<ol><li>패킷이 방화벽에 도착하면 먼저 세션 테이블을 조회한다.</li><li>기존 세션에 속한 패킷이면 정책 검사 없이 빠르게 통과시킨다.</li><li>새 연결(SYN)이면 정책 규칙을 위에서부터 순서대로 평가한다.</li><li>일치하는 허용 규칙을 찾으면 세션 테이블에 항목을 만들고 통과시킨다.</li><li>일치하는 규칙이 없으면 마지막의 기본 거부 규칙에 걸려 차단(DROP 또는 REJECT)하고 로그를 남긴다.</li><li>NGFW라면 통과된 트래픽에 대해 애플리케이션 식별, 시그니처 검사, URL 분류를 추가 수행한다.</li><li>TLS 복호화가 설정된 경우 세션을 풀어 내용을 검사한 뒤 다시 암호화해 전달한다.</li><li>세션이 종료되거나 유휴 타임아웃이 지나면 세션 테이블에서 제거된다.</li></ol>",
+      "example": "<p>'페이나우'는 3중 구조다. 인터넷 경계에는 온프레미스 DC의 NGFW가, AWS에는 서브넷 경계의 Network Firewall과 인스턴스 단위 보안그룹이 있다. 결제 API 보안그룹은 인바운드로 ALB 보안그룹에서 오는 8080만 허용하고, DB 보안그룹은 앱 보안그룹에서 오는 5432만 허용한다(IP가 아니라 <strong>보안그룹 참조</strong>로 작성해 IP 변경에 영향받지 않는다). 아웃바운드는 기본 전체 허용을 막고 프록시와 VPC 엔드포인트로만 나가도록 제한했다. 방화벽 규칙 신청은 ITSM 티켓으로 받아 보안팀이 검토하고, 임시 규칙에는 반드시 만료일을 넣어 매월 자동 회수 대상 리포트가 생성된다.</p><pre><code># 위험 규칙 전수 점검: 관리 포트가 인터넷에 열렸는가\naws ec2 describe-security-groups --query \"SecurityGroups[?IpPermissions[?\\\n  (FromPort==\\`22\\` || FromPort==\\`3389\\` || FromPort==\\`3306\\`) &amp;&amp; \\\n  IpRanges[?CidrIp=='0.0.0.0/0']]].[GroupId,GroupName]\" --output table\n\n# 보안그룹 참조 방식 규칙 (IP 대신 그룹 ID)\naws ec2 authorize-security-group-ingress \\\n  --group-id sg-db-prod --protocol tcp --port 5432 \\\n  --source-group sg-app-prod\n\n# 미사용 보안그룹 탐지 (어느 ENI에도 안 붙은 것)\ncomm -23 \\\n  &lt;(aws ec2 describe-security-groups --query 'SecurityGroups[].GroupId' --output text | tr '\\t' '\\n' | sort) \\\n  &lt;(aws ec2 describe-network-interfaces --query 'NetworkInterfaces[].Groups[].GroupId' --output text | tr '\\t' '\\n' | sort -u)\n\n# 리눅스 호스트 방화벽 상태\nsudo iptables -L -n -v --line-numbers | head -30</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='110' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='140' text-anchor='middle' fill='currentColor' font-size='12'>요청 패킷</text><line x1='117' y1='135' x2='165' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='168' y='40' width='175' height='200' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='255' y='63' text-anchor='middle' fill='currentColor'>방화벽</text><rect x='180' y='75' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='255' y='95' text-anchor='middle' fill='currentColor' font-size='11'>1 세션 테이블 조회</text><rect x='180' y='112' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='255' y='132' text-anchor='middle' fill='currentColor' font-size='11'>2 규칙 순차 평가</text><rect x='180' y='149' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='255' y='169' text-anchor='middle' fill='currentColor' font-size='11'>3 NGFW 심층검사</text><rect x='180' y='186' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='255' y='206' text-anchor='middle' fill='currentColor' font-size='11'>4 기본 거부 + 로그</text><line x1='345' y1='95' x2='420' y2='75' stroke='currentColor' marker-end='url(#ar)'/><text x='383' y='68' text-anchor='middle' fill='currentColor' font-size='11'>허용</text><line x1='345' y1='200' x2='420' y2='215' stroke='currentColor' marker-end='url(#ar)'/><text x='383' y='233' text-anchor='middle' fill='currentColor' font-size='11'>차단 로그</text><rect x='423' y='55' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='518' y='77' text-anchor='middle' fill='currentColor' font-size='12'>내부 서버</text><text x='518' y='95' text-anchor='middle' fill='currentColor' font-size='11'>응답은 세션으로 자동 허용</text><rect x='423' y='190' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='518' y='212' text-anchor='middle' fill='currentColor' font-size='12'>SIEM 적재</text><text x='518' y='230' text-anchor='middle' fill='currentColor' font-size='11'>차단/허용 로그 분석</text><text x='20' y='265' fill='currentColor' font-size='11'>원칙: 기본 거부 + 명시 허용 + 사유/소유자/유효기간 기록</text></svg>",
+      "keyTerms": [
+        {"term": "상태기반 검사", "meaning": "연결 상태를 기억해 응답 트래픽을 자동 허용하는 방식"},
+        {"term": "세션 테이블", "meaning": "현재 연결 목록. 성능과 동시 세션 한도의 핵심 자원"},
+        {"term": "기본 거부(Default Deny)", "meaning": "명시적으로 허용하지 않은 모든 통신을 차단하는 원칙"},
+        {"term": "보안그룹", "meaning": "AWS의 인스턴스 단위 상태기반 허용 전용 방화벽"},
+        {"term": "네트워크 ACL", "meaning": "AWS의 서브넷 단위 무상태 필터. 허용·거부 모두 가능"},
+        {"term": "NGFW", "meaning": "앱 식별·IPS·URL 필터링·TLS 검사를 포함한 차세대 방화벽"},
+        {"term": "DROP vs REJECT", "meaning": "무응답 폐기 / RST·ICMP로 거부를 알림. 증상과 진단이 달라진다"},
+        {"term": "그림자 규칙(Shadowed Rule)", "meaning": "상위 규칙에 가려 절대 적용되지 않는 규칙"}
+      ],
+      "pitfalls": [
+        "장애 대응 중 임시로 0.0.0.0/0을 열고 회수하지 않아 상시 개방 상태로 방치.",
+        "보안그룹 아웃바운드 기본 전체 허용을 그대로 둬 데이터 유출·C2 통신 경로가 열림.",
+        "네트워크 ACL이 무상태임을 모르고 응답 포트(임시 포트 범위)를 막아 통신 실패.",
+        "규칙에 사유·소유자를 기록하지 않아 수년 뒤 아무도 삭제하지 못하는 룰 더미가 됨.",
+        "규칙 순서를 고려하지 않아 상위 허용 규칙에 가려 하위 차단 규칙이 무력화.",
+        "차단 로그만 보고 허용 로그는 수집하지 않아 실제 통신 경로 감사에 활용 불가."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 방화벽 정책이 기본 거부 원칙으로 구성되고 허용 규칙에 사유·소유자가 기록되는가",
+          "[변경] 규칙 신청·승인·적용이 티켓 기반으로 통제되고 이력이 보존되는가",
+          "[운영] 정기(반기/분기) 룰 리뷰가 수행되어 불필요·미사용 규칙이 제거되는가",
+          "[접근] 방화벽 관리자 계정이 최소화되고 MFA·접근 기록이 적용되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 등에 따라 내부통신망과 외부통신망 간 접근통제 장치를 설치·운영하고 있는가",
+          "정보처리시스템에 대한 불필요한 서비스·포트를 차단하고 주기적으로 점검하는가",
+          "접근통제 정책의 변경이 승인 절차에 따라 이루어지고 기록되는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 네트워크 접근통제 정책 수립과 적용",
+          "2.10.1 보안시스템 운영: 보안장비 정책·로그 관리와 정기 점검",
+          "2.9.1 변경관리 / 2.9.4 로그 및 접속기록 관리"
+        ],
+        "evidence": [
+          "방화벽·보안그룹 전체 룰 export(출발지, 목적지, 포트, 사유, 등록일)",
+          "0.0.0.0/0 허용 및 관리 포트 개방 규칙 목록과 예외 승인 문서",
+          "최근 정기 룰 리뷰 결과 보고서와 제거 조치 내역",
+          "규칙 신청·승인 티켓 샘플(요청자, 승인자, 적용자 분리 확인)",
+          "방화벽 관리자 계정 목록과 접속 기록"
+        ],
+        "auditorQuestions": [
+          "방화벽 규칙은 몇 건이며 각 규칙의 사유와 소유자를 확인할 수 있는가?",
+          "인터넷에서 SSH·RDP·DB 포트로 접근 가능한 규칙이 있는가?",
+          "규칙 추가는 누가 신청하고 누가 승인하는가? 적용자는 승인자와 분리되는가?",
+          "미사용 규칙은 어떻게 식별해 제거하는가? 최근 리뷰 시점은?",
+          "임시 규칙에 만료일을 부여하는가? 회수 절차는?"
+        ],
+        "controlExample": "네트워크 접근통제는 기본 거부 정책을 적용하며, 허용 규칙은 ITSM 신청과 보안팀 검토·책임자 승인을 거쳐 등록된다. 모든 규칙에는 사유·소유 부서·유효기간이 기록되고, 반기마다 전수 리뷰를 수행해 미사용 및 만료 규칙을 제거한 결과를 보관한다."
+      },
+      "related": ["net-fw-policy-mgmt", "net-segmentation", "net-dmz", "net-ids-ips", "net-egress-proxy", "aws-vpc"],
+      "learnMore": ["AWS Network Firewall Developer Guide", "Amazon VPC - 보안 그룹 및 네트워크 ACL", "NIST SP 800-41 Guidelines on Firewalls"]
+    },
+    {
+      "id": "net-waf",
+      "title": "웹 방화벽 (WAF)",
+      "titleEn": "Web Application Firewall",
+      "aliases": ["와프", "웹방화벽", "AWS WAF", "ModSecurity", "OWASP CRS"],
+      "tags": ["waf", "l7", "appsec"],
+      "level": "중급",
+      "oneLiner": "HTTP 요청 내용을 검사해 웹 공격을 차단하는 7계층 방화벽",
+      "analogy": "일반 방화벽이 건물 출입 게이트라면 WAF는 우편물 검색대다. 출입증(IP·포트)은 정상이어도 봉투 안에 위험물이 들어 있는지 확인한다. \"주문서에 적힌 수량 칸에 갑자기 데이터베이스 명령문이 적혀 있다\"는 식의 이상한 내용물을 걸러낸다.",
+      "explanation": "<p><strong>WAF(Web Application Firewall)</strong>는 HTTP/HTTPS 요청의 <strong>내용</strong>(URL, 쿼리스트링, 헤더, 쿠키, 본문)을 검사해 웹 애플리케이션 공격을 탐지·차단한다. 네트워크 방화벽이 막지 못하는 <strong>OWASP Top 10</strong> 유형 — SQL 인젝션, 크로스사이트 스크립팅(XSS), 경로 조작, 원격 코드 실행, 취약한 역직렬화 등 — 이 주 대상이다.</p><p><strong>동작 방식은 두 가지</strong>가 섞여 쓰인다. <strong>시그니처(부정 목록) 기반</strong>은 알려진 공격 패턴과 매칭한다. OWASP Core Rule Set(CRS)이 대표적이며 AWS WAF의 관리형 룰 그룹도 같은 접근이다. <strong>허용 목록(포지티브) 기반</strong>은 각 파라미터의 정상 형식(숫자 10자리 등)을 정의하고 벗어나면 차단한다. 정확하지만 정의 비용이 크다. 여기에 요청 속도 제한, 봇 탐지, 지역 차단, 크리덴셜 스터핑 방어 같은 기능이 더해진다.</p><p><strong>배치 위치</strong>는 CDN 엣지(CloudFront + AWS WAF), 로드밸런서(ALB + WAF), 리버스 프록시(Nginx + ModSecurity), 또는 애플리케이션 내부(RASP)가 있다. 엣지에 둘수록 오리진 부하가 줄지만, <strong>WAF를 우회한 직접 접근 경로가 없어야</strong> 의미가 있다.</p><p><strong>운영의 핵심은 오탐(false positive) 관리</strong>다. 처음부터 차단 모드로 켜면 정상 요청이 막혀 서비스 장애가 난다. 표준 절차는 (1) <strong>카운트(탐지만) 모드</strong>로 2~4주 운영하며 로그 수집 → (2) 오탐 룰 예외 처리 → (3) 룰 그룹별로 순차 차단 전환 → (4) 배포·기능 변경 시 재검토다. 쉽게 말하면 <strong>켜는 것보다 길들이는 것이 일</strong>이다.</p><p><strong>감사 관점</strong>에서 WAF는 금융권·ISMS-P에서 사실상 필수 통제로 간주된다. 점검 항목은 (1) 외부 공개 웹 서비스 전체에 WAF가 적용되었는지(<strong>누락 서비스</strong>가 가장 흔한 지적), (2) <strong>차단 모드로 동작하는지</strong>(카운트 모드로만 몇 년째 방치된 사례가 많다), (3) 룰셋 최신성과 갱신 주기, (4) 차단 로그의 보관과 <strong>정기 검토 증적</strong>, (5) 예외(허용) 처리의 승인 기록이다. 침해사고 대응에서 WAF 로그는 공격 시도 시점과 패턴을 보여주는 1차 증거이기도 하다.</p>",
+      "howItWorks": "<ol><li>사용자 요청이 CDN 또는 로드밸런서에 도착하면 WAF가 먼저 평가한다.</li><li>IP 평판·지역·속도 제한 같은 경량 규칙을 먼저 적용한다.</li><li>관리형 룰 그룹(공통 취약점, SQLi, XSS, 알려진 악성 입력)을 순서대로 평가한다.</li><li>커스텀 규칙(특정 경로 보호, 허용 목록 예외)을 평가한다.</li><li>규칙에 매칭되면 설정된 동작(Block, Count, CAPTCHA, Challenge)을 수행한다.</li><li>차단 시 403 응답을 반환하고 요청 상세를 WAF 로그에 기록한다.</li><li>통과한 요청만 오리진 애플리케이션으로 전달된다.</li><li>보안팀이 로그를 분석해 오탐은 예외 처리하고, 신규 공격 패턴은 커스텀 룰로 추가한다.</li></ol>",
+      "example": "<p>'페이나우'는 CloudFront와 ALB 두 곳에 AWS WAF를 적용했다. 웹ACL 구성은 관리형 룰(Core rule set, Known bad inputs, SQL database), 지역 차단(서비스 대상국 외 차단), 로그인 엔드포인트에 대한 IP당 5분 100회 rate limit, 그리고 관리자 경로에 대한 사내 IP 허용 목록이다. 도입 시 3주간 카운트 모드로 돌리며 로그를 분석했더니, 결제 요청 본문에 포함된 특정 JSON 필드가 SQLi 룰에 걸리는 오탐이 발견되어 해당 경로·필드만 예외 처리했다. 매월 보안팀이 상위 차단 룰과 상위 차단 IP를 리뷰해 보고서를 남기며, 이 보고서가 ISMS-P 심사와 내부감사에서 그대로 증빙으로 쓰인다.</p><pre><code># 웹ACL과 연결 리소스 확인 (누락 점검)\naws wafv2 list-web-acls --scope REGIONAL --query 'WebACLs[].[Name,Id]' --output table\naws wafv2 list-resources-for-web-acl --web-acl-arn arn:aws:wafv2:...:regional/webacl/paynow/abc\n\n# 룰별 동작(Block인지 Count인지) 확인 — 감사 핵심\naws wafv2 get-web-acl --scope REGIONAL --name paynow-prod --id abc \\\n  --query 'WebACL.Rules[].[Name,OverrideAction,Action]' --output json\n\n# 최근 차단 샘플 조회\naws wafv2 get-sampled-requests --web-acl-arn arn:... --rule-metric-name SQLiRule \\\n  --scope REGIONAL --time-window StartTime=2026-09-01T00:00Z,EndTime=2026-09-02T00:00Z \\\n  --max-items 20\n\n# ModSecurity(Nginx)에서 CRS 활성화\nmodsecurity on;\nmodsecurity_rules_file /etc/nginx/modsec/main.conf;\n# SecRuleEngine On    ← DetectionOnly로 두면 탐지만 하고 차단하지 않는다</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='60' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='87' text-anchor='middle' fill='currentColor' font-size='12'>정상 사용자</text><rect x='20' y='155' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='175' text-anchor='middle' fill='currentColor' font-size='12'>공격자</text><text x='70' y='193' text-anchor='middle' fill='currentColor' font-size='11'>SQLi/XSS</text><line x1='122' y1='85' x2='180' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='122' y1='175' x2='180' y2='150' stroke='currentColor' marker-end='url(#ar)'/><rect x='183' y='55' width='175' height='155' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270' y='78' text-anchor='middle' fill='currentColor'>WAF (L7)</text><text x='195' y='102' fill='currentColor' font-size='11'>IP 평판 · 지역 차단</text><text x='195' y='124' fill='currentColor' font-size='11'>관리형 룰(OWASP CRS)</text><text x='195' y='146' fill='currentColor' font-size='11'>rate limit · 봇 탐지</text><text x='195' y='168' fill='currentColor' font-size='11'>커스텀 룰 · 예외</text><text x='195' y='192' fill='currentColor' font-size='11'>Count → Block 전환</text><line x1='360' y1='95' x2='430' y2='80' stroke='currentColor' marker-end='url(#ar)'/><text x='395' y='72' text-anchor='middle' fill='currentColor' font-size='11'>통과</text><line x1='360' y1='170' x2='430' y2='190' stroke='currentColor' marker-end='url(#ar)'/><text x='395' y='210' text-anchor='middle' fill='currentColor' font-size='11'>403 차단 + 로그</text><rect x='433' y='55' width='180' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='523' y='80' text-anchor='middle' fill='currentColor' font-size='12'>웹 애플리케이션</text><text x='523' y='98' text-anchor='middle' fill='currentColor' font-size='11'>오리진</text><rect x='433' y='165' width='180' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='523' y='190' text-anchor='middle' fill='currentColor' font-size='12'>WAF 로그 / SIEM</text><text x='523' y='208' text-anchor='middle' fill='currentColor' font-size='11'>월간 리뷰 증빙</text><text x='20' y='245' fill='currentColor' font-size='11'>WAF를 우회하는 오리진 직접 접근 경로가 있으면 통제는 무효</text></svg>",
+      "keyTerms": [
+        {"term": "OWASP Top 10", "meaning": "가장 흔한 웹 애플리케이션 보안 위험 10가지 목록"},
+        {"term": "Core Rule Set(CRS)", "meaning": "OWASP가 제공하는 대표적 오픈소스 WAF 룰셋"},
+        {"term": "Count 모드", "meaning": "탐지만 하고 차단하지 않는 모드. 도입 초기 오탐 분석용"},
+        {"term": "오탐(False Positive)", "meaning": "정상 요청을 공격으로 잘못 차단하는 것"},
+        {"term": "웹ACL", "meaning": "AWS WAF에서 룰 묶음과 동작을 정의하는 단위"},
+        {"term": "Rate-based 룰", "meaning": "일정 시간 내 요청 수를 초과한 출발지를 차단하는 규칙"},
+        {"term": "봇 관리", "meaning": "자동화된 스크래핑·크리덴셜 스터핑 트래픽을 식별·제어"},
+        {"term": "가상 패치", "meaning": "앱 수정 전까지 WAF 룰로 취약점 악용을 임시 차단하는 조치"}
+      ],
+      "pitfalls": [
+        "카운트 모드로 도입한 뒤 차단 전환을 잊어 수년째 탐지만 하고 있는 상태.",
+        "일부 도메인·엔드포인트에 WAF가 연결되지 않아 우회 경로가 존재.",
+        "WAF만 믿고 애플리케이션의 입력 검증·파라미터 바인딩을 소홀히 함. WAF는 보조 방어다.",
+        "오탐 발생 시 룰 전체를 끄는 방식으로 대응해 보호 범위가 급격히 축소.",
+        "차단 로그를 수집만 하고 정기 검토를 하지 않아 공격 추세와 신규 패턴을 놓침.",
+        "요청 본문 검사 크기 한도를 넘는 대용량 요청이 검사되지 않는다는 점을 간과."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 외부 공개 웹 서비스 전체에 WAF가 적용되고 누락 여부가 주기적으로 확인되는가",
+          "[운영] WAF가 차단(Block) 모드로 동작하며 룰셋이 최신으로 유지되는가",
+          "[변경] 룰 예외(허용) 처리가 승인 절차를 거쳐 기록되는가",
+          "[운영] 차단 로그가 보관되고 정기 검토 결과가 문서화되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 홈페이지 등 외부 접점에 대한 웹 취약점 대응 조치(웹방화벽 등)를 적용하고 있는가",
+          "침해사고 대응을 위한 공격 탐지·차단 기록을 보존하고 있는가"
+        ],
+        "isms": [
+          "2.10.1 보안시스템 운영: 웹방화벽 정책·로그 관리와 정기 점검이 이루어지는가",
+          "2.11.2 취약점 점검 및 조치: 웹 취약점 점검 결과에 대한 보완 조치가 이루어지는가",
+          "2.9.4 로그 및 접속기록 관리"
+        ],
+        "evidence": [
+          "웹ACL 목록과 연결된 리소스(도메인·LB·CDN) 매핑표",
+          "룰별 동작 설정(Block/Count) export",
+          "관리형 룰셋 버전과 최근 갱신 이력",
+          "최근 3개월 차단 로그 통계와 월간 검토 보고서",
+          "예외 처리 목록과 승인 티켓"
+        ],
+        "auditorQuestions": [
+          "외부에 공개된 웹 서비스 중 WAF가 적용되지 않은 것이 있는가?",
+          "WAF는 실제 차단 모드로 동작하는가? 어떤 룰이 Count로 남아 있는가?",
+          "오탐으로 인한 예외 처리는 누가 승인하는가?",
+          "차단 로그는 누가 얼마나 자주 검토하며 결과는 어디에 남는가?",
+          "웹 취약점 점검에서 발견된 항목을 WAF로 임시 차단한 사례가 있는가?"
+        ],
+        "controlExample": "외부 공개 웹 서비스는 모두 WAF 웹ACL에 연결되며, 관리형 룰셋은 차단 모드로 운영되고 분기마다 최신 버전으로 갱신된다. 보안팀은 월 1회 차단 로그를 검토해 신규 공격 패턴과 오탐을 분석하고 결과를 보고서로 보관한다."
+      },
+      "related": ["net-cdn", "net-lb-l4-l7", "net-ids-ips", "net-ddos", "net-rate-limiting", "net-api-gateway"],
+      "learnMore": ["AWS WAF Developer Guide", "OWASP ModSecurity Core Rule Set", "OWASP Top 10"]
+    },
+    {
+      "id": "net-ids-ips",
+      "title": "IDS / IPS",
+      "titleEn": "Intrusion Detection and Prevention System",
+      "aliases": ["침입탐지", "침입방지", "IDS", "IPS", "Suricata", "시그니처"],
+      "tags": ["detection", "security", "monitoring"],
+      "level": "중급",
+      "oneLiner": "네트워크 트래픽에서 공격 징후를 탐지하거나 즉시 차단하는 시스템",
+      "analogy": "IDS는 CCTV 관제실이고 IPS는 자동 셔터가 달린 경비원이다. CCTV는 수상한 사람을 보면 경보를 울려 사람이 판단하게 한다. 경비원은 보는 즉시 문을 닫아버린다. 빠르지만 배달원을 도둑으로 오인해 문을 닫으면 업무가 멈춘다.",
+      "explanation": "<p><strong>IDS(Intrusion Detection System)</strong>는 트래픽을 복사해 분석하며 공격으로 의심되는 패턴을 발견하면 <strong>경보</strong>를 낸다. <strong>IPS(Intrusion Prevention System)</strong>는 트래픽 경로 위(인라인)에 위치해 탐지 즉시 <strong>차단</strong>한다. 같은 엔진으로 동작 모드만 다른 제품이 많다(Suricata, Snort, 상용 NGFW의 IPS 모듈, AWS Network Firewall의 IPS 룰).</p><p><strong>탐지 방식은 세 가지</strong>다. (1) <strong>시그니처 기반</strong>: 알려진 공격의 바이트 패턴·행위와 매칭. 정확하지만 신종에는 무력하다. (2) <strong>이상 징후(anomaly) 기반</strong>: 평소 트래픽 프로파일에서 크게 벗어나면 의심. 신종을 잡을 수 있으나 오탐이 많다. (3) <strong>평판·위협 인텔리전스</strong>: 알려진 악성 IP·도메인 목록과 대조. 요즘 제품은 셋을 함께 쓴다.</p><p><strong>배치 위치</strong>에 따라 <strong>네트워크 기반(NIDS/NIPS)</strong>과 <strong>호스트 기반(HIDS/HIPS)</strong>으로 나뉜다. 클라우드에서는 서브넷 경계의 Network Firewall, VPC 트래픽 미러링으로 복사본을 분석하는 방식, 그리고 EDR·<strong>GuardDuty</strong> 같은 로그·행위 기반 탐지가 IDS 역할을 나눠 맡는다. TLS 암호화가 보편화되면서 <strong>페이로드 검사 가능 범위가 줄어</strong>, 메타데이터(SNI, JA3 핑거프린트, 흐름 패턴)와 엔드포인트 탐지의 비중이 커졌다.</p><p><strong>운영의 본질은 튜닝과 대응 절차</strong>다. 기본 룰셋을 그대로 켜면 하루 수만 건의 경보가 쏟아지고, 아무도 보지 않는 대시보드가 된다. 룰 우선순위를 조정하고, 내부 스캐너·모니터링 트래픽을 예외로 처리하고, <strong>심각도별 대응 절차(누가 몇 분 내 확인, 어떤 경우 차단)</strong>를 정의해야 통제로서 작동한다.</p><p><strong>감사 관점</strong>에서 IDS/IPS는 <strong>탐지 통제</strong>의 대표 사례다. 확인 항목은 (1) 어떤 구간에 설치되어 있고 어떤 트래픽이 검사 대상인지(내부망 동서 트래픽 사각지대 여부), (2) 룰셋 업데이트 주기, (3) 경보의 <strong>처리 이력</strong>(단순 발생 건수가 아니라 확인·조치 기록), (4) 심각 경보의 에스컬레이션과 인시던트 연계, (5) 로그 보존 기간이다. 금융권에서는 침입차단·침입방지 시스템의 설치·운영이 규정상 요구사항으로 명시되어 있어 미설치 자체가 지적 대상이 된다.</p>",
+      "howItWorks": "<ol><li>트래픽이 인라인 장비를 통과하거나(IPS) 미러링·TAP으로 복사되어 분석기로 전달된다(IDS).</li><li>엔진이 패킷을 재조립해 세션 단위 흐름으로 복원한다.</li><li>시그니처 룰셋과 대조해 알려진 공격 패턴을 탐지한다.</li><li>동시에 트래픽 프로파일·평판 목록과 비교해 이상 징후를 평가한다.</li><li>매칭되면 심각도(critical/high/medium)를 부여해 경보를 생성한다.</li><li>IPS 모드면 설정에 따라 해당 세션을 즉시 차단(drop/reset)한다.</li><li>경보가 SIEM으로 전송되어 다른 로그(방화벽, WAF, 서버)와 상관분석된다.</li><li>보안 담당자가 심각도별 절차에 따라 확인하고 오탐이면 룰을 튜닝, 진성이면 인시던트로 승격한다.</li></ol>",
+      "example": "<p>'페이나우'는 세 계층으로 탐지한다. 인터넷 경계에는 NGFW의 IPS 모듈이 인라인으로 동작하고, AWS 내부에서는 GuardDuty가 VPC Flow Log·DNS 로그·CloudTrail을 분석해 암호화폐 채굴, 알려진 C2 통신, 비정상 API 호출을 탐지한다. 서버에는 EDR이 설치되어 있다. 모든 경보는 SIEM으로 모이고, Critical은 온콜 담당자에게 5분 내 통보되어 30분 내 1차 판단, High는 근무시간 내 4시간 이내 확인이 SLA다. 지난 분기에는 개발자가 설치한 테스트용 리버스 셸 도구가 C2 통신으로 탐지돼 인시던트로 처리되었고, 이 기록이 그대로 감사 증적이 되었다.</p><pre><code># Suricata 룰 예시(특정 C2 도메인 탐지)\nalert dns any any -&gt; any any (msg:\"Known C2 domain lookup\"; \\\n  dns.query; content:\"evil-c2.example\"; nocase; sid:1000101; rev:1;)\n\n# 최근 경보 상위 시그니처 집계\njq -r '.alert.signature' /var/log/suricata/eve.json | sort | uniq -c | sort -rn | head -10\n\n# GuardDuty 최근 심각도 높은 탐지 조회 (증빙)\naws guardduty list-detectors --query 'DetectorIds[0]' --output text | \\\n xargs -I{} aws guardduty list-findings --detector-id {} \\\n   --finding-criteria '{\"Criterion\":{\"severity\":{\"Gte\":7}}}'\n\n# AWS Network Firewall의 IPS 룰 그룹 확인\naws network-firewall describe-rule-group --rule-group-name paynow-ips --type STATEFUL</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='95' width='90' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='122' text-anchor='middle' fill='currentColor' font-size='12'>인터넷</text><line x1='112' y1='117' x2='160' y2='117' stroke='currentColor' marker-end='url(#ar)'/><rect x='163' y='85' width='135' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='230' y='108' text-anchor='middle' fill='currentColor' font-size='12'>IPS (인라인)</text><text x='230' y='128' text-anchor='middle' fill='currentColor' font-size='11'>탐지 즉시 차단</text><text x='230' y='144' text-anchor='middle' fill='currentColor' font-size='11'>오탐 시 서비스 영향</text><line x1='300' y1='117' x2='355' y2='117' stroke='currentColor' marker-end='url(#ar)'/><rect x='358' y='85' width='125' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='420' y='115' text-anchor='middle' fill='currentColor' font-size='12'>내부 서버</text><text x='420' y='135' text-anchor='middle' fill='currentColor' font-size='11'>EDR(호스트 탐지)</text><line x1='230' y1='83' x2='230' y2='45' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><rect x='150' y='10' width='165' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='232' y='33' text-anchor='middle' fill='currentColor' font-size='12'>IDS (미러링·탐지)</text><line x1='315' y1='28' x2='460' y2='45' stroke='currentColor' marker-end='url(#ar)'/><rect x='463' y='30' width='155' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='540' y='53' text-anchor='middle' fill='currentColor' font-size='12'>SIEM 상관분석</text><text x='540' y='72' text-anchor='middle' fill='currentColor' font-size='11'>심각도별 대응 SLA</text><line x1='485' y1='117' x2='540' y2='92' stroke='currentColor' stroke-dasharray='4,3' marker-end='url(#ar)'/><text x='20' y='185' fill='currentColor' font-size='11'>탐지 → 경보 → 확인·판단 → 오탐이면 튜닝 / 진성이면 인시던트 승격</text><text x='20' y='207' fill='currentColor' font-size='11'>TLS 확산으로 페이로드 검사 한계 → 메타데이터·엔드포인트 탐지 비중 증가</text><text x='20' y='232' fill='currentColor' font-size='11'>감사는 경보 건수가 아니라 '처리 이력'을 본다</text></svg>",
+      "keyTerms": [
+        {"term": "시그니처", "meaning": "알려진 공격의 특징적 패턴을 정의한 탐지 규칙"},
+        {"term": "인라인 / 미러링", "meaning": "트래픽 경로 위에 배치(차단 가능) / 복사본만 분석(차단 불가)"},
+        {"term": "Suricata / Snort", "meaning": "대표적인 오픈소스 IDS/IPS 엔진"},
+        {"term": "GuardDuty", "meaning": "AWS의 관리형 위협 탐지 서비스. 로그 기반으로 이상 행위를 탐지"},
+        {"term": "EDR / HIDS", "meaning": "엔드포인트(서버·PC)에서 행위를 탐지·대응하는 솔루션"},
+        {"term": "튜닝", "meaning": "오탐을 줄이기 위해 룰·임계치를 조정하는 작업"},
+        {"term": "트래픽 미러링", "meaning": "VPC 트래픽 사본을 분석 장비로 보내는 기능"},
+        {"term": "에스컬레이션", "meaning": "심각도에 따라 상위 담당자·인시던트 절차로 넘기는 체계"}
+      ],
+      "pitfalls": [
+        "IPS를 도입했으나 오탐이 무서워 전 룰을 탐지 모드로만 운영해 사실상 IDS로 방치.",
+        "경보를 수집만 하고 확인·조치 기록을 남기지 않아 감사에서 '운영되지 않는 통제'로 평가.",
+        "내부 동서(east-west) 트래픽에 탐지가 없어 침투 이후 횡적 이동을 놓침.",
+        "룰셋 자동 업데이트를 설정하지 않아 수개월 지난 시그니처로 운영.",
+        "TLS 트래픽이라 내용 검사가 안 되는데도 '전 구간 검사 중'으로 문서화.",
+        "내부 취약점 스캐너·모니터링 트래픽을 예외 처리하지 않아 경보가 소음으로 가득 참."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 침입탐지·차단 시스템이 주요 구간에 설치·운영되고 검사 범위가 문서화되는가",
+          "[운영] 경보에 대한 확인·조치 이력이 기록되고 심각도별 대응 시간이 정의되는가",
+          "[변경] 탐지 룰·예외 설정 변경이 승인·기록되는가",
+          "[운영] 룰셋·위협 인텔리전스가 주기적으로 갱신되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 침입차단시스템 및 침입방지시스템을 설치·운영하고 있는가",
+          "침해사고 탐지·대응 체계와 보고 절차가 마련되어 있는가",
+          "탐지 기록을 일정 기간 보존하고 있는가"
+        ],
+        "isms": [
+          "2.10.1 보안시스템 운영: 침입탐지·차단 정책과 로그 관리가 이루어지는가",
+          "2.11.3 이상행위 분석 및 모니터링: 이상행위 탐지와 대응이 수행되는가",
+          "2.11.5 사고 대응 및 복구: 탐지된 사고에 대한 대응 절차가 이행되는가"
+        ],
+        "evidence": [
+          "IDS/IPS 설치 구간 표시된 네트워크 구성도와 검사 대상 트래픽 정의서",
+          "룰셋 버전과 최근 업데이트 이력",
+          "최근 3개월 경보 목록과 처리 결과(확인자, 조치 내용, 종결 사유)",
+          "심각도별 대응 SLA가 포함된 운영 절차서",
+          "인시던트로 승격된 사례의 대응 보고서"
+        ],
+        "auditorQuestions": [
+          "침입탐지·차단 장비는 어느 구간에 설치되어 있으며 검사 대상 트래픽은 무엇인가?",
+          "내부 서버 간 통신도 탐지 대상인가?",
+          "경보는 하루 평균 몇 건이며 누가 어떤 기준으로 확인하는가?",
+          "최근 진성 경보 사례와 조치 내용을 보여달라.",
+          "룰셋은 얼마나 자주 갱신하며 갱신 실패는 어떻게 인지하는가?"
+        ],
+        "controlExample": "인터넷 경계 구간에는 IPS를 인라인으로 운영하고 클라우드 환경에는 위협 탐지 서비스와 EDR을 적용한다. 발생한 경보는 SIEM에 집계되어 심각도별 대응 SLA(Critical 30분, High 4시간)에 따라 확인·조치되며 처리 이력이 티켓으로 보관된다."
+      },
+      "related": ["net-firewall", "net-waf", "net-ddos", "net-flowlog-capture", "net-segmentation", "sec-siem"],
+      "learnMore": ["Suricata 공식 문서", "Amazon GuardDuty User Guide", "NIST SP 800-94 Guide to IDPS"]
+    },
+    {
+      "id": "net-ddos",
+      "title": "DDoS 방어",
+      "titleEn": "DDoS Protection",
+      "aliases": ["디도스", "서비스거부", "Shield", "볼류메트릭", "스크러빙"],
+      "tags": ["ddos", "availability", "edge"],
+      "level": "중급",
+      "oneLiner": "대량 트래픽으로 서비스를 마비시키는 공격을 흡수·차단하는 방어 체계",
+      "analogy": "DDoS는 식당 앞에 수천 명이 몰려와 자리만 차지하고 주문하지 않는 상황과 같다. 진짜 손님이 들어올 수 없게 된다. 방어는 세 갈래다. 매장을 아주 크게 만들어 버티거나(엣지 흡수), 입구에서 주문 의사가 없는 사람을 걸러내거나(필터링), 애초에 뒷문 주소를 아무도 모르게 하는 것(오리진 은닉)이다.",
+      "explanation": "<p><strong>DDoS(Distributed Denial of Service)</strong>는 분산된 다수의 출발지에서 대량 요청을 보내 서비스를 마비시키는 공격이다. 유형은 세 가지로 나뉜다. (1) <strong>볼류메트릭(Volumetric)</strong>: 회선 대역폭을 채우는 공격. UDP 증폭(DNS·NTP·memcached)이 대표. (2) <strong>프로토콜 공격</strong>: SYN Flood처럼 연결 테이블·상태 자원을 고갈시킨다. (3) <strong>애플리케이션 계층(L7)</strong>: HTTP 요청을 정상처럼 보내되 비용이 큰 엔드포인트(검색, 로그인)를 반복 호출한다. 최근 공격의 중심은 L7이며, 트래픽 양은 적어도 서버 CPU와 DB를 고갈시킨다.</p><p><strong>방어 수단.</strong> 대역폭 공격은 개별 기업이 회선으로 버틸 수 없으므로 <strong>CDN·클라우드 사업자의 엣지에서 흡수</strong>하거나 ISP의 <strong>스크러빙 센터</strong>로 트래픽을 우회시킨다. AWS의 <strong>Shield Standard</strong>는 기본 제공되고, <strong>Shield Advanced</strong>는 24/7 대응팀(SRT), 비용 보호, 상세 진단을 제공한다. 프로토콜 공격은 SYN cookie와 로드밸런서의 연결 관리로 완화한다. L7 공격은 <strong>WAF의 rate-based 룰, 봇 관리, CAPTCHA·챌린지</strong>가 핵심이며, 애플리케이션 차원의 캐싱과 큐잉도 중요하다.</p><p><strong>구조적으로 중요한 것은 오리진 은닉</strong>이다. 공격자가 CDN 뒤 오리진의 실제 IP를 알면 엣지 방어를 우회해 직접 때린다. 그래서 오리진 보안그룹은 CDN 대역만 허용하고, DNS 이력·인증서 투명성 로그·오래된 서브도메인으로 IP가 새지 않는지 점검한다.</p><p><strong>준비가 곧 방어</strong>다. 공격이 시작된 뒤 계약과 절차를 알아보면 늦는다. 사전에 (1) 평상시 트래픽 기준선(baseline)과 알람 임계치, (2) ISP·클라우드 사업자 <strong>비상 연락 체계와 에스컬레이션 경로</strong>, (3) 대응 플레이북(자동 차단 룰 활성화, 지역 차단, 정적 페이지 전환), (4) 대외 공지 기준을 정해 두고 훈련해야 한다.</p><p><strong>감사 관점</strong>에서 DDoS 방어는 가용성 통제이자 금융권 필수 점검 항목이다. 확인 사항은 (1) 방어 수단의 계약·구성 현황, (2) 탐지 임계치와 알람, (3) <strong>대응 절차서와 모의훈련 기록</strong>, (4) 과거 공격 발생 시 대응·복구 이력과 사후 보고, (5) 통신사·클라우드 사업자와의 협조 체계다. 전자금융 분야에서는 침해사고 발생 시 금융당국 보고 의무도 함께 검토된다.</p>",
+      "howItWorks": "<ol><li>평상시 트래픽 패턴(초당 요청, 대역폭, 출발지 분포)을 기준선으로 학습·설정한다.</li><li>공격이 시작되면 엣지(CDN·Shield)에서 급격한 트래픽 증가를 탐지한다.</li><li>네트워크 계층 공격은 엣지 인프라가 자동으로 흡수·필터링한다(서명 기반, 비정상 패킷 폐기).</li><li>알람이 발생해 담당자와 대응팀에 통보된다.</li><li>L7 공격이면 WAF의 rate-based 룰과 봇 챌린지가 작동해 비정상 출발지를 차단한다.</li><li>필요 시 지역 차단, 정적 유지보수 페이지 전환, 대기열(큐) 활성화 등 수동 조치를 추가한다.</li><li>오리진은 CDN 경유 트래픽만 수용하므로 직접 공격 경로가 차단된다.</li><li>공격 종료 후 트래픽·차단 통계를 수집해 사후 분석 보고서를 작성하고 룰을 보완한다.</li></ol>",
+      "example": "<p>'페이나우'는 카드 이벤트 당일 오전 결제 API에 초당 18만 건의 비정상 요청을 받았다. CloudFront와 Shield가 네트워크 계층 트래픽을 흡수했고, WAF의 rate-based 룰(IP당 5분 2,000회)이 자동 발동해 상위 출발지 3만여 개를 차단했다. 정상 사용자 영향은 P99 지연 약 400ms 상승에 그쳤다. 대응 플레이북에 따라 보안팀이 15분 내 상황실을 열고, Shield Advanced의 대응팀(SRT)에 지원을 요청했으며, 공격 종료 후 4시간 만에 사후 보고서를 작성했다. 이후 개선 조치로 로그인·검색 엔드포인트의 기본 rate limit을 낮추고, 오리진 IP 노출 여부를 점검하는 월간 자동 스캔을 추가했다.</p><pre><code># DDoS 관련 지표 확인\naws cloudwatch get-metric-statistics --namespace AWS/DDoSProtection \\\n  --metric-name DDoSDetected --dimensions Name=ResourceArn,Value=arn:aws:cloudfront::123:distribution/E123 \\\n  --start-time 2026-09-10T00:00:00Z --end-time 2026-09-11T00:00:00Z \\\n  --period 300 --statistics Maximum\n\n# WAF rate-based 룰 (IP당 5분 2000회 초과 차단)\n{\n  \"Name\": \"RateLimitPerIP\",\n  \"Priority\": 1,\n  \"Statement\": { \"RateBasedStatement\": { \"Limit\": 2000, \"AggregateKeyType\": \"IP\" } },\n  \"Action\": { \"Block\": {} }\n}\n\n# 오리진 IP 노출 점검: CDN 우회 직접 접근 시도\ncurl -s -o /dev/null -w '%{http_code}\\n' --resolve api.paynow.co.kr:443:&lt;origin-ip&gt; \\\n  https://api.paynow.co.kr/health\n# 403 이어야 정상 (CDN 경유만 허용)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='55' text-anchor='middle' fill='currentColor' font-size='12'>봇넷 수만 대</text><rect x='20' y='150' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='175' text-anchor='middle' fill='currentColor' font-size='12'>정상 사용자</text><line x1='122' y1='50' x2='180' y2='85' stroke='currentColor' marker-end='url(#ar)'/><line x1='122' y1='170' x2='180' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='183' y='60' width='165' height='130' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265' y='83' text-anchor='middle' fill='currentColor'>엣지 방어</text><text x='195' y='107' fill='currentColor' font-size='11'>대역폭 흡수 (CDN)</text><text x='195' y='129' fill='currentColor' font-size='11'>SYN cookie · 프로토콜</text><text x='195' y='151' fill='currentColor' font-size='11'>WAF rate limit · 봇</text><text x='195' y='175' fill='currentColor' font-size='11'>지역 차단 · 챌린지</text><line x1='350' y1='130' x2='420' y2='130' stroke='currentColor' marker-end='url(#ar)'/><text x='385' y='122' text-anchor='middle' fill='currentColor' font-size='11'>정상만</text><rect x='423' y='95' width='140' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='493' y='120' text-anchor='middle' fill='currentColor' font-size='12'>오리진</text><text x='493' y='140' text-anchor='middle' fill='currentColor' font-size='11'>IP 은닉</text><text x='493' y='157' text-anchor='middle' fill='currentColor' font-size='11'>CDN만 허용</text><path d='M120 90 C 200 40, 420 30, 480 90' stroke='currentColor' fill='none' stroke-dasharray='4,3' marker-end='url(#ar)'/><text x='320' y='38' text-anchor='middle' fill='currentColor' font-size='11'>오리진 IP가 새면 엣지 방어가 우회된다</text><text x='20' y='222' fill='currentColor' font-size='11'>사전 준비: 기준선·임계치 알람, 비상 연락체계, 플레이북, 모의훈련</text><text x='20' y='245' fill='currentColor' font-size='11'>사후: 공격 통계 · 대응 보고서 · 룰 보완 (감사 증빙)</text></svg>",
+      "keyTerms": [
+        {"term": "볼류메트릭 공격", "meaning": "회선 대역폭을 포화시키는 대용량 트래픽 공격"},
+        {"term": "증폭 공격", "meaning": "작은 질의로 큰 응답을 유도해 피해자에게 쏟는 UDP 기반 기법"},
+        {"term": "SYN Flood", "meaning": "연결 요청만 대량 발생시켜 연결 테이블을 고갈시키는 공격"},
+        {"term": "L7 공격", "meaning": "정상처럼 보이는 HTTP 요청으로 애플리케이션 자원을 소모시키는 공격"},
+        {"term": "스크러빙 센터", "meaning": "트래픽을 우회시켜 악성만 걸러내고 정상만 돌려보내는 시설"},
+        {"term": "Shield Advanced", "meaning": "AWS의 고급 DDoS 보호. 전담 대응팀과 비용 보호 제공"},
+        {"term": "오리진 은닉", "meaning": "실제 서버 IP를 노출하지 않아 엣지 우회 공격을 막는 구성"},
+        {"term": "기준선(Baseline)", "meaning": "평상시 트래픽 수준. 이상 탐지의 기준"}
+      ],
+      "pitfalls": [
+        "오리진 IP가 과거 DNS 이력·인증서 투명성 로그를 통해 노출되어 엣지 방어가 우회됨.",
+        "대응 절차가 문서로만 있고 훈련한 적이 없어 실제 공격 시 의사결정이 지연.",
+        "rate limit 임계치를 너무 높게 잡아 공격이 진행되어도 룰이 발동하지 않음.",
+        "L7 공격을 대역폭 지표로만 감시해 트래픽 양이 적은 공격을 탐지하지 못함.",
+        "자동 차단 룰이 정상 사용자(모바일 캐리어 NAT 뒤 다수 사용자)를 함께 차단.",
+        "공격 후 사후 분석·보고서를 남기지 않아 재발방지와 감사 증빙이 모두 부재."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] DDoS 방어 수단이 구성되어 있고 적용 대상 서비스가 식별되는가",
+          "[운영] 트래픽 이상 탐지 임계치와 알람이 설정되고 담당자가 지정되어 있는가",
+          "[운영] 대응 절차서가 존재하고 모의훈련이 주기적으로 수행되는가",
+          "[운영] 공격 발생 시 대응·복구 이력과 사후 보고가 기록되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 서비스거부공격 대응을 위한 대책을 수립·운영하고 있는가",
+          "침해사고 발생 시 금융당국 보고 등 대응 절차가 마련되어 있는가",
+          "통신사업자·클라우드 사업자와의 비상 대응 협조 체계가 있는가"
+        ],
+        "isms": [
+          "2.11.3 이상행위 분석 및 모니터링: 비정상 트래픽 탐지 체계가 운영되는가",
+          "2.11.5 사고 대응 및 복구: 사고 대응 절차와 훈련이 이행되는가",
+          "2.9.2 성능 및 장애관리: 가용성 위협에 대한 대응 체계가 있는가"
+        ],
+        "evidence": [
+          "DDoS 방어 서비스 계약·구성 현황(Shield, CDN, 스크러빙 계약서)",
+          "트래픽 모니터링 대시보드와 알람 임계치 설정 캡처",
+          "DDoS 대응 플레이북 문서와 최근 모의훈련 결과 보고서",
+          "과거 공격 발생 시 대응 타임라인과 사후 분석 보고서",
+          "오리진 IP 노출 점검 결과"
+        ],
+        "auditorQuestions": [
+          "DDoS 공격이 발생하면 누가 언제 어떻게 인지하는가?",
+          "대응 절차는 문서화되어 있으며 최근 훈련은 언제 했는가?",
+          "엣지 방어를 우회해 오리진을 직접 공격할 수 있는가?",
+          "최근 2년간 DDoS 공격 사례와 서비스 영향, 조치 내용은?",
+          "통신사·클라우드 사업자와의 비상 연락 체계는 어떻게 되는가?"
+        ],
+        "controlExample": "외부 공개 서비스는 CDN과 DDoS 보호 서비스를 통해 제공되며, 트래픽 임계치 초과 시 자동 알람이 발생하고 WAF rate-based 룰이 작동한다. DDoS 대응 플레이북에 따라 연 1회 모의훈련을 수행하고 실제 공격 발생 시 대응 및 사후 분석 보고서를 작성·보관한다."
+      },
+      "related": ["net-cdn", "net-waf", "net-rate-limiting", "net-handshake", "net-tcp-udp", "net-ids-ips"],
+      "learnMore": ["AWS Shield Developer Guide", "AWS Best Practices for DDoS Resiliency", "KISA 디도스 대응 가이드"]
+    },
+    {
+      "id": "net-vpn",
+      "title": "VPN (IPsec / SSL VPN)",
+      "titleEn": "Virtual Private Network",
+      "aliases": ["가상사설망", "IPsec", "SSL VPN", "Site-to-Site", "원격접속"],
+      "tags": ["vpn", "encryption", "remote-access"],
+      "level": "중급",
+      "oneLiner": "공용 인터넷 위에 암호화 터널을 만들어 사설망처럼 쓰는 기술",
+      "analogy": "VPN은 공공도로 위에 설치한 밀폐형 전용 터널과 같다. 다른 차들과 같은 도로를 쓰지만, 터널 안의 짐은 아무도 볼 수 없고 터널 입구에서는 신분 확인을 거쳐야 들어갈 수 있다. 재택근무자는 이 터널을 통해 마치 사무실 책상에 앉은 것처럼 내부망에 접속한다.",
+      "explanation": "<p><strong>VPN(Virtual Private Network)</strong>은 공용 네트워크 위에 암호화된 터널을 만들어 두 지점을 사설망처럼 연결한다. 용도에 따라 두 종류로 나뉜다.</p><p><strong>(1) Site-to-Site VPN</strong>은 거점 간(본사-지사, 데이터센터-클라우드 VPC)을 상시 연결한다. 주로 <strong>IPsec</strong>을 쓰며 IKE로 상호 인증과 키 교환을 하고 ESP로 패킷을 암호화한다. AWS Site-to-Site VPN이 대표적이며, 더 안정적인 대역이 필요하면 전용선인 <strong>Direct Connect</strong>를 쓰고 그 위에 VPN을 덧씌워 암호화하기도 한다.</p><p><strong>(2) Remote Access VPN</strong>은 개인 단말이 회사망에 접속하는 용도다. <strong>SSL VPN</strong>(TLS 기반, 브라우저 또는 전용 클라이언트)이 방화벽 통과가 쉬워 널리 쓰이고, WireGuard처럼 가볍고 빠른 최신 프로토콜도 확산되었다. AWS Client VPN은 OpenVPN 기반 관리형 서비스다.</p><p><strong>풀 터널과 스플릿 터널.</strong> 단말의 모든 트래픽을 회사로 보내는 것이 <strong>풀 터널</strong>로, 인터넷 접속까지 회사 보안장비를 거치므로 통제는 강하지만 대역과 지연 부담이 크다. 회사망 대역만 터널로 보내고 나머지는 로컬 인터넷으로 나가는 것이 <strong>스플릿 터널</strong>이다. 금융권과 개인정보 취급 환경에서는 통제 가시성 때문에 풀 터널을 요구하는 경우가 많다.</p><p><strong>보안의 핵심은 인증과 권한</strong>이다. VPN은 붙는 순간 <strong>내부망 전체가 보이는</strong> 구조가 되기 쉬워, ID·비밀번호만으로 접속을 허용하면 계정 하나가 뚫렸을 때 피해가 전면화된다. 그래서 반드시 <strong>MFA</strong>를 적용하고, 단말 인증서·상태 검사(백신·패치)를 추가하며, 접속 후에도 <strong>대역·포트 단위로 접근을 제한</strong>해야 한다. 이 한계를 구조적으로 해결하려는 흐름이 ZTNA(제로 트러스트 네트워크 액세스)다.</p><p><strong>감사 관점</strong>에서 VPN은 원격접근 통제의 핵심 대상이다. 점검 항목은 (1) VPN 계정 목록과 <strong>퇴사자·협력업체 계정 적시 회수</strong>, (2) MFA 적용 여부와 예외, (3) 접속 로그(누가 언제 어디서 접속해 어느 대역에 접근했는가)의 보관과 검토, (4) 협력업체 계정의 <strong>기간 한정 부여</strong>, (5) VPN 장비·소프트웨어의 취약점 패치 상태다. 마지막 항목은 실제로 국내외에서 VPN 장비 취약점을 통한 침해사고가 반복되고 있어 특히 중요하다.</p>",
+      "howItWorks": "<ol><li>사용자가 VPN 클라이언트를 실행하고 회사 VPN 게이트웨이 주소로 연결한다.</li><li>게이트웨이가 인증서 또는 TLS로 자신을 증명하고, 사용자는 ID·비밀번호와 MFA를 제출한다.</li><li>필요 시 단말 상태 검사(백신 설치, OS 패치, 디스크 암호화)를 수행한다.</li><li>인증이 통과하면 게이트웨이가 사용자에게 내부 IP를 할당하고 터널을 수립한다.</li><li>라우팅 정책에 따라 회사망 대역(또는 전체 트래픽)이 터널로 흐른다.</li><li>터널을 통과한 트래픽은 게이트웨이에서 복호화되어 내부 방화벽 정책을 다시 거친다.</li><li>사용자 그룹별 접근 제어 목록에 따라 접근 가능한 서버·포트가 제한된다.</li><li>접속·종료·접근 대상이 로그로 기록되고 유휴 시간 초과 시 세션이 자동 종료된다.</li></ol>",
+      "example": "<p>'페이나우'는 두 가지를 함께 쓴다. 온프레미스 데이터센터와 AWS VPC는 IPsec Site-to-Site VPN 2개 터널로 연결되어 BGP로 경로를 교환하고, 대역이 중요한 정산 데이터는 Direct Connect를 주 경로로 쓰고 VPN을 백업으로 둔다. 직원 원격근무는 SSL VPN이며 사내 SSO와 연동해 MFA를 강제하고, 회사 지급 노트북의 단말 인증서가 있어야만 접속된다. 접속 후에도 그룹에 따라 접근 대역이 다르다. 개발자는 개발 VPC와 사내 위키만, 운영자는 추가로 점프서버만 접근 가능하며 운영 DB 대역은 VPN만으로는 닿지 않는다. 협력업체 계정은 프로젝트 종료일을 만료일로 지정해 자동 비활성화되고, 매월 접속 로그와 계정 현황이 보안팀에 리포트된다.</p><pre><code># AWS Site-to-Site VPN 터널 상태 확인\naws ec2 describe-vpn-connections \\\n  --query 'VpnConnections[].[VpnConnectionId,State,VgwTelemetry[].Status]' --output table\n\n# 리눅스에서 IPsec 터널 상태\nsudo ipsec status\nsudo swanctl --list-sas\n\n# WireGuard 피어 상태와 최근 핸드셰이크\nsudo wg show\n# peer: xxxx  latest handshake: 45 seconds ago  transfer: 1.2 GiB received\n\n# 감사용: VPN 계정 및 최근 접속 이력 추출 예시\n# (제품별 관리 콘솔에서 CSV export 후 인사 시스템의 재직자와 대사)\n# 항목: 계정ID, 소속, 최근 접속일, MFA 적용 여부, 만료일, 협력업체 여부</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='35' width='115' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='77' y='57' text-anchor='middle' fill='currentColor' font-size='12'>재택 단말</text><text x='77' y='75' text-anchor='middle' fill='currentColor' font-size='11'>SSL VPN + MFA</text><rect x='20' y='170' width='115' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='77' y='192' text-anchor='middle' fill='currentColor' font-size='12'>지사 / DC</text><text x='77' y='210' text-anchor='middle' fill='currentColor' font-size='11'>IPsec S2S</text><line x1='137' y1='60' x2='215' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='137' y1='195' x2='215' y2='155' stroke='currentColor' marker-end='url(#ar)'/><text x='175' y='135' text-anchor='middle' fill='currentColor' font-size='11'>암호화 터널</text><rect x='218' y='95' width='150' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='293' y='118' text-anchor='middle' fill='currentColor' font-size='12'>VPN 게이트웨이</text><text x='293' y='137' text-anchor='middle' fill='currentColor' font-size='11'>인증 · 단말검사</text><text x='293' y='154' text-anchor='middle' fill='currentColor' font-size='11'>접속 로그</text><line x1='370' y1='130' x2='420' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='423' y='95' width='120' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='483' y='120' text-anchor='middle' fill='currentColor' font-size='12'>내부 방화벽</text><text x='483' y='140' text-anchor='middle' fill='currentColor' font-size='11'>그룹별 대역 제한</text><line x1='545' y1='115' x2='595' y2='85' stroke='currentColor' marker-end='url(#ar)'/><line x1='545' y1='145' x2='595' y2='175' stroke='currentColor' marker-end='url(#ar)'/><text x='555' y='75' fill='currentColor' font-size='11'>개발망</text><text x='555' y='195' fill='currentColor' font-size='11'>점프서버</text><text x='20' y='245' fill='currentColor' font-size='11'>VPN 접속 = 내부망 진입. 계정 회수·MFA·장비 패치가 핵심 통제</text><text x='20' y='265' fill='currentColor' font-size='11'>접속 후에도 대역·포트 단위 최소 권한이 적용되어야 한다</text></svg>",
+      "keyTerms": [
+        {"term": "IPsec / IKE / ESP", "meaning": "거점 간 VPN 표준. 인증·키교환(IKE)과 암호화 전송(ESP)"},
+        {"term": "SSL VPN", "meaning": "TLS 기반 원격접속 VPN. 방화벽 통과가 용이"},
+        {"term": "WireGuard", "meaning": "코드가 작고 빠른 최신 VPN 프로토콜"},
+        {"term": "풀 터널 / 스플릿 터널", "meaning": "모든 트래픽을 회사로 / 회사망 대역만 터널로 보내는 방식"},
+        {"term": "Site-to-Site", "meaning": "거점과 거점을 상시 연결하는 VPN 형태"},
+        {"term": "단말 상태 검사(Posture)", "meaning": "백신·패치·암호화 여부를 확인 후 접속을 허용하는 통제"},
+        {"term": "Direct Connect", "meaning": "인터넷을 거치지 않는 전용선 연결. VPN과 병행 구성"},
+        {"term": "유휴 타임아웃", "meaning": "일정 시간 사용이 없으면 세션을 자동 종료하는 설정"}
+      ],
+      "pitfalls": [
+        "VPN 접속만 하면 내부망 전체가 보이는 평면 구조. 계정 탈취 시 피해가 전면화된다.",
+        "퇴사자·계약 종료 협력업체의 VPN 계정이 회수되지 않아 장기간 유효.",
+        "MFA를 일부 계정(서비스·관리자)만 예외 처리해 그 예외가 침투 경로가 됨.",
+        "VPN 장비 펌웨어 취약점 패치를 미뤄 알려진 취약점으로 침해.",
+        "스플릿 터널을 쓰면서 인터넷 구간 통제가 사라진 것을 정책에 반영하지 않음.",
+        "접속 로그를 장비에만 남겨 보존 기간이 짧고 SIEM 상관분석이 불가능."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] VPN 계정의 신청·승인·회수 절차가 정의되고 퇴직·계약종료 시 적시 회수되는가",
+          "[접근] 모든 원격접속에 MFA가 적용되며 예외가 승인·관리되는가",
+          "[운영] 접속 로그가 보관되고 정기적으로 검토되는가",
+          "[운영] VPN 장비·소프트웨어의 취약점 패치가 주기적으로 적용되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 내부망에 대한 원격접속을 원칙적으로 제한하고, 불가피한 경우 승인·인증·기록 등 안전조치를 적용하는가",
+          "외부 위탁업체의 접속에 대해 기간·범위를 제한하고 기록을 보존하는가",
+          "원격접속 구간에 대한 암호화를 적용하고 있는가"
+        ],
+        "isms": [
+          "2.6.6 원격접근 통제: 원격접속 허용 기준·인증·기록 관리가 이루어지는가",
+          "2.5.1 사용자 계정 관리 / 2.5.6 접근권한 검토: 계정 부여와 주기적 검토가 수행되는가",
+          "2.10.8 패치관리: 보안장비의 패치가 적용되는가"
+        ],
+        "evidence": [
+          "VPN 계정 전체 목록(소속, 부여일, 만료일, MFA 여부, 최근 접속일)",
+          "인사 퇴직자 명단과 VPN 계정 회수 대사 결과",
+          "최근 3개월 접속 로그 샘플과 보관 정책",
+          "그룹별 접근 허용 대역 정책 설정 화면",
+          "VPN 장비 버전·패치 적용 이력"
+        ],
+        "auditorQuestions": [
+          "VPN 계정은 총 몇 개이며 그중 협력업체 계정은 몇 개인가?",
+          "퇴사자 계정은 언제 어떻게 회수되는가? 최근 대사 결과는?",
+          "모든 계정에 MFA가 적용되는가? 예외가 있다면 사유와 승인은?",
+          "VPN에 접속하면 어느 대역까지 접근 가능한가?",
+          "VPN 장비의 최신 보안 패치는 언제 적용했는가?"
+        ],
+        "controlExample": "내부망 원격접속은 승인된 VPN 계정으로만 가능하며 SSO 연동 MFA와 회사 지급 단말 인증서를 모두 요구한다. 계정은 부서장 승인 후 발급되고 퇴직·계약종료 시 즉시 회수되며, 접속 로그는 SIEM으로 전송되어 1년간 보관되고 월별로 검토된다."
+      },
+      "related": ["net-zero-trust", "net-bastion", "net-segmentation", "net-firewall", "net-network-separation", "sec-pam"],
+      "learnMore": ["AWS Site-to-Site VPN User Guide", "RFC 4301 - Security Architecture for IP", "WireGuard 공식 문서"]
+    },
+    {
+      "id": "net-zero-trust",
+      "title": "제로 트러스트와 ZTNA",
+      "titleEn": "Zero Trust and Zero Trust Network Access",
+      "aliases": ["제로트러스트", "ZTNA", "Tailscale", "Cloudflare Access", "Teleport", "BeyondCorp"],
+      "tags": ["zero-trust", "access", "identity"],
+      "level": "심화",
+      "oneLiner": "네트워크 위치를 신뢰하지 않고 매 요청마다 신원·상태를 검증하는 접근 모델",
+      "analogy": "기존 모델이 '성문만 통과하면 성 안은 자유롭게 다닌다'면, 제로 트러스트는 '건물마다, 방마다 매번 출입증과 얼굴을 확인한다'는 방식이다. 게다가 출입증만 보는 것이 아니라 \"이 사람은 회사 노트북을 쓰고 있는가, 백신은 켜져 있는가, 평소와 다른 나라에서 접속하지 않았는가\"까지 매번 확인한다.",
+      "explanation": "<p><strong>제로 트러스트(Zero Trust)</strong>는 \"내부망이라고 해서 신뢰하지 않는다\"는 보안 원칙이다. 전통적 경계 보안은 방화벽 안쪽을 신뢰했지만, 클라우드·재택근무·SaaS가 보편화되면서 '안쪽'이라는 개념 자체가 흐려졌다. 핵심 원칙은 세 가지다. <strong>명시적 검증</strong>(모든 요청에 신원·단말·맥락 확인), <strong>최소 권한</strong>(필요한 자원에만, 필요한 시간만), <strong>침해 가정</strong>(이미 뚫렸다고 보고 폭발 반경을 줄인다).</p><p><strong>ZTNA(Zero Trust Network Access)</strong>는 이 원칙을 원격접근에 구현한 기술이다. VPN처럼 네트워크 전체를 열어주는 대신, <strong>애플리케이션 단위로 연결</strong>을 중개한다. 사용자가 A라는 내부 웹앱에 접속하려 하면, ID 공급자(SSO)로 인증하고 단말 상태를 확인한 뒤 그 앱으로 가는 통로만 만들어 준다. 다른 서버는 <strong>존재 자체가 보이지 않는다</strong>. 쉽게 말하면 <strong>VPN이 건물 전체 열쇠라면 ZTNA는 그때그때 필요한 방문만 여는 일회용 카드</strong>다.</p><p><strong>대표 제품군.</strong> <strong>Cloudflare Access</strong>·Zscaler·Netskope 같은 SASE 계열은 클라우드 엣지에서 접근을 중개한다. <strong>Tailscale</strong>·Twingate는 WireGuard 기반 메시 네트워크로 단말 간 직접 연결을 신원 기반으로 통제한다. <strong>Teleport</strong>는 SSH·쿠버네티스·DB 접근을 인증서 기반으로 중개하며 세션 녹화까지 제공해, 점프서버와 PAM의 역할을 함께 수행한다.</p><p><strong>한국 금융권 맥락</strong>에서 제로 트러스트는 물리적 망분리 규제와 긴장 관계에 있었으나, 최근 클라우드·개발환경에 대한 망분리 규제가 단계적으로 완화·예외 허용되면서 <strong>망분리의 대안 통제</strong>로 제로 트러스트 아키텍처가 논의되고 있다. 즉 \"물리적으로 끊는 대신, 매 접근을 검증하고 전부 기록한다\"는 접근이다.</p><p><strong>감사 관점</strong>에서 ZTNA는 증빙 품질이 높은 통제다. 접근이 <strong>중개 지점을 반드시 통과</strong>하므로 누가 언제 어떤 애플리케이션에 접근했는지 중앙에서 일관되게 기록된다. 점검 항목은 (1) 접근 정책(누가 어떤 앱에, 어떤 조건에서)이 문서화·검토되는가, (2) 단말 상태 조건이 실제 적용되는가, (3) ZTNA를 우회하는 경로(직접 IP 접근, 잔존 VPN)가 없는가, (4) 세션 로그·녹화의 보관과 접근 통제, (5) 정책 변경 이력이다.</p>",
+      "howItWorks": "<ol><li>사용자가 내부 애플리케이션 URL에 접근하면 ZTNA 중개 지점으로 요청이 향한다.</li><li>중개 지점이 세션이 없으면 ID 공급자(SSO/OIDC)로 리다이렉트해 인증과 MFA를 수행한다.</li><li>단말 상태(회사 자산 여부, 디스크 암호화, 백신, OS 버전)를 검사한다.</li><li>접속 위치·시간·이상 징후 등 맥락 정보를 정책 엔진이 평가한다.</li><li>정책에 부합하면 해당 애플리케이션으로 가는 연결만 수립한다(다른 자원은 노출되지 않음).</li><li>내부에 설치된 커넥터가 아웃바운드로 중개 지점에 연결되어 있어, 내부망에 인바운드 포트를 열지 않는다.</li><li>세션 동안 지속적으로 조건을 재평가하고, 위반 시 세션을 종료한다.</li><li>모든 접근 시도·허용·거부가 중앙 로그로 기록된다.</li></ol>",
+      "example": "<p>'페이나우'는 사내 위키·모니터링 대시보드·관리자 콘솔 등 23개 내부 웹앱을 Cloudflare Access 뒤로 옮기고 VPN 없이 접근하게 했다. 정책은 \"회사 SSO 인증 + MFA + 회사 발급 단말 인증서 + 대한민국/일본 IP\"이며, 재무 관련 앱 3개는 추가로 그룹 멤버십을 요구한다. 서버·쿠버네티스 접근은 Teleport로 통합해 SSH 키를 없애고 단기 인증서로만 접속하게 했으며 모든 세션이 녹화된다. 도입 효과로 VPN 계정이 380개에서 45개(거점 연결·레거시 장비용)로 줄었고, 감사 시 \"지난 분기 운영 서버에 SSH로 접속한 전체 세션 목록\"을 한 번의 조회로 제출할 수 있게 되었다.</p><pre><code># Teleport로 서버 접속 (단기 인증서 발급, 세션 녹화)\ntsh login --proxy=teleport.paynow.co.kr --auth=okta\ntsh ls                       # 접근 가능한 노드만 표시\ntsh ssh ubuntu@payment-app-01\n\n# 지난 분기 접속 세션 감사 조회\ntsh recordings ls --from 2026-07-01 --to 2026-09-30\n\n# Tailscale ACL 예시: 신원 기반 접근 제한\n{\n  \"acls\": [\n    { \"action\": \"accept\", \"src\": [\"group:sre\"],  \"dst\": [\"tag:prod-db:5432\"] },\n    { \"action\": \"accept\", \"src\": [\"group:dev\"],  \"dst\": [\"tag:dev:*\"] }\n  ],\n  \"tagOwners\": { \"tag:prod-db\": [\"group:platform\"] }\n}\n\n# Cloudflare Access 정책(개념): 앱별 조건\n# require: SSO 인증 + MFA + 단말 인증서 + 국가(KR,JP) + 그룹(finance)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='105' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='128' text-anchor='middle' fill='currentColor' font-size='12'>사용자 단말</text><text x='72' y='147' text-anchor='middle' fill='currentColor' font-size='11'>어디서든</text><line x1='127' y1='132' x2='175' y2='132' stroke='currentColor' marker-end='url(#ar)'/><rect x='178' y='60' width='165' height='150' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='260' y='83' text-anchor='middle' fill='currentColor'>ZTNA 중개</text><text x='190' y='107' fill='currentColor' font-size='11'>SSO 인증 + MFA</text><text x='190' y='129' fill='currentColor' font-size='11'>단말 상태 검사</text><text x='190' y='151' fill='currentColor' font-size='11'>맥락(위치·시간)</text><text x='190' y='173' fill='currentColor' font-size='11'>앱 단위 인가</text><text x='190' y='197' fill='currentColor' font-size='11'>전 접근 로그·녹화</text><line x1='345' y1='100' x2='420' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='345' y1='135' x2='420' y2='135' stroke='currentColor' marker-end='url(#ar)'/><line x1='345' y1='175' x2='420' y2='200' stroke='currentColor' stroke-dasharray='4,3'/><rect x='423' y='50' width='175' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='79' text-anchor='middle' fill='currentColor' font-size='12'>사내 위키 (허용)</text><rect x='423' y='112' width='175' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='141' text-anchor='middle' fill='currentColor' font-size='12'>운영 서버 (허용)</text><rect x='423' y='175' width='175' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='195' text-anchor='middle' fill='currentColor' font-size='12'>재무 시스템</text><text x='510' y='213' text-anchor='middle' fill='currentColor' font-size='11'>조건 불충족 → 미노출</text><text x='20' y='245' fill='currentColor' font-size='11'>VPN과 달리 네트워크가 아니라 '앱 단위'로 연결 — 나머지는 보이지 않는다</text><text x='20' y='264' fill='currentColor' font-size='11'>감사: 우회 경로(직접 IP 접근·잔존 VPN)가 없는지 확인이 관건</text></svg>",
+      "keyTerms": [
+        {"term": "명시적 검증", "meaning": "모든 요청마다 신원·단말·맥락을 확인하는 원칙"},
+        {"term": "최소 권한 / JIT", "meaning": "필요한 자원에 필요한 시간만 권한을 부여"},
+        {"term": "ZTNA", "meaning": "앱 단위로 접근을 중개하는 제로 트러스트 원격접근 기술"},
+        {"term": "단말 상태(Device Posture)", "meaning": "백신·패치·암호화 등 단말의 보안 상태 조건"},
+        {"term": "SASE", "meaning": "네트워크와 보안 기능을 클라우드 엣지에서 통합 제공하는 모델"},
+        {"term": "커넥터(아웃바운드)", "meaning": "내부에서 밖으로 연결해 인바운드 포트 개방을 없애는 구성"},
+        {"term": "정책 엔진", "meaning": "신원·단말·맥락을 종합해 허용 여부를 판단하는 구성요소"},
+        {"term": "세션 녹화", "meaning": "관리 접속의 명령·화면을 기록해 사후 감사에 활용"}
+      ],
+      "pitfalls": [
+        "ZTNA를 도입하면서 기존 VPN·직접 IP 접근 경로를 남겨둬 우회가 가능한 상태.",
+        "'제로 트러스트 제품'을 사면 끝이라는 오해. 자산 식별과 정책 설계가 본체다.",
+        "단말 상태 조건을 설정만 하고 실제 평가가 동작하는지 검증하지 않음.",
+        "정책을 사용자 그룹 단위로 대충 묶어 최소 권한이 아니라 사실상 전체 허용이 됨.",
+        "중개 지점이 단일 장애점이 되는데 이중화·장애 시 대체 접근 절차를 준비하지 않음.",
+        "세션 로그·녹화에 민감정보가 담기는데 그 로그 자체의 접근 통제를 소홀히 함."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 애플리케이션·시스템별 접근 정책(주체, 조건)이 문서화되고 주기적으로 검토되는가",
+          "[접근] 모든 관리 접근이 중개 지점을 통과하며 우회 경로가 없음을 검증했는가",
+          "[운영] 접근 로그·세션 기록이 보관되고 무결성과 접근 권한이 통제되는가",
+          "[변경] 접근 정책 변경이 승인 절차를 거쳐 기록되는가"
+        ],
+        "fss": [
+          "내부망 접근에 대해 인증·인가·기록 통제를 적용하고 있으며 망분리 규제의 대안 통제로서 충분성을 설명할 수 있는가",
+          "전자금융기반시설에 대한 관리자 접근이 식별·인증되고 기록되는가"
+        ],
+        "isms": [
+          "2.6.6 원격접근 통제 / 2.6.2 정보시스템 접근: 접근 조건과 인증이 통제되는가",
+          "2.5.6 접근권한 검토: 접근 권한의 적정성이 주기적으로 검토되는가",
+          "2.9.4 로그 및 접속기록 관리: 접속기록이 생성·보관·검토되는가"
+        ],
+        "evidence": [
+          "애플리케이션별 접근 정책 설정 export(주체 그룹, 조건, 예외)",
+          "단말 상태 조건 설정과 실제 차단 사례 로그",
+          "우회 경로 점검 결과(직접 IP 접근 차단 확인, 잔존 VPN 계정 목록)",
+          "최근 분기 접근 로그·세션 녹화 목록과 보관 정책",
+          "정책 변경 이력과 승인 티켓"
+        ],
+        "auditorQuestions": [
+          "내부 시스템에 접근하는 모든 경로를 설명해 달라. 중개 지점을 우회할 수 있는가?",
+          "접근 허용 조건에는 무엇이 포함되며 단말 상태는 어떻게 확인하는가?",
+          "애플리케이션별 접근 권한은 누가 승인하고 얼마나 자주 검토하는가?",
+          "관리자 세션은 기록되는가? 기록은 누가 열람할 수 있는가?",
+          "중개 지점 장애 시 대체 접근 절차는 무엇인가?"
+        ],
+        "controlExample": "내부 애플리케이션과 운영 서버 접근은 ZTNA 중개 지점을 통해서만 가능하며, SSO 인증·MFA·회사 지급 단말 조건을 모두 충족해야 연결이 허용된다. 접근 정책은 자산별 소유자가 승인하고 분기마다 검토되며, 모든 세션 기록은 1년 이상 보관된다."
+      },
+      "related": ["net-vpn", "net-bastion", "net-network-separation", "net-mtls", "sec-pam", "sec-sso-oidc"],
+      "learnMore": ["NIST SP 800-207 Zero Trust Architecture", "Google BeyondCorp 논문", "Teleport / Tailscale / Cloudflare Access 공식 문서"]
+    },
+    {
+      "id": "net-bastion",
+      "title": "Bastion / 점프서버",
+      "titleEn": "Bastion Host / Jump Server",
+      "aliases": ["배스천", "점프호스트", "SSM", "게이트웨이 서버", "터미널 서버"],
+      "tags": ["access", "ssh", "audit"],
+      "level": "중급",
+      "oneLiner": "내부 서버에 접근하기 위해 반드시 거쳐야 하는 통제·기록 지점",
+      "analogy": "점프서버는 공사 현장의 단일 출입구와 같다. 현장 안 건물마다 문을 두지 않고 출입구 하나만 만들어, 모든 사람이 여기서 신분을 확인하고 방문 기록을 남긴 뒤 들어가게 한다. 출입구가 하나면 지키기도 쉽고, 누가 언제 들어갔는지도 한 곳만 보면 된다.",
+      "explanation": "<p><strong>Bastion Host(점프서버)</strong>는 외부(또는 사무실망)에서 프라이빗 서버에 접근할 때 반드시 경유하는 중간 서버다. 목적은 (1) 운영 서버를 인터넷에 직접 노출하지 않고, (2) 접근 경로를 한 지점으로 모아 통제·기록하며, (3) 인증·권한 검사를 집중시키는 것이다.</p><p><strong>전통적 구성</strong>은 퍼블릭 서브넷에 SSH 서버를 두고 사무실 IP만 22번 포트를 허용한 뒤, 거기서 내부 서버로 다시 SSH하는 방식이다. 하지만 이 방식은 (a) 22번 포트가 인터넷에 열려 상시 스캔·무차별 대입 공격을 받고, (b) SSH 키가 사람과 서버에 흩어져 관리가 어려우며, (c) 점프서버 자체가 침해되면 전부 뚫리는 단점이 있다.</p><p><strong>현대적 대안</strong>은 세 가지다. (1) <strong>AWS Systems Manager Session Manager</strong>: 인바운드 포트를 하나도 열지 않고, 인스턴스의 에이전트가 아웃바운드로 연결해 세션을 중개한다. 접근 권한은 IAM으로, 세션 로그는 CloudTrail·S3·CloudWatch로 남는다. SSH 키 자체가 필요 없다. (2) <strong>Teleport 같은 ZTNA/PAM 도구</strong>: SSO 인증 후 단기 인증서를 발급하고 모든 세션을 녹화한다. (3) <strong>SSM 없는 환경에서는 점프서버 + PAM 솔루션</strong> 조합으로 계정·명령·녹화를 통제한다.</p><p><strong>어떤 방식이든 갖춰야 할 통제</strong>는 동일하다. 개인 식별 가능한 계정(공용 계정 금지), MFA, 최소 권한, <strong>세션 기록</strong>, 유휴 타임아웃, 접근 사유·기간이 명시된 승인, 그리고 <strong>사용 후 권한 회수</strong>다. 특히 운영 서버 접근은 상시 권한이 아니라 필요할 때만 부여하는 <strong>JIT(Just-In-Time)</strong> 방식이 권장된다.</p><p><strong>감사 관점</strong>에서 점프서버는 ITGC 접근통제 테스트의 단골이다. 감사인은 (1) 운영 서버에 점프서버를 거치지 않고 접근할 경로가 있는지, (2) 접근 계정 목록과 승인 근거, (3) 공용 계정(root, ec2-user) 사용 여부와 개인 식별 가능성, (4) 세션 로그의 존재·보관·무결성, (5) 퇴직자 계정 회수, (6) sudo 권한 범위를 확인한다. \"누가 언제 어떤 서버에서 무슨 명령을 실행했는가\"에 답하지 못하면 운영 통제 전반이 취약하다고 평가된다.</p>",
+      "howItWorks": "<ol><li>사용자가 SSO로 인증하고 접근 요청(대상 서버, 사유, 기간)을 제출하거나 사전 승인된 역할을 사용한다.</li><li>승인되면 접근 권한이 부여된다(IAM 정책 태깅, 단기 인증서 발급 등).</li><li>사용자가 점프서버 또는 중개 서비스에 연결한다. SSM의 경우 인바운드 포트 없이 에이전트를 통해 세션이 열린다.</li><li>MFA를 포함한 인증이 수행되고 대상 서버 접근 권한이 검사된다.</li><li>세션이 수립되며 입력 명령과 출력이 기록·전송된다.</li><li>사용자는 승인된 대상 서버에만 접근할 수 있고, 그 외에는 거부된다.</li><li>유휴 시간이 초과되거나 승인 기간이 만료되면 세션이 종료되고 권한이 회수된다.</li><li>세션 로그가 변경 불가 저장소에 적재되어 사후 감사와 사고 조사에 활용된다.</li></ol>",
+      "example": "<p>'페이나우'는 EC2 접근에서 SSH 키를 전면 제거하고 SSM Session Manager로 전환했다. 운영 인스턴스에는 22번 포트가 열려 있지 않고 보안그룹에 인바운드 규칙이 없다. 접근은 IAM 역할로 통제되며, 운영 인스턴스 접근 정책에는 태그 조건(<code>Env=prod</code>)과 MFA 조건이 붙어 있다. 세션 로그는 S3에 저장되고 객체 잠금이 걸려 변조가 불가능하다. 긴급 상황에서만 쓰는 'break-glass' 역할은 평소 비활성 상태이며, 사용 시 즉시 보안팀 슬랙 채널에 알람이 가고 사후 24시간 내 사유를 소명해야 한다. 분기 감사에서는 CloudTrail의 <code>StartSession</code> 이벤트를 추출해 인사·티켓 정보와 대사한다.</p><pre><code># SSH 키 없이 인스턴스 접속 (포트 개방 불필요)\naws ssm start-session --target i-0abc123def456\n\n# 접속 이력 감사 추출 (누가 언제 어떤 인스턴스에)\naws cloudtrail lookup-events \\\n  --lookup-attributes AttributeKey=EventName,AttributeValue=StartSession \\\n  --start-time 2026-07-01T00:00:00Z --max-results 50 \\\n  --query 'Events[].[EventTime,Username,Resources[0].ResourceName]' --output table\n\n# 세션 기록 목록\naws ssm describe-sessions --state History \\\n  --query 'Sessions[].[SessionId,Owner,Target,StartDate,EndDate]' --output table\n\n# 22번 포트가 열린 보안그룹이 남아 있는지 점검\naws ec2 describe-security-groups \\\n  --query \"SecurityGroups[?IpPermissions[?FromPort==\\`22\\`]].[GroupId,GroupName]\" --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='100' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='122' text-anchor='middle' fill='currentColor' font-size='12'>운영자</text><text x='70' y='140' text-anchor='middle' fill='currentColor' font-size='11'>SSO + MFA</text><line x1='122' y1='125' x2='172' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='175' y='70' width='160' height='115' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='255' y='93' text-anchor='middle' fill='currentColor'>점프/중개 지점</text><text x='187' y='117' fill='currentColor' font-size='11'>권한 검사 (JIT)</text><text x='187' y='139' fill='currentColor' font-size='11'>세션 녹화</text><text x='187' y='161' fill='currentColor' font-size='11'>유휴 타임아웃</text><line x1='337' y1='100' x2='400' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='337' y1='130' x2='400' y2='130' stroke='currentColor' marker-end='url(#ar)'/><line x1='337' y1='160' x2='400' y2='185' stroke='currentColor' marker-end='url(#ar)'/><rect x='403' y='50' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='483' y='78' text-anchor='middle' fill='currentColor' font-size='12'>앱 서버 (포트 미개방)</text><rect x='403' y='108' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='483' y='136' text-anchor='middle' fill='currentColor' font-size='12'>배치 서버</text><rect x='403' y='165' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='483' y='193' text-anchor='middle' fill='currentColor' font-size='12'>DB 서버</text><rect x='175' y='200' width='160' height='38' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255' y='224' text-anchor='middle' fill='currentColor' font-size='12'>변경불가 로그 저장소</text><line x1='255' y1='187' x2='255' y2='198' stroke='currentColor' marker-end='url(#ar)'/><text x='20' y='185' fill='currentColor' font-size='11'>직접 접근</text><text x='20' y='202' fill='currentColor' font-size='11'>경로 없음</text><line x1='70' y1='152' x2='400' y2='205' stroke='currentColor' stroke-dasharray='5,4'/><text x='20' y='250' fill='currentColor' font-size='11'>감사 핵심: 우회 경로 부재 · 개인 식별 계정 · 세션 기록 · 퇴직자 회수</text></svg>",
+      "keyTerms": [
+        {"term": "점프서버 / Bastion", "meaning": "내부 서버 접근 시 반드시 경유하는 중간 서버"},
+        {"term": "SSM Session Manager", "meaning": "포트 개방 없이 IAM 권한으로 인스턴스 셸을 여는 AWS 기능"},
+        {"term": "JIT 권한", "meaning": "필요한 시점에만 한시적으로 부여되는 접근 권한"},
+        {"term": "세션 녹화", "meaning": "접속 중 입력·출력을 기록해 사후 검증에 사용"},
+        {"term": "공용 계정", "meaning": "root, ec2-user처럼 여러 사람이 공유하는 계정. 책임 추적 불가로 지적 대상"},
+        {"term": "break-glass", "meaning": "긴급 상황에만 사용하는 비상 권한. 사용 시 즉시 알람·사후 소명"},
+        {"term": "sudo 정책", "meaning": "권한 상승 시 허용 명령 범위를 정의하는 설정"},
+        {"term": "객체 잠금(Object Lock)", "meaning": "로그를 일정 기간 삭제·변경 불가로 보관하는 기능"}
+      ],
+      "pitfalls": [
+        "점프서버를 만들어 놓고 일부 서버는 직접 접근이 가능해 우회 경로가 남음.",
+        "공용 계정으로 접속해 실제 수행자를 특정할 수 없음. 감사에서 가장 흔한 지적.",
+        "SSH 키를 개인 노트북에 보관·공유해 회수와 추적이 불가능.",
+        "세션 로그를 점프서버 로컬에만 저장해 침해 시 함께 삭제될 수 있음.",
+        "상시 운영 서버 접근 권한을 다수에게 부여하고 회수 절차가 없음.",
+        "sudo를 무제한 허용해 사실상 모든 사용자가 root와 동일한 권한을 가짐."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 서버 접근이 지정된 경로(점프서버·중개 서비스)를 통해서만 가능한가",
+          "[접근] 접근 계정이 개인별로 식별되며 공용 계정 사용이 통제되는가",
+          "[접근] 접근 권한 부여가 승인 절차를 거치고 주기적으로 검토·회수되는가",
+          "[운영] 세션 기록이 변조 불가 저장소에 보관되고 검토되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템에 대한 접근을 통제하고 접속기록을 보존하고 있는가",
+          "관리자 계정의 사용을 최소화하고 사용 내역을 기록·점검하는가",
+          "원격접속을 통한 서버 접근 시 승인·기록 통제가 적용되는가"
+        ],
+        "isms": [
+          "2.6.2 정보시스템 접근 / 2.6.6 원격접근 통제",
+          "2.5.3 사용자 인증 / 2.5.4 비밀번호 관리 / 2.5.6 접근권한 검토",
+          "2.9.4 로그 및 접속기록 관리: 접속기록의 생성·보관·위변조 방지"
+        ],
+        "evidence": [
+          "운영 서버 접근 가능 계정 목록과 부여 승인 티켓",
+          "SSH 포트 개방 보안그룹 점검 결과(없음을 입증)",
+          "최근 분기 세션 기록 목록(사용자, 대상, 시각) 및 샘플 녹화",
+          "공용 계정 사용 통제 방침과 실제 로그인 계정 분석 결과",
+          "sudo 설정 파일과 권한 상승 로그 샘플"
+        ],
+        "auditorQuestions": [
+          "운영 서버에 접속하는 방법을 모두 설명해 달라. 우회 경로가 있는가?",
+          "접속 계정은 개인별인가? root나 공용 계정으로 접속하는 경우가 있는가?",
+          "특정 날짜에 특정 서버에 누가 접속해 무엇을 했는지 보여줄 수 있는가?",
+          "접근 권한은 상시인가 요청 기반인가? 회수는 어떻게 하는가?",
+          "세션 로그는 어디에 저장되며 삭제·변경이 가능한가?"
+        ],
+        "controlExample": "운영 서버 접근은 SSM Session Manager를 통해서만 가능하며 인스턴스에는 SSH 인바운드 포트를 개방하지 않는다. 접근 권한은 개인별 IAM 역할로 MFA 조건과 함께 부여되고, 모든 세션 기록은 객체 잠금이 적용된 S3에 1년 이상 보관되어 분기별로 표본 검토한다."
+      },
+      "related": ["net-zero-trust", "net-vpn", "net-network-separation", "sec-pam", "net-firewall", "awssec-cloudtrail"],
+      "learnMore": ["AWS Systems Manager Session Manager 사용 설명서", "NIST SP 800-53 AC-17 Remote Access", "Teleport 공식 문서"]
+    }
+  ]
+}

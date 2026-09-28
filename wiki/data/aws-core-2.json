@@ -1,0 +1,1474 @@
+{
+  "category": "aws-core",
+  "categoryLabel": "AWS 핵심 서비스 (컴퓨팅·네트워크·스토리지)",
+  "entries": [
+    {
+      "id": "aws-security-group",
+      "title": "보안 그룹",
+      "titleEn": "Security Group (SG)",
+      "aliases": [
+        "SG",
+        "시큐리티 그룹",
+        "인스턴스 방화벽",
+        "보안그룹",
+        "Security Group",
+        "상태 저장 방화벽"
+      ],
+      "tags": [
+        "network",
+        "security",
+        "firewall"
+      ],
+      "level": "기초",
+      "oneLiner": "EC2·RDS·ALB 등 자원 단위에 붙는 상태 저장(stateful) 가상 방화벽",
+      "analogy": "보안 그룹은 '각 사무실 문 앞의 경비원'과 같다. 경비원은 명단(허용 규칙)에 있는 사람만 들여보내고, 한 번 들어온 손님이 나갈 때는 따로 검사하지 않는다(상태 저장). 건물 전체 출입구 검사(NACL)와 달리 방마다 경비원이 서 있는 셈이다.",
+      "explanation": "<p><strong>보안 그룹(Security Group, SG)</strong>은 EC2 인스턴스, RDS, ALB, Lambda(VPC 연결 시), EKS 노드 등 <strong>ENI(네트워크 인터페이스) 단위</strong>로 붙는 가상 방화벽이다. 인바운드(들어오는)·아웃바운드(나가는) 규칙을 프로토콜·포트·출발지/목적지(CIDR 또는 다른 보안 그룹 ID)로 정의한다. 쉽게 말하면 '이 서버에는 443 포트로, 웹 서버 그룹에서 오는 트래픽만 허용'이라고 적어 두는 명단이다.</p>\n<p>왜 필요한가? 온프레미스에서는 방화벽 장비가 네트워크 경계에서 한 번 검사했지만, 클라우드에서는 서버가 수시로 생기고 사라지므로 <strong>자원 하나하나에 방화벽을 붙여 따라다니게</strong> 해야 한다. 보안 그룹은 자원이 어느 서브넷으로 옮겨가도 그대로 유지된다.</p>\n<p>핵심 특징은 다음과 같다. (1) <strong>허용 규칙만</strong> 쓸 수 있다 — 거부(deny) 규칙이 없고, 명시되지 않은 것은 모두 차단된다. (2) <strong>상태 저장(stateful)</strong> — 인바운드로 허용된 요청의 응답은 아웃바운드 규칙과 무관하게 나간다. (3) <strong>보안 그룹 참조</strong> — 출발지에 IP 대신 <code>sg-0web</code>처럼 다른 보안 그룹을 지정하면 그 그룹에 속한 자원 전체가 허용된다. IP가 바뀌어도 규칙을 고칠 필요가 없어 실무의 표준이다. (4) 기본 아웃바운드는 <code>0.0.0.0/0</code> 전체 허용이므로 필요 시 좁혀야 한다.</p>\n<p>계층 설계 예시: 인터넷 → ALB SG(443, 출발지 0.0.0.0/0) → 앱 SG(8080, 출발지 ALB SG) → DB SG(5432, 출발지 앱 SG). 이렇게 하면 DB는 앱 서버에서만, 앱 서버는 ALB에서만 접근할 수 있고 인터넷에서 DB로 가는 길은 아예 없다.</p>\n<p>한도는 VPC당 보안 그룹 2,500개, 그룹당 인바운드 60·아웃바운드 60 규칙(조정 가능), ENI당 5개 그룹이 기본값이다. 규칙에는 <strong>설명(Description)</strong>을 붙일 수 있어 감사 시 '왜 이 포트가 열렸는지'를 남기는 데 활용한다. 관리형 접두사 목록(Managed Prefix List)을 쓰면 사무실 IP 대역처럼 여러 규칙에서 공통으로 쓰는 CIDR 묶음을 한 곳에서 관리할 수 있다.</p>",
+      "howItWorks": "<ol><li>패킷이 ENI에 도착하면 EC2 하이퍼바이저 수준에서 보안 그룹 규칙과 대조한다(OS 안의 iptables와 별개).</li>\n<li>인바운드 규칙 중 프로토콜·포트·출발지가 일치하는 허용 규칙이 하나라도 있으면 통과, 없으면 조용히 폐기(drop)된다.</li>\n<li>통과한 연결은 연결 추적 테이블에 기록되어, 응답 패킷은 아웃바운드 규칙을 보지 않고 나간다.</li>\n<li>서버가 먼저 외부로 나가는 연결(패키지 다운로드 등)은 아웃바운드 규칙을 검사한다.</li>\n<li>규칙 변경(<code>AuthorizeSecurityGroupIngress</code>)은 즉시 모든 연결된 자원에 적용되며 CloudTrail에 기록된다.</li>\n<li>VPC Flow Logs를 켜 두면 거부된 패킷이 <code>REJECT</code>로 남아 '누가 어디로 두드렸는지'를 볼 수 있다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'의 결제 API는 ALB SG(<code>sg-alb</code>) → 앱 SG(<code>sg-api</code>) → RDS SG(<code>sg-db</code>) 3계층으로 구성된다. 운영 SG에 <code>0.0.0.0/0</code>으로 22·3389가 열리면 AWS Config 규칙 <code>restricted-ssh</code>가 즉시 NON_COMPLIANT로 표시하고 보안팀 Slack에 알림이 간다. 모든 규칙 변경은 Terraform PR로만 하며 콘솔에서 직접 수정하면 드리프트 탐지에 걸린다.</p>\n<pre><code># 앱 SG에서만 DB 5432 허용 (IP 대신 SG 참조)\naws ec2 authorize-security-group-ingress --group-id sg-0db \\\n  --ip-permissions 'IpProtocol=tcp,FromPort=5432,ToPort=5432,UserIdGroupPairs=[{GroupId=sg-0api,Description=\"payment-api only\"}]'\n\n# 0.0.0.0/0 으로 열린 인바운드 규칙 전수 조회\naws ec2 describe-security-group-rules --filters Name=group-id,Values=sg-0api \\\n  --query 'SecurityGroupRules[?CidrIpv4==`0.0.0.0/0` && !IsEgress].[GroupId,FromPort,ToPort,Description]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='105' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65.0' y='127.0' text-anchor='middle' fill='currentColor'>인터넷</text><text x='65.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>0.0.0.0/0</text><line x1='110' y1='130' x2='150' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='130.0' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>443</text><rect x='150' y='105' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='215.0' y='127.0' text-anchor='middle' fill='currentColor'>ALB SG</text><text x='215.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>sg-alb: 443 허용</text><line x1='280' y1='130' x2='320' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='300.0' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>8080</text><rect x='320' y='105' width='140' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='390.0' y='127.0' text-anchor='middle' fill='currentColor'>앱 SG</text><text x='390.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>sg-api: src=sg-alb</text><line x1='460' y1='130' x2='500' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='480.0' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>5432</text><rect x='500' y='105' width='120' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='560.0' y='127.0' text-anchor='middle' fill='currentColor'>DB SG</text><text x='560.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>sg-db: src=sg-api</text><text x='320' y='40' text-anchor='middle' fill='currentColor' font-size='12'>보안 그룹 체인: 각 계층은 바로 앞 계층의 SG만 출발지로 허용</text><text x='320' y='60' text-anchor='middle' fill='currentColor' font-size='11'>거부 규칙 없음 · 명시되지 않은 트래픽은 모두 차단 · 응답은 자동 허용(stateful)</text><rect x='150' y='190' width='470' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='385.0' y='212.0' text-anchor='middle' fill='currentColor'>인터넷 → DB 직접 경로 없음</text><text x='385.0' y='228.0' text-anchor='middle' fill='currentColor' font-size='11'>sg-db 에는 0.0.0.0/0 규칙이 존재하지 않는다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "인바운드/아웃바운드",
+          "meaning": "들어오는/나가는 트래픽 규칙 방향"
+        },
+        {
+          "term": "상태 저장(stateful)",
+          "meaning": "허용된 요청의 응답은 반대 방향 규칙 없이 통과"
+        },
+        {
+          "term": "보안 그룹 참조",
+          "meaning": "출발지에 IP 대신 다른 SG ID를 지정하는 방식"
+        },
+        {
+          "term": "ENI",
+          "meaning": "SG가 실제로 붙는 대상인 네트워크 인터페이스"
+        },
+        {
+          "term": "Managed Prefix List",
+          "meaning": "여러 CIDR을 하나로 묶어 규칙에서 참조하는 목록"
+        },
+        {
+          "term": "restricted-ssh",
+          "meaning": "22포트 전체 개방을 탐지하는 AWS Config 관리형 규칙"
+        },
+        {
+          "term": "VPC Flow Logs",
+          "meaning": "ENI 단위 허용/거부 트래픽 기록"
+        }
+      ],
+      "pitfalls": [
+        "'기본(default) 보안 그룹'은 같은 그룹 내 모든 트래픽을 허용한다 — 운영에서 쓰지 말고 규칙을 비워 두어야 한다.",
+        "보안 그룹에는 deny가 없어서 '특정 IP만 막기'는 불가능하다 — 그건 NACL이나 WAF의 몫.",
+        "테스트하려고 임시로 연 0.0.0.0/0 규칙이 영구히 남는 사례가 가장 흔하다 — 설명(Description)에 티켓 번호와 만료일을 적자.",
+        "규칙에 CIDR을 하드코딩하면 오토스케일링으로 IP가 바뀔 때 깨진다 — SG 참조를 쓰자.",
+        "보안 그룹은 VPC 경계를 넘지 못한다(피어링·TGW 넘어 SG 참조는 제한적)."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 SG에 0.0.0.0/0 또는 ::/0으로 관리 포트(22, 3389)나 DB 포트가 개방되지 않았는지 전수 점검.",
+          "[변경] SG 규칙 변경은 IaC PR·변경 티켓과 연결되고, 콘솔 직접 변경은 드리프트로 탐지·시정되는지.",
+          "[운영] 미사용 SG·과다 허용 규칙(any/any)에 대한 분기별 리뷰 및 정리 기록.",
+          "[접근] DB SG의 출발지가 앱 SG로만 제한되어 인터넷·사무실망에서 DB 직접 접속이 불가능한지."
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템 보호 — 업무 목적 외 포트 차단 및 방화벽 정책 정기 검토(최소 연 1회) 기록.",
+          "내부망·외부망 분리 및 접근통제 정책이 SG 계층 설계로 구현되었다는 증적.",
+          "방화벽 정책 변경 시 책임자 승인 절차 존재."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 자원별 접근 허용 규칙 최소화.",
+          "2.6.6 원격접근 통제 — 관리 포트 인터넷 개방 금지.",
+          "2.10.1 보안시스템 운영 — 방화벽(SG) 정책 관리 및 정기 검토."
+        ],
+        "evidence": [
+          "describe-security-group-rules 전체 export(CSV)에서 0.0.0.0/0 규칙 필터 결과.",
+          "AWS Config restricted-ssh / restricted-common-ports 규칙 컴플라이언스 이력.",
+          "CloudTrail AuthorizeSecurityGroupIngress/Revoke 이벤트와 변경 티켓 대조표.",
+          "Terraform 코드의 SG 정의와 실제 상태 drift 검사 결과.",
+          "분기별 방화벽 정책 리뷰 회의록 및 정리된 규칙 목록."
+        ],
+        "auditorQuestions": [
+          "운영 DB 보안 그룹의 인바운드 출발지는 무엇으로 제한되어 있습니까?",
+          "보안 그룹 규칙은 누가 어떤 절차로 변경합니까? 콘솔에서 직접 바꿀 수 있는 사람은?",
+          "0.0.0.0/0 개방 규칙이 생기면 얼마나 빨리 탐지됩니까?",
+          "마지막으로 미사용·과다 허용 규칙을 정리한 시점과 결과는?"
+        ],
+        "controlExample": "운영 VPC의 보안 그룹은 Terraform으로만 관리되며, 관리 포트의 인터넷 개방은 AWS Config 규칙으로 실시간 탐지되어 24시간 내 시정하고, 분기별로 전체 규칙을 리뷰하여 승인 기록을 보관한다."
+      },
+      "related": [
+        "aws-nacl",
+        "aws-ec2",
+        "aws-vpc",
+        "aws-subnet",
+        "aws-elb",
+        "awssec-config",
+        "awssec-waf",
+        "net-firewall"
+      ],
+      "learnMore": [
+        "Control traffic to your AWS resources using security groups (VPC User Guide)",
+        "Security group rules 참조 문서"
+      ]
+    },
+    {
+      "id": "aws-nacl",
+      "title": "네트워크 ACL",
+      "titleEn": "Network Access Control List (NACL)",
+      "aliases": [
+        "NACL",
+        "네트워크 ACL",
+        "서브넷 방화벽",
+        "나클",
+        "Network ACL",
+        "상태 비저장 방화벽"
+      ],
+      "tags": [
+        "network",
+        "security",
+        "firewall"
+      ],
+      "level": "중급",
+      "oneLiner": "서브넷 경계에서 번호 순서로 허용/거부를 판단하는 상태 비저장 방화벽",
+      "analogy": "NACL은 '건물 정문의 출입 규정 게시판'과 같다. 1번 규칙부터 차례로 읽어 처음 맞는 규칙으로 결정하고, 들어올 때와 나갈 때를 각각 따로 검사한다(상태 비저장). 방마다 서 있는 경비원(보안 그룹)보다 앞단에서 거칠게 거르는 용도다.",
+      "explanation": "<p><strong>네트워크 ACL(Network Access Control List, NACL)</strong>은 <strong>서브넷 단위</strong>로 붙는 방화벽이다. 서브넷을 드나드는 모든 트래픽이 NACL 규칙을 거친 뒤에야 보안 그룹까지 도달한다. 보안 그룹과 가장 큰 차이는 두 가지다. 첫째, <strong>거부(Deny) 규칙</strong>을 쓸 수 있다. 둘째, <strong>상태 비저장(stateless)</strong>이라 응답 트래픽도 반대 방향 규칙으로 허용해야 한다.</p>\n<p>왜 필요한가? 보안 그룹은 허용 목록만 있어서 '특정 악성 IP 대역을 서브넷 전체에서 차단'하거나 '이 서브넷은 무슨 일이 있어도 DB 포트로 나가지 못하게' 같은 <strong>강제 차단 정책</strong>을 표현할 수 없다. NACL은 이 빈틈을 메우는 2차 방어선이다. 쉽게 말하면 보안 그룹이 '들어와도 되는 사람 명단'이라면 NACL은 '출입금지 명단 + 층별 통행 규정'이다.</p>\n<p>규칙 구조: 번호(1~32766), 프로토콜, 포트 범위, CIDR, ALLOW/DENY. <strong>낮은 번호부터 평가해 처음 일치하는 규칙에서 멈춘다</strong>. 마지막에는 항상 <code>*</code>(모두 거부) 규칙이 있다. 기본 NACL은 모두 허용이고, 새로 만든 커스텀 NACL은 모두 거부에서 시작한다. 한 서브넷은 NACL 하나만 가지며, 한 NACL은 여러 서브넷에 붙을 수 있다.</p>\n<p>상태 비저장 때문에 실무에서 가장 헷갈리는 것이 <strong>임시 포트(ephemeral port)</strong>다. 클라이언트가 443으로 요청하면 응답은 클라이언트의 1024~65535 사이 임의 포트로 돌아간다. 따라서 NACL 아웃바운드에 <code>1024-65535</code> 허용 규칙이 없으면 응답이 막힌다. NAT Gateway·ALB도 마찬가지로 임시 포트를 쓰므로 주의해야 한다.</p>\n<p>2026년 실무 관점의 위치: 대부분 회사는 NACL을 기본(모두 허용) 상태로 두고 보안 그룹에 집중하되, DB 서브넷이나 규제 대상 서브넷에는 '인터넷 대역에서 DB 포트 거부', '사무실 대역 외 관리 포트 거부' 같은 <strong>소수의 명시적 DENY</strong>만 넣는 방식이 일반적이다. 더 정교한 검사(도메인 기반 필터, IDS)는 AWS Network Firewall이 담당한다.</p>",
+      "howItWorks": "<ol><li>패킷이 서브넷 경계(라우터)를 넘으려 할 때 방향에 맞는 NACL 규칙 목록을 가져온다.</li>\n<li>규칙 번호 오름차순으로 프로토콜·포트·CIDR을 대조한다. 처음 일치하는 규칙의 ALLOW/DENY로 결정하고 평가를 끝낸다.</li>\n<li>어느 규칙도 맞지 않으면 마지막 <code>*</code> 규칙으로 거부된다.</li>\n<li>인바운드 NACL 통과 → 대상 ENI의 보안 그룹 검사 → 인스턴스 도착 순서로 진행된다.</li>\n<li>응답 패킷은 별도로 아웃바운드 NACL을 다시 거친다 — 임시 포트 범위 허용이 필요하다.</li>\n<li>거부된 패킷은 VPC Flow Logs에 REJECT로 기록되어 차단 효과를 검증할 수 있다.</li></ol>",
+      "example": "<p>커머스 '마켓온'은 운영 DB 서브넷(<code>10.20.30.0/24</code>)에 커스텀 NACL을 붙여 규칙 100에 '앱 서브넷 10.20.10.0/23 → 5432 ALLOW', 규칙 110에 '사무실 VPN 대역 → 5432 ALLOW', 규칙 200에 '0.0.0.0/0 → 5432 DENY'를 두었다. 누군가 보안 그룹을 잘못 열어도 인터넷에서 DB로 가는 경로는 NACL에서 한 번 더 막힌다. 침해 대응 훈련에서는 공격 IP 대역을 규칙 10번에 DENY로 넣어 서브넷 전체에서 즉시 차단하는 절차를 검증한다.</p>\n<pre><code># DB 서브넷 NACL: 앱 서브넷만 5432 허용, 나머지 거부\naws ec2 create-network-acl-entry --network-acl-id acl-0db --ingress \\\n  --rule-number 100 --protocol tcp --port-range From=5432,To=5432 \\\n  --cidr-block 10.20.10.0/23 --rule-action allow\naws ec2 create-network-acl-entry --network-acl-id acl-0db --ingress \\\n  --rule-number 200 --protocol tcp --port-range From=5432,To=5432 \\\n  --cidr-block 0.0.0.0/0 --rule-action deny\n# 응답용 임시 포트 아웃바운드 허용 (stateless 이므로 필수)\naws ec2 create-network-acl-entry --network-acl-id acl-0db --egress \\\n  --rule-number 100 --protocol tcp --port-range From=1024,To=65535 \\\n  --cidr-block 10.20.10.0/23 --rule-action allow</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='600' height='220' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>VPC</text><rect x='40' y='60' width='110' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='82.0' text-anchor='middle' fill='currentColor'>인터넷/타 서브넷</text><text x='95.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>요청 출발</text><line x1='150' y1='85' x2='205' y2='85' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='177.5' y='79.0' text-anchor='middle' fill='currentColor' font-size='12'>패킷</text><rect x='205' y='45' width='150' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='280.0' y='82.0' text-anchor='middle' fill='currentColor'>NACL (서브넷 경계)</text><text x='280.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>100 ALLOW 앱→5432</text><text x='280' y='113' text-anchor='middle' fill='currentColor' font-size='11'>200 DENY 0.0.0.0/0 · * DENY</text><line x1='355' y1='85' x2='410' y2='85' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='382.5' y='79.0' text-anchor='middle' fill='currentColor' font-size='12'>통과</text><rect x='410' y='60' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='455.0' y='82.0' text-anchor='middle' fill='currentColor'>보안 그룹</text><text x='455.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>ENI 단위</text><line x1='500' y1='85' x2='545' y2='85' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='545' y='60' width='65' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='577.5' y='89.0' text-anchor='middle' fill='currentColor'>DB</text><line x1='545' y1='175' x2='355' y2='175' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='450.0' y='169.0' text-anchor='middle' fill='currentColor' font-size='12'>응답</text><rect x='355' y='150' width='190' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='450.0' y='172.0' text-anchor='middle' fill='currentColor'>아웃바운드 NACL 재검사</text><text x='450.0' y='188.0' text-anchor='middle' fill='currentColor' font-size='11'>임시 포트 1024-65535 허용 필요</text><line x1='355' y1='175' x2='150' y2='175' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><rect x='40' y='150' width='110' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='172.0' text-anchor='middle' fill='currentColor'>요청자</text><text x='95.0' y='188.0' text-anchor='middle' fill='currentColor' font-size='11'>응답 수신</text><text x='320' y='232' text-anchor='middle' fill='currentColor' font-size='11'>낮은 번호부터 평가, 처음 일치한 규칙으로 결정 · 상태 비저장</text></svg>",
+      "keyTerms": [
+        {
+          "term": "상태 비저장(stateless)",
+          "meaning": "요청과 응답을 각각 별개 규칙으로 검사"
+        },
+        {
+          "term": "규칙 번호",
+          "meaning": "1~32766. 낮은 번호 우선 평가"
+        },
+        {
+          "term": "임시 포트(ephemeral port)",
+          "meaning": "응답이 돌아오는 1024~65535 범위 포트"
+        },
+        {
+          "term": "기본 NACL",
+          "meaning": "VPC 생성 시 자동 생성, 모두 허용 상태"
+        },
+        {
+          "term": "커스텀 NACL",
+          "meaning": "새로 만들면 모두 거부에서 시작"
+        },
+        {
+          "term": "* 규칙",
+          "meaning": "맨 끝의 삭제 불가 전체 거부 규칙"
+        },
+        {
+          "term": "AWS Network Firewall",
+          "meaning": "NACL보다 정교한 관리형 상태 저장 방화벽"
+        }
+      ],
+      "pitfalls": [
+        "아웃바운드 임시 포트를 허용하지 않아 '보안 그룹은 맞는데 연결이 안 되는' 장애가 가장 흔하다.",
+        "규칙 번호를 100 단위로 띄우지 않고 촘촘히 써서 나중에 끼워 넣을 자리가 없어지는 경우.",
+        "NACL은 서브넷 내부(같은 서브넷 인스턴스 간) 트래픽에는 적용되지 않는다.",
+        "커스텀 NACL을 붙이고 규칙을 안 넣으면 서브넷 전체가 먹통이 된다.",
+        "NACL 규칙 수 한도(기본 20개, 최대 40개)가 작아 IP 차단 목록으로 쓰기엔 부적합하다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 DB·핵심 서브넷의 NACL에 인터넷 대역에서 DB·관리 포트로의 접근을 명시적으로 거부하는 규칙이 있는지.",
+          "[변경] NACL 규칙 변경이 IaC 및 변경 티켓으로 통제되는지(CloudTrail CreateNetworkAclEntry/Replace 이벤트 대조).",
+          "[운영] 서브넷–NACL 연결 현황이 네트워크 설계서와 일치하는지 정기 검증.",
+          "[운영] 차단 규칙의 실효성을 Flow Logs REJECT 기록으로 확인한 이력."
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템 보호 — 네트워크 구간별 접근통제 정책 수립 및 정기 검토.",
+          "침해사고 대응 절차에서 악성 IP 즉시 차단 수단(NACL DENY)이 정의되어 있는지.",
+          "DB 영역과 인터넷 구간의 논리적 분리 증적."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 서브넷 경계 접근통제.",
+          "2.10.1 보안시스템 운영 — 방화벽 정책 정기 검토.",
+          "2.11.5 사고 대응 및 복구 — 차단 조치 절차."
+        ],
+        "evidence": [
+          "describe-network-acls 결과(규칙 목록·연결 서브넷) export.",
+          "네트워크 구성도의 서브넷별 방화벽 정책과 실제 NACL 대조표.",
+          "CloudTrail NACL 변경 이벤트와 변경 티켓 매핑.",
+          "VPC Flow Logs에서 NACL 거부(REJECT) 샘플 로그.",
+          "침해대응 훈련 시 NACL 차단 적용 기록."
+        ],
+        "auditorQuestions": [
+          "서브넷 방화벽(NACL)을 보안 그룹과 어떻게 역할 분담하고 있습니까?",
+          "DB 서브넷에 인터넷 대역 거부 규칙이 있습니까? 누가 관리합니까?",
+          "긴급 IP 차단이 필요할 때 절차와 소요 시간은?",
+          "NACL 변경 이력을 어디서 확인할 수 있습니까?"
+        ],
+        "controlExample": "운영 DB 서브넷에는 커스텀 NACL이 적용되어 앱 서브넷 외 출발지의 DB 포트 접근을 명시적으로 거부하며, NACL 변경은 네트워크팀 승인 후 Terraform으로만 수행하고 반기별로 설계서와 대조한다."
+      },
+      "related": [
+        "aws-security-group",
+        "aws-subnet",
+        "aws-vpc",
+        "aws-route-table",
+        "awssec-network-firewall",
+        "awssec-vpc-flow-logs",
+        "net-firewall"
+      ],
+      "learnMore": [
+        "Control traffic to subnets using network ACLs (VPC User Guide)",
+        "Compare security groups and network ACLs"
+      ]
+    },
+    {
+      "id": "aws-vpc-peering",
+      "title": "VPC 피어링",
+      "titleEn": "VPC Peering",
+      "aliases": [
+        "피어링",
+        "VPC 연결",
+        "VPC Peering",
+        "PCX",
+        "계정 간 VPC 연결",
+        "VPC 간 사설 통신"
+      ],
+      "tags": [
+        "network",
+        "connectivity"
+      ],
+      "level": "중급",
+      "oneLiner": "두 VPC를 사설 IP로 직접 연결하는 1:1 네트워크 링크",
+      "analogy": "VPC 피어링은 '두 건물 사이에 놓은 전용 구름다리'와 같다. 다리를 놓은 두 건물끼리만 오갈 수 있고, A–B, B–C 다리가 있어도 A에서 C로 B를 거쳐 갈 수는 없다(전이 불가). 건물이 많아지면 다리가 너무 많아져 허브(Transit Gateway)가 필요해진다.",
+      "explanation": "<p><strong>VPC 피어링(VPC Peering)</strong>은 서로 다른 두 VPC를 AWS 백본망으로 직접 연결해 <strong>사설 IP로 통신</strong>하게 하는 기능이다. 같은 계정, 다른 계정, 다른 리전(리전 간 피어링) 모두 가능하다. 인터넷 게이트웨이나 VPN을 거치지 않으므로 트래픽이 공용 인터넷에 노출되지 않고, 단일 장애점이나 대역폭 병목도 없다. 쉽게 말하면 '두 VPC를 케이블로 직접 꽂는 것'이다.</p>\n<p>왜 필요한가? 계정을 환경·업무별로 나누면 VPC도 나뉜다. 그런데 결제 VPC의 앱이 공통 VPC의 인증 서버를 호출해야 하거나, 데이터 VPC에서 운영 DB 리드 레플리카를 읽어야 하는 일이 생긴다. 이럴 때 피어링을 맺고 라우팅 테이블에 상대 CIDR로 가는 경로를 추가한다.</p>\n<p>제약 조건이 중요하다. (1) <strong>CIDR이 겹치면 불가</strong> — 두 VPC가 모두 <code>10.0.0.0/16</code>이면 피어링할 수 없다. 그래서 회사 차원의 IP 대역 계획(IPAM)이 필요하다. (2) <strong>전이 라우팅 불가</strong> — A–B, B–C 피어링이 있어도 A↔C는 통하지 않는다. (3) VPC당 활성 피어링 기본 50개, 최대 125개. (4) 피어링 자체는 무료지만 AZ 간·리전 간 데이터 전송 요금이 붙는다.</p>\n<p>피어링을 맺어도 <strong>양쪽 라우팅 테이블</strong>과 <strong>보안 그룹/NACL</strong>을 모두 열어야 통신이 된다. 같은 리전 피어링에서는 상대 VPC의 보안 그룹 ID를 규칙의 출발지로 참조할 수 있어 편리하다. DNS 호스트 이름 해석(상대 VPC의 프라이빗 DNS 이름을 사설 IP로 풀기)은 옵션으로 켠다.</p>\n<p>VPC가 10개를 넘어가면 피어링은 n(n-1)/2개의 그물망이 되어 관리가 불가능해진다. 이때는 허브-스포크 방식의 <strong>Transit Gateway</strong>로 전환한다. 2026년 실무에서는 '소수의 VPC 간 고대역폭·저지연 연결'에 피어링을, '전사 네트워크 백본'에 TGW를 쓰는 조합이 표준이다.</p>",
+      "howItWorks": "<ol><li>요청자(Requester) VPC 소유자가 상대 VPC ID·계정 ID·리전을 지정해 피어링 연결 요청을 만든다(상태: pending-acceptance).</li>\n<li>수락자(Accepter) VPC 소유자가 요청을 승인한다 — 다른 계정이면 그 계정의 권한자가 승인해야 한다(상태: active).</li>\n<li>양쪽 VPC의 라우팅 테이블에 '상대 CIDR → pcx-xxxx' 경로를 추가한다.</li>\n<li>필요한 보안 그룹·NACL에 상대 대역(또는 SG 참조)을 허용한다.</li>\n<li>인스턴스가 상대 사설 IP로 패킷을 보내면 라우터가 피어링 경로로 AWS 백본을 통해 전달한다.</li>\n<li>어느 한쪽이 피어링을 삭제하면 즉시 연결이 끊기고 라우팅 경로는 blackhole 상태가 된다.</li></ol>",
+      "example": "<p>'페이나우'는 결제 VPC(<code>10.10.0.0/16</code>, 계정 prod-payment)와 공통 서비스 VPC(<code>10.90.0.0/16</code>, 계정 shared)를 피어링하여 결제 앱이 공통 VPC의 Active Directory·사내 인증 API를 사설 IP로 호출한다. 네트워크팀은 IPAM으로 계정별 CIDR을 사전 배정해 겹침을 막고, 피어링 생성·수락은 양쪽 계정의 변경 티켓 승인 뒤 Terraform으로 수행한다.</p>\n<pre><code># 요청 (prod-payment 계정에서)\naws ec2 create-vpc-peering-connection --vpc-id vpc-0pay \\\n  --peer-vpc-id vpc-0shared --peer-owner-id 222233334444 --peer-region ap-northeast-2\n# 수락 (shared 계정에서)\naws ec2 accept-vpc-peering-connection --vpc-peering-connection-id pcx-0abc\n# 양쪽 라우팅 테이블에 경로 추가\naws ec2 create-route --route-table-id rtb-0pay-priv --destination-cidr-block 10.90.0.0/16 \\\n  --vpc-peering-connection-id pcx-0abc</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='270' height='180' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='46' fill='currentColor' font-size='12'>계정 prod-payment</text><rect x='40' y='70' width='230' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='155.0' y='92.0' text-anchor='middle' fill='currentColor'>결제 VPC 10.10.0.0/16</text><text x='155.0' y='108.0' text-anchor='middle' fill='currentColor' font-size='11'>앱 서브넷 10.10.1.0/24</text><rect x='40' y='140' width='230' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='155.0' y='169.0' text-anchor='middle' fill='currentColor'>라우팅: 10.90.0.0/16 → pcx-0abc</text><rect x='350' y='30' width='270' height='180' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='358' y='46' fill='currentColor' font-size='12'>계정 shared</text><rect x='370' y='70' width='230' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485.0' y='92.0' text-anchor='middle' fill='currentColor'>공통 VPC 10.90.0.0/16</text><text x='485.0' y='108.0' text-anchor='middle' fill='currentColor' font-size='11'>AD·인증 API</text><rect x='370' y='140' width='230' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485.0' y='169.0' text-anchor='middle' fill='currentColor'>라우팅: 10.10.0.0/16 → pcx-0abc</text><line x1='290' y1='95' x2='350' y2='95' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' marker-start='url(#ar)'/><text x='320.0' y='89.0' text-anchor='middle' fill='currentColor' font-size='12'>pcx-0abc</text><text x='320' y='125' text-anchor='middle' fill='currentColor' font-size='12'>피어링</text><text x='320' y='235' text-anchor='middle' fill='currentColor' font-size='11'>CIDR 겹치면 불가 · 전이 라우팅 불가(A–B, B–C ≠ A–C) · 양쪽 라우팅+SG 필요</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Requester/Accepter",
+          "meaning": "피어링 요청 측/수락 측 VPC"
+        },
+        {
+          "term": "pcx-",
+          "meaning": "피어링 연결 ID 접두어"
+        },
+        {
+          "term": "전이 라우팅(transitive routing)",
+          "meaning": "중간 VPC를 거쳐 가는 라우팅. 피어링은 불가"
+        },
+        {
+          "term": "CIDR 겹침",
+          "meaning": "두 VPC IP 대역이 중복되면 피어링 불가"
+        },
+        {
+          "term": "리전 간 피어링",
+          "meaning": "다른 리전 VPC와의 피어링. 트래픽은 암호화됨"
+        },
+        {
+          "term": "IPAM",
+          "meaning": "VPC IP 대역을 중앙에서 계획·배정하는 서비스"
+        },
+        {
+          "term": "Transit Gateway",
+          "meaning": "다수 VPC를 허브로 연결하는 대안"
+        }
+      ],
+      "pitfalls": [
+        "피어링만 맺고 라우팅 테이블을 안 고쳐 '연결은 active인데 통신이 안 되는' 경우.",
+        "개발 VPC와 운영 VPC를 피어링해 환경 분리가 무너지는 사례 — 감사 지적 단골.",
+        "리전 간 피어링에서는 상대 보안 그룹 참조가 안 되므로 CIDR로 규칙을 써야 한다.",
+        "여러 VPC가 같은 기본 CIDR(172.31.0.0/16)을 쓰다가 피어링이 막힌다.",
+        "피어링 수가 늘어나면 경로 관리가 폭발한다 — 10개 넘으면 TGW를 검토."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 VPC와 비운영(개발/테스트) VPC 간 피어링이 존재하지 않는지, 있다면 승인된 예외인지.",
+          "[변경] 피어링 생성·수락·경로 추가가 양쪽 계정의 변경 승인 기록과 연결되는지.",
+          "[운영] 활성 피어링 목록과 네트워크 구성도의 정합성을 반기별 검증.",
+          "[접근] 피어링 상대 VPC에서 접근 가능한 자원이 보안 그룹으로 최소화되어 있는지."
+        ],
+        "fss": [
+          "업무망(운영)과 개발망의 분리 원칙이 VPC 간 연결에서도 유지되는지.",
+          "타사(제휴사) 계정과의 피어링은 외부 연결로 간주하여 정보보호 검토·계약 증적 보관.",
+          "네트워크 연결 구성 변경 시 책임자 승인."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — VPC 간 연결 허용 범위 통제.",
+          "2.6.7 인터넷 접속 통제/망분리 — 운영·개발 환경 분리 유지.",
+          "3.3.x 외부 위탁·제휴 시 네트워크 연결 보안."
+        ],
+        "evidence": [
+          "describe-vpc-peering-connections 결과(상대 계정·VPC·상태).",
+          "피어링 관련 라우팅 테이블 export 및 네트워크 구성도.",
+          "피어링 생성/수락 CloudTrail 이벤트와 변경 티켓.",
+          "외부 계정 피어링의 계약·보안 검토서."
+        ],
+        "auditorQuestions": [
+          "현재 활성 피어링은 몇 개이고 각각의 목적은 무엇입니까?",
+          "운영 VPC가 개발 VPC와 연결되어 있습니까?",
+          "피어링 요청·수락 권한은 누구에게 있습니까?",
+          "피어링 상대에서 접근 가능한 자원 범위를 어떻게 제한합니까?"
+        ],
+        "controlExample": "VPC 피어링은 네트워크팀 승인 후 양쪽 계정에서 생성·수락되며, 운영 VPC와 비운영 VPC 간 피어링은 금지되고 반기별로 활성 피어링 목록을 구성도와 대조한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-transit-gateway",
+        "aws-route-table",
+        "aws-security-group",
+        "aws-privatelink-vpc-endpoint",
+        "net-routing"
+      ],
+      "learnMore": [
+        "Amazon VPC Peering Guide",
+        "VPC peering basics 및 limitations 문서"
+      ]
+    },
+    {
+      "id": "aws-transit-gateway",
+      "title": "Transit Gateway",
+      "titleEn": "AWS Transit Gateway (TGW)",
+      "aliases": [
+        "TGW",
+        "트랜짓 게이트웨이",
+        "네트워크 허브",
+        "허브 앤 스포크",
+        "전송 게이트웨이",
+        "클라우드 라우터"
+      ],
+      "tags": [
+        "network",
+        "connectivity",
+        "hub"
+      ],
+      "level": "중급",
+      "oneLiner": "수십 개 VPC·VPN·전용선을 하나의 허브에 꽂아 중앙 라우팅하는 클라우드 라우터",
+      "analogy": "Transit Gateway는 '도시 중앙의 환승역'과 같다. 모든 노선(VPC, 온프레미스 회선)이 환승역에 들어오고, 역무원(라우팅 테이블)이 '이 노선은 저 노선과만 환승 가능'을 정한다. 노선끼리 일일이 다리(피어링)를 놓을 필요가 없다.",
+      "explanation": "<p><strong>Transit Gateway(TGW)</strong>는 리전 안의 여러 VPC, Site-to-Site VPN, Direct Connect Gateway를 하나의 중앙 허브에 연결하는 관리형 라우터다. 각 VPC는 TGW에 <strong>연결(Attachment)</strong> 하나만 만들면 되고, 어떤 연결끼리 통신할지는 <strong>TGW 라우팅 테이블</strong>이 결정한다. 쉽게 말하면 '피어링 그물망 대신 허브 하나에 다 꽂고, 허브 안에서 교통정리'하는 것이다.</p>\n<p>왜 필요한가? VPC가 30개면 피어링은 435개가 필요하지만 TGW는 연결 30개면 끝난다. 게다가 <strong>전이 라우팅</strong>이 가능해 온프레미스에서 들어온 트래픽을 여러 VPC로 나눠 보낼 수 있고, 공통 VPC(보안 검사, 공유 서비스, 인터넷 이그레스)를 한 곳에 두고 모든 VPC가 이용하게 할 수 있다.</p>\n<p>구성 요소는 다음과 같다. <strong>Attachment</strong>(VPC·VPN·DX Gateway·피어링·Connect 유형), <strong>TGW 라우팅 테이블</strong>(여러 개 가능, 연결마다 하나의 테이블에 '연관'), <strong>전파(Propagation)</strong>(연결의 CIDR을 테이블에 자동 등록), <strong>정적 경로</strong>, <strong>블랙홀 경로</strong>(특정 대역 강제 차단). 라우팅 테이블을 여러 개 두면 '운영 VPC끼리는 통신, 개발 VPC는 운영과 격리, 모두 공유 서비스 VPC는 접근' 같은 <strong>세그먼트(격리 도메인)</strong>를 만들 수 있다.</p>\n<p>다른 리전의 TGW와 <strong>TGW 피어링</strong>을 맺으면 리전 간 백본이 되고, <strong>Network Manager</strong>로 전 세계 토폴로지를 시각화할 수 있다. 다중 계정 환경에서는 네트워크 계정에 TGW를 두고 <strong>RAM(Resource Access Manager)</strong>으로 다른 계정에 공유해 각 계정이 자기 VPC를 연결한다.</p>\n<p>비용은 연결당 시간 요금 + 처리 데이터 GB당 요금이다. 트래픽이 TGW를 통과하므로 VPC 간 통신에 요금이 붙고, 대역폭은 연결당 최대 50Gbps(VPC)이다. 검사(Inspection) VPC에 AWS Network Firewall이나 서드파티 방화벽을 두고 TGW 경로를 그리로 꺾으면 모든 VPC 간·인터넷 트래픽을 중앙에서 검사하는 <strong>중앙 집중 보안 아키텍처</strong>가 된다.</p>",
+      "howItWorks": "<ol><li>네트워크 계정이 TGW를 만들고 RAM으로 워크로드 계정들과 공유한다.</li>\n<li>각 워크로드 계정이 자기 VPC에서 TGW 연결(Attachment)을 만든다 — AZ마다 서브넷 하나에 TGW ENI가 생긴다.</li>\n<li>네트워크 계정이 연결을 수락하고, 적절한 TGW 라우팅 테이블에 연관(Association)시킨다(예: prod 테이블, nonprod 테이블).</li>\n<li>전파를 켜면 그 VPC의 CIDR이 테이블에 자동 등록되고, 격리가 필요한 대역은 블랙홀로 막는다.</li>\n<li>각 VPC의 라우팅 테이블에 '다른 VPC·온프레미스 대역 → tgw-xxxx' 경로를 추가한다.</li>\n<li>패킷이 TGW ENI로 들어오면 연결에 연관된 TGW 테이블을 찾아 최장 일치 경로로 다음 연결에 전달한다.</li>\n<li>검사 VPC 구성 시 경로를 방화벽 서브넷으로 향하게 하고, 검사 후 다시 TGW로 돌아와 목적지로 간다.</li></ol>",
+      "example": "<p>'마켓온'은 네트워크 계정에 TGW 하나를 두고 24개 VPC, 사무실 VPN 2회선, Direct Connect 1회선을 연결했다. TGW 라우팅 테이블은 <code>prod</code>, <code>nonprod</code>, <code>shared</code> 3개다. 개발 VPC(nonprod 테이블)는 운영 VPC 대역이 블랙홀로 막혀 있고, 온프레미스 SAP는 prod 테이블에만 전파된다. 인터넷으로 나가는 트래픽은 모두 이그레스 VPC의 Network Firewall을 거친다.</p>\n<pre><code># 운영 테이블에서 개발 VPC 대역 강제 차단(블랙홀)\naws ec2 create-transit-gateway-route --transit-gateway-route-table-id tgw-rtb-0prod \\\n  --destination-cidr-block 10.200.0.0/14 --blackhole\n\n# 현재 어떤 연결이 어느 테이블에 연관되어 있는지 확인\naws ec2 get-transit-gateway-route-table-associations \\\n  --transit-gateway-route-table-id tgw-rtb-0prod --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='250' y='100' width='140' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='127.0' text-anchor='middle' fill='currentColor'>Transit Gateway</text><text x='320.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>prod / nonprod 테이블</text><rect x='30' y='30' width='120' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='49.5' text-anchor='middle' fill='currentColor'>결제 VPC</text><text x='90.0' y='65.5' text-anchor='middle' fill='currentColor' font-size='11'>10.10.0.0/16</text><rect x='30' y='110' width='120' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='129.5' text-anchor='middle' fill='currentColor'>정산 VPC</text><text x='90.0' y='145.5' text-anchor='middle' fill='currentColor' font-size='11'>10.11.0.0/16</text><rect x='30' y='190' width='120' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='209.5' text-anchor='middle' fill='currentColor'>개발 VPC</text><text x='90.0' y='225.5' text-anchor='middle' fill='currentColor' font-size='11'>10.200.0.0/16</text><rect x='490' y='30' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='49.5' text-anchor='middle' fill='currentColor'>공유서비스 VPC</text><text x='555.0' y='65.5' text-anchor='middle' fill='currentColor' font-size='11'>AD·DNS</text><rect x='490' y='110' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='129.5' text-anchor='middle' fill='currentColor'>검사/이그레스 VPC</text><text x='555.0' y='145.5' text-anchor='middle' fill='currentColor' font-size='11'>Network Firewall</text><rect x='490' y='190' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='209.5' text-anchor='middle' fill='currentColor'>온프레미스</text><text x='555.0' y='225.5' text-anchor='middle' fill='currentColor' font-size='11'>VPN·Direct Connect</text><line x1='150' y1='52' x2='250' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='150' y1='132' x2='250' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='150' y1='212' x2='250' y2='150' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><line x1='390' y1='110' x2='490' y2='52' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='390' y1='130' x2='490' y2='132' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='390' y1='150' x2='490' y2='212' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='200' y='80' text-anchor='middle' fill='currentColor' font-size='11'>prod 테이블</text><text x='200' y='190' text-anchor='middle' fill='currentColor' font-size='11'>nonprod 테이블 (운영 대역 블랙홀)</text><text x='320' y='245' text-anchor='middle' fill='currentColor' font-size='11'>허브 앤 스포크: 연결(Attachment) 하나로 중앙 라우팅 · 테이블로 세그먼트 격리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Attachment",
+          "meaning": "VPC·VPN·DX·피어링을 TGW에 꽂는 연결 단위"
+        },
+        {
+          "term": "TGW 라우팅 테이블",
+          "meaning": "어느 연결이 어느 대역으로 갈지 정하는 표. 여러 개 가능"
+        },
+        {
+          "term": "연관(Association)",
+          "meaning": "연결이 참조하는 라우팅 테이블 지정(연결당 1개)"
+        },
+        {
+          "term": "전파(Propagation)",
+          "meaning": "연결의 CIDR을 테이블에 자동 등록"
+        },
+        {
+          "term": "블랙홀 경로",
+          "meaning": "특정 대역을 강제로 폐기하는 경로"
+        },
+        {
+          "term": "RAM",
+          "meaning": "TGW를 다른 계정에 공유하는 Resource Access Manager"
+        },
+        {
+          "term": "검사 VPC",
+          "meaning": "모든 트래픽을 방화벽으로 우회시키는 중앙 검사 구조"
+        },
+        {
+          "term": "Network Manager",
+          "meaning": "글로벌 네트워크 토폴로지·이벤트 시각화 도구"
+        }
+      ],
+      "pitfalls": [
+        "TGW 라우팅 테이블을 하나만 쓰고 모든 연결을 전파하면 '모든 VPC가 서로 다 통하는' 평면 네트워크가 되어 격리가 사라진다.",
+        "TGW 연결 서브넷을 한 AZ에만 만들면 그 AZ 장애 시 다른 AZ 트래픽도 끊긴다 — 모든 AZ에 연결 서브넷 필요.",
+        "VPC 라우팅 테이블에 tgw 경로를 빠뜨려 '연결은 됐는데 통신이 안 됨' 상태.",
+        "데이터 처리 요금을 잊고 대용량 VPC 간 전송을 TGW로 보내 비용 폭탄 — 고대역폭 쌍은 피어링 검토.",
+        "어플라이언스 모드 미설정 시 검사 VPC에서 비대칭 라우팅으로 상태 저장 방화벽이 세션을 끊는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] TGW 라우팅 테이블이 운영/비운영/외부 세그먼트를 실제로 격리하는지(블랙홀·연관 구성) 검증.",
+          "[변경] TGW 연결 수락·경로 변경·테이블 연관 변경이 네트워크팀 승인과 변경 티켓으로 통제되는지.",
+          "[운영] TGW 관리 권한(네트워크 계정)이 소수로 제한되고 RAM 공유 대상 계정 목록이 승인된 것인지.",
+          "[운영] 중앙 검사 VPC 경유가 우회되지 않았는지(VPC에 별도 IGW/NAT 존재 여부) 점검."
+        ],
+        "fss": [
+          "전자금융감독규정상 망분리 — 운영망과 개발망·외부망이 TGW 세그먼트로 논리 분리되어 있다는 증적.",
+          "온프레미스–클라우드 연결 구간의 접근통제 정책 및 정기 검토.",
+          "네트워크 구성 변경 승인 및 이력 관리."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 세그먼트 간 접근통제.",
+          "2.6.7 인터넷 접속 통제 — 이그레스 VPC 경유 강제.",
+          "2.9.1 변경관리 — 라우팅 변경 승인."
+        ],
+        "evidence": [
+          "TGW 라우팅 테이블별 경로·연관·전파 export(search-transit-gateway-routes).",
+          "Network Manager 토폴로지 화면 캡처.",
+          "RAM 공유 설정(공유 대상 계정 목록).",
+          "CloudTrail TGW 변경 이벤트와 변경 티켓 대조표.",
+          "TGW Flow Logs 샘플 및 검사 VPC 방화벽 로그."
+        ],
+        "auditorQuestions": [
+          "TGW 라우팅 테이블은 몇 개이며 각각 어떤 세그먼트를 담당합니까?",
+          "개발 VPC에서 운영 VPC로 통신이 불가능하다는 것을 어떻게 증명합니까?",
+          "TGW 경로를 변경할 수 있는 사람과 절차는?",
+          "인터넷 이그레스가 검사 VPC를 우회하는 VPC가 있습니까?"
+        ],
+        "controlExample": "전사 네트워크는 네트워크 계정의 Transit Gateway로 집중되며 prod/nonprod/shared 라우팅 테이블로 세그먼트를 격리한다. 경로·연관 변경은 네트워크팀 2인 승인 후 IaC로 적용되고 분기별로 격리 상태를 검증한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-vpc-peering",
+        "aws-direct-connect",
+        "aws-site-to-site-vpn",
+        "aws-route-table",
+        "awssec-network-firewall",
+        "net-routing"
+      ],
+      "learnMore": [
+        "AWS Transit Gateway User Guide",
+        "Building a Scalable and Secure Multi-VPC AWS Network Infrastructure (whitepaper)"
+      ]
+    },
+    {
+      "id": "aws-privatelink-vpc-endpoint",
+      "title": "PrivateLink / VPC 엔드포인트",
+      "titleEn": "AWS PrivateLink / VPC Endpoint",
+      "aliases": [
+        "VPC 엔드포인트",
+        "프라이빗링크",
+        "인터페이스 엔드포인트",
+        "게이트웨이 엔드포인트",
+        "VPCE",
+        "Endpoint Service",
+        "사설 접근"
+      ],
+      "tags": [
+        "network",
+        "security",
+        "connectivity"
+      ],
+      "level": "중급",
+      "oneLiner": "인터넷을 거치지 않고 VPC 안에서 AWS 서비스·타사 서비스에 사설로 접속하는 통로",
+      "analogy": "VPC 엔드포인트는 '아파트 단지 안에 들어온 우체국 출장소'와 같다. 원래는 단지 밖 큰길(인터넷)로 나가야 우체국(S3, KMS)에 갈 수 있었는데, 단지 안에 창구를 들여놓으면 밖으로 안 나가고 일을 본다. PrivateLink는 이 창구를 다른 회사 서비스용으로도 만들 수 있게 하는 제도다.",
+      "explanation": "<p>S3, DynamoDB, KMS, Secrets Manager, SSM 같은 AWS 서비스는 원래 <strong>공용 엔드포인트</strong>(예: <code>s3.ap-northeast-2.amazonaws.com</code>)를 가진 인터넷 서비스다. 프라이빗 서브넷의 서버가 이들을 쓰려면 NAT Gateway를 거쳐 인터넷으로 나가야 했다. <strong>VPC 엔드포인트</strong>는 이 서비스들을 <strong>VPC 안의 사설 IP</strong>로 끌어와 인터넷 없이 접근하게 한다. 쉽게 말하면 '인터넷 안 타고 AWS 서비스 쓰기'다.</p>\n<p>왜 필요한가? 금융 규제상 운영 서버가 인터넷에 나갈 수 있으면 데이터 유출 경로가 된다. 엔드포인트를 쓰면 NAT Gateway 없이도 S3·KMS를 쓸 수 있어 <strong>완전 폐쇄망 VPC</strong>를 만들 수 있고, 트래픽이 AWS 내부망에 머물러 지연과 NAT 비용도 줄어든다.</p>\n<p>종류는 두 가지다. <strong>게이트웨이 엔드포인트</strong>는 S3·DynamoDB 전용으로, 라우팅 테이블에 <code>pl-xxxx → vpce-xxxx</code> 경로가 추가되는 방식이며 무료다. <strong>인터페이스 엔드포인트</strong>는 그 외 대부분 서비스(KMS, STS, ECR, CloudWatch Logs, SSM 등 200개 이상)와 타사 서비스용으로, 서브넷에 <strong>ENI(사설 IP)</strong>가 생기고 보안 그룹이 붙으며 시간·데이터 요금이 있다. 인터페이스 엔드포인트의 기술 기반이 <strong>PrivateLink</strong>다.</p>\n<p><strong>PrivateLink</strong>로 자체 서비스를 제공할 수도 있다. 서비스 제공자가 NLB 뒤에 서비스를 두고 <strong>엔드포인트 서비스</strong>로 등록하면, 소비자 VPC는 인터페이스 엔드포인트를 만들어 사설 IP로 호출한다. VPC 피어링과 달리 <strong>CIDR이 겹쳐도 되고, 소비자는 제공자 네트워크 전체가 아니라 그 서비스 하나만</strong> 볼 수 있다. SaaS 벤더(Datadog, Snowflake 등)나 사내 플랫폼팀이 API를 노출하는 표준 방식이다.</p>\n<p><strong>엔드포인트 정책</strong>(IAM 정책 형태)을 붙이면 '이 엔드포인트로는 우리 회사 S3 버킷에만 접근 가능'처럼 제한할 수 있고, S3 버킷 정책에서 <code>aws:SourceVpce</code> 조건으로 '이 엔드포인트를 통한 요청만 허용'을 걸면 자격증명이 유출돼도 외부에서 버킷을 읽지 못한다. 인터페이스 엔드포인트의 <strong>프라이빗 DNS</strong>를 켜면 기존 서비스 도메인 이름이 자동으로 사설 IP로 풀려 애플리케이션 코드를 바꿀 필요가 없다.</p>",
+      "howItWorks": "<ol><li>관리자가 VPC에 서비스별 엔드포인트를 만든다(예: <code>com.amazonaws.ap-northeast-2.kms</code> 인터페이스 엔드포인트, 서브넷 2a/2c, 보안 그룹 443 허용).</li>\n<li>프라이빗 DNS가 켜지면 VPC 안에서 <code>kms.ap-northeast-2.amazonaws.com</code>을 조회할 때 Route 53 Resolver가 엔드포인트 ENI의 사설 IP(예: 10.0.1.20)를 돌려준다.</li>\n<li>애플리케이션은 평소처럼 SDK를 호출하고, 트래픽은 사설 IP → 엔드포인트 ENI → AWS 내부망 → KMS로 흐른다.</li>\n<li>게이트웨이 엔드포인트(S3)는 라우팅 테이블의 접두사 목록 경로를 타고 나가며 인터넷 게이트웨이를 거치지 않는다.</li>\n<li>엔드포인트 정책과 대상 서비스의 자원 정책(버킷 정책 등)이 함께 평가된다.</li>\n<li>PrivateLink 제공자 측에서는 NLB가 요청을 받아 백엔드로 전달하며, 소비자 연결 요청은 제공자가 수락해야 활성화된다.</li></ol>",
+      "example": "<p>'페이나우' 운영 VPC는 인터넷 게이트웨이도 NAT도 없는 폐쇄망이다. S3·DynamoDB는 게이트웨이 엔드포인트, KMS·STS·ECR·CloudWatch Logs·SSM(3종)은 인터페이스 엔드포인트로 접근한다. 카드사 정산 파일 버킷의 정책은 <code>aws:SourceVpce</code>가 운영 VPC 엔드포인트일 때만 허용하므로, 액세스 키가 새어도 외부에서는 읽을 수 없다. 모니터링 SaaS는 PrivateLink 엔드포인트 서비스로 연결해 에이전트 트래픽도 인터넷을 타지 않는다.</p>\n<pre><code># KMS 인터페이스 엔드포인트 생성 (프라이빗 DNS 포함)\naws ec2 create-vpc-endpoint --vpc-id vpc-0pay --vpc-endpoint-type Interface \\\n  --service-name com.amazonaws.ap-northeast-2.kms \\\n  --subnet-ids subnet-0a subnet-0c --security-group-ids sg-0vpce --private-dns-enabled\n\n# S3 버킷 정책: 지정 엔드포인트 경유가 아니면 거부\n{\n  \"Effect\": \"Deny\", \"Principal\": \"*\", \"Action\": \"s3:*\",\n  \"Resource\": [\"arn:aws:s3:::paynow-settlement\", \"arn:aws:s3:::paynow-settlement/*\"],\n  \"Condition\": {\"StringNotEquals\": {\"aws:SourceVpce\": \"vpce-0abc123\"}}\n}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='330' height='220' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>운영 VPC (IGW·NAT 없음)</text><rect x='40' y='60' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='100.0' y='82.0' text-anchor='middle' fill='currentColor'>앱 서버</text><text x='100.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>10.0.1.10</text><rect x='200' y='45' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265.0' y='67.0' text-anchor='middle' fill='currentColor'>인터페이스 엔드포인트</text><text x='265.0' y='83.0' text-anchor='middle' fill='currentColor' font-size='11'>ENI 10.0.1.20 · SG</text><rect x='200' y='115' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265.0' y='137.0' text-anchor='middle' fill='currentColor'>게이트웨이 엔드포인트</text><text x='265.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='11'>라우팅 pl-xxx → vpce</text><line x1='160' y1='80' x2='200' y2='70' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='180.0' y='69.0' text-anchor='middle' fill='currentColor' font-size='12'>KMS 호출</text><line x1='160' y1='90' x2='200' y2='135' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='180.0' y='106.5' text-anchor='middle' fill='currentColor' font-size='12'>S3 호출</text><rect x='40' y='170' width='290' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='185.0' y='199.0' text-anchor='middle' fill='currentColor'>프라이빗 DNS: kms.ap-northeast-2.amazonaws.com → 10.0.1.20</text><rect x='420' y='45' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='67.0' text-anchor='middle' fill='currentColor'>KMS / STS / ECR</text><text x='515.0' y='83.0' text-anchor='middle' fill='currentColor' font-size='11'>AWS 내부망</text><rect x='420' y='115' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='137.0' text-anchor='middle' fill='currentColor'>S3 / DynamoDB</text><text x='515.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='11'>버킷 정책 aws:SourceVpce</text><rect x='420' y='185' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='207.0' text-anchor='middle' fill='currentColor'>타사 SaaS (PrivateLink)</text><text x='515.0' y='223.0' text-anchor='middle' fill='currentColor' font-size='11'>NLB 뒤 엔드포인트 서비스</text><line x1='330' y1='70' x2='420' y2='70' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='330' y1='140' x2='420' y2='140' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='330' y1='90' x2='420' y2='205' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='480' y='250' text-anchor='middle' fill='currentColor' font-size='11'>인터넷 경유 없음</text></svg>",
+      "keyTerms": [
+        {
+          "term": "게이트웨이 엔드포인트",
+          "meaning": "S3·DynamoDB용. 라우팅 테이블 경로 방식, 무료"
+        },
+        {
+          "term": "인터페이스 엔드포인트",
+          "meaning": "서브넷에 ENI가 생기는 방식. PrivateLink 기반, 유료"
+        },
+        {
+          "term": "PrivateLink",
+          "meaning": "NLB 뒤 서비스를 다른 VPC에 사설로 노출하는 기술"
+        },
+        {
+          "term": "엔드포인트 서비스",
+          "meaning": "제공자가 등록하는 PrivateLink 서비스 객체"
+        },
+        {
+          "term": "엔드포인트 정책",
+          "meaning": "엔드포인트를 통해 할 수 있는 작업을 제한하는 IAM 형식 정책"
+        },
+        {
+          "term": "aws:SourceVpce",
+          "meaning": "요청이 특정 엔드포인트를 통해 왔는지 검사하는 조건 키"
+        },
+        {
+          "term": "프라이빗 DNS",
+          "meaning": "서비스 공식 도메인을 사설 IP로 풀어주는 옵션"
+        }
+      ],
+      "pitfalls": [
+        "SSM Session Manager를 폐쇄망에서 쓰려면 ssm·ssmmessages·ec2messages 3개 엔드포인트가 모두 필요하다.",
+        "엔드포인트 보안 그룹에서 443 인바운드를 VPC 대역으로 열지 않아 접속이 안 되는 경우.",
+        "프라이빗 DNS를 켜려면 VPC의 DNS 호스트 이름·DNS 확인 옵션이 켜져 있어야 한다.",
+        "게이트웨이 엔드포인트는 온프레미스나 피어링 VPC에서 쓸 수 없다 — 그럴 땐 S3 인터페이스 엔드포인트.",
+        "엔드포인트 정책을 기본(전체 허용)으로 두면 '우리 VPC에서 아무 계정 S3로나 데이터 반출'이 가능하다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 VPC가 인터넷 경로 없이 필요한 AWS 서비스를 엔드포인트로만 사용하는지(IGW/NAT 부재 확인).",
+          "[접근] 엔드포인트 정책이 자사 계정·버킷으로 제한되어 데이터 반출 경로가 통제되는지.",
+          "[접근] 핵심 S3 버킷 정책에 aws:SourceVpce/SourceVpc 조건이 적용되어 외부 접근이 거부되는지.",
+          "[변경] 엔드포인트·엔드포인트 서비스 생성과 PrivateLink 연결 수락이 승인 절차를 거치는지."
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템의 인터넷 접속 제한 — 폐쇄망 구성의 기술적 증적.",
+          "클라우드 이용 시 데이터 반출 경로 통제(엔드포인트 정책·버킷 정책) 기록.",
+          "외부 서비스(SaaS) 연동 시 사설 연결 방식 채택 및 보안성 검토."
+        ],
+        "isms": [
+          "2.6.7 인터넷 접속 통제 — 운영 서버의 인터넷 차단.",
+          "2.6.1 네트워크 접근 — 사설 통로를 통한 최소 접근.",
+          "2.10.2 클라우드 보안 — 클라우드 서비스 접근 경로 통제."
+        ],
+        "evidence": [
+          "describe-vpc-endpoints 결과(유형·서비스·정책·서브넷·SG).",
+          "운영 VPC 라우팅 테이블에서 IGW/NAT 경로 부재 확인 export.",
+          "핵심 버킷 정책 JSON(SourceVpce 조건 포함).",
+          "PrivateLink 엔드포인트 서비스의 허용 주체(allowed principals) 목록.",
+          "엔드포인트 생성 CloudTrail 이벤트와 변경 티켓."
+        ],
+        "auditorQuestions": [
+          "운영 서버가 인터넷에 나갈 수 있는 경로가 있습니까? 없다면 AWS 서비스는 어떻게 호출합니까?",
+          "S3 엔드포인트 정책은 어떤 버킷·계정으로 제한되어 있습니까?",
+          "외부 SaaS와의 연동은 PrivateLink를 씁니까, 인터넷을 씁니까?",
+          "엔드포인트 서비스에 접속을 허용한 외부 계정은 무엇입니까?"
+        ],
+        "controlExample": "운영 VPC는 인터넷 게이트웨이·NAT 없이 VPC 엔드포인트로만 AWS 서비스에 접근하며, S3 엔드포인트 정책은 자사 계정 버킷으로 제한되고 핵심 버킷 정책은 지정 엔드포인트 외 접근을 거부한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-s3",
+        "aws-nat-gateway",
+        "aws-security-group",
+        "aws-elb",
+        "awssec-kms",
+        "awssec-ssm-session-manager",
+        "awssec-s3-security"
+      ],
+      "learnMore": [
+        "AWS PrivateLink Guide",
+        "Gateway endpoints for Amazon S3 문서",
+        "AWS services that integrate with AWS PrivateLink"
+      ]
+    },
+    {
+      "id": "aws-direct-connect",
+      "title": "Direct Connect",
+      "titleEn": "AWS Direct Connect (DX)",
+      "aliases": [
+        "DX",
+        "전용선",
+        "다이렉트 커넥트",
+        "전용회선",
+        "온프레미스 연결",
+        "Direct Connect Gateway",
+        "하이브리드 연결"
+      ],
+      "tags": [
+        "network",
+        "hybrid",
+        "connectivity"
+      ],
+      "level": "중급",
+      "oneLiner": "고객 데이터센터와 AWS를 인터넷 대신 물리 전용 회선으로 잇는 서비스",
+      "analogy": "Direct Connect는 '우리 회사 건물과 AWS 건물 사이에 깔린 전용 지하 통로'와 같다. 공용 도로(인터넷)처럼 막히거나 누가 엿볼 걱정이 없고 폭도 일정하다. 다만 통로를 파는 데 몇 주~몇 달이 걸리고, 통로 하나만 있으면 무너졌을 때 대책이 없어 보통 두 개를 판다.",
+      "explanation": "<p><strong>Direct Connect(DX)</strong>는 온프레미스(IDC, 사무실)와 AWS 사이를 <strong>전용 물리 회선</strong>으로 연결한다. 회선은 AWS가 지정한 <strong>DX 로케이션</strong>(서울의 경우 KINX, LG U+ 평촌 등 상면 사업자)에서 AWS 라우터와 고객(또는 통신사) 라우터를 교차 연결(cross connect)하는 방식으로 만든다. 1/10/100Gbps <strong>전용 연결(Dedicated)</strong>과, 파트너 통신사 회선을 나눠 쓰는 50Mbps~25Gbps <strong>호스팅 연결(Hosted)</strong>이 있다.</p>\n<p>왜 필요한가? VPN은 인터넷 위에 암호화 터널을 얹는 것이라 지연·대역폭이 인터넷 품질에 좌우된다. 금융사가 코어 뱅킹·SAP를 온프레미스에 두고 클라우드와 수 TB씩 주고받거나, 밀리초 단위 응답을 요구하는 연동을 하려면 일정한 품질의 전용선이 필요하다. 트래픽이 공용 인터넷을 지나지 않아 규제 관점에서도 선호된다. 단, <strong>DX 자체는 암호화되지 않으므로</strong> 필요 시 MACsec(전용 연결) 또는 DX 위 VPN을 얹는다.</p>\n<p>회선 위에는 논리 채널인 <strong>가상 인터페이스(Virtual Interface, VIF)</strong>를 만든다. <strong>Private VIF</strong>는 VPC(Virtual Private Gateway 또는 DX Gateway)로, <strong>Transit VIF</strong>는 Transit Gateway로, <strong>Public VIF</strong>는 S3·DynamoDB 같은 AWS 공용 서비스로 연결한다. 라우팅은 <strong>BGP</strong>로 교환하며, <strong>Direct Connect Gateway</strong>를 쓰면 하나의 회선으로 여러 리전·여러 계정의 VPC에 닿을 수 있다.</p>\n<p>고가용성 설계가 핵심이다. AWS 권장은 (1) 서로 다른 DX 로케이션에 회선 2개(최대 복원력), 또는 (2) 같은 로케이션의 다른 장비에 2개 + VPN 백업이다. <strong>SLA</strong>는 다중 회선 구성일 때만 적용된다. BGP 속성(AS PATH prepend, local preference, 커뮤니티)으로 주/백업 경로를 조정하고, <strong>BFD</strong>로 장애를 초 단위로 감지한다.</p>\n<p>비용은 포트 시간 요금 + 데이터 전송(아웃) 요금이며, 인터넷 전송보다 GB당 단가가 싸서 대용량 전송에서는 오히려 경제적이다. 구축 리드타임(회선 신청·상면·교차 연결)이 길어 프로젝트 초기에 착수해야 하고, 그 사이는 Site-to-Site VPN으로 먼저 연결하는 것이 관행이다.</p>",
+      "howItWorks": "<ol><li>고객이 AWS 콘솔에서 연결(Connection)을 신청하거나 파트너 통신사를 통해 호스팅 연결을 받는다. AWS가 LOA-CFA(교차 연결 승인서)를 발급한다.</li>\n<li>DX 로케이션의 상면 사업자가 고객 라우터(또는 통신사 회선)와 AWS 라우터를 광케이블로 교차 연결한다.</li>\n<li>연결 위에 VIF를 만들고 VLAN ID, BGP ASN, 피어 IP, BGP 인증 키를 설정한다.</li>\n<li>고객 라우터와 AWS 간 BGP 세션이 올라오면 온프레미스 대역과 VPC/TGW 대역이 서로 광고된다.</li>\n<li>VPC 라우팅 테이블(또는 TGW 테이블)에 온프레미스 대역 → VGW/TGW 경로가 (전파로) 등록된다.</li>\n<li>주 회선 장애 시 BGP가 경로를 철회하고 두 번째 회선 또는 VPN 백업 경로로 자동 전환된다.</li></ol>",
+      "example": "<p>'마켓온'은 온프레미스 SAP ERP와 AWS 정산 시스템 연동을 위해 서울 DX 로케이션 두 곳(가산, 평촌)에 10Gbps 전용 연결을 각 1개씩 두고 Transit VIF로 TGW에 연결했다. 두 회선은 서로 다른 통신사 회선을 쓰고, 그 밑에 Site-to-Site VPN을 3차 백업으로 걸어 두었다. 월 1회 주 회선을 의도적으로 내려 BGP 전환 시간(약 20초)을 측정하고 결과를 DR 보고서에 남긴다.</p>\n<pre><code># DX 연결·VIF 상태와 BGP 상태 확인\naws directconnect describe-connections --query 'connections[].[connectionId,connectionName,bandwidth,connectionState,location]' --output table\naws directconnect describe-virtual-interfaces \\\n  --query 'virtualInterfaces[].[virtualInterfaceId,virtualInterfaceType,vlan,bgpPeers[0].bgpStatus]' --output table\n\n# 회선 장애 시 알림: DX 연결 상태 CloudWatch 지표\naws cloudwatch put-metric-alarm --alarm-name dx-conn-down --namespace AWS/DX \\\n  --metric-name ConnectionState --dimensions Name=ConnectionId,Value=dxcon-0abc \\\n  --statistic Minimum --period 60 --threshold 1 --comparison-operator LessThanThreshold --evaluation-periods 1</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='60' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='87.0' text-anchor='middle' fill='currentColor'>온프레미스 IDC</text><text x='80.0' y='103.0' text-anchor='middle' fill='currentColor' font-size='11'>SAP · 코어 시스템</text><rect x='200' y='30' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='52.0' text-anchor='middle' fill='currentColor'>DX 로케이션 A</text><text x='265.0' y='68.0' text-anchor='middle' fill='currentColor' font-size='11'>가산 · 10G 전용</text><rect x='200' y='110' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='132.0' text-anchor='middle' fill='currentColor'>DX 로케이션 B</text><text x='265.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>평촌 · 10G 전용</text><rect x='200' y='190' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='209.5' text-anchor='middle' fill='currentColor'>인터넷 VPN 백업</text><text x='265.0' y='225.5' text-anchor='middle' fill='currentColor' font-size='11'>3차 경로</text><line x1='140' y1='80' x2='200' y2='55' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='170.0' y='61.5' text-anchor='middle' fill='currentColor' font-size='12'>회선1</text><line x1='140' y1='95' x2='200' y2='135' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='170.0' y='109.0' text-anchor='middle' fill='currentColor' font-size='12'>회선2</text><line x1='140' y1='105' x2='200' y2='212' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><rect x='390' y='80' width='120' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='450.0' y='107.0' text-anchor='middle' fill='currentColor'>Transit VIF → TGW</text><text x='450.0' y='123.0' text-anchor='middle' fill='currentColor' font-size='11'>BGP · BFD</text><line x1='330' y1='55' x2='390' y2='100' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='330' y1='135' x2='390' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='330' y1='212' x2='390' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><rect x='540' y='40' width='80' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='580.0' y='69.0' text-anchor='middle' fill='currentColor'>결제 VPC</text><rect x='540' y='110' width='80' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='580.0' y='139.0' text-anchor='middle' fill='currentColor'>정산 VPC</text><rect x='540' y='180' width='80' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='580.0' y='209.0' text-anchor='middle' fill='currentColor'>공유 VPC</text><line x1='510' y1='100' x2='540' y2='65' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='510' y1='110' x2='540' y2='135' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='510' y1='120' x2='540' y2='205' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='320' y='252' text-anchor='middle' fill='currentColor' font-size='11'>서로 다른 로케이션 회선 2개 + VPN 백업 = 최대 복원력 · DX 자체는 비암호화(MACsec 옵션)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "DX 로케이션",
+          "meaning": "AWS 라우터가 있는 상면 시설. 교차 연결 지점"
+        },
+        {
+          "term": "전용/호스팅 연결",
+          "meaning": "포트 단독 사용 vs 파트너 회선 공유"
+        },
+        {
+          "term": "VIF",
+          "meaning": "회선 위의 논리 채널. Private/Transit/Public"
+        },
+        {
+          "term": "BGP",
+          "meaning": "온프레미스와 AWS가 경로를 교환하는 라우팅 프로토콜"
+        },
+        {
+          "term": "Direct Connect Gateway",
+          "meaning": "한 회선으로 여러 리전·계정 VPC에 연결하는 게이트웨이"
+        },
+        {
+          "term": "LOA-CFA",
+          "meaning": "교차 연결을 허가하는 AWS 발급 문서"
+        },
+        {
+          "term": "MACsec",
+          "meaning": "전용 연결의 L2 암호화 옵션"
+        },
+        {
+          "term": "BFD",
+          "meaning": "BGP 장애를 초 단위로 감지하는 프로토콜"
+        }
+      ],
+      "pitfalls": [
+        "회선 한 개만 두고 '전용선이니 안전하다'고 믿다가 광케이블 단선 한 번에 전체 연동이 멈춘다.",
+        "DX는 기본적으로 암호화되지 않는다 — 개인정보 구간이면 MACsec 또는 VPN over DX 검토.",
+        "BGP 광고 경로 수 한도(Private VIF 100개)를 넘겨 세션이 끊기는 사고.",
+        "온프레미스와 VPC CIDR 겹침 — 전용선을 깔아 놓고 라우팅이 안 된다.",
+        "구축 리드타임(2~3개월)을 프로젝트 일정에 넣지 않음."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] DX 회선이 이중화되어 있고 장애 전환 시험(회선 절체) 결과가 정기적으로 보관되는지.",
+          "[접근] DX를 통해 온프레미스에서 접근 가능한 VPC·대역이 라우팅·SG로 최소화되어 있는지.",
+          "[변경] VIF·BGP 설정·광고 대역 변경이 네트워크 변경 승인 절차를 거치는지.",
+          "[운영] 회선 상태·BGP 세션 모니터링과 알림, 장애 이력 관리."
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템 이중화 및 재해복구 — 전용선 이중 구성과 복구 시험 기록.",
+          "클라우드–내부망 연결 구간의 암호화 여부 및 보안성 검토 결과(비암호화 시 보완 통제).",
+          "통신회선 사업자와의 계약·SLA 문서."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 외부(온프레미스) 연결 구간 접근통제.",
+          "2.7.1 암호정책 적용 — 전송 구간 암호화 검토.",
+          "2.12.1 재해·재난 대비 — 회선 이중화."
+        ],
+        "evidence": [
+          "describe-connections / describe-virtual-interfaces export(회선 수·로케이션·상태).",
+          "네트워크 구성도 및 회선 계약서·LOA-CFA.",
+          "회선 절체 훈련 보고서(전환 시간·영향).",
+          "CloudWatch DX 지표 알람 설정 및 장애 이력.",
+          "BGP 광고 대역 목록과 승인 기록."
+        ],
+        "auditorQuestions": [
+          "전용선은 몇 회선이며 서로 다른 로케이션·통신사를 사용합니까?",
+          "회선 장애 시 자동 전환되는지 마지막으로 시험한 시점은?",
+          "전용선 구간의 데이터는 암호화됩니까?",
+          "온프레미스에서 전용선을 통해 접근 가능한 클라우드 자원 범위는?"
+        ],
+        "controlExample": "온프레미스–AWS 연결은 서로 다른 DX 로케이션의 10Gbps 회선 2개와 VPN 백업으로 이중화되며, 분기별 절체 훈련으로 30초 이내 전환을 검증하고 결과를 보관한다."
+      },
+      "related": [
+        "aws-site-to-site-vpn",
+        "aws-transit-gateway",
+        "aws-vpc",
+        "aws-route-table",
+        "onprem-network",
+        "net-bgp",
+        "net-routing"
+      ],
+      "learnMore": [
+        "AWS Direct Connect User Guide",
+        "AWS Direct Connect Resiliency Recommendations",
+        "Direct Connect locations 목록"
+      ]
+    },
+    {
+      "id": "aws-site-to-site-vpn",
+      "title": "Site-to-Site VPN",
+      "titleEn": "AWS Site-to-Site VPN",
+      "aliases": [
+        "S2S VPN",
+        "IPsec VPN",
+        "VPN 연결",
+        "사이트간 VPN",
+        "Virtual Private Gateway",
+        "VGW",
+        "Customer Gateway"
+      ],
+      "tags": [
+        "network",
+        "hybrid",
+        "vpn"
+      ],
+      "level": "중급",
+      "oneLiner": "인터넷 위에 IPsec 암호화 터널을 만들어 온프레미스와 VPC를 잇는 연결",
+      "analogy": "Site-to-Site VPN은 '공용 도로 위를 달리는 장갑차'와 같다. 도로(인터넷)는 누구나 쓰지만 장갑차 안(암호화 터널)은 밖에서 볼 수 없다. 전용 통로(Direct Connect)를 파는 것보다 훨씬 빠르게 준비되지만, 도로가 막히면 같이 느려진다.",
+      "explanation": "<p><strong>Site-to-Site VPN</strong>은 온프레미스 네트워크 장비와 AWS 사이에 <strong>IPsec 터널</strong>을 만들어 사설 대역끼리 통신하게 한다. 사무실·IDC 방화벽(또는 라우터)이 <strong>Customer Gateway(CGW)</strong>가 되고, AWS 쪽 종단은 VPC에 붙는 <strong>Virtual Private Gateway(VGW)</strong> 또는 <strong>Transit Gateway</strong>다. 쉽게 말하면 '몇 시간 만에 만들 수 있는 암호화된 사설 연결'이다.</p>\n<p>왜 필요한가? Direct Connect는 몇 달이 걸리고 비싸다. 소규모 사무실 연결, 전용선 개통 전 임시 연결, 전용선 백업, 해외 지사 연결에는 VPN이 적합하다. AWS VPN 연결 하나는 항상 <strong>터널 2개</strong>(서로 다른 AWS 엔드포인트)로 구성되어 한 터널이 죽어도 다른 터널로 통신이 유지된다.</p>\n<p>라우팅은 <strong>정적</strong>(양쪽 대역을 손으로 입력) 또는 <strong>동적(BGP)</strong> 방식이다. BGP를 쓰면 터널 장애 시 경로가 자동 철회되고, DX와 조합할 때도 주/백업 우선순위를 자연스럽게 정할 수 있다. 터널당 대역폭은 약 1.25Gbps이며, 더 큰 대역폭이 필요하면 TGW에 <strong>ECMP</strong>로 여러 VPN 연결을 묶는다.</p>\n<p>보안 설정에서 감사인이 볼 것은 IKE 버전(IKEv2 권장), 암호 알고리즘(AES-256-GCM, SHA-2, DH 그룹 14 이상), 사전 공유 키(PSK) 관리(Secrets Manager 보관·주기적 교체) 또는 인증서 기반 인증, 그리고 터널 로그(CloudWatch Logs로 IKE 협상 로그)다. <strong>가속 VPN(Accelerated VPN)</strong>은 Global Accelerator 엣지를 이용해 해외 지사 연결 품질을 높인다.</p>\n<p><strong>Client VPN</strong>은 별개 서비스로, 개인 노트북에서 VPC로 접속하는 원격 근무용(OpenVPN 기반, SSO 연동)이다. Site-to-Site는 '네트워크 대 네트워크', Client VPN은 '사람 대 네트워크'로 구분한다.</p>",
+      "howItWorks": "<ol><li>AWS에 Customer Gateway 객체(온프레미스 장비의 공인 IP·BGP ASN)를 등록한다.</li>\n<li>VGW(또는 TGW)에 연결되는 VPN 연결을 만들면 AWS가 터널 2개의 공인 IP와 설정 파일(장비별 템플릿)을 준다.</li>\n<li>온프레미스 장비에 설정을 적용하면 IKE 협상 → IPsec SA 수립 → 터널 UP.</li>\n<li>BGP 세션이 올라오면 양쪽 대역이 교환되고, VPC 라우팅 테이블에 전파된다(정적이면 수동 입력).</li>\n<li>패킷은 온프레미스 장비에서 암호화되어 인터넷을 지나 AWS 엔드포인트에서 복호화된 뒤 VPC로 들어간다.</li>\n<li>터널 1 장애 시 DPD(Dead Peer Detection)로 감지하고 터널 2로 전환한다. CloudWatch <code>TunnelState</code> 지표로 알림을 받는다.</li></ol>",
+      "example": "<p>'페이나우'는 본사 방화벽(공인 IP 203.0.113.10)과 TGW 사이에 BGP 기반 VPN 2개(ECMP)를 구성해 콜센터 상담 시스템이 VPC의 고객 조회 API를 사설 IP로 호출하게 했다. IKEv2·AES-256-GCM·DH 그룹 20으로 고정했고 PSK는 Secrets Manager에 보관하며 6개월마다 교체한다. 향후 DX 개통 후에는 이 VPN을 백업 경로로 강등할 계획이다.</p>\n<pre><code># CGW 등록 + TGW에 붙는 BGP VPN 생성 (암호 옵션 제한)\naws ec2 create-customer-gateway --type ipsec.1 --public-ip 203.0.113.10 --bgp-asn 65010\naws ec2 create-vpn-connection --type ipsec.1 --customer-gateway-id cgw-0abc \\\n  --transit-gateway-id tgw-0abc \\\n  --options 'TunnelOptions=[{IKEVersions=[{Value=ikev2}],Phase2EncryptionAlgorithms=[{Value=AES256-GCM-16}],Phase1DHGroupNumbers=[{Value=20}],LogOptions={CloudWatchLogOptions={LogEnabled=true,LogGroupArn=arn:aws:logs:ap-northeast-2:111122223333:log-group:vpn-ike}}}]'\n\n# 터널 상태 확인\naws ec2 describe-vpn-connections --query 'VpnConnections[].VgwTelemetry[].[OutsideIpAddress,Status,StatusMessage]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='90' width='130' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85.0' y='122.0' text-anchor='middle' fill='currentColor'>온프레미스</text><text x='85.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>Customer Gateway 203.0.113.10</text><rect x='210' y='40' width='200' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='310.0' y='62.0' text-anchor='middle' fill='currentColor'>터널 1 (IPsec)</text><text x='310.0' y='78.0' text-anchor='middle' fill='currentColor' font-size='11'>AWS 엔드포인트 A</text><rect x='210' y='150' width='200' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='310.0' y='172.0' text-anchor='middle' fill='currentColor'>터널 2 (IPsec)</text><text x='310.0' y='188.0' text-anchor='middle' fill='currentColor' font-size='11'>AWS 엔드포인트 B</text><line x1='150' y1='110' x2='210' y2='65' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='180.0' y='81.5' text-anchor='middle' fill='currentColor' font-size='12'>암호화</text><line x1='150' y1='140' x2='210' y2='175' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='180.0' y='151.5' text-anchor='middle' fill='currentColor' font-size='12'>암호화</text><text x='310' y='125' text-anchor='middle' fill='currentColor' font-size='12'>인터넷 (공용망)</text><rect x='470' y='90' width='150' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545.0' y='122.0' text-anchor='middle' fill='currentColor'>VGW / TGW</text><text x='545.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>BGP 경로 교환</text><line x1='410' y1='65' x2='470' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='410' y1='175' x2='470' y2='140' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='320' y='235' text-anchor='middle' fill='currentColor' font-size='11'>연결 하나 = 터널 2개 · 정적/BGP 라우팅 · IKEv2·AES-256 · PSK는 Secrets Manager 보관</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Customer Gateway",
+          "meaning": "온프레미스 VPN 장비를 나타내는 AWS 객체"
+        },
+        {
+          "term": "Virtual Private Gateway",
+          "meaning": "VPC 쪽 VPN 종단 게이트웨이"
+        },
+        {
+          "term": "IPsec/IKE",
+          "meaning": "터널 암호화 및 키 협상 프로토콜"
+        },
+        {
+          "term": "PSK",
+          "meaning": "터널 인증용 사전 공유 키"
+        },
+        {
+          "term": "DPD",
+          "meaning": "상대 장비 생존 여부를 감지하는 기능"
+        },
+        {
+          "term": "ECMP",
+          "meaning": "여러 VPN 터널로 트래픽을 분산해 대역폭을 늘리는 방식"
+        },
+        {
+          "term": "Client VPN",
+          "meaning": "개인 단말용 원격 접속 VPN(별도 서비스)"
+        }
+      ],
+      "pitfalls": [
+        "터널 하나만 설정하고 두 번째 터널을 방치해 실제로는 단일 장애점인 경우.",
+        "정적 라우팅에서 온프레미스 대역이 늘어날 때마다 AWS 쪽 경로를 잊고 안 넣는다.",
+        "PSK를 위키·메일로 공유하고 몇 년째 교체하지 않는다.",
+        "IKEv1·3DES·SHA1 같은 구식 알고리즘을 방치.",
+        "온프레미스 NAT 장비 뒤에 CGW가 있으면 NAT-T 설정이 필요하다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] VPN을 통해 접근 가능한 VPC 자원이 라우팅·SG로 최소화되어 있는지.",
+          "[운영] 터널 이중화 및 상태 모니터링(TunnelState 알람), 장애 이력.",
+          "[접근] PSK·인증서의 보관 위치·접근 권한·교체 주기.",
+          "[변경] VPN 연결·암호 옵션·라우팅 변경의 승인 기록."
+        ],
+        "fss": [
+          "전자금융감독규정상 정보 전송 구간 암호화 — 안전한 암호 알고리즘 사용(AES-256 등) 증적.",
+          "외부 연결 구간 접근통제 정책 및 정기 검토.",
+          "인증 키(PSK) 등 암호키 관리 절차."
+        ],
+        "isms": [
+          "2.7.1 암호정책 적용 / 2.7.2 암호키 관리 — 터널 알고리즘과 PSK 관리.",
+          "2.6.1 네트워크 접근 / 2.6.6 원격접근 통제.",
+          "2.9.4 로그 및 접속기록 관리 — 터널 로그 보관."
+        ],
+        "evidence": [
+          "describe-vpn-connections 결과(터널 옵션·알고리즘·상태).",
+          "Secrets Manager의 PSK 항목과 교체 이력(로테이션 로그).",
+          "CloudWatch VPN 터널 알람 설정 및 장애 이력.",
+          "IKE 협상 로그(CloudWatch Logs) 샘플.",
+          "VPN 관련 라우팅 테이블·SG 규칙 export."
+        ],
+        "auditorQuestions": [
+          "VPN 터널의 암호 알고리즘과 IKE 버전은 무엇입니까?",
+          "사전 공유 키는 어디에 보관하며 마지막 교체는 언제입니까?",
+          "터널 하나가 끊겼을 때 자동 전환됩니까? 알림은 누가 받습니까?",
+          "VPN을 통해 접근 가능한 시스템 범위는 무엇입니까?"
+        ],
+        "controlExample": "온프레미스–VPC VPN은 IKEv2/AES-256-GCM으로 고정된 이중 터널로 운영되며, PSK는 Secrets Manager에 보관하고 6개월마다 교체하며 터널 상태 알람과 IKE 로그를 1년간 보관한다."
+      },
+      "related": [
+        "aws-direct-connect",
+        "aws-transit-gateway",
+        "aws-vpc",
+        "aws-route-table",
+        "awssec-client-vpn",
+        "net-vpn",
+        "net-ipsec"
+      ],
+      "learnMore": [
+        "AWS Site-to-Site VPN User Guide",
+        "Tunnel options for your Site-to-Site VPN connection",
+        "AWS Client VPN Administrator Guide"
+      ]
+    },
+    {
+      "id": "aws-route53",
+      "title": "Route 53",
+      "titleEn": "Amazon Route 53",
+      "aliases": [
+        "라우트53",
+        "DNS",
+        "호스팅 존",
+        "도메인",
+        "Route53",
+        "Resolver",
+        "헬스체크 라우팅"
+      ],
+      "tags": [
+        "network",
+        "dns",
+        "global"
+      ],
+      "level": "기초",
+      "oneLiner": "도메인 등록·DNS 호스팅·헬스체크 기반 트래픽 라우팅을 제공하는 글로벌 DNS 서비스",
+      "analogy": "Route 53은 '전화번호부이자 안내 데스크'와 같다. 이름(도메인)을 말하면 번호(IP)를 알려주고, 안내 데스크가 똑똑해서 '지금 서울 창구가 붐비니 오사카 창구로 가세요'(장애조치·가중치 라우팅)까지 해준다.",
+      "explanation": "<p><strong>Route 53</strong>은 AWS의 DNS 서비스로, (1) <strong>도메인 등록</strong>(레지스트라), (2) <strong>DNS 호스팅</strong>(호스팅 존에 레코드 저장·응답), (3) <strong>헬스체크와 라우팅 정책</strong>, (4) VPC 내부 DNS인 <strong>Route 53 Resolver</strong>를 제공한다. 이름의 53은 DNS 포트 번호다. 글로벌 서비스이며 100% 가용성 SLA를 내건 유일한 AWS 서비스다.</p>\n<p><strong>호스팅 존(Hosted Zone)</strong>은 도메인 하나의 레코드 모음이다. <strong>퍼블릭 호스팅 존</strong>은 인터넷에 응답하고, <strong>프라이빗 호스팅 존</strong>은 연결된 VPC 안에서만 응답한다(예: <code>db.internal.paynow</code>). 레코드 유형은 A/AAAA(IP), CNAME(별칭), MX, TXT(도메인 검증·SPF), NS, SOA 등이며, AWS 고유의 <strong>Alias 레코드</strong>는 ALB·CloudFront·S3 정적 사이트를 IP 없이 가리키고 루트 도메인(zone apex)에도 쓸 수 있고 조회 요금이 없다.</p>\n<p><strong>라우팅 정책</strong>이 Route 53의 진짜 힘이다. 단순(Simple), 가중치(Weighted — 카나리 배포 10%/90%), 지연(Latency — 가장 빠른 리전), 장애조치(Failover — 주가 죽으면 보조), 지리적 위치(Geolocation — 국가별), 지리 근접(Geoproximity), 다중값(Multivalue) 정책이 있다. <strong>헬스체크</strong>는 엔드포인트를 주기적으로 검사해 실패한 레코드를 응답에서 뺀다. 리전 장애 시 DR 사이트로 전환하는 표준 수단이다.</p>\n<p><strong>Route 53 Resolver</strong>는 VPC마다 자동으로 있는 DNS 서버(<code>VPC CIDR+2</code>, 169.254.169.253)다. <strong>인바운드 엔드포인트</strong>는 온프레미스에서 VPC 내부 이름을 조회하게, <strong>아웃바운드 엔드포인트 + 전달 규칙</strong>은 VPC에서 사내 AD 도메인(<code>corp.local</code>)을 온프레미스 DNS로 넘기게 한다. <strong>Resolver DNS Firewall</strong>은 악성 도메인 조회를 차단하고, <strong>Resolver 쿼리 로그</strong>는 어떤 서버가 어떤 도메인을 조회했는지 남겨 유출·C2 통신 탐지에 쓴다.</p>\n<p>보안 관점: DNS 변경은 서비스 전체 트래픽을 다른 곳으로 돌릴 수 있는 강력한 행위다. 호스팅 존 변경 권한(<code>route53:ChangeResourceRecordSets</code>)은 소수로 제한하고, <strong>DNSSEC</strong> 서명으로 응답 위변조를 막으며, 도메인 <strong>이전 잠금(transfer lock)</strong>과 등록자 연락처 관리, 만료 자동 갱신을 확인해야 한다.</p>",
+      "howItWorks": "<ol><li>사용자가 브라우저에 <code>api.paynow.com</code>을 입력하면 OS → ISP 리졸버 → 루트 → <code>.com</code> TLD → Route 53 권한 네임서버 순으로 조회가 이어진다.</li>\n<li>Route 53은 해당 호스팅 존에서 레코드를 찾고, 라우팅 정책을 적용한다(예: 장애조치 정책이면 주 레코드의 헬스체크 상태 확인).</li>\n<li>헬스체크가 정상이면 주 ALB의 Alias 대상 IP를, 비정상이면 보조 리전 ALB IP를 응답한다.</li>\n<li>응답은 TTL(예: 60초) 동안 리졸버에 캐시된다. TTL이 길면 장애 전환이 느려진다.</li>\n<li>VPC 안의 서버가 <code>db.internal.paynow</code>를 조회하면 Resolver가 프라이빗 호스팅 존에서 사설 IP를 돌려주고, <code>corp.local</code>은 전달 규칙에 따라 온프레미스 DNS로 넘긴다.</li>\n<li>모든 조회는 (켜 두면) Resolver 쿼리 로그로 CloudWatch Logs/S3에 남는다.</li></ol>",
+      "example": "<p>'페이나우'는 <code>paynow.com</code> 퍼블릭 호스팅 존에서 <code>api.paynow.com</code>을 장애조치 정책으로 운영한다. 주 레코드는 서울 ALB(Alias), 보조는 오사카 ALB이며 헬스체크는 <code>/health</code>를 10초 간격으로 확인한다. TTL은 60초라 리전 장애 시 최대 약 2분 안에 트래픽이 전환된다. 호스팅 존 변경 권한은 플랫폼팀 역할 2개에만 있고, 변경은 Terraform PR + CloudTrail로 추적된다. 쿼리 로그는 보안팀 SIEM으로 흘러가 미승인 도메인 조회를 탐지한다.</p>\n<pre><code># 장애조치 주 레코드(Alias → 서울 ALB, 헬스체크 연결)\n{\n  \"Changes\": [{\"Action\": \"UPSERT\", \"ResourceRecordSet\": {\n    \"Name\": \"api.paynow.com\", \"Type\": \"A\", \"SetIdentifier\": \"seoul-primary\",\n    \"Failover\": \"PRIMARY\", \"HealthCheckId\": \"hc-0abc\",\n    \"AliasTarget\": {\"HostedZoneId\": \"ZWKZPGTI48KDX\", \"DNSName\": \"pay-alb-123.ap-northeast-2.elb.amazonaws.com\", \"EvaluateTargetHealth\": true}\n  }}]\n}\n# 적용\naws route53 change-resource-record-sets --hosted-zone-id Z0123 --change-batch file://failover.json</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='100' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70.0' y='122.0' text-anchor='middle' fill='currentColor'>사용자</text><text x='70.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>api.paynow.com</text><line x1='120' y1='125' x2='180' y2='125' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='150.0' y='119.0' text-anchor='middle' fill='currentColor' font-size='12'>DNS 조회</text><rect x='180' y='85' width='160' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='260.0' y='122.0' text-anchor='middle' fill='currentColor'>Route 53 호스팅 존</text><text x='260.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>장애조치 정책 + 헬스체크</text><rect x='420' y='30' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='52.0' text-anchor='middle' fill='currentColor'>주: 서울 ALB (Alias)</text><text x='515.0' y='68.0' text-anchor='middle' fill='currentColor' font-size='11'>헬스체크 정상 → 응답</text><rect x='420' y='110' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='132.0' text-anchor='middle' fill='currentColor'>보조: 오사카 ALB</text><text x='515.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>주 장애 시 응답</text><line x1='340' y1='110' x2='420' y2='55' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='380.0' y='76.5' text-anchor='middle' fill='currentColor' font-size='12'>정상</text><line x1='340' y1='140' x2='420' y2='135' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='380.0' y='131.5' text-anchor='middle' fill='currentColor' font-size='12'>장애 시</text><rect x='180' y='190' width='160' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260.0' y='212.0' text-anchor='middle' fill='currentColor'>Resolver (VPC+2)</text><text x='260.0' y='228.0' text-anchor='middle' fill='currentColor' font-size='11'>프라이빗 존 · 전달 규칙</text><rect x='420' y='190' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='212.0' text-anchor='middle' fill='currentColor'>온프레미스 DNS</text><text x='515.0' y='228.0' text-anchor='middle' fill='currentColor' font-size='11'>corp.local 전달</text><line x1='340' y1='215' x2='420' y2='215' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='380.0' y='209.0' text-anchor='middle' fill='currentColor' font-size='12'>규칙</text><text x='100' y='215' text-anchor='middle' fill='currentColor' font-size='12'>VPC 내부 서버</text><line x1='130' y1='205' x2='180' y2='205' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "호스팅 존",
+          "meaning": "도메인 하나의 레코드 집합. 퍼블릭/프라이빗"
+        },
+        {
+          "term": "Alias 레코드",
+          "meaning": "ALB·CloudFront 등 AWS 자원을 이름으로 가리키는 AWS 전용 레코드"
+        },
+        {
+          "term": "TTL",
+          "meaning": "응답 캐시 시간. 짧을수록 전환이 빠르고 조회가 많다"
+        },
+        {
+          "term": "라우팅 정책",
+          "meaning": "가중치·지연·장애조치·지리 등 응답 선택 규칙"
+        },
+        {
+          "term": "헬스체크",
+          "meaning": "엔드포인트 상태를 확인해 라우팅에 반영"
+        },
+        {
+          "term": "Resolver",
+          "meaning": "VPC 내부 DNS 서버. 인바운드/아웃바운드 엔드포인트로 하이브리드 연동"
+        },
+        {
+          "term": "DNSSEC",
+          "meaning": "DNS 응답 위변조 방지 서명"
+        },
+        {
+          "term": "쿼리 로그",
+          "meaning": "VPC 내 DNS 조회 기록"
+        }
+      ],
+      "pitfalls": [
+        "TTL을 86400초로 두고 장애 전환을 기대한다 — 전환에 하루가 걸린다.",
+        "루트 도메인(paynow.com)에 CNAME을 쓰려다 실패 — Alias를 써야 한다.",
+        "도메인 만료 알림 메일이 퇴사자 메일함으로 가서 도메인을 잃는 사고.",
+        "장애조치 헬스체크가 ALB가 아니라 단순 TCP만 확인해 '서버는 살았는데 앱은 죽은' 상황을 못 잡는다.",
+        "쓰지 않는 서브도메인 레코드가 삭제된 S3/CloudFront를 가리켜 서브도메인 탈취(dangling DNS)가 발생."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 호스팅 존 레코드 변경 권한이 소수 역할로 제한되고 개별 사용자에게 직접 부여되지 않는지.",
+          "[변경] DNS 레코드 변경이 변경 티켓·IaC PR과 연결되고 CloudTrail ChangeResourceRecordSets로 추적되는지.",
+          "[운영] DR 장애조치 레코드·헬스체크 구성이 DR 계획과 일치하고 전환 시험이 수행되는지.",
+          "[운영] 도메인 만료·이전 잠금·연락처 관리 및 dangling 레코드 정기 점검."
+        ],
+        "fss": [
+          "전자금융감독규정상 홈페이지·전자금융 서비스 도메인 관리 및 위변조 방지(DNSSEC 등) 조치.",
+          "재해복구 전환 절차에 DNS 전환이 포함되고 훈련 결과 보관.",
+          "DNS 조회 로그를 통한 이상 통신 모니터링."
+        ],
+        "isms": [
+          "2.9.1 변경관리 — DNS 변경 승인.",
+          "2.10.1 보안시스템 운영 — DNS Firewall·쿼리 로그.",
+          "2.12.1 재해·재난 대비 — DNS 기반 전환 절차."
+        ],
+        "evidence": [
+          "호스팅 존 레코드 export(list-resource-record-sets) 및 헬스체크 구성.",
+          "IAM에서 route53:ChangeResourceRecordSets 권한 보유 주체 목록.",
+          "CloudTrail Route 53 변경 이벤트와 변경 티켓 대조.",
+          "도메인 등록 정보(만료일·이전 잠금·연락처) 화면.",
+          "DR 전환 훈련 시 DNS 전환 로그 및 소요 시간 기록."
+        ],
+        "auditorQuestions": [
+          "DNS 레코드를 변경할 수 있는 사람은 누구이며 절차는 무엇입니까?",
+          "서비스 도메인의 만료일과 갱신 담당자는?",
+          "리전 장애 시 DNS 전환은 자동입니까? 마지막 시험 결과는?",
+          "내부 DNS 조회 기록을 보관하고 이상 탐지에 쓰고 있습니까?"
+        ],
+        "controlExample": "서비스 도메인의 호스팅 존 변경은 플랫폼팀 역할로만 가능하며 Terraform PR 승인 후 적용된다. 핵심 API 도메인은 헬스체크 기반 장애조치로 구성되고 반기별 DR 훈련에서 전환을 검증한다."
+      },
+      "related": [
+        "aws-elb",
+        "aws-cloudfront",
+        "aws-global-accelerator",
+        "aws-vpc",
+        "aws-global-infra",
+        "net-dns",
+        "awssec-route53-resolver-dns-firewall"
+      ],
+      "learnMore": [
+        "Amazon Route 53 Developer Guide",
+        "Choosing a routing policy 문서",
+        "Route 53 Resolver DNS Firewall"
+      ]
+    },
+    {
+      "id": "aws-cloudfront",
+      "title": "CloudFront",
+      "titleEn": "Amazon CloudFront",
+      "aliases": [
+        "CDN",
+        "클라우드프론트",
+        "배포(Distribution)",
+        "엣지 캐시",
+        "콘텐츠 전송망",
+        "OAC",
+        "CloudFront Functions"
+      ],
+      "tags": [
+        "network",
+        "cdn",
+        "edge",
+        "global"
+      ],
+      "level": "기초",
+      "oneLiner": "전 세계 엣지에서 콘텐츠를 캐시·전달하고 WAF·TLS로 앞단을 보호하는 CDN",
+      "analogy": "CloudFront는 '전국 편의점에 미리 갖다 놓은 인기 상품'과 같다. 본사 창고(오리진 S3/ALB)까지 가지 않아도 동네 편의점(엣지)에서 바로 받는다. 편의점 문 앞에는 경비(WAF·Shield)가 서서 이상한 손님을 거른다.",
+      "explanation": "<p><strong>CloudFront</strong>는 AWS의 CDN(Content Delivery Network)이다. 전 세계 600곳 이상의 엣지 로케이션에 콘텐츠를 캐시해 사용자와 가장 가까운 곳에서 응답하고, 동적 API 트래픽도 AWS 백본망을 타고 오리진까지 빠르게 전달한다. 쉽게 말하면 '우리 서버 앞에 전 세계 대리점을 두는 것'이다.</p>\n<p>왜 필요한가? (1) <strong>속도</strong> — 이미지·JS·영상이 엣지에서 나가면 오리진 부하와 지연이 준다. (2) <strong>보안</strong> — 오리진(S3, ALB)을 인터넷에서 숨기고 CloudFront만 노출하며, AWS Shield(DDoS)와 WAF(웹 공격 차단)가 엣지에서 동작한다. (3) <strong>비용</strong> — S3·EC2에서 인터넷으로 나가는 요금보다 CloudFront 전송 요금이 싸다.</p>\n<p>구성 요소: <strong>배포(Distribution)</strong>(설정 단위, <code>d123.cloudfront.net</code> 도메인), <strong>오리진(Origin)</strong>(S3 버킷, ALB, API Gateway, 사용자 지정 HTTP 서버), <strong>캐시 동작(Behavior)</strong>(경로 패턴별로 캐시 정책·오리진 요청 정책·허용 메서드 지정, 예: <code>/static/*</code>는 캐시, <code>/api/*</code>는 캐시 없음), <strong>캐시 정책</strong>(TTL, 어떤 헤더·쿠키·쿼리를 캐시 키에 넣을지), <strong>OAC(Origin Access Control)</strong>(S3 버킷을 CloudFront에서만 읽게 하는 서명 방식, 구 OAI 대체), <strong>대체 도메인 + ACM 인증서</strong>(반드시 us-east-1의 ACM), <strong>엣지 함수</strong>(CloudFront Functions — 경량 헤더 조작, Lambda@Edge — 복잡한 로직).</p>\n<p>보안 기능: 뷰어 프로토콜 정책(HTTP→HTTPS 리다이렉트), 최소 TLS 버전(TLSv1.2_2021 권장), <strong>서명된 URL/쿠키</strong>(유료 콘텐츠 제한), 지리적 제한(국가 차단), 오리진 커스텀 헤더(ALB가 CloudFront 경유 요청만 받도록 비밀 헤더 검증), <strong>VPC 오리진</strong>(프라이빗 서브넷 ALB를 공인 IP 없이 오리진으로 사용). 로그는 표준 로그(S3) 또는 실시간 로그(Kinesis)로 남긴다.</p>\n<p>운영 시 <strong>무효화(Invalidation)</strong>로 캐시를 강제로 지울 수 있지만, 파일명에 해시를 붙이는 버전 관리(<code>app.3f9a.js</code>)가 더 좋은 방법이다. 요금은 데이터 전송량 + 요청 수 기준이며, 가격 등급(Price Class)으로 사용 엣지 범위를 줄일 수 있다.</p>",
+      "howItWorks": "<ol><li>사용자가 <code>www.marketon.com/static/logo.png</code>를 요청하면 Route 53이 CloudFront 도메인(Alias)을 가리켜 가장 가까운 엣지로 연결된다.</li>\n<li>엣지에서 TLS 종료 → WAF 규칙 검사(차단이면 403) → 캐시 키(경로+지정 헤더/쿼리)로 캐시 조회.</li>\n<li>캐시 적중(HIT)이면 즉시 응답. 미스(MISS)면 리전 엣지 캐시를 거쳐 오리진으로 요청한다.</li>\n<li>S3 오리진이면 OAC 서명이 붙어 버킷 정책이 CloudFront만 허용한다. ALB 오리진이면 커스텀 헤더로 CloudFront 경유를 증명한다.</li>\n<li>오리진 응답을 캐시 정책의 TTL(또는 Cache-Control 헤더)만큼 엣지에 저장하고 사용자에게 전달한다.</li>\n<li><code>/api/*</code> 동작은 캐시 TTL 0으로 매번 오리진에 전달하되, 여전히 WAF·Shield·백본 가속 효과를 받는다.</li>\n<li>요청 기록은 표준 로그로 S3에 쌓이고, 무효화 요청은 몇 분 내 전 엣지에 반영된다.</li></ol>",
+      "example": "<p>커머스 '마켓온'은 프론트엔드 정적 파일을 S3(비공개 버킷) + CloudFront + OAC로 서비스하고, <code>/api/*</code>는 프라이빗 서브넷 ALB를 VPC 오리진으로 연결했다. WAF에는 AWS 관리형 규칙(Core, SQLi, Bot Control)과 국가 차단 규칙을 붙였고, 상품 이미지 캐시 TTL은 1일, HTML은 60초다. 배포 시 파일명 해시로 캐시를 자연 갱신하고, 긴급 시에만 무효화를 쓴다. 표준 로그는 S3에 400일 보관되며 WAF 차단 로그는 SIEM으로 간다.</p>\n<pre><code># OAC 사용 시 S3 버킷 정책: 특정 배포에서 온 요청만 허용\n{\n  \"Effect\": \"Allow\",\n  \"Principal\": {\"Service\": \"cloudfront.amazonaws.com\"},\n  \"Action\": \"s3:GetObject\",\n  \"Resource\": \"arn:aws:s3:::marketon-web-static/*\",\n  \"Condition\": {\"StringEquals\": {\"AWS:SourceArn\": \"arn:aws:cloudfront::111122223333:distribution/E1ABCDEF\"}}\n}\n\n# 긴급 캐시 무효화\naws cloudfront create-invalidation --distribution-id E1ABCDEF --paths \"/index.html\" \"/static/config.json\"</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65.0' y='122.0' text-anchor='middle' fill='currentColor'>사용자</text><text x='65.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>브라우저</text><line x1='110' y1='125' x2='170' y2='125' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='140.0' y='119.0' text-anchor='middle' fill='currentColor' font-size='12'>HTTPS</text><rect x='170' y='70' width='180' height='110' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='260.0' y='122.0' text-anchor='middle' fill='currentColor'>CloudFront 엣지</text><text x='260.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>TLS 종료 · WAF · 캐시</text><text x='260' y='160' text-anchor='middle' fill='currentColor' font-size='11'>HIT → 즉시 응답 / MISS → 오리진</text><rect x='430' y='30' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='52.0' text-anchor='middle' fill='currentColor'>S3 오리진 (비공개)</text><text x='525.0' y='68.0' text-anchor='middle' fill='currentColor' font-size='11'>OAC 서명만 허용</text><rect x='430' y='110' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='132.0' text-anchor='middle' fill='currentColor'>ALB 오리진 (VPC 오리진)</text><text x='525.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>커스텀 헤더 검증</text><rect x='430' y='190' width='190' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='212.0' text-anchor='middle' fill='currentColor'>API Gateway 오리진</text><text x='525.0' y='228.0' text-anchor='middle' fill='currentColor' font-size='11'>캐시 TTL 0</text><line x1='350' y1='100' x2='430' y2='55' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='390.0' y='71.5' text-anchor='middle' fill='currentColor' font-size='12'>/static/*</text><line x1='350' y1='125' x2='430' y2='135' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='390.0' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>/app/*</text><line x1='350' y1='150' x2='430' y2='215' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='390.0' y='176.5' text-anchor='middle' fill='currentColor' font-size='12'>/api/*</text><text x='320' y='235' text-anchor='middle' fill='currentColor' font-size='11'>오리진은 인터넷에 직접 노출되지 않음 · 로그는 S3/Kinesis</text></svg>",
+      "keyTerms": [
+        {
+          "term": "배포(Distribution)",
+          "meaning": "CloudFront 설정 단위. 고유 도메인 보유"
+        },
+        {
+          "term": "오리진",
+          "meaning": "원본 콘텐츠가 있는 곳. S3·ALB·API GW 등"
+        },
+        {
+          "term": "캐시 동작(Behavior)",
+          "meaning": "경로 패턴별 캐시·오리진 정책"
+        },
+        {
+          "term": "OAC",
+          "meaning": "Origin Access Control. S3를 CloudFront 전용으로 잠그는 방식"
+        },
+        {
+          "term": "TTL",
+          "meaning": "엣지 캐시 보관 시간"
+        },
+        {
+          "term": "무효화(Invalidation)",
+          "meaning": "캐시를 강제로 지우는 요청"
+        },
+        {
+          "term": "서명된 URL/쿠키",
+          "meaning": "기간·IP 제한이 걸린 콘텐츠 접근 링크"
+        },
+        {
+          "term": "Lambda@Edge / CloudFront Functions",
+          "meaning": "엣지에서 요청/응답을 가공하는 코드"
+        }
+      ],
+      "pitfalls": [
+        "S3 버킷을 퍼블릭으로 열어 놓고 CloudFront를 붙인다 — OAC로 잠그고 버킷은 비공개여야 한다.",
+        "ACM 인증서를 서울 리전에 만들어 CloudFront에 붙지 않는다 — 반드시 us-east-1.",
+        "Authorization 헤더·쿠키를 캐시 키에 넣지 않아 다른 사용자의 개인화 응답이 캐시되는 사고.",
+        "ALB에 직접 접근하는 경로를 막지 않아 WAF를 우회당한다 — 커스텀 헤더 또는 VPC 오리진.",
+        "무효화를 배포마다 남발해 비용·지연이 커진다(월 1,000경로 무료 이후 과금)."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 오리진(S3·ALB)이 CloudFront를 우회해 직접 접근되지 않도록 OAC·커스텀 헤더·SG로 잠겨 있는지.",
+          "[운영] WAF 규칙 세트·최소 TLS 버전·HTTPS 강제 설정이 정책 기준을 충족하는지.",
+          "[변경] 배포 설정(오리진·동작·WAF 연결) 변경이 변경관리 및 CloudTrail로 추적되는지.",
+          "[운영] 액세스 로그·WAF 로그 보관과 모니터링, 무효화 권한 통제."
+        ],
+        "fss": [
+          "전자금융감독규정상 홈페이지 및 전자금융 서비스 보호 — 웹 공격 차단(WAF)·DDoS 대응 체계.",
+          "전송 구간 암호화(TLS 1.2 이상) 적용 증적.",
+          "이용자 접속 기록(CDN 로그) 보관."
+        ],
+        "isms": [
+          "2.10.1 보안시스템 운영 — WAF·DDoS 대응.",
+          "2.10.4 전자거래 및 핀테크 보안 / 2.10.3 공개서버 보안 — 공개 웹 서비스 보호.",
+          "2.9.4 로그 및 접속기록 관리."
+        ],
+        "evidence": [
+          "배포 설정 export(get-distribution-config): 오리진·OAC·TLS·WAF 연결.",
+          "S3 오리진 버킷 정책(Service principal + SourceArn 조건).",
+          "WAF Web ACL 규칙 목록과 차단 로그 샘플.",
+          "CloudFront 표준 로그 보관 설정(S3 수명주기) 화면.",
+          "CloudTrail의 UpdateDistribution / CreateInvalidation 이벤트."
+        ],
+        "auditorQuestions": [
+          "오리진 S3·ALB에 CloudFront를 거치지 않고 접근할 수 있습니까?",
+          "WAF에는 어떤 규칙이 적용되어 있고 차단 로그는 누가 봅니까?",
+          "TLS 최소 버전과 인증서 갱신 방식은?",
+          "CDN 액세스 로그는 어디에 얼마나 보관합니까?"
+        ],
+        "controlExample": "공개 웹 서비스는 CloudFront를 통해서만 제공되며 오리진 S3는 OAC로, ALB는 VPC 오리진으로 직접 접근이 차단된다. WAF 관리형 규칙이 적용되고 액세스 로그는 S3에 400일 보관되어 월 1회 리뷰한다."
+      },
+      "related": [
+        "aws-s3",
+        "aws-elb",
+        "aws-route53",
+        "aws-global-accelerator",
+        "aws-global-infra",
+        "awssec-waf",
+        "awssec-shield",
+        "awssec-acm"
+      ],
+      "learnMore": [
+        "Amazon CloudFront Developer Guide",
+        "Restricting access to an Amazon S3 origin (OAC)",
+        "CloudFront VPC origins 문서"
+      ]
+    },
+    {
+      "id": "aws-s3",
+      "title": "S3",
+      "titleEn": "Amazon Simple Storage Service",
+      "aliases": [
+        "에스쓰리",
+        "버킷",
+        "객체 스토리지",
+        "S3 버킷",
+        "버킷 정책",
+        "버저닝",
+        "수명주기",
+        "Object Lock"
+      ],
+      "tags": [
+        "storage",
+        "object",
+        "foundation"
+      ],
+      "level": "기초",
+      "oneLiner": "파일을 객체 단위로 무제한 저장하고 정책·버전·수명주기·잠금으로 관리하는 객체 스토리지",
+      "analogy": "S3는 '무한히 넓은 물류창고'와 같다. 창고(버킷) 안에 상자(객체)를 이름표(키)로 넣고 꺼낸다. 창고 출입 규정(버킷 정책), 상자를 바꿀 때마다 이전 상자를 보관하는 규칙(버저닝), 오래된 상자를 지하 창고로 옮기는 규칙(수명주기), 상자를 봉인해 아무도 못 버리게 하는 규칙(객체 잠금)이 있다.",
+      "explanation": "<p><strong>S3(Simple Storage Service)</strong>는 AWS의 객체 스토리지다. 디스크처럼 마운트하는 것이 아니라 HTTP API로 <strong>객체(파일 + 메타데이터)</strong>를 <strong>버킷</strong>에 넣고 꺼낸다. 버킷 이름은 전 세계에서 유일하고, 객체는 <code>logs/2026/09/14/app.log</code>처럼 키(이름)로 식별된다(폴더는 실제로 없고 접두사일 뿐). 객체 하나는 최대 5TB, 저장 용량은 무제한이며, 리전 안 여러 AZ에 자동 복제되어 <strong>11 nines(99.999999999%)</strong> 내구성을 갖는다.</p>\n<p>용도는 거의 모든 것이다: 로그·백업·감사 증적 보관, 정적 웹 호스팅, 데이터 레이크(Athena·Glue가 직접 읽음), 애플리케이션 파일 저장, 정산 파일 교환. 그래서 <strong>감사에서 가장 자주 등장하는 AWS 서비스</strong>이기도 하다. 핵심 관리 기능 네 가지를 보자.</p>\n<p><strong>① 접근 제어와 버킷 정책</strong>. 접근은 IAM 정책(사용자 측) + <strong>버킷 정책</strong>(자원 측, JSON) + ACL(구식, 비활성화 권장)의 조합으로 결정된다. <strong>퍼블릭 액세스 차단(Block Public Access)</strong>은 계정·버킷 수준에서 어떤 정책이 있어도 공개를 막는 안전장치로, 켜 두는 것이 기본이다. 버킷 정책에서 <code>aws:SecureTransport</code>(HTTPS 강제), <code>aws:SourceVpce</code>(엔드포인트 제한), <code>s3:x-amz-server-side-encryption</code> 조건을 흔히 쓴다. 암호화는 기본 SSE-S3가 자동 적용되며 규제 데이터는 <strong>SSE-KMS</strong>(고객 관리 키, 키 사용 로그가 CloudTrail에 남음)를 쓴다.</p>\n<p><strong>② 버저닝(Versioning)</strong>. 켜면 같은 키에 덮어쓰거나 삭제해도 이전 버전이 남는다. 삭제는 '삭제 마커'만 얹는 것이라 복구가 가능하다. 실수·랜섬웨어 방어의 첫 번째 수단이며, <strong>MFA Delete</strong>로 버전 삭제에 MFA를 요구할 수 있다.</p>\n<p><strong>③ 수명주기(Lifecycle)</strong>. '30일 후 Standard-IA, 90일 후 Glacier Flexible, 7년 후 삭제' 같은 규칙으로 <strong>스토리지 클래스</strong>를 자동 전환하고 만료시킨다. 클래스는 Standard, Intelligent-Tiering(자동 계층화), Standard-IA, One Zone-IA, Glacier Instant/Flexible/Deep Archive, Express One Zone(고성능)이 있다. 이전 버전·미완료 멀티파트 업로드 정리도 수명주기로 한다.</p>\n<p><strong>④ 객체 잠금(Object Lock)</strong>. WORM(Write Once Read Many) 기능으로 지정 기간 동안 객체 버전을 아무도(루트 포함) 지우거나 덮어쓸 수 없게 한다. <strong>Compliance 모드</strong>는 절대 해제 불가, <strong>Governance 모드</strong>는 특수 권한자만 해제 가능하다. CloudTrail 로그·감사 증적·전자문서 보관에 쓰며 규제상 '위변조 방지 보관'을 기술적으로 증명하는 수단이다. 그 밖에 <strong>복제(CRR/SRR)</strong>, <strong>서버 액세스 로그</strong>, <strong>이벤트 알림</strong>(업로드 시 Lambda 트리거), <strong>Access Points</strong>(용도별 접근 창구)도 자주 쓴다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 SigV4 서명된 <code>PUT /bucket/key</code> 요청을 보낸다(SDK가 자동 서명).</li>\n<li>S3가 요청자의 IAM 정책, 버킷 정책, 퍼블릭 액세스 차단 설정, (있다면) ACL·Access Point 정책을 함께 평가한다 — 명시적 Deny가 하나라도 있으면 거부.</li>\n<li>허용되면 객체를 암호화(SSE-S3/KMS)해 리전 내 최소 3개 AZ에 저장하고, 버저닝이 켜져 있으면 새 버전 ID를 발급한다.</li>\n<li>객체 잠금이 걸린 버킷이면 보존 기간·법적 보존(Legal Hold) 메타데이터를 함께 기록한다.</li>\n<li>이벤트 알림 설정이 있으면 EventBridge/SQS/Lambda로 <code>ObjectCreated</code> 이벤트가 전달된다.</li>\n<li>수명주기 규칙이 매일 실행되어 조건에 맞는 객체를 다른 클래스로 옮기거나 만료 처리한다.</li>\n<li>모든 API 호출은 CloudTrail(관리 이벤트, 옵션으로 데이터 이벤트)과 서버 액세스 로그에 기록된다.</li></ol>",
+      "example": "<p>'페이나우'의 감사 로그 버킷 <code>paynow-audit-logs</code>는 버저닝 + 객체 잠금(Compliance, 7년) + SSE-KMS + 퍼블릭 차단 + HTTPS 강제로 구성되어 있고, 오사카 리전으로 CRR 복제된다. 수명주기는 90일 후 Glacier Flexible, 2년 후 Deep Archive로 이동한다. 정산 파일 버킷은 카드사 계정에 크로스 계정 버킷 정책으로 특정 접두사만 쓰기를 허용하며, 데이터 이벤트 CloudTrail로 누가 어떤 파일을 읽었는지 남긴다.</p>\n<pre><code># 감사 로그 버킷 생성: 객체 잠금은 생성 시에만 활성화 가능\naws s3api create-bucket --bucket paynow-audit-logs --region ap-northeast-2 \\\n  --create-bucket-configuration LocationConstraint=ap-northeast-2 --object-lock-enabled-for-bucket\naws s3api put-object-lock-configuration --bucket paynow-audit-logs --object-lock-configuration \\\n  '{\"ObjectLockEnabled\":\"Enabled\",\"Rule\":{\"DefaultRetention\":{\"Mode\":\"COMPLIANCE\",\"Years\":7}}}'\n\n# HTTPS 강제 버킷 정책 (일부)\n{\"Effect\":\"Deny\",\"Principal\":\"*\",\"Action\":\"s3:*\",\n \"Resource\":[\"arn:aws:s3:::paynow-audit-logs\",\"arn:aws:s3:::paynow-audit-logs/*\"],\n \"Condition\":{\"Bool\":{\"aws:SecureTransport\":\"false\"}}}\n\n# 수명주기: 90일 → Glacier, 730일 → Deep Archive\naws s3api put-bucket-lifecycle-configuration --bucket paynow-audit-logs --lifecycle-configuration \\\n  '{\"Rules\":[{\"ID\":\"archive\",\"Status\":\"Enabled\",\"Filter\":{},\"Transitions\":[{\"Days\":90,\"StorageClass\":\"GLACIER\"},{\"Days\":730,\"StorageClass\":\"DEEP_ARCHIVE\"}]}]}'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='100' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70.0' y='122.0' text-anchor='middle' fill='currentColor'>클라이언트</text><text x='70.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>SDK · SigV4</text><line x1='120' y1='125' x2='175' y2='125' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='147.5' y='119.0' text-anchor='middle' fill='currentColor' font-size='12'>PUT/GET</text><rect x='175' y='45' width='170' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='260.0' y='72.0' text-anchor='middle' fill='currentColor'>접근 평가</text><text x='260.0' y='88.0' text-anchor='middle' fill='currentColor' font-size='11'>IAM + 버킷 정책 + 퍼블릭 차단</text><rect x='175' y='120' width='170' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260.0' y='147.0' text-anchor='middle' fill='currentColor'>버킷 paynow-audit-logs</text><text x='260.0' y='163.0' text-anchor='middle' fill='currentColor' font-size='11'>SSE-KMS · 버저닝 · 객체 잠금</text><line x1='260' y1='105' x2='260' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='175' y='195' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260.0' y='214.5' text-anchor='middle' fill='currentColor'>수명주기</text><text x='260.0' y='230.5' text-anchor='middle' fill='currentColor' font-size='11'>90일 Glacier → 730일 Deep</text><line x1='260' y1='180' x2='260' y2='195' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='420' y='45' width='200' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520.0' y='64.5' text-anchor='middle' fill='currentColor'>객체 v1 / v2 / 삭제 마커</text><text x='520.0' y='80.5' text-anchor='middle' fill='currentColor' font-size='11'>버저닝으로 복구 가능</text><rect x='420' y='110' width='200' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520.0' y='129.5' text-anchor='middle' fill='currentColor'>WORM 보존 7년 (Compliance)</text><text x='520.0' y='145.5' text-anchor='middle' fill='currentColor' font-size='11'>루트도 삭제 불가</text><rect x='420' y='175' width='200' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520.0' y='194.5' text-anchor='middle' fill='currentColor'>CRR → 오사카 리전</text><text x='520.0' y='210.5' text-anchor='middle' fill='currentColor' font-size='11'>DR 복제</text><line x1='345' y1='140' x2='420' y2='67' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='345' y1='150' x2='420' y2='132' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='345' y1='160' x2='420' y2='197' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320' y='252' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail 데이터 이벤트 · 서버 액세스 로그로 접근 기록</text></svg>",
+      "keyTerms": [
+        {
+          "term": "버킷/객체/키",
+          "meaning": "저장 컨테이너 / 파일 / 파일 이름(경로 포함)"
+        },
+        {
+          "term": "버킷 정책",
+          "meaning": "버킷에 붙는 자원 기반 JSON 권한 정책"
+        },
+        {
+          "term": "퍼블릭 액세스 차단",
+          "meaning": "정책과 무관하게 공개를 막는 계정·버킷 스위치"
+        },
+        {
+          "term": "버저닝",
+          "meaning": "덮어쓰기·삭제 시 이전 버전을 보관"
+        },
+        {
+          "term": "수명주기",
+          "meaning": "기간 기준 스토리지 클래스 전환·만료 규칙"
+        },
+        {
+          "term": "스토리지 클래스",
+          "meaning": "Standard·IA·Glacier 등 비용/접근 속도 등급"
+        },
+        {
+          "term": "객체 잠금(Object Lock)",
+          "meaning": "WORM 보존. Compliance/Governance 모드"
+        },
+        {
+          "term": "SSE-KMS",
+          "meaning": "KMS 고객 관리 키로 서버 측 암호화"
+        },
+        {
+          "term": "CRR/SRR",
+          "meaning": "리전 간/리전 내 복제"
+        }
+      ],
+      "pitfalls": [
+        "버킷 정책 Resource에 <code>bucket</code>만 쓰고 <code>bucket/*</code>를 빠뜨려 객체 권한이 안 걸린다.",
+        "퍼블릭 액세스 차단을 '잠깐' 끄고 정적 사이트를 열었다가 개인정보 파일이 노출된 사고가 실제로 많다.",
+        "버저닝만 켜고 이전 버전 정리 수명주기를 안 넣어 비용이 2~3배로 뛴다.",
+        "객체 잠금은 버킷 생성 시(또는 버저닝 후 지원 요청)만 켤 수 있고, Compliance 모드는 AWS도 해제 못 한다 — 기간을 신중히.",
+        "데이터 이벤트 CloudTrail을 안 켜서 '누가 파일을 내려받았는지' 증빙을 못 낸다.",
+        "Glacier로 옮긴 객체는 복원 요청 후 몇 시간이 걸린다 — 감사 대응 시간을 고려."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 모든 계정·버킷에 퍼블릭 액세스 차단이 켜져 있고 예외 버킷은 승인 기록이 있는지.",
+          "[접근] 핵심 버킷(정산·개인정보·로그)의 버킷 정책이 HTTPS 강제·VPC 엔드포인트·특정 역할로 제한되는지.",
+          "[운영] 감사 증적·로그 버킷은 버저닝 + 객체 잠금(Compliance)으로 위변조·삭제가 불가능한지.",
+          "[운영] 수명주기 보존 기간이 규제 보존 요건(전자금융 5년, 세법 5년 등)과 일치하는지.",
+          "[변경] 버킷 정책·수명주기·잠금 설정 변경이 승인되고 CloudTrail로 추적되는지.",
+          "[ITAC] 정산 파일 교환 버킷의 업로드/다운로드 기록(데이터 이벤트)이 완전성·정확성 통제와 연결되는지."
+        ],
+        "fss": [
+          "전자금융감독규정상 전자금융거래 기록 보존(5년) — 보존 기간 동안 위변조 방지 저장(객체 잠금) 및 접근 통제.",
+          "개인정보 저장 시 암호화(KMS) 및 접근 기록 보관.",
+          "클라우드 저장 데이터의 국내 보관 및 국외 복제 시 보고."
+        ],
+        "isms": [
+          "2.6.3 응용프로그램 접근 / 2.6.1 네트워크 접근 — 버킷 접근 통제.",
+          "2.7.1 암호정책 적용 — 저장 데이터 암호화.",
+          "2.9.4 로그 및 접속기록 관리 — 로그 위변조 방지 보관.",
+          "2.9.3 백업 및 복구관리 — 버저닝·복제."
+        ],
+        "evidence": [
+          "계정 수준 퍼블릭 액세스 차단 설정 및 버킷별 상태(get-public-access-block).",
+          "핵심 버킷의 버킷 정책 JSON, 암호화 설정, 버저닝·객체 잠금 구성(get-object-lock-configuration).",
+          "수명주기 규칙 export와 보존 정책 문서 대조표.",
+          "CloudTrail 데이터 이벤트 설정 및 특정 기간 GetObject/DeleteObject 로그 샘플.",
+          "AWS Config s3-bucket-public-read-prohibited 등 규칙 컴플라이언스 이력.",
+          "S3 Storage Lens 또는 Macie 스캔 결과(민감 데이터 식별)."
+        ],
+        "auditorQuestions": [
+          "퍼블릭으로 열린 버킷이 있습니까? 있다면 승인 근거는?",
+          "감사 로그 버킷은 누가 삭제할 수 있습니까? 객체 잠금 모드와 기간은?",
+          "정산·개인정보 버킷의 암호화 키는 누가 관리하며 키 사용 로그를 검토합니까?",
+          "버킷 접근 기록(누가 어떤 객체를 읽었는지)을 얼마나 보관합니까?",
+          "보존 기간 만료 후 삭제는 어떻게 이루어지며 규제 요건과 맞습니까?"
+        ],
+        "controlExample": "전자금융거래 기록 및 감사 로그 버킷은 버저닝과 객체 잠금(Compliance 모드, 5년 이상)으로 보호되며 SSE-KMS 암호화, HTTPS 강제, 퍼블릭 액세스 차단이 적용된다. 버킷 정책 변경은 보안팀 승인 후 수행되고 데이터 이벤트 로그를 분기별로 리뷰한다."
+      },
+      "related": [
+        "aws-s3-glacier",
+        "aws-privatelink-vpc-endpoint",
+        "aws-cloudfront",
+        "aws-storage-gateway",
+        "aws-efs",
+        "awssec-kms",
+        "awssec-cloudtrail",
+        "awssec-macie",
+        "awsdata-athena"
+      ],
+      "learnMore": [
+        "Amazon S3 User Guide",
+        "Amazon S3 security best practices",
+        "Using S3 Object Lock 문서",
+        "S3 Lifecycle configuration 문서"
+      ]
+    },
+    {
+      "id": "aws-s3-glacier",
+      "title": "S3 Glacier",
+      "titleEn": "Amazon S3 Glacier storage classes",
+      "aliases": [
+        "글래시어",
+        "아카이브 스토리지",
+        "Deep Archive",
+        "콜드 스토리지",
+        "장기 보관",
+        "Glacier Vault"
+      ],
+      "tags": [
+        "storage",
+        "archive",
+        "cost"
+      ],
+      "level": "기초",
+      "oneLiner": "거의 꺼내지 않는 데이터를 초저가로 장기 보관하는 S3 아카이브 스토리지 클래스",
+      "analogy": "Glacier는 '지하 문서 보관 창고'와 같다. 자리 값은 아주 싸지만 서류를 꺼내려면 신청서를 내고 몇 분~며칠 기다려야 한다(복원). 사무실 책상(S3 Standard)에 둘 필요 없는 7년 보관 서류를 넣는 곳이다.",
+      "explanation": "<p><strong>S3 Glacier</strong>는 S3의 <strong>아카이브 스토리지 클래스</strong> 묶음이다. 예전에는 별도 서비스(Glacier Vault + 아카이브 API)였지만 지금은 S3 버킷 안에서 스토리지 클래스로 쓰는 것이 표준이다. 쉽게 말하면 '같은 버킷 안에서 객체를 지하 창고로 옮기는 것'이며, 객체 키·정책·잠금은 그대로 유지된다.</p>\n<p>세 가지 클래스가 있다. <strong>Glacier Instant Retrieval</strong>: 밀리초 접근, 분기에 한 번 정도 보는 데이터(의료 영상, 오래된 로그 검색). Standard보다 약 68% 저렴, 최소 보관 90일. <strong>Glacier Flexible Retrieval</strong>(구 Glacier): 복원 필요, 신속(1~5분)·표준(3~5시간)·대량(5~12시간) 옵션. 최소 보관 90일. <strong>Glacier Deep Archive</strong>: 가장 저렴(GB당 월 약 1달러/TB 수준), 복원 표준 12시간·대량 48시간, 최소 보관 180일. 규제 보존용 7~10년 데이터의 종착지다.</p>\n<p>왜 필요한가? 전자금융 거래 기록 5년, 회계 자료 10년처럼 '반드시 보관하되 거의 안 보는' 데이터가 회사마다 수십 TB씩 있다. Standard에 두면 월 비용이 20배 이상 차이 난다. 수명주기 규칙으로 '생성 90일 후 Flexible, 1년 후 Deep Archive'처럼 자동 이동시키면 손대지 않아도 된다.</p>\n<p>비용 구조를 이해해야 한다. 저장 요금은 싸지만 (1) <strong>복원 요청·복원 데이터 요금</strong>, (2) 객체당 메타데이터 오버헤드(객체 8KB Standard + 32KB Glacier), (3) <strong>최소 보관 기간</strong>(일찍 지워도 90/180일 치 과금), (4) 이동(transition) 요청 요금이 있다. 그래서 작은 파일 수백만 개는 압축·묶음(tar)해서 넣는 것이 좋다.</p>\n<p>감사 대응 관점: 감사인이 '3년 전 5월 거래 로그'를 요청하면 복원에 12시간 이상 걸릴 수 있으므로 <strong>복원 절차와 소요 시간을 문서화</strong>하고 필요 시 신속 복원 옵션 예산을 잡아 둔다. 객체 잠금·버저닝·KMS 암호화는 Glacier 클래스에서도 그대로 적용되므로 '아카이브에서도 위변조 불가'를 증명할 수 있다. <strong>S3 Batch Operations</strong>로 수백만 객체를 한 번에 복원할 수 있다.</p>",
+      "howItWorks": "<ol><li>수명주기 규칙(예: 730일 후 DEEP_ARCHIVE)이 매일 실행되어 조건에 맞는 객체를 아카이브 클래스로 전환한다.</li>\n<li>전환된 객체는 목록(ListObjects)에는 보이지만 <code>GetObject</code>를 하면 <code>InvalidObjectState</code> 오류가 난다.</li>\n<li>필요 시 <code>RestoreObject</code>로 복원 요청을 한다 — 복원 등급(Expedited/Standard/Bulk)과 복원본 유지 일수를 지정.</li>\n<li>S3가 백그라운드에서 데이터를 꺼내 지정 일수 동안 읽을 수 있는 임시 복사본을 만든다. 완료는 이벤트 알림(<code>s3:ObjectRestore:Completed</code>)으로 받을 수 있다.</li>\n<li>기간 동안 GetObject로 읽고, 기간이 끝나면 복사본은 사라지고 원본은 그대로 아카이브에 남는다.</li>\n<li>보존 기간이 끝나면 수명주기 만료 규칙이 삭제한다(객체 잠금 기간이 남아 있으면 삭제되지 않는다).</li></ol>",
+      "example": "<p>'마켓온'은 주문·결제 원장 CSV를 매일 S3에 적재하고 90일 후 Glacier Flexible, 1년 후 Deep Archive로 보낸다. 2026년 세무조사에서 2021년 자료 요청이 왔을 때, 대상 접두사 <code>ledger/2021/</code>를 S3 Batch Operations로 대량 복원(48시간)했고 절차서에 따라 요청·승인·복원 완료 시각을 기록했다. 월 스토리지 비용은 Standard 대비 약 95% 절감됐다.</p>\n<pre><code># 단일 객체 복원 (표준 등급, 복원본 7일 유지)\naws s3api restore-object --bucket marketon-ledger --key ledger/2021/05/orders.csv.gz \\\n  --restore-request '{\"Days\":7,\"GlacierJobParameters\":{\"Tier\":\"Standard\"}}'\n\n# 복원 상태 확인 (x-amz-restore 헤더)\naws s3api head-object --bucket marketon-ledger --key ledger/2021/05/orders.csv.gz --query '[StorageClass,Restore]'\n\n# 클래스별 용량 파악\naws s3api list-objects-v2 --bucket marketon-ledger --prefix ledger/2021/ \\\n  --query 'Contents[].StorageClass' --output text | tr '\\t' '\\n' | sort | uniq -c</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='90' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='117.0' text-anchor='middle' fill='currentColor'>S3 Standard</text><text x='80.0' y='133.0' text-anchor='middle' fill='currentColor' font-size='11'>0~90일 · 즉시 접근</text><line x1='140' y1='120' x2='190' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='165.0' y='114.0' text-anchor='middle' fill='currentColor' font-size='12'>수명주기</text><rect x='190' y='90' width='140' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='260.0' y='117.0' text-anchor='middle' fill='currentColor'>Glacier Flexible</text><text x='260.0' y='133.0' text-anchor='middle' fill='currentColor' font-size='11'>90일~ · 복원 분~시간</text><line x1='330' y1='120' x2='380' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='355.0' y='114.0' text-anchor='middle' fill='currentColor' font-size='12'>수명주기</text><rect x='380' y='90' width='140' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='450.0' y='117.0' text-anchor='middle' fill='currentColor'>Deep Archive</text><text x='450.0' y='133.0' text-anchor='middle' fill='currentColor' font-size='11'>730일~ · 복원 12~48h</text><line x1='520' y1='120' x2='570' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='545.0' y='114.0' text-anchor='middle' fill='currentColor' font-size='12'>만료</text><rect x='570' y='100' width='55' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='597.5' y='124.0' text-anchor='middle' fill='currentColor'>삭제</text><rect x='190' y='190' width='330' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='355.0' y='209.5' text-anchor='middle' fill='currentColor'>RestoreObject → 임시 복사본(N일) → GetObject</text><text x='355.0' y='225.5' text-anchor='middle' fill='currentColor' font-size='11'>객체 잠금·KMS·버저닝은 그대로 적용</text><line x1='450' y1='150' x2='400' y2='190' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320' y='40' text-anchor='middle' fill='currentColor' font-size='12'>저장 단가 ↓  ·  복원 시간/요금 ↑  ·  최소 보관 90/180일</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Instant Retrieval",
+          "meaning": "밀리초 접근 가능한 아카이브 클래스"
+        },
+        {
+          "term": "Flexible Retrieval",
+          "meaning": "구 Glacier. 복원 1분~12시간"
+        },
+        {
+          "term": "Deep Archive",
+          "meaning": "최저가. 복원 12~48시간, 최소 180일"
+        },
+        {
+          "term": "복원(Restore)",
+          "meaning": "아카이브 객체를 읽을 수 있게 임시 복사본을 만드는 요청"
+        },
+        {
+          "term": "복원 등급(Tier)",
+          "meaning": "Expedited/Standard/Bulk. 속도와 요금 차이"
+        },
+        {
+          "term": "최소 보관 기간",
+          "meaning": "조기 삭제 시에도 과금되는 최소 일수"
+        },
+        {
+          "term": "S3 Batch Operations",
+          "meaning": "수백만 객체를 일괄 복원·태깅하는 기능"
+        },
+        {
+          "term": "Glacier Vault",
+          "meaning": "구 방식의 독립 아카이브 저장소(레거시)"
+        }
+      ],
+      "pitfalls": [
+        "'Glacier에 넣었으니 즉시 볼 수 있겠지'라고 생각하다가 감사 당일 12시간을 기다린다.",
+        "작은 파일 수천만 개를 그대로 넣어 메타데이터 오버헤드로 절감 효과가 사라진다.",
+        "최소 보관 기간 전에 삭제해 오히려 요금이 더 나온다.",
+        "복원본 유지 일수를 너무 길게 잡아 Standard 요금이 이중으로 나간다.",
+        "복원 요청 권한(s3:RestoreObject)을 아무나 갖고 있으면 대량 복원 비용 사고가 난다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 아카이브 전환·만료 규칙이 문서화된 보존 정책(기간·대상)과 일치하는지.",
+          "[운영] 아카이브 데이터의 복원 절차·소요 시간이 정의되어 있고 연 1회 복원 시험을 수행하는지.",
+          "[접근] 복원·삭제 권한이 제한되어 있고 대량 복원 요청이 승인 대상인지.",
+          "[운영] 아카이브 클래스에서도 객체 잠금·암호화가 유지됨을 확인."
+        ],
+        "fss": [
+          "전자금융거래 기록 보존 기간(5년) 동안 열람 가능 상태 유지 — 복원 절차 및 시험 기록.",
+          "보존 기간 만료 후 파기 절차와 기록.",
+          "장기 보관 데이터의 암호화 및 위변조 방지."
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리 — 아카이브 복원 시험.",
+          "2.9.4 로그 및 접속기록 관리 — 장기 보관 로그의 보존 기간 준수.",
+          "3.4.x 개인정보 파기 — 보존 만료 후 삭제 절차."
+        ],
+        "evidence": [
+          "버킷 수명주기 규칙 export와 보존 정책 문서 대조표.",
+          "복원 시험 기록(요청 시각·완료 시각·검증 결과).",
+          "S3 Storage Lens 또는 인벤토리 보고서의 클래스별 용량.",
+          "IAM에서 s3:RestoreObject/DeleteObject 권한 보유 주체.",
+          "CloudTrail RestoreObject 이벤트 로그."
+        ],
+        "auditorQuestions": [
+          "아카이브된 과거 기록을 요청하면 얼마 만에 열람할 수 있습니까?",
+          "보존 기간과 수명주기 규칙은 누가 정하고 검토합니까?",
+          "아카이브 데이터도 위변조 방지(객체 잠금)가 적용됩니까?",
+          "복원·삭제를 수행할 수 있는 사람은 누구입니까?"
+        ],
+        "controlExample": "전자금융거래 기록은 생성 1년 후 Glacier Deep Archive로 자동 전환되어 5년간 객체 잠금 상태로 보관되며, 연 1회 샘플 복원 시험으로 열람 가능성을 검증하고 만료 후 삭제 이력을 보관한다."
+      },
+      "related": [
+        "aws-s3",
+        "aws-storage-gateway",
+        "aws-ebs",
+        "awssec-kms",
+        "comp-record-retention",
+        "onprem-backup"
+      ],
+      "learnMore": [
+        "Amazon S3 storage classes 페이지",
+        "Restoring an archived object (S3 User Guide)",
+        "S3 Glacier storage classes FAQ"
+      ]
+    },
+    {
+      "id": "aws-lambda",
+      "title": "Lambda",
+      "titleEn": "AWS Lambda",
+      "aliases": [
+        "람다",
+        "서버리스",
+        "FaaS",
+        "함수",
+        "Lambda 함수",
+        "이벤트 기반 컴퓨팅"
+      ],
+      "tags": [
+        "compute",
+        "serverless",
+        "event-driven"
+      ],
+      "level": "기초",
+      "oneLiner": "서버 없이 코드를 이벤트에 반응해 실행하고 실행 시간만큼만 과금하는 서버리스 컴퓨팅",
+      "analogy": "Lambda는 '호출할 때만 오는 출장 기사'와 같다. 사무실(서버)을 상시 임대하지 않고, 일이 생기면(이벤트) 기사가 와서 처리하고 간다. 일한 시간(밀리초)만큼만 지불하며, 일이 100건 동시에 생기면 기사 100명이 온다.",
+      "explanation": "<p><strong>Lambda</strong>는 서버를 관리하지 않고 코드(함수)를 실행하는 서비스다. 사용자는 코드와 실행 환경(런타임: Python, Node.js, Java, Go, .NET, 컨테이너 이미지), 메모리(128MB~10GB), 제한 시간(최대 15분), IAM 실행 역할만 정하면 된다. OS 패치·확장·가용성은 AWS가 책임진다. 쉽게 말하면 '함수 하나를 올려 두면 이벤트가 올 때마다 알아서 돌려주는 것'이다.</p>\n<p>왜 필요한가? 하루 몇 번 도는 배치, S3에 파일이 올라올 때만 실행되는 변환, 트래픽이 들쭉날쭉한 API 백엔드에 서버를 24시간 켜 두는 것은 낭비다. Lambda는 요청 수 × 실행 시간(GB-초)으로만 과금되고 동시 실행이 자동으로 늘어난다(계정당 기본 동시성 1,000, 조정 가능).</p>\n<p><strong>트리거(이벤트 소스)</strong>가 다양하다: API Gateway/ALB/Function URL(HTTP), S3 이벤트, SQS·Kinesis·DynamoDB Streams(폴링), EventBridge(스케줄·이벤트 버스), SNS, CloudWatch Logs, Cognito, Step Functions 등. <strong>실행 역할(Execution Role)</strong>은 함수가 다른 AWS 서비스를 호출할 권한이며, <strong>리소스 정책</strong>은 누가 이 함수를 호출할 수 있는지를 정한다. <strong>환경 변수</strong>(KMS 암호화 가능)와 Secrets Manager/Parameter Store로 설정·비밀을 주입하고, <strong>레이어(Layer)</strong>로 공통 라이브러리를 공유한다.</p>\n<p>실행 모델: 함수는 <strong>실행 환경(microVM, Firecracker)</strong>에서 돌며, 첫 호출 시 환경을 만드는 <strong>콜드 스타트</strong>(수백 ms~수 초)가 있고 이후 재사용되면 웜 스타트다. 지연에 민감하면 <strong>프로비저닝된 동시성</strong> 또는 SnapStart(Java 등)를 쓴다. VPC 안의 RDS에 접근하려면 <strong>VPC 연결</strong>(서브넷·SG 지정)이 필요하고, 이때 인터넷 접근은 NAT을 거친다. <strong>버전과 별칭(Alias)</strong>으로 배포를 고정하고 가중치 배포(카나리)를 할 수 있다.</p>\n<p>감사 관점의 핵심: Lambda는 '서버가 없는' 것이지 '코드가 없는' 것이 아니다. 코드는 <strong>변경관리 대상</strong>이며(콘솔 편집기 직접 수정 금지, CI/CD로만 배포), 실행 역할은 최소 권한, 로그는 CloudWatch Logs에 남고, 함수 자체가 결제·정산 로직을 담으면 <strong>ITAC(자동 통제)</strong> 관점에서 처리 완전성·정확성을 봐야 한다.</p>",
+      "howItWorks": "<ol><li>이벤트가 발생한다(예: S3에 <code>settlement/20260914.csv</code> 업로드 → <code>ObjectCreated</code> 이벤트).</li>\n<li>Lambda 서비스가 함수의 리소스 정책을 확인해 S3가 호출 권한이 있는지 검사한다.</li>\n<li>웜 실행 환경이 있으면 재사용, 없으면 새 microVM을 띄우고 코드·레이어를 내려받아 초기화한다(콜드 스타트).</li>\n<li>실행 역할의 임시 자격증명이 환경에 주입되고 핸들러 함수가 이벤트 JSON을 인자로 호출된다.</li>\n<li>함수가 S3에서 파일을 읽어 검증·변환 후 RDS에 적재하고 결과를 반환한다. 표준 출력은 CloudWatch Logs로 간다.</li>\n<li>비동기 호출 실패 시 최대 2회 재시도 후 DLQ(SQS) 또는 실패 대상(Destination)으로 보낸다. SQS 소스는 가시성 타임아웃 후 재처리된다.</li>\n<li>동시에 이벤트가 500개 오면 실행 환경이 500개까지 늘어나고(예약 동시성으로 상한 지정 가능), 유휴 환경은 몇 분 후 회수된다.</li></ol>",
+      "example": "<p>'페이나우'는 카드사 정산 파일이 S3에 올라오면 Lambda <code>settle-ingest</code>(Python 3.12, 1GB, 5분)가 실행되어 레코드 수와 합계를 검증한 뒤 Aurora에 적재하고 검증 결과를 DynamoDB 통제 로그 테이블에 기록한다. 코드는 GitHub → GitHub Actions → SAM 배포로만 반영되며 콘솔 편집은 SCP로 막혀 있다. 실행 역할은 해당 버킷 읽기, Aurora 데이터 API, KMS 복호화만 허용한다. 감사팀은 이 함수를 정산 ITAC로 지정해 코드 변경 이력과 검증 로그를 분기별로 샘플링한다.</p>\n<pre><code># SAM 템플릿 일부: 최소 권한 역할·S3 트리거·DLQ\nSettleIngest:\n  Type: AWS::Serverless::Function\n  Properties:\n    Runtime: python3.12\n    Handler: app.handler\n    MemorySize: 1024\n    Timeout: 300\n    ReservedConcurrentExecutions: 5\n    DeadLetterQueue: {Type: SQS, TargetArn: !GetAtt SettleDLQ.Arn}\n    Policies:\n      - S3ReadPolicy: {BucketName: paynow-settlement-in}\n    Events:\n      NewFile:\n        Type: S3\n        Properties: {Bucket: !Ref SettleBucket, Events: s3:ObjectCreated:*}\n\n# 함수 코드가 언제 누가 바꿨는지\naws lambda get-function --function-name settle-ingest --query 'Configuration.[LastModified,CodeSha256,Role]'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='62.0' text-anchor='middle' fill='currentColor'>S3 이벤트</text><text x='80.0' y='78.0' text-anchor='middle' fill='currentColor' font-size='11'>파일 업로드</text><rect x='20' y='105' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='127.0' text-anchor='middle' fill='currentColor'>API Gateway</text><text x='80.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>HTTP 요청</text><rect x='20' y='170' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='192.0' text-anchor='middle' fill='currentColor'>EventBridge</text><text x='80.0' y='208.0' text-anchor='middle' fill='currentColor' font-size='11'>스케줄·이벤트</text><line x1='140' y1='65' x2='220' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='140' y1='130' x2='220' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='140' y1='195' x2='220' y2='150' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='220' y='85' width='180' height='90' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='310.0' y='127.0' text-anchor='middle' fill='currentColor'>Lambda 함수</text><text x='310.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>실행 역할 · 환경 변수 · VPC</text><text x='310' y='165' text-anchor='middle' fill='currentColor' font-size='11'>microVM · 동시성 자동 확장</text><rect x='460' y='40' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540.0' y='59.5' text-anchor='middle' fill='currentColor'>RDS / DynamoDB</text><text x='540.0' y='75.5' text-anchor='middle' fill='currentColor' font-size='11'>데이터 처리</text><rect x='460' y='105' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540.0' y='124.5' text-anchor='middle' fill='currentColor'>CloudWatch Logs</text><text x='540.0' y='140.5' text-anchor='middle' fill='currentColor' font-size='11'>실행 로그·지표</text><rect x='460' y='170' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540.0' y='189.5' text-anchor='middle' fill='currentColor'>DLQ (SQS)</text><text x='540.0' y='205.5' text-anchor='middle' fill='currentColor' font-size='11'>실패 이벤트</text><line x1='400' y1='110' x2='460' y2='62' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='400' y1='130' x2='460' y2='127' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='400' y1='150' x2='460' y2='192' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320' y='245' text-anchor='middle' fill='currentColor' font-size='11'>코드 배포는 CI/CD로만 · 콘솔 편집 금지 · 밀리초 단위 과금</text></svg>",
+      "keyTerms": [
+        {
+          "term": "핸들러",
+          "meaning": "이벤트를 받아 실행되는 진입 함수"
+        },
+        {
+          "term": "실행 역할",
+          "meaning": "함수가 AWS 서비스를 호출할 때 쓰는 IAM 역할"
+        },
+        {
+          "term": "리소스 정책",
+          "meaning": "누가 이 함수를 호출할 수 있는지 정의"
+        },
+        {
+          "term": "콜드 스타트",
+          "meaning": "새 실행 환경을 만드는 초기 지연"
+        },
+        {
+          "term": "동시성(Concurrency)",
+          "meaning": "동시에 실행되는 환경 수. 예약/프로비저닝 가능"
+        },
+        {
+          "term": "레이어",
+          "meaning": "여러 함수가 공유하는 라이브러리 패키지"
+        },
+        {
+          "term": "버전/별칭",
+          "meaning": "불변 코드 스냅샷 / 버전을 가리키는 포인터"
+        },
+        {
+          "term": "DLQ",
+          "meaning": "처리 실패 이벤트를 보관하는 큐"
+        }
+      ],
+      "pitfalls": [
+        "콘솔 인라인 편집기로 운영 함수 코드를 직접 고친다 — 변경관리 우회의 대표 사례.",
+        "실행 역할에 AdministratorAccess를 붙여 두는 습관.",
+        "환경 변수에 DB 비밀번호를 평문으로 넣는다 — Secrets Manager 참조로.",
+        "VPC 연결 함수가 NAT 없이 인터넷·AWS API를 못 불러 타임아웃.",
+        "재시도로 같은 정산 파일이 두 번 처리되는 중복 — 멱등성(idempotency) 설계 필요.",
+        "런타임 지원 종료(deprecated)된 Python/Node 버전을 방치."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 함수 코드·설정 변경이 CI/CD 파이프라인을 통해서만 이루어지고 콘솔 직접 수정이 차단·탐지되는지(CodeSha256·LastModified 대조).",
+          "[접근] 실행 역할이 최소 권한이며 관리자 정책이 붙은 함수가 없는지, 함수 호출 권한(리소스 정책)이 제한되는지.",
+          "[운영] 실패 처리(DLQ·재시도)와 알람이 구성되고 실패 건이 추적·해소되는지.",
+          "[ITAC] 정산·회계 로직을 담은 함수의 처리 완전성·정확성 통제(건수·합계 검증 로그)가 존재하는지.",
+          "[접근] 환경 변수·비밀 관리(KMS 암호화, Secrets Manager) 상태."
+        ],
+        "fss": [
+          "전자금융감독규정상 프로그램 변경 통제 — 서버리스 코드도 변경 승인·테스트·이관 기록 대상.",
+          "중요 처리 로직의 오류·중단 시 대응 절차 및 로그 보관.",
+          "클라우드 서비스 이용 시 서비스 제공자 책임 범위(런타임 패치) 확인."
+        ],
+        "isms": [
+          "2.8.2 보안 요구사항 검토 및 시험 / 2.8.6 운영환경 이관 — 함수 배포 절차.",
+          "2.9.1 변경관리 — 함수 변경 승인.",
+          "2.5.x 인증 및 권한관리 — 실행 역할 최소 권한.",
+          "2.9.4 로그 및 접속기록 관리 — CloudWatch Logs 보관."
+        ],
+        "evidence": [
+          "함수 목록과 실행 역할·정책(list-functions + get-role-policy) export.",
+          "CI/CD 파이프라인 배포 이력과 함수 LastModified/CodeSha256 대조표.",
+          "CloudTrail UpdateFunctionCode/UpdateFunctionConfiguration 이벤트(콘솔 발생 여부).",
+          "CloudWatch Logs 보존 설정 및 오류·DLQ 알람 이력.",
+          "정산 함수의 검증 로그(건수·합계) 샘플과 재처리 기록."
+        ],
+        "auditorQuestions": [
+          "운영 Lambda 코드는 어떤 경로로 배포되며 콘솔에서 직접 수정할 수 있는 사람이 있습니까?",
+          "실행 역할 권한을 마지막으로 리뷰한 시점은?",
+          "함수 실패 시 어떻게 감지하고 재처리하며 중복 처리를 어떻게 방지합니까?",
+          "비밀 값(DB 접속 정보 등)은 어디에 저장합니까?",
+          "지원 종료된 런타임을 쓰는 함수가 있습니까?"
+        ],
+        "controlExample": "운영 계정의 Lambda 함수 코드는 GitHub Actions 파이프라인을 통해서만 배포되며 콘솔 편집은 SCP로 차단된다. 실행 역할은 함수별 최소 권한으로 정의되고 분기별로 리뷰하며, 정산 함수는 처리 건수·합계 검증 로그를 남긴다."
+      },
+      "related": [
+        "aws-api-gateway",
+        "aws-s3",
+        "aws-ecs",
+        "aws-fargate",
+        "awssec-iam",
+        "awssec-secrets-manager",
+        "cicd-github-actions",
+        "obs-cloudwatch",
+        "app-event-driven"
+      ],
+      "learnMore": [
+        "AWS Lambda Developer Guide",
+        "Security best practices for AWS Lambda",
+        "AWS Serverless Application Model (SAM) 문서"
+      ]
+    },
+    {
+      "id": "aws-api-gateway",
+      "title": "API Gateway",
+      "titleEn": "Amazon API Gateway",
+      "aliases": [
+        "API GW",
+        "에이피아이 게이트웨이",
+        "REST API",
+        "HTTP API",
+        "WebSocket API",
+        "API 관문",
+        "사용량 계획"
+      ],
+      "tags": [
+        "network",
+        "serverless",
+        "api"
+      ],
+      "level": "중급",
+      "oneLiner": "API 요청을 받아 인증·제한·변환 후 Lambda·백엔드로 넘기는 관리형 API 관문",
+      "analogy": "API Gateway는 '대형 빌딩의 안내 데스크'와 같다. 방문객(요청)의 신분증(인증 토큰)을 확인하고, 한 사람이 너무 자주 오면 제한하고(스로틀링), 용건에 따라 담당 부서(Lambda, 서비스)로 연결하며, 방문 기록을 남긴다.",
+      "explanation": "<p><strong>API Gateway</strong>는 HTTP/REST/WebSocket API를 만들고 배포·보호·모니터링하는 관리형 서비스다. 백엔드(Lambda, ALB/NLB 뒤의 서비스, 다른 AWS 서비스, 외부 HTTP)를 직접 노출하지 않고 앞에 관문을 둔다. 쉽게 말하면 '우리 API의 정문'이며, 인증·요금제·로그·버전 관리를 코드 없이 처리한다.</p>\n<p>세 가지 유형이 있다. <strong>HTTP API</strong>: 가볍고 저렴(REST 대비 약 70% 저렴), JWT 인증 내장, 대부분의 신규 서비스에 권장. <strong>REST API</strong>: 기능이 가장 많다 — 요청/응답 변환(VTL 매핑), 사용량 계획·API 키, 요청 검증, 캐시, WAF 연동, 프라이빗 API(VPC 엔드포인트 전용). <strong>WebSocket API</strong>: 채팅·실시간 알림처럼 양방향 연결.</p>\n<p>구성 요소: <strong>리소스/경로</strong>(<code>/payments/{id}</code>), <strong>메서드</strong>(GET/POST), <strong>통합(Integration)</strong>(Lambda 프록시, HTTP, AWS 서비스, VPC Link — 프라이빗 서브넷의 NLB/ALB로 연결), <strong>스테이지</strong>(dev/prod, 스테이지 변수), <strong>권한 부여자(Authorizer)</strong>(IAM SigV4, Cognito 사용자 풀, JWT, Lambda 권한 부여자 — 커스텀 토큰 검증), <strong>사용량 계획</strong>(API 키별 분당 요청 수·월 할당량), <strong>스로틀링</strong>(기본 계정당 10,000 rps 버스트 5,000), <strong>사용자 지정 도메인</strong>(ACM 인증서).</p>\n<p>보안 설계 포인트: (1) 인증 없는 메서드(<code>NONE</code>)는 공개 API가 아니면 존재하면 안 된다. (2) 외부 노출 API에는 WAF와 스로틀링·요청 크기 제한을 건다. (3) 내부 전용 API는 <strong>프라이빗 API</strong> + 리소스 정책으로 특정 VPC 엔드포인트만 허용한다. (4) <strong>액세스 로그</strong>(요청자·경로·상태·지연, JSON 형식)와 <strong>실행 로그</strong>를 CloudWatch Logs에 남기고, X-Ray로 추적한다. (5) 상호 TLS(mTLS)로 파트너사 클라이언트 인증서를 요구할 수 있다.</p>\n<p>운영 관점에서는 <strong>배포(Deployment)</strong> 개념이 중요하다. REST API는 설정을 바꿔도 스테이지에 '배포'해야 반영되며, 이 배포 행위가 변경관리의 이관 시점이다. OpenAPI(Swagger) 문서로 API 정의를 내보내고/가져올 수 있어 IaC 관리가 가능하다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 <code>https://api.paynow.com/v1/payments</code>로 POST 요청을 보낸다(헤더에 JWT 토큰).</li>\n<li>사용자 지정 도메인 → API Gateway 엔드포인트(엣지 최적화면 CloudFront 경유)로 도착. WAF가 연결되어 있으면 먼저 검사한다.</li>\n<li>스테이지·경로·메서드를 매칭하고 권한 부여자가 토큰을 검증한다(JWT 서명·발급자·audience 확인). 실패 시 401/403.</li>\n<li>사용량 계획·스로틀링 한도를 확인한다. 초과 시 429.</li>\n<li>요청 검증(스키마) 후 통합 대상(Lambda 프록시)을 호출한다 — 요청 전체가 이벤트 JSON으로 전달된다.</li>\n<li>백엔드 응답을 (필요 시 매핑 템플릿으로 변환해) 클라이언트에 반환하고 액세스 로그·지표(4XX/5XX/Latency)를 CloudWatch에 남긴다.</li>\n<li>캐시가 켜진 GET 경로는 TTL 동안 백엔드 호출 없이 응답한다.</li></ol>",
+      "example": "<p>'페이나우'는 가맹점용 결제 API를 HTTP API + Lambda로 제공한다. 인증은 Cognito 발급 JWT이고, 가맹점별 API 키·사용량 계획(분당 300건)은 REST API로 운영하는 레거시 v1에만 남아 있다. 외부 API에는 WAF(SQLi·Bot Control)와 mTLS(가맹점 클라이언트 인증서)를 적용했고, 사내 정산 조회 API는 프라이빗 API로 만들어 운영 VPC 엔드포인트에서만 호출된다. 액세스 로그는 JSON으로 CloudWatch → S3에 1년 보관되며, 새 스테이지 배포는 파이프라인 승인 단계가 있다.</p>\n<pre><code># 프라이빗 API 리소스 정책: 지정 VPC 엔드포인트 외 거부\n{\n  \"Effect\": \"Deny\", \"Principal\": \"*\", \"Action\": \"execute-api:Invoke\",\n  \"Resource\": \"arn:aws:execute-api:ap-northeast-2:111122223333:a1b2c3/*\",\n  \"Condition\": {\"StringNotEquals\": {\"aws:SourceVpce\": \"vpce-0internal\"}}\n}\n\n# 인증 없는(NONE) 메서드 전수 조사 (REST API)\naws apigateway get-resources --rest-api-id a1b2c3 --embed methods \\\n  --query 'items[].resourceMethods.*[?authorizationType==`NONE`]' --output json</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='100' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70.0' y='122.0' text-anchor='middle' fill='currentColor'>클라이언트</text><text x='70.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>JWT · API 키</text><line x1='120' y1='125' x2='175' y2='125' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='147.5' y='119.0' text-anchor='middle' fill='currentColor' font-size='12'>HTTPS</text><rect x='175' y='55' width='190' height='140' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270.0' y='129.0' text-anchor='middle' fill='currentColor'>API Gateway</text><text x='270' y='90' text-anchor='middle' fill='currentColor' font-size='11'>WAF → 권한 부여자(JWT)</text><text x='270' y='110' text-anchor='middle' fill='currentColor' font-size='11'>→ 스로틀링/사용량 계획</text><text x='270' y='130' text-anchor='middle' fill='currentColor' font-size='11'>→ 요청 검증 → 통합</text><text x='270' y='150' text-anchor='middle' fill='currentColor' font-size='11'>액세스 로그 · X-Ray</text><text x='270' y='175' text-anchor='middle' fill='currentColor' font-size='11'>스테이지 prod (배포 단위)</text><rect x='430' y='40' width='190' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='59.5' text-anchor='middle' fill='currentColor'>Lambda 프록시 통합</text><text x='525.0' y='75.5' text-anchor='middle' fill='currentColor' font-size='11'>결제 처리 함수</text><rect x='430' y='105' width='190' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='124.5' text-anchor='middle' fill='currentColor'>VPC Link → NLB/ALB</text><text x='525.0' y='140.5' text-anchor='middle' fill='currentColor' font-size='11'>프라이빗 서브넷 서비스</text><rect x='430' y='170' width='190' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='189.5' text-anchor='middle' fill='currentColor'>AWS 서비스 통합</text><text x='525.0' y='205.5' text-anchor='middle' fill='currentColor' font-size='11'>SQS·DynamoDB 직접</text><line x1='365' y1='100' x2='430' y2='62' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='365' y1='125' x2='430' y2='127' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='365' y1='150' x2='430' y2='192' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='320' y='240' text-anchor='middle' fill='currentColor' font-size='11'>백엔드를 직접 노출하지 않고 인증·제한·기록을 관문에서 처리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "HTTP/REST/WebSocket API",
+          "meaning": "세 가지 API 유형. 신규는 HTTP API 권장"
+        },
+        {
+          "term": "통합(Integration)",
+          "meaning": "요청을 전달할 백엔드 유형과 방식"
+        },
+        {
+          "term": "스테이지",
+          "meaning": "배포된 API의 환경 단위(dev/prod)"
+        },
+        {
+          "term": "권한 부여자(Authorizer)",
+          "meaning": "요청 인증 방식. IAM/Cognito/JWT/Lambda"
+        },
+        {
+          "term": "사용량 계획·API 키",
+          "meaning": "클라이언트별 호출 한도와 식별"
+        },
+        {
+          "term": "스로틀링",
+          "meaning": "초당 요청 수 제한. 초과 시 429"
+        },
+        {
+          "term": "VPC Link",
+          "meaning": "프라이빗 서브넷 백엔드로 연결하는 통로"
+        },
+        {
+          "term": "프라이빗 API",
+          "meaning": "VPC 엔드포인트에서만 호출 가능한 API"
+        },
+        {
+          "term": "mTLS",
+          "meaning": "클라이언트 인증서까지 검증하는 상호 TLS"
+        }
+      ],
+      "pitfalls": [
+        "API 키를 인증 수단으로 착각한다 — API 키는 식별·요금제용이지 인증이 아니다.",
+        "테스트하려고 authorizationType NONE으로 만든 메서드가 운영에 남는다.",
+        "REST API에서 설정만 바꾸고 '배포'를 안 해 반영이 안 됐다고 착각(또는 반대로 미승인 배포).",
+        "Lambda 통합 타임아웃(29초, HTTP API 30초)을 넘는 장기 작업을 동기로 붙인다.",
+        "액세스 로그를 안 켜서 누가 호출했는지 추적 불가 — 실행 로그와는 별개 설정.",
+        "기본 <code>execute-api</code> 엔드포인트를 비활성화하지 않아 사용자 지정 도메인·WAF를 우회당한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 모든 운영 API 메서드에 인증(권한 부여자)이 적용되고 NONE 메서드가 없는지(공개 API는 승인 목록).",
+          "[접근] 내부 API가 프라이빗 API·리소스 정책으로 외부 호출이 차단되는지, 기본 엔드포인트 비활성화 여부.",
+          "[변경] API 정의(OpenAPI)·스테이지 배포가 파이프라인 승인 후 이루어지고 CloudTrail CreateDeployment로 추적되는지.",
+          "[운영] 스로틀링·WAF·액세스 로그·알람(5XX·지연)이 구성되어 있고 로그가 보관되는지.",
+          "[ITAC] 결제 API의 요청 검증(스키마)·멱등성 키 처리가 문서화되어 있는지."
+        ],
+        "fss": [
+          "전자금융감독규정상 외부 연계(오픈 API) 시 인증·암호화·접근통제 — API 인증 방식과 mTLS·TLS 적용.",
+          "이용자·가맹점 접속 기록 보관 및 이상 거래 탐지 연계.",
+          "API 변경 시 보안성 검토 및 승인."
+        ],
+        "isms": [
+          "2.6.3 응용프로그램 접근 — API 인증·권한.",
+          "2.10.4 전자거래 및 핀테크 보안 — 외부 API 보호.",
+          "2.9.1 변경관리 / 2.8.6 운영환경 이관 — 스테이지 배포 통제.",
+          "2.9.4 로그 및 접속기록 관리."
+        ],
+        "evidence": [
+          "OpenAPI export(get-export)로 메서드별 인증 유형 목록.",
+          "API 리소스 정책·WAF Web ACL 연결·사용자 지정 도메인/기본 엔드포인트 설정 화면.",
+          "스테이지 배포 이력(get-deployments)과 파이프라인 승인 기록 대조.",
+          "액세스 로그 형식·보존 설정 및 샘플 로그.",
+          "CloudWatch 4XX/5XX/Latency 알람과 대응 이력."
+        ],
+        "auditorQuestions": [
+          "인증 없이 호출 가능한 API 메서드가 있습니까? 있다면 승인 근거는?",
+          "API 변경은 어떤 절차로 운영 스테이지에 배포됩니까?",
+          "가맹점·파트너별 호출 한도와 식별 방법은?",
+          "API 호출 로그는 어디에 얼마나 보관하며 이상 호출을 어떻게 탐지합니까?",
+          "내부 전용 API가 인터넷에서 호출되지 않는다는 것을 어떻게 보장합니까?"
+        ],
+        "controlExample": "외부 결제 API는 JWT 권한 부여자와 WAF·스로틀링이 적용되며 인증 없는 메서드는 허용되지 않는다. 운영 스테이지 배포는 CI/CD 승인 단계를 거치고, 액세스 로그는 S3에 1년 보관되어 월 1회 리뷰한다."
+      },
+      "related": [
+        "aws-lambda",
+        "aws-elb",
+        "aws-cloudfront",
+        "aws-privatelink-vpc-endpoint",
+        "awssec-waf",
+        "awssec-cognito",
+        "app-api-design",
+        "app-msa"
+      ],
+      "learnMore": [
+        "Amazon API Gateway Developer Guide",
+        "Choosing between REST APIs and HTTP APIs",
+        "Security best practices in Amazon API Gateway"
+      ]
+    }
+  ]
+}

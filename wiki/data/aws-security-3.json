@@ -1,0 +1,1683 @@
+{
+ "category": "aws-security",
+ "categoryLabel": "AWS 보안·IAM·계정 거버넌스",
+ "entries": [
+  {
+   "id": "awssec-cloudtrail",
+   "title": "CloudTrail",
+   "titleEn": "AWS CloudTrail",
+   "aliases": [
+    "클라우드트레일",
+    "API 감사로그",
+    "감사추적",
+    "조직 트레일",
+    "관리이벤트"
+   ],
+   "tags": [
+    "logging",
+    "audit",
+    "detection"
+   ],
+   "level": "기초",
+   "oneLiner": "AWS에서 일어난 모든 API 호출을 기록하는 감사 로그 서비스",
+   "analogy": "CloudTrail은 건물 전체에 설치된 출입·조작 기록기와 같다. 누가 몇 시에 어느 방에 들어가 어떤 스위치를 올렸는지, 실패한 시도까지 전부 장부에 적힌다. 장부는 지울 수 없는 잉크로 쓰이고 별도 금고(다른 계정의 S3)에 보관되므로, 침입자가 흔적을 지우려 해도 원본이 남는다.",
+   "explanation": "<p><strong>AWS CloudTrail</strong>은 AWS 계정에서 발생한 <strong>모든 API 호출과 콘솔 작업을 기록</strong>하는 서비스다. 누가(주체), 언제(시각), 어디서(소스 IP·사용자 에이전트), 무엇을(액션·대상 리소스), 어떤 결과로(성공/실패, 에러 코드) 했는지가 JSON 이벤트로 남는다. ITGC 관점에서 <strong>AWS 환경의 접근·변경 증적의 원천</strong>이며, 사실상 모든 감사 질문의 출발점이다.</p><p><strong>이벤트는 세 종류</strong>다. <strong>관리 이벤트(Management Events)</strong>는 리소스를 만들고 바꾸고 지우는 제어 평면 작업이다(<code>RunInstances</code>, <code>CreateUser</code>, <code>PutBucketPolicy</code>, <code>AssumeRole</code>, <code>ConsoleLogin</code> 등). 기본으로 켜져 있고 첫 번째 사본은 무료다. <strong>데이터 이벤트(Data Events)</strong>는 데이터 평면 작업이다(S3 객체 <code>GetObject</code>/<code>PutObject</code>, Lambda <code>Invoke</code>, DynamoDB 항목 조작). 양이 매우 많아 <strong>기본으로 꺼져 있고 유료</strong>이며, 명시적으로 켜야 한다. <strong>인사이트 이벤트(Insights)</strong>는 비정상적인 API 호출량 급증을 자동 탐지한다.</p><p><strong>여기서 가장 흔한 감사 함정</strong>이 나온다. 감사인이 '누가 고객 개인정보 파일을 열람했는가'를 물었을 때, 관리 이벤트만 켜져 있으면 <strong>답할 수 없다</strong>. S3 객체 읽기는 데이터 이벤트이기 때문이다. 개인정보가 담긴 버킷에는 반드시 데이터 이벤트를 활성화해야 한다. 다만 전체 버킷에 켜면 비용이 폭증하므로, <strong>민감 버킷만 선택적으로</strong> 켜는 설계가 필요하다.</p><p><strong>조직 트레일(Organization Trail)</strong>이 멀티 어카운트 환경의 표준 구성이다. 관리 계정에서 조직 트레일을 만들면 <strong>모든 멤버 계정의 이벤트가 자동으로 한 S3 버킷에 집중</strong>되고, 멤버 계정은 이 트레일을 <strong>끄거나 지울 수 없다</strong>. 신규 계정이 조직에 추가되면 자동 적용된다. 로그 버킷은 별도의 <strong>로그 아카이브 계정</strong>에 두어, 운영 계정이 침해되어도 증적이 보호되도록 한다.</p><p><strong>로그 무결성(Log File Integrity Validation)</strong>은 감사에서 특히 중요한 기능이다. 활성화하면 CloudTrail이 매시간 <strong>다이제스트 파일</strong>을 생성한다. 다이제스트에는 그 시간 동안 배달된 각 로그 파일의 SHA-256 해시와 <strong>직전 다이제스트의 해시</strong>가 담기며, AWS의 개인키로 서명된다. 즉 해시 체인이 형성되어 <strong>중간 파일 하나를 삭제하거나 조작하면 검증이 깨진다</strong>. <code>aws cloudtrail validate-logs</code> 명령으로 누구나 검증할 수 있고, 이 출력이 '로그가 변조되지 않았다'는 직접 증거가 된다.</p><p><strong>보존과 조회</strong>는 계층적으로 설계한다. 콘솔의 <strong>이벤트 기록(Event History)</strong>은 관리 이벤트를 90일간 무료로 보여주지만 그 이상은 안 된다. 장기 보존은 S3(수명주기로 Glacier 전환, 객체 잠금으로 WORM 적용)로, 빠른 조회는 <strong>CloudTrail Lake</strong>(SQL 조회, 최대 10년 보존) 또는 CloudWatch Logs·Athena·SIEM 연동으로 처리한다. 국내 규제는 전자금융거래 기록 5년 등 장기 보존을 요구하는 경우가 많아 <strong>보존기간 설계가 곧 규제 대응</strong>이다.</p><p><strong>감사 관점 핵심 질문</strong>은 네 가지다. (1) 전 계정·전 리전에 트레일이 켜져 있고 끌 수 없게 보호되는가, (2) 민감 데이터 접근이 데이터 이벤트로 기록되는가, (3) 로그가 별도 계정에 무결성 검증과 함께 보관되는가, (4) 주요 이벤트(루트 로그인, IAM 정책 변경, 트레일 중지, KMS 키 삭제 예약)에 대한 실시간 경보가 있는가.</p>",
+   "howItWorks": "<ol><li>관리 계정에서 조직 트레일을 생성하고 로그 저장소로 로그 아카이브 계정의 S3 버킷을 지정한다.</li><li>트레일 생성 시 '전 리전 적용'과 '로그 파일 검증'을 활성화하고 KMS 키로 로그를 암호화한다.</li><li>어떤 계정에서든 사용자가 콘솔에 로그인하거나 API를 호출하면 CloudTrail이 이벤트를 캡처한다.</li><li>이벤트에 주체(userIdentity), 시각, 소스 IP, 액션, 대상 리소스, 결과(errorCode 포함)가 기록된다.</li><li>약 5분 내 이벤트가 묶여 S3에 gzip JSON으로 배달되고, 매시간 다이제스트 파일이 생성된다.</li><li>동시에 CloudWatch Logs로 스트리밍되어 메트릭 필터가 루트 로그인·IAM 변경 등을 감지하면 SNS 경보가 발송된다.</li><li>보안팀은 CloudTrail Lake 또는 Athena로 SQL 질의해 '특정 사용자의 지난 분기 활동'을 조회한다.</li><li>감사 시점에 <code>validate-logs</code>로 해시 체인을 검증해 로그 무결성을 증명한다.</li><li>S3 수명주기 규칙이 90일 후 Glacier로 전환하고 객체 잠금이 보존기간 내 삭제를 차단한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 계정 18개를 운영한다. 관리 계정의 조직 트레일이 모든 계정의 관리 이벤트를 로그 아카이브 계정 버킷 <code>paynow-cloudtrail-archive</code>로 집중시키며, 이 버킷에는 객체 잠금(Compliance 모드, 5년)이 적용되어 보안팀장도 삭제할 수 없다. 개인정보가 담긴 버킷 4개에는 S3 데이터 이벤트를 별도로 활성화했다. 2026년 2월, 고객 문의로 특정 정산 파일 유출 의혹이 제기됐을 때 데이터 이벤트 로그로 해당 객체를 읽은 주체가 배치 역할 1건뿐임을 20분 만에 확인해 사고가 아님을 소명했다. 만약 데이터 이벤트를 켜지 않았다면 입증 자체가 불가능했을 것이다.</p><pre><code># 조직 트레일 생성 (관리 계정)\naws cloudtrail create-trail --name paynow-org-trail \\\n  --s3-bucket-name paynow-cloudtrail-archive \\\n  --is-organization-trail --is-multi-region-trail \\\n  --enable-log-file-validation \\\n  --kms-key-id arn:aws:kms:ap-northeast-2:999988887777:key/abcd-1234\naws cloudtrail start-logging --name paynow-org-trail\n\n# 민감 버킷만 S3 데이터 이벤트 활성화\naws cloudtrail put-event-selectors --trail-name paynow-org-trail \\\n  --advanced-event-selectors '[{\n    \"Name\": \"PII buckets only\",\n    \"FieldSelectors\": [\n      {\"Field\": \"eventCategory\", \"Equals\": [\"Data\"]},\n      {\"Field\": \"resources.type\", \"Equals\": [\"AWS::S3::Object\"]},\n      {\"Field\": \"resources.ARN\", \"StartsWith\": [\"arn:aws:s3:::paynow-pii-\"]}\n    ]}]'\n\n# 로그 무결성 검증 (감사 증적)\naws cloudtrail validate-logs \\\n  --trail-arn arn:aws:cloudtrail:ap-northeast-2:999988887777:trail/paynow-org-trail \\\n  --start-time 2026-01-01T00:00:00Z --end-time 2026-03-31T23:59:59Z\n\n# 특정 사용자의 활동 추적\naws cloudtrail lookup-events \\\n  --lookup-attributes AttributeKey=Username,AttributeValue=eddie \\\n  --start-time 2026-03-01T00:00:00Z --max-results 50</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='150' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='47' text-anchor='middle' fill='currentColor' font-size='12'>멤버 계정들</text><text x='95' y='68' text-anchor='middle' fill='currentColor' font-size='11'>콘솔 · CLI · SDK</text><text x='95' y='88' text-anchor='middle' fill='currentColor' font-size='11'>모든 API 호출</text><text x='95' y='108' text-anchor='middle' fill='currentColor' font-size='11'>(실패 포함)</text><line x1='170' y1='72' x2='235' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='235' y='25' width='165' height='95' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='317' y='48' text-anchor='middle' fill='currentColor' font-size='12'>조직 트레일</text><text x='317' y='69' text-anchor='middle' fill='currentColor' font-size='11'>관리 이벤트(기본)</text><text x='317' y='88' text-anchor='middle' fill='currentColor' font-size='11'>데이터 이벤트(선택)</text><text x='317' y='108' text-anchor='middle' fill='currentColor' font-size='11'>멤버가 끌 수 없음</text><line x1='400' y1='55' x2='465' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='400' y1='95' x2='465' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='20' width='155' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='42' text-anchor='middle' fill='currentColor' font-size='11'>로그 아카이브 계정</text><text x='542' y='61' text-anchor='middle' fill='currentColor' font-size='11'>S3 + 객체잠금 + KMS</text><rect x='465' y='105' width='155' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='127' text-anchor='middle' fill='currentColor' font-size='11'>CloudWatch Logs</text><text x='542' y='146' text-anchor='middle' fill='currentColor' font-size='11'>→ 실시간 경보</text><rect x='20' y='150' width='380' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='171' text-anchor='middle' fill='currentColor' font-size='12'>무결성: 시간별 다이제스트 = 해시 + 직전 다이제스트 해시</text><text x='210' y='189' text-anchor='middle' fill='currentColor' font-size='11'>validate-logs 로 체인 검증 → 변조 즉시 탐지</text><rect x='20' y='205' width='600' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='229' text-anchor='middle' fill='currentColor' font-size='11'>경보 대상: 루트 로그인 · IAM 정책 변경 · 트레일 중지 · KMS 키 삭제 예약 · 비허용 리전 호출</text></svg>",
+   "keyTerms": [
+    {
+     "term": "관리 이벤트(Management Event)",
+     "meaning": "리소스 생성·변경·삭제 등 제어 평면 API. 기본 활성화"
+    },
+    {
+     "term": "데이터 이벤트(Data Event)",
+     "meaning": "S3 객체 읽기/쓰기, Lambda 호출 등 데이터 평면 작업. 기본 비활성·유료"
+    },
+    {
+     "term": "조직 트레일(Organization Trail)",
+     "meaning": "관리 계정에서 전 멤버 계정 로그를 한 곳에 모으는 트레일. 멤버가 해제 불가"
+    },
+    {
+     "term": "로그 파일 검증",
+     "meaning": "해시 체인 다이제스트로 로그 변조 여부를 증명하는 기능"
+    },
+    {
+     "term": "다이제스트 파일",
+     "meaning": "시간별 로그 해시와 직전 다이제스트 해시를 담아 서명한 무결성 증거 파일"
+    },
+    {
+     "term": "CloudTrail Lake",
+     "meaning": "이벤트를 SQL로 조회할 수 있는 관리형 데이터 저장소. 최대 10년 보존"
+    },
+    {
+     "term": "userIdentity",
+     "meaning": "이벤트의 주체 정보. IAM 사용자·역할·세션·SSO 주체가 여기 기록된다"
+    },
+    {
+     "term": "객체 잠금(Object Lock)",
+     "meaning": "S3에서 지정 기간 삭제·덮어쓰기를 금지하는 WORM 기능"
+    },
+    {
+     "term": "CloudTrail Insights",
+     "meaning": "비정상적 API 호출량 급변을 자동 탐지하는 기능"
+    }
+   ],
+   "pitfalls": [
+    "관리 이벤트만 켜놓고 '모든 접근이 기록된다'고 답한다. S3 객체 열람·Lambda 호출은 데이터 이벤트를 켜야 남는다.",
+    "로그 버킷을 같은 운영 계정에 두어, 계정이 침해되면 공격자가 증적을 삭제할 수 있다. 로그 아카이브 계정 분리가 원칙이다.",
+    "로그 파일 검증을 켜지 않아 '로그가 조작되지 않았다'를 기술적으로 증명하지 못한다.",
+    "콘솔 이벤트 기록 90일을 보존기간으로 착각. 장기 보존은 S3/Lake 설계가 별도로 필요하다.",
+    "데이터 이벤트를 전체 버킷에 켜서 로그 비용이 컴퓨팅 비용을 넘어선다. 민감 버킷 선별이 필요하다.",
+    "CloudTrail 자체의 중지(StopLogging)·삭제·이벤트 셀렉터 변경에 대한 경보가 없어, 공격자가 로깅을 끄고 활동해도 모른다.",
+    "S3 버킷 정책과 KMS 키 정책을 잘못 설정해 로그 배달이 실패하는데, 배달 실패 알림이 없어 수개월간 로그 공백이 생긴다.",
+    "IAM 역할을 여러 사람이 공유해 userIdentity로 실제 개인을 특정하지 못한다. 세션 이름 규칙이 필요하다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 전 계정·전 리전에 CloudTrail이 활성화되어 있고 멤버 계정이 이를 중지·삭제할 수 없도록 보호되는가",
+     "[접근] 중요정보가 저장된 스토리지에 대한 접근이 데이터 이벤트로 기록되어 열람 주체를 식별할 수 있는가",
+     "[운영] 로그가 별도 계정의 S3에 암호화·객체잠금으로 보관되고 규제 요구 기간 동안 보존되는가",
+     "[운영] 로그 파일 검증이 활성화되어 있고 주기적으로 무결성 검증이 수행되는가",
+     "[변경] 트레일 중지·설정 변경·로그 버킷 정책 변경에 대한 실시간 경보와 대응 절차가 있는가",
+     "[접근] 공유 역할 사용 시 세션 이름 규칙 등으로 실제 행위자를 개인 단위로 식별할 수 있는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 및 전자금융거래법상 거래·접근 기록의 생성·보존(일반적으로 5년) 요건 충족 여부",
+     "정보처리시스템 접속기록의 위·변조 방지 조치(해시 검증, WORM 보관) 적용 여부",
+     "전자금융감독규정 제14조의2 클라우드 이용 시 감사 추적 자료의 확보 가능성 및 감독당국 제출 가능 여부"
+    ],
+    "isms": [
+     "2.9.4 로그 및 접속기록 관리: 로그 생성·보존 기간·보호 조치가 이행되는가",
+     "2.9.5 로그 및 접속기록 점검: 주요 이벤트에 대한 정기·이상 점검이 수행되는가",
+     "2.6.2 정보시스템 접근 / 2.5.5 특수 계정 관리: 특권 행위가 기록·검토되는가"
+    ],
+    "evidence": [
+     "aws cloudtrail describe-trails 출력(조직 트레일 여부, 다중 리전, 로그 검증, KMS 암호화)",
+     "put-event-selectors 설정 내역(데이터 이벤트 대상 버킷 목록)",
+     "로그 저장 S3 버킷의 버킷 정책·객체 잠금·수명주기 설정",
+     "validate-logs 실행 결과(검증 성공, 대상 기간 명시)",
+     "CloudWatch 메트릭 필터·경보 설정 목록(루트 로그인, 트레일 중지, IAM 변경 등)",
+     "특정 기간 특정 사용자 활동 조회 샘플(감사인 요청 대응 시연)"
+    ],
+    "auditorQuestions": [
+     "모든 AWS 계정과 리전에서 활동 기록이 남고 있음을 어떻게 확인할 수 있는가?",
+     "고객 개인정보 파일을 누가 열람했는지 조회할 수 있는가? 시연해 달라.",
+     "로그가 삭제되거나 수정되지 않았음을 어떻게 증명하는가?",
+     "누군가 CloudTrail을 끄면 어떻게 알게 되며 누가 조치하는가?",
+     "로그 보존기간은 얼마이며 규제 요구를 충족하는가?",
+     "공용 역할로 수행된 작업의 실제 담당자는 어떻게 식별하는가?"
+    ],
+    "controlExample": "관리 계정에서 생성한 전 리전 조직 트레일이 모든 멤버 계정의 관리 이벤트와 지정된 개인정보 버킷의 데이터 이벤트를 로그 아카이브 계정의 S3에 KMS 암호화하여 집중 저장하며, 객체 잠금으로 5년간 삭제가 차단된다. 로그 파일 검증이 활성화되어 분기별 무결성 검증을 수행하고, 트레일 중지·루트 로그인·IAM 정책 변경 이벤트는 실시간으로 보안관제에 경보된다."
+   },
+   "related": [
+    "awssec-config",
+    "awssec-security-hub",
+    "awssec-guardduty",
+    "awssec-organizations",
+    "awssec-kms",
+    "awssec-s3-access-logs",
+    "awssec-incident-response",
+    "comp-sox-itgc"
+   ],
+   "learnMore": [
+    "AWS CloudTrail User Guide",
+    "CloudTrail - Validating CloudTrail log file integrity",
+    "CloudTrail - Logging data events",
+    "AWS CloudTrail Lake"
+   ]
+  },
+  {
+   "id": "awssec-config",
+   "title": "AWS Config",
+   "titleEn": "AWS Config",
+   "aliases": [
+    "컨피그",
+    "구성 이력",
+    "준수 규칙",
+    "Config Rules",
+    "적합성 팩"
+   ],
+   "tags": [
+    "compliance",
+    "configuration",
+    "detection"
+   ],
+   "level": "중급",
+   "oneLiner": "리소스 구성의 변경 이력을 기록하고 규칙 준수 여부를 평가하는 서비스",
+   "analogy": "AWS Config는 건물 시설물의 이력카드와 점검표를 동시에 관리하는 시스템과 같다. 각 방의 소화기·잠금장치가 언제 어떻게 바뀌었는지 시간순으로 기록하고(이력), 동시에 '모든 방에는 소화기가 있어야 한다'는 점검 항목에 대해 지금 몇 개 방이 위반 중인지 알려준다(규칙). CloudTrail이 '누가 했는가'라면 Config는 '지금 어떤 상태이고 어떻게 변해 왔는가'를 답한다.",
+   "explanation": "<p><strong>AWS Config</strong>는 AWS 리소스의 <strong>구성(configuration)을 지속적으로 기록</strong>하고, 정의한 <strong>규칙(Rule)</strong>에 대해 준수 여부를 평가하는 서비스다. CloudTrail이 '행위 로그'라면 Config는 '상태 스냅샷과 그 변천사'다. 두 서비스는 경쟁 관계가 아니라 짝이며, 감사 대응에서는 거의 항상 함께 쓰인다.</p><p><strong>구성 항목(Configuration Item, CI)</strong>이 기본 단위다. 리소스가 생성·변경·삭제될 때마다 그 시점의 전체 속성값이 CI로 저장된다. 예를 들어 보안그룹의 인바운드 규칙이 바뀌면 변경 전후 상태가 모두 남아 <strong>구성 타임라인</strong>으로 볼 수 있다. '작년 12월 31일 기준 이 RDS의 암호화 설정은 무엇이었나?'라는 질문에 답할 수 있다는 뜻이며, 이는 SOX 감사에서 <strong>기간 중 통제 운영 효과성</strong>을 입증할 때 결정적이다.</p><p><strong>규칙(Config Rule)</strong>은 두 가지다. <strong>관리형 규칙(AWS Managed Rules)</strong>은 AWS가 제공하는 수백 개의 기성 규칙이다(<code>s3-bucket-public-read-prohibited</code>, <code>rds-storage-encrypted</code>, <code>iam-user-mfa-enabled</code>, <code>required-tags</code>, <code>ec2-instance-managed-by-systems-manager</code> 등). <strong>사용자 지정 규칙(Custom Rules)</strong>은 Lambda나 <strong>Guard(정책 언어)</strong>로 회사 고유 기준을 코드로 표현한다. 평가 트리거는 변경 발생 시(configuration change) 또는 주기적(periodic)으로 설정한다.</p><p><strong>적합성 팩(Conformance Pack)</strong>은 규칙 묶음을 YAML 템플릿으로 배포하는 기능이다. 'CIS 대응 팩', '개인정보보호 팩' 같은 단위로 조직 전체에 일괄 배포·관리할 수 있다. Organizations와 결합하면 신규 계정에도 자동 적용된다.</p><p><strong>자동 교정(Remediation)</strong>도 강력하다. 규칙 위반 시 Systems Manager Automation 문서를 실행해 자동으로 되돌릴 수 있다. 예를 들어 S3 버킷이 퍼블릭으로 열리면 즉시 퍼블릭 액세스 차단을 다시 켜는 식이다. 쉽게 말하면, <strong>탐지에서 끝나지 않고 스스로 고치는 통제</strong>를 만들 수 있다. 다만 운영 리소스에 대한 자동 교정은 장애 위험이 있어 <strong>승인 후 실행(manual remediation)</strong>과 자동 실행을 구분해 설계해야 한다.</p><p><strong>비용 구조</strong>를 알아야 설계를 그르치지 않는다. 기록되는 구성 항목 수와 규칙 평가 횟수로 과금되므로, 변경이 잦은 리소스 유형(예: EC2 네트워크 인터페이스, Auto Scaling 활동)을 전부 기록하면 비용이 크게 늘 수 있다. 기록 대상 리소스 유형을 선별하고, 전 리전 활성화는 하되 사용하지 않는 리전은 최소 구성으로 두는 방식이 일반적이다.</p><p><strong>감사 관점</strong>에서 Config는 <strong>'통제가 기간 내내 작동했다'를 증명하는 유일한 자동 수단</strong>에 가깝다. 특정 시점 스냅샷만 제시하면 '감사 직전에 고쳤을 수도 있다'는 반론을 받지만, Config의 준수 이력 타임라인은 기간 중 준수 상태의 연속성을 보여준다. 미준수 발생 시각과 조치 시각까지 남아 <strong>탐지-조치 소요시간(MTTR)</strong>을 통제 지표로 삼을 수도 있다.</p>",
+   "howItWorks": "<ol><li>전 계정·전 사용 리전에 Config 레코더를 활성화하고 기록 대상 리소스 유형을 지정한다.</li><li>구성 스냅샷과 변경 이력을 저장할 S3 버킷(로그 아카이브 계정)과 SNS 주제를 지정한다.</li><li>리소스가 생성·변경되면 Config가 그 시점의 전체 속성을 구성 항목(CI)으로 기록한다.</li><li>해당 리소스에 연결된 규칙들이 평가를 수행해 COMPLIANT / NON_COMPLIANT를 판정한다.</li><li>미준수가 발생하면 EventBridge 이벤트가 발생하고 Security Hub로 finding이 전달된다.</li><li>자동 교정이 설정된 규칙은 SSM Automation이 실행되어 설정을 원복한다.</li><li>자동 교정 대상이 아닌 경우 ITSM 티켓이 생성되어 담당자가 수동 조치한다.</li><li>조치 후 재평가에서 COMPLIANT로 전환되며, 미준수 구간이 준수 이력에 기록된다.</li><li>감사 시 특정 기간의 준수 이력과 구성 타임라인을 조회해 통제 운영 증거로 제출한다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 2025년 감사에서 '개발자가 운영 S3 버킷을 일시적으로 퍼블릭으로 열었다가 되돌린 사례'를 지적받았다. 당시에는 그 사실을 아무도 몰랐다. 개선으로 Config 규칙 <code>s3-bucket-public-read-prohibited</code>와 <code>s3-bucket-public-write-prohibited</code>를 조직 적합성 팩으로 배포하고, 운영 계정에는 자동 교정(퍼블릭 액세스 차단 재적용)을 걸었다. 또 필수 태그 규칙(<code>required-tags</code>: Owner, Env, DataClass)을 적용해 자산 식별 누락을 없앴다. 2026년 1분기 감사에서는 '분기 중 퍼블릭 노출 발생 3건, 평균 자동 교정 소요 4분'이라는 Config 준수 이력을 제출해 오히려 통제 효과성을 입증했다.</p><pre><code># Config 레코더 활성화 (전 리소스 유형 + 글로벌 리소스)\naws configservice put-configuration-recorder \\\n  --configuration-recorder name=default,roleARN=arn:aws:iam::123456789012:role/AWSConfigRole \\\n  --recording-group allSupported=true,includeGlobalResourceTypes=true\naws configservice start-configuration-recorder --configuration-recorder-name default\n\n# 관리형 규칙 + 자동 교정 적용\naws configservice put-config-rule --config-rule '{\n  \"ConfigRuleName\": \"s3-bucket-public-read-prohibited\",\n  \"Source\": {\"Owner\": \"AWS\", \"SourceIdentifier\": \"S3_BUCKET_PUBLIC_READ_PROHIBITED\"}\n}'\naws configservice put-remediation-configurations --remediation-configurations '[{\n  \"ConfigRuleName\": \"s3-bucket-public-read-prohibited\",\n  \"TargetType\": \"SSM_DOCUMENT\",\n  \"TargetId\": \"AWS-DisableS3BucketPublicReadWrite\",\n  \"Automatic\": true, \"MaximumAutomaticAttempts\": 3\n}]'\n\n# 감사 증적: 특정 시점 구성 조회\naws configservice get-resource-config-history \\\n  --resource-type AWS::RDS::DBInstance --resource-id db-ABCDEFG \\\n  --later-time 2026-01-01T00:00:00Z --limit 5\n\n# 미준수 현황 집계\naws configservice describe-compliance-by-config-rule \\\n  --compliance-types NON_COMPLIANT \\\n  --query 'ComplianceByConfigRules[].[ConfigRuleName,Compliance.ComplianceType]' --output table</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='140' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90' y='48' text-anchor='middle' fill='currentColor' font-size='12'>리소스 변경</text><text x='90' y='68' text-anchor='middle' fill='currentColor' font-size='11'>S3 · RDS · SG</text><text x='90' y='86' text-anchor='middle' fill='currentColor' font-size='11'>IAM · EC2</text><line x1='160' y1='60' x2='225' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='225' y='20' width='160' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='305' y='44' text-anchor='middle' fill='currentColor' font-size='12'>구성 항목 기록</text><text x='305' y='65' text-anchor='middle' fill='currentColor' font-size='11'>변경 전/후 스냅샷</text><text x='305' y='85' text-anchor='middle' fill='currentColor' font-size='11'>구성 타임라인</text><line x1='305' y1='100' x2='305' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='215' y='130' width='180' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='305' y='153' text-anchor='middle' fill='currentColor' font-size='12'>규칙 평가</text><text x='305' y='174' text-anchor='middle' fill='currentColor' font-size='11'>관리형 / 사용자지정</text><text x='305' y='193' text-anchor='middle' fill='currentColor' font-size='11'>COMPLIANT?</text><line x1='395' y1='150' x2='460' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='395' y1='180' x2='460' y2='200' stroke='currentColor' marker-end='url(#ar)'/><rect x='460' y='100' width='160' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540' y='122' text-anchor='middle' fill='currentColor' font-size='11'>자동 교정(SSM)</text><text x='540' y='141' text-anchor='middle' fill='currentColor' font-size='11'>설정 원복</text><rect x='460' y='175' width='160' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540' y='197' text-anchor='middle' fill='currentColor' font-size='11'>Security Hub / 티켓</text><text x='540' y='216' text-anchor='middle' fill='currentColor' font-size='11'>수동 조치·추적</text><rect x='400' y='20' width='220' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='42' text-anchor='middle' fill='currentColor' font-size='12'>CloudTrail과의 관계</text><text x='510' y='62' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail=누가 했나 / Config=지금 상태·이력</text><text x='20' y='225' fill='currentColor' font-size='11'>준수 이력 = 기간 중 통제 작동을 입증하는 핵심 증적</text></svg>",
+   "keyTerms": [
+    {
+     "term": "구성 항목(Configuration Item)",
+     "meaning": "특정 시점 리소스의 전체 속성 스냅샷. 변경마다 생성된다"
+    },
+    {
+     "term": "구성 타임라인",
+     "meaning": "리소스의 시간순 구성 변화. 과거 특정 시점 상태 조회에 사용"
+    },
+    {
+     "term": "Config 규칙",
+     "meaning": "리소스가 지켜야 할 기준. AWS 관리형과 사용자 지정(Lambda/Guard)이 있다"
+    },
+    {
+     "term": "적합성 팩(Conformance Pack)",
+     "meaning": "규칙 묶음을 템플릿으로 조직 전체에 배포하는 단위"
+    },
+    {
+     "term": "자동 교정(Remediation)",
+     "meaning": "미준수 발생 시 SSM Automation으로 설정을 되돌리는 기능"
+    },
+    {
+     "term": "준수 이력",
+     "meaning": "규칙별 COMPLIANT/NON_COMPLIANT 상태 변화 기록. 기간 중 통제 운영 증거"
+    },
+    {
+     "term": "레코더(Recorder)",
+     "meaning": "구성 기록을 수행하는 주체. 리전별로 활성화한다"
+    },
+    {
+     "term": "집계자(Aggregator)",
+     "meaning": "여러 계정·리전의 Config 데이터를 한 계정으로 모아 보는 기능"
+    }
+   ],
+   "pitfalls": [
+    "Config를 켜지 않은 채 Security Hub의 CIS 표준만 켜서 대부분 규칙이 평가되지 않는다. Config가 전제 조건이다.",
+    "일부 리전만 활성화해 미사용 리전에서 발생한 리소스 변경이 기록되지 않는다.",
+    "모든 리소스 유형을 기록해 비용이 급증. 변경이 잦은 유형을 검토해 선별해야 한다.",
+    "운영 리소스에 자동 교정을 무분별하게 걸어 정상 예외 구성까지 되돌려 장애를 유발한다.",
+    "규칙만 만들고 미준수 조치 프로세스를 만들지 않아, NON_COMPLIANT 수백 건이 방치되어 오히려 통제 미흡 증거가 된다.",
+    "Config를 CloudTrail의 대체재로 여겨 '누가 바꿨는가'를 Config에서 찾으려 한다. 행위자 정보는 CloudTrail을 봐야 한다.",
+    "집계자(Aggregator)를 구성하지 않아 계정별로 콘솔을 옮겨 다니며 확인하다가 누락이 생긴다.",
+    "Config 레코더를 중지·삭제할 수 있는 권한을 통제하지 않아, 침해 시 구성 이력이 끊긴다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 전 계정·전 사용 리전에 Config가 활성화되어 리소스 구성 변경 이력이 지속적으로 기록되는가",
+     "[변경] 주요 보안 설정(암호화, 퍼블릭 노출, 로깅, 태그)에 대한 규칙이 정의되고 준수 여부가 상시 평가되는가",
+     "[운영] 미준수 항목이 정해진 기한 내 조치되고 조치 이력이 준수 이력으로 남는가",
+     "[변경] Config 규칙·적합성 팩의 추가·수정·삭제가 승인 절차를 거치는가",
+     "[접근] Config 레코더 중지·삭제 권한이 제한되고 해당 행위에 대한 경보가 있는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조·제15조 관점에서 정보처리시스템 구성 변경이 기록·관리되는지",
+     "보안 설정 기준 미준수 사항의 탐지와 시정 조치가 적시에 이루어지는지",
+     "감사 기간 중 통제가 지속적으로 작동했음을 입증할 수 있는 이력 자료 보유 여부"
+    ],
+    "isms": [
+     "2.9.1 변경관리: 정보시스템 구성 변경이 기록·관리되는가",
+     "2.11.2 취약점 점검 및 조치: 기준 미준수 항목의 탐지·조치가 이루어지는가",
+     "2.1.3 정보자산 관리: 자산 구성 정보가 최신으로 유지되는가"
+    ],
+    "evidence": [
+     "Config 레코더 활성화 현황(계정×리전 매트릭스)",
+     "적용 중인 규칙·적합성 팩 목록과 각 규칙의 준수율",
+     "미준수 항목 목록과 조치 티켓, 조치 후 COMPLIANT 전환 증빙",
+     "특정 리소스의 구성 타임라인 샘플(get-resource-config-history 출력)",
+     "감사 기간 전체의 규칙별 준수 이력(기간 중 미준수 구간 포함)",
+     "자동 교정 설정 내역과 실행 이력"
+    ],
+    "auditorQuestions": [
+     "운영 리소스의 보안 설정이 감사 기간 내내 기준을 충족했음을 어떻게 보여줄 수 있는가?",
+     "작년 회계연도 말 기준으로 이 데이터베이스의 암호화 설정은 어떠했는가?",
+     "기준을 위반한 설정이 발견되면 어떻게 탐지하고 조치하는가? 평균 소요 시간은?",
+     "규칙은 누가 정의하고 변경하는가? 변경 승인은 어떻게 받는가?",
+     "Config를 끌 수 있는 사람은 누구이며 끄면 어떻게 알게 되는가?"
+    ],
+    "controlExample": "전 AWS 계정과 사용 리전에 AWS Config를 활성화하여 리소스 구성 변경 이력을 로그 아카이브 계정에 보관하며, 암호화·퍼블릭 노출·필수 태그 등 32개 규칙을 조직 적합성 팩으로 배포한다. 미준수 항목은 Security Hub로 집계되어 심각도별 기한 내 조치되고, 퍼블릭 노출 등 고위험 항목은 SSM Automation으로 자동 교정된다."
+   },
+   "related": [
+    "awssec-cloudtrail",
+    "awssec-security-hub",
+    "awssec-cis-benchmark",
+    "awssec-audit-manager",
+    "awssec-organizations",
+    "awssec-control-tower",
+    "iac-terraform",
+    "plat-change-management"
+   ],
+   "learnMore": [
+    "AWS Config Developer Guide",
+    "AWS Config - List of managed rules",
+    "AWS Config - Conformance packs",
+    "AWS Config - Remediating noncompliant resources"
+   ]
+  },
+  {
+   "id": "awssec-guardduty",
+   "title": "GuardDuty",
+   "titleEn": "Amazon GuardDuty",
+   "aliases": [
+    "가드듀티",
+    "위협탐지",
+    "IDS",
+    "이상행위 탐지",
+    "악성 활동 탐지"
+   ],
+   "tags": [
+    "detection",
+    "threat",
+    "monitoring"
+   ],
+   "level": "중급",
+   "oneLiner": "AWS 로그를 자동 분석해 침해 징후를 찾아내는 위협 탐지 서비스",
+   "analogy": "GuardDuty는 24시간 CCTV 영상을 대신 봐주는 AI 경비원과 같다. 사람이 수백 시간 분량의 로그를 다 볼 수는 없으니, '새벽 3시에 평소 안 오던 나라에서 접속' 같은 이상 패턴만 골라서 알려준다. 경비원이 문을 잠그지는 않지만, 어디를 봐야 하는지 정확히 짚어준다.",
+   "explanation": "<p><strong>Amazon GuardDuty</strong>는 AWS 계정과 워크로드의 <strong>악의적 활동·이상 행위를 자동 탐지</strong>하는 관리형 위협 탐지 서비스다. 에이전트를 설치하거나 별도 인프라를 구축할 필요 없이, 클릭 한 번으로 켜면 AWS가 이미 갖고 있는 로그를 분석하기 시작한다.</p><p><strong>분석 대상(데이터 소스)</strong>은 기본적으로 세 가지다. <strong>CloudTrail 관리 이벤트</strong>(누가 어떤 API를 호출했나), <strong>VPC Flow Logs</strong>(어떤 IP와 통신했나), <strong>DNS 로그</strong>(어떤 도메인을 조회했나)다. 중요한 점은 이들을 <strong>사용자가 직접 활성화하지 않아도</strong> GuardDuty가 내부적으로 읽는다는 것이다. 추가로 유료 보호 기능인 <strong>S3 보호, EKS 감사 로그 보호, 런타임 모니터링(EKS·ECS·EC2), RDS 로그인 보호, Lambda 보호, 맬웨어 탐지</strong>를 선택적으로 켤 수 있다.</p><p><strong>탐지 방식</strong>은 위협 인텔리전스(알려진 악성 IP·도메인 목록), 머신러닝 기반 이상 탐지(평소와 다른 행동), 그리고 규칙 기반 휴리스틱의 조합이다. 대표적인 탐지 결과(finding) 유형은 이렇다. <code>UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration</code>(EC2 인스턴스 자격증명이 계정 밖에서 사용됨 — 매우 심각), <code>CryptoCurrency:EC2/BitcoinTool.B</code>(채굴 풀과 통신), <code>Recon:IAMUser/TorIPCaller</code>(Tor를 통한 API 호출), <code>Persistence:IAMUser/AnomalousBehavior</code>(평소 쓰지 않던 IAM 조작), <code>Impact:S3/MaliciousIPCaller</code> 등이다.</p><p>쉽게 말하면, <strong>'우리 계정에 이상한 일이 벌어지고 있다'를 사람보다 먼저 알려주는 서비스</strong>다. 특히 탈취된 액세스 키가 다른 나라에서 사용되는 상황을 빠르게 잡아낸다.</p><p><strong>중요한 성질: GuardDuty는 탐지만 하고 차단하지 않는다.</strong> 발견 결과는 심각도(Low 1.0~3.9 / Medium 4.0~6.9 / High 7.0~8.9 / Critical)로 분류되어 콘솔과 EventBridge로 전달된다. 자동 대응은 EventBridge 규칙 + Lambda/SSM Automation으로 직접 구현해야 한다. 예를 들어 'InstanceCredentialExfiltration 발생 시 해당 인스턴스 프로파일 역할에 Deny 정책을 즉시 부착하고 인스턴스를 격리 보안그룹으로 이동'하는 식이다.</p><p><strong>조직 단위 운영</strong>이 표준이다. 보안 계정을 GuardDuty 위임 관리자로 지정하고 <strong>자동 등록(auto-enable)</strong>을 켜면, 신규 계정이 조직에 추가될 때 자동으로 GuardDuty가 켜진다. 모든 계정의 finding이 보안 계정 한 곳에 모이고 Security Hub로도 전달된다. 요금은 분석한 CloudTrail 이벤트 수, Flow Logs·DNS 로그 GB, 보호 기능별 사용량으로 과금되며, 30일 무료 평가로 예상 비용을 미리 확인할 수 있다.</p><p><strong>감사 관점</strong>에서 GuardDuty는 <strong>탐지통제(detective control)</strong>의 대표 증적이다. 점검 포인트는 (1) 전 계정·전 리전 활성화 및 자동 등록 설정, (2) finding에 대한 <strong>대응 SLA와 실제 조치 이력</strong>, (3) 억제 규칙(suppression rule)이 정당한 근거로만 쓰이는지, (4) 심각도 High 이상 finding이 인시던트 프로세스로 연결되는지다. 'GuardDuty를 켜두었다'만으로는 통제가 아니며, <strong>탐지→분류→조치→종결</strong>의 흐름이 기록으로 남아야 한다.</p>",
+   "howItWorks": "<ol><li>보안 계정을 GuardDuty 위임 관리자로 지정하고 조직 전체 자동 등록을 활성화한다.</li><li>GuardDuty가 각 계정의 CloudTrail 관리 이벤트, VPC Flow Logs, DNS 로그를 백그라운드로 수집·분석한다.</li><li>필요 시 S3 보호, EKS 런타임 모니터링, 맬웨어 탐지 등 추가 보호 기능을 활성화한다.</li><li>위협 인텔리전스와 ML 모델이 이상 패턴을 감지하면 finding을 생성한다.</li><li>finding에 심각도, 영향받은 리소스, 공격자 IP·지역, 관련 API 호출이 포함되어 보안 계정으로 집계된다.</li><li>EventBridge 규칙이 심각도 7.0 이상 finding을 받아 SNS·Slack·ITSM으로 즉시 통지한다.</li><li>사전에 정의된 자동 대응이 있으면 Lambda가 실행되어 자격증명 무효화·인스턴스 격리를 수행한다.</li><li>보안 담당자가 조사(필요 시 Detective로 심층 분석)하고 대응 조치를 수행한다.</li><li>오탐으로 판정되면 근거를 기록하고 억제 규칙을 추가하며, 실제 침해면 인시던트 절차로 전환한다.</li><li>모든 finding은 Security Hub에 통합되어 미조치 건이 추적 관리된다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2026년 2월 새벽 2시 14분, GuardDuty가 심각도 8.5의 <code>UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS</code> finding을 발생시켰다. 배치 서버 EC2에 부여된 인스턴스 역할의 임시 자격증명이 네덜란드 IP에서 사용된 것이었다. EventBridge 자동 대응이 3분 내에 해당 역할에 <code>DenyAll</code> 정책을 부착하고 인스턴스를 격리 보안그룹으로 옮겼으며, 온콜 담당자에게 전화 알림이 갔다. 조사 결과 해당 EC2의 웹 애플리케이션에 SSRF 취약점이 있어 메타데이터 서비스(IMDSv1)를 통해 자격증명이 유출된 것이었다. 조치로 전 계정 IMDSv2 강제를 SCP와 Config 규칙으로 적용했다. 탐지부터 격리까지 3분, 근본 원인 조치까지 5일이 걸렸고 이 타임라인 전체가 인시던트 보고서로 남았다.</p><pre><code># 조직 단위 GuardDuty 활성화 (보안 계정)\naws guardduty create-detector --enable \\\n  --data-sources '{\"S3Logs\":{\"Enable\":true},\"Kubernetes\":{\"AuditLogs\":{\"Enable\":true}}}'\naws guardduty update-organization-configuration \\\n  --detector-id abc123 --auto-enable-organization-members ALL\n\n# 고심각도 finding 조회 (감사 증적)\naws guardduty list-findings --detector-id abc123 \\\n  --finding-criteria '{\"Criterion\":{\"severity\":{\"Gte\":7},\n                       \"service.archived\":{\"Eq\":[\"false\"]}}}'\n\n# EventBridge 자동 대응 규칙\n{\n  \"source\": [\"aws.guardduty\"],\n  \"detail-type\": [\"GuardDuty Finding\"],\n  \"detail\": {\n    \"severity\": [{\"numeric\": [\">=\", 7]}],\n    \"type\": [{\"prefix\": \"UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration\"}]\n  }\n}\n# → Lambda: 역할에 DenyAll 인라인 정책 부착 + 인스턴스 격리 SG 적용 + 스냅샷 확보</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='150' height='120' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='47' text-anchor='middle' fill='currentColor' font-size='12'>데이터 소스</text><text x='36' y='72' fill='currentColor' font-size='11'>· CloudTrail 이벤트</text><text x='36' y='94' fill='currentColor' font-size='11'>· VPC Flow Logs</text><text x='36' y='116' fill='currentColor' font-size='11'>· DNS 로그</text><text x='36' y='138' fill='currentColor' font-size='11'>· (S3/EKS/런타임)</text><line x1='170' y1='85' x2='235' y2='85' stroke='currentColor' marker-end='url(#ar)'/><rect x='235' y='40' width='160' height='90' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='315' y='64' text-anchor='middle' fill='currentColor' font-size='12'>GuardDuty 분석</text><text x='315' y='86' text-anchor='middle' fill='currentColor' font-size='11'>위협 인텔 + ML</text><text x='315' y='106' text-anchor='middle' fill='currentColor' font-size='11'>이상 행위 탐지</text><text x='315' y='124' text-anchor='middle' fill='currentColor' font-size='11'>에이전트 불필요</text><line x1='395' y1='85' x2='455' y2='85' stroke='currentColor' marker-end='url(#ar)'/><rect x='455' y='45' width='165' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='537' y='68' text-anchor='middle' fill='currentColor' font-size='12'>Finding</text><text x='537' y='90' text-anchor='middle' fill='currentColor' font-size='11'>심각도 1~8.9+</text><text x='537' y='110' text-anchor='middle' fill='currentColor' font-size='11'>리소스·공격자 IP</text><line x1='537' y1='125' x2='537' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='160' width='290' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='183' text-anchor='middle' fill='currentColor' font-size='12'>EventBridge → 자동 대응</text><text x='475' y='205' text-anchor='middle' fill='currentColor' font-size='11'>역할 Deny 부착 · 인스턴스 격리 · 스냅샷</text><text x='475' y='226' text-anchor='middle' fill='currentColor' font-size='11'>+ Security Hub 집계 · 온콜 통지</text><rect x='20' y='160' width='290' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='183' text-anchor='middle' fill='currentColor' font-size='12'>감사 포인트</text><text x='165' y='205' text-anchor='middle' fill='currentColor' font-size='11'>전 계정·전 리전 자동 등록</text><text x='165' y='226' text-anchor='middle' fill='currentColor' font-size='11'>탐지→조치→종결 기록과 SLA</text></svg>",
+   "keyTerms": [
+    {
+     "term": "Finding(탐지 결과)",
+     "meaning": "GuardDuty가 생성한 위협 탐지 항목. 유형·심각도·대상 리소스를 포함"
+    },
+    {
+     "term": "심각도(Severity)",
+     "meaning": "1.0~8.9+ 수치. 7.0 이상은 High로 즉시 대응 대상"
+    },
+    {
+     "term": "위협 인텔리전스",
+     "meaning": "알려진 악성 IP·도메인 목록. 사용자 지정 목록 추가도 가능"
+    },
+    {
+     "term": "런타임 모니터링",
+     "meaning": "EKS·ECS·EC2 내부 프로세스 수준까지 관찰하는 유료 보호 기능"
+    },
+    {
+     "term": "맬웨어 탐지",
+     "meaning": "EBS 볼륨 스냅샷을 스캔해 악성코드를 찾는 기능"
+    },
+    {
+     "term": "억제 규칙(Suppression Rule)",
+     "meaning": "반복되는 오탐을 자동 보관 처리하는 규칙. 남용 시 통제 공백"
+    },
+    {
+     "term": "IMDSv2",
+     "meaning": "토큰 기반 메타데이터 서비스. 자격증명 유출(SSRF) 방어의 핵심 설정"
+    },
+    {
+     "term": "자동 등록(Auto-enable)",
+     "meaning": "조직에 새로 추가되는 계정에 자동으로 GuardDuty를 켜는 설정"
+    }
+   ],
+   "pitfalls": [
+    "GuardDuty가 공격을 차단해 준다고 오해. 탐지 전용이며 차단은 EventBridge 자동 대응이나 수동 조치로 구현해야 한다.",
+    "일부 리전만 켜서, 공격자가 사용하지 않는 리전에서 활동할 때 탐지하지 못한다. 전 리전 활성화가 원칙이다.",
+    "finding 알림을 이메일로만 받고 아무도 보지 않아, 몇 달 뒤 감사에서 미조치 finding 수백 건이 발견된다.",
+    "오탐이 많다는 이유로 억제 규칙을 광범위하게 걸어 실제 위협까지 가려진다.",
+    "S3 보호·런타임 모니터링 등 추가 보호를 켜지 않고 '모든 위협을 본다'고 답변한다.",
+    "신규 계정에 자동 등록을 설정하지 않아, 새로 만든 계정이 탐지 사각지대가 된다.",
+    "탐지 결과에 대한 대응 SLA와 종결 기준이 없어, 감사에서 통제 운영 효과성을 입증하지 못한다.",
+    "비용을 걱정해 CloudTrail 데이터 이벤트를 끄면 S3 관련 탐지 품질이 떨어진다는 점을 간과한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 전 계정·전 리전에 위협 탐지가 활성화되어 있고 신규 계정 자동 등록이 설정되어 있는가",
+     "[운영] 탐지 결과가 심각도별 대응 SLA에 따라 조사·조치·종결되며 그 이력이 기록되는가",
+     "[운영] 고심각도 탐지가 인시던트 대응 절차로 연결되는 트리거와 통지 체계가 존재하는가",
+     "[변경] 억제 규칙 추가·탐지 기능 비활성화가 승인 절차를 거치고 근거가 기록되는가",
+     "[접근] 탈취된 자격증명 탐지 시 즉시 무효화하는 자동·수동 절차가 정의되어 있는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조·제15조 관점에서 침해 시도 탐지 체계 운영 및 이상 징후 대응 절차 보유 여부",
+     "전자금융기반시설에 대한 침해사고 징후 상시 모니터링과 보고 체계 운영 여부",
+     "침해사고 발생 시 금융감독당국 보고 요건과 연계된 내부 탐지·판단 기준 보유 여부"
+    ],
+    "isms": [
+     "2.11.1 사고 예방 및 대응체계 구축: 탐지 체계와 대응 절차가 마련되어 있는가",
+     "2.11.3 이상행위 분석 및 모니터링: 이상행위 탐지와 분석이 상시 수행되는가",
+     "2.9.5 로그 및 접속기록 점검: 탐지 결과 검토와 조치가 기록되는가"
+    ],
+    "evidence": [
+     "GuardDuty 활성화 현황(계정×리전, 위임 관리자 지정, 자동 등록 설정 화면)",
+     "활성화된 보호 기능 목록(S3, EKS, 런타임, 맬웨어 등)",
+     "최근 6개월 심각도 High 이상 finding 목록과 각 건의 조치·종결 기록",
+     "EventBridge 알림·자동 대응 규칙 설정 및 실행 이력",
+     "억제 규칙 목록과 각 규칙의 승인 근거",
+     "실제 인시던트 사례의 탐지-대응 타임라인 보고서"
+    ],
+    "auditorQuestions": [
+     "AWS 환경에서 발생하는 이상 행위를 어떻게 탐지하는가?",
+     "최근 6개월간 심각도 높은 탐지가 몇 건 있었고 각각 어떻게 처리되었는가?",
+     "탐지가 발생하면 누구에게 언제 통지되며 대응 목표 시간은 얼마인가?",
+     "탈취된 액세스 키가 해외에서 사용되면 실제로 어떤 일이 자동으로 일어나는가?",
+     "오탐으로 판단해 무시한 탐지가 있는가? 판단 근거는 어디에 기록되는가?"
+    ],
+    "controlExample": "보안 계정을 위임 관리자로 하여 전 AWS 계정·전 리전에 GuardDuty를 자동 등록 방식으로 운영하며, 심각도 7.0 이상 탐지는 EventBridge를 통해 온콜 담당자에게 즉시 통지되고 15분 내 1차 대응을 개시한다. 자격증명 유출 탐지 시 해당 역할에 차단 정책을 자동 부착하며, 모든 탐지의 조사·조치·종결 이력은 인시던트 시스템에 기록된다."
+   },
+   "related": [
+    "awssec-security-hub",
+    "awssec-detective",
+    "awssec-cloudtrail",
+    "awssec-vpc-flow-logs",
+    "awssec-incident-response",
+    "awssec-inspector",
+    "awssec-macie",
+    "sec-siem"
+   ],
+   "learnMore": [
+    "Amazon GuardDuty User Guide",
+    "GuardDuty - Finding types",
+    "GuardDuty - Remediating security issues",
+    "AWS Security Incident Response Guide"
+   ]
+  },
+  {
+   "id": "awssec-security-hub",
+   "title": "Security Hub",
+   "titleEn": "AWS Security Hub",
+   "aliases": [
+    "시큐리티 허브",
+    "보안 대시보드",
+    "보안점수",
+    "CSPM",
+    "finding 통합"
+   ],
+   "tags": [
+    "detection",
+    "compliance",
+    "posture"
+   ],
+   "level": "중급",
+   "oneLiner": "여러 보안 서비스의 탐지 결과를 모아 표준 기준으로 점수화하는 허브",
+   "analogy": "Security Hub는 여러 과목 시험지를 모아 성적표 한 장으로 만들어 주는 담임 선생님과 같다. 수학(GuardDuty), 영어(Inspector), 과학(Config) 점수가 흩어져 있으면 전체 수준을 알 수 없지만, 성적표에는 과목별 점수와 전체 평균, 그리고 어느 과목을 먼저 보충해야 하는지가 한눈에 정리된다.",
+   "explanation": "<p><strong>AWS Security Hub</strong>는 여러 보안 서비스가 만들어내는 탐지 결과(finding)를 <strong>한 곳으로 모으고(aggregate)</strong>, 업계 표준 기준으로 <strong>점수화(score)</strong>하며, 우선순위를 정해 조치를 추적하는 <strong>보안 태세 관리(CSPM, Cloud Security Posture Management)</strong> 서비스다.</p><p><strong>통합 대상</strong>이 넓다. AWS 서비스로는 GuardDuty(위협), Inspector(취약점), Macie(민감정보), IAM Access Analyzer(외부 노출), Config(구성 준수), Firewall Manager, Systems Manager Patch Manager, Health 등이 자동 연동된다. 서드파티 보안 솔루션(CrowdStrike, Palo Alto, Trend Micro 등)과 자체 도구도 <strong>ASFF(AWS Security Finding Format)</strong>라는 표준 JSON 스키마로 finding을 보낼 수 있다. 즉 <strong>모든 보안 신호가 한 포맷으로 통일</strong>된다.</p><p><strong>보안 표준(Security Standards)</strong>이 두 번째 핵심 기능이다. <strong>AWS 기초 보안 모범사례(AWS Foundational Security Best Practices, FSBP)</strong>, <strong>CIS AWS Foundations Benchmark</strong>, <strong>PCI DSS</strong>, <strong>NIST SP 800-53</strong> 등을 활성화하면 수백 개 통제 항목이 자동 평가되어 <strong>보안 점수(%)</strong>가 산출된다. 이 점수는 AWS Config 규칙을 기반으로 계산되므로 <strong>Config가 반드시 켜져 있어야</strong> 한다. 경영진 보고에 '전사 보안 점수 94%, 전 분기 대비 +6%p'처럼 쓰기 좋은 지표다.</p><p>쉽게 말하면, <strong>흩어진 보안 알림을 하나의 받은편지함으로 모으고, 표준 체크리스트 기준으로 몇 점인지 계산해 주는 서비스</strong>다.</p><p><strong>운영 기능</strong>도 실무적이다. <strong>워크플로 상태</strong>(NEW → NOTIFIED → RESOLVED / SUPPRESSED)로 조치 진행을 추적하고, <strong>자동화 규칙(Automation Rules)</strong>로 '개발 계정의 Medium 이하 finding은 자동 억제', '운영 계정 태그가 붙은 리소스의 finding은 심각도 격상' 같은 처리를 자동화한다. <strong>인사이트(Insights)</strong>는 'AWS 계정별 미조치 Critical finding 수' 같은 집계 뷰를 저장해 둘 수 있다.</p><p><strong>조직 운영 구조</strong>는 GuardDuty와 동일하다. 보안 계정을 위임 관리자로 지정하고 자동 등록을 켠다. 여기에 <strong>교차 리전 집계(Cross-Region Aggregation)</strong>를 설정하면 여러 리전의 finding을 하나의 집계 리전(보통 ap-northeast-2)에서 모아 볼 수 있다. 2026년 기준으로는 데이터 레이크 중심의 새로운 Security Hub 기능도 제공되지만, 감사 대응의 기본 골격(표준 점수 + finding 집계 + 워크플로)은 동일하다.</p><p><strong>감사 관점</strong>에서 Security Hub는 <strong>가장 제출하기 좋은 단일 증적</strong>이다. '보안을 어떻게 관리하느냐'는 질문에 대시보드 한 장으로 답할 수 있다. 다만 감사인이 실제로 보는 것은 점수 자체가 아니라 <strong>미조치 finding의 연령(aging)</strong>과 <strong>억제 처리의 정당성</strong>이다. Critical finding이 90일째 NEW 상태로 남아 있으면 점수가 높아도 통제 실패로 평가된다.</p>",
+   "howItWorks": "<ol><li>모든 계정·리전에 AWS Config를 활성화한다(표준 평가의 전제 조건).</li><li>보안 계정을 Security Hub 위임 관리자로 지정하고 조직 자동 등록을 켠다.</li><li>보안 표준(FSBP, CIS 등)을 활성화하면 관련 Config 규칙이 자동 배포된다.</li><li>GuardDuty·Inspector·Macie·Access Analyzer의 finding이 ASFF 형식으로 자동 수집된다.</li><li>서드파티 솔루션은 BatchImportFindings API로 finding을 전송한다.</li><li>Security Hub가 중복을 제거하고 심각도를 정규화한 뒤 표준별 준수율과 보안 점수를 계산한다.</li><li>자동화 규칙이 계정·태그·심각도 조건에 따라 finding의 심각도를 조정하거나 억제한다.</li><li>EventBridge를 통해 Critical/High finding이 ITSM 티켓이나 Slack으로 전달된다.</li><li>담당자가 조치 후 워크플로 상태를 RESOLVED로 변경하고, 조치 불가 건은 근거와 함께 SUPPRESSED 처리한다.</li><li>Audit Manager가 이 결과를 증거로 수집하고, 월간 보안 점수 추이가 경영진에 보고된다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 계정 34개, 리전 2개를 운영한다. 예전에는 GuardDuty 알림은 보안팀 메일로, Inspector 결과는 별도 엑셀로, Config 미준수는 콘솔에서 각각 확인해 전체 상태를 아무도 몰랐다. 2025년 Security Hub를 조직 단위로 도입하고 서울 리전을 집계 리전으로 지정했다. FSBP와 CIS 표준을 켜 첫 점수 73%를 측정했고, 자동화 규칙으로 '개발 계정 + Env=dev 태그 + 심각도 Medium 이하'는 자동 억제해 노이즈를 62% 줄였다. 2026년 1분기 점수는 94%이며, 경영진 월간 보고에 'Critical 미조치 0건, High 평균 조치 소요 3.2일'을 함께 제시한다.</p><pre><code># 조직 단위 활성화 및 표준 적용\naws securityhub enable-security-hub --enable-default-standards\naws securityhub update-organization-configuration --auto-enable\naws securityhub update-finding-aggregator \\\n  --finding-aggregator-arn arn:aws:securityhub:ap-northeast-2:999988887777:finding-aggregator/abc \\\n  --region-linking-mode ALL_REGIONS\n\n# 자동화 규칙: 개발 계정 저심각도 억제\naws securityhub create-automation-rule \\\n  --rule-name suppress-dev-low --rule-order 1 \\\n  --criteria '{\"AwsAccountId\":[{\"Value\":\"210987654321\",\"Comparison\":\"EQUALS\"}],\n               \"SeverityLabel\":[{\"Value\":\"MEDIUM\",\"Comparison\":\"EQUALS\"}]}' \\\n  --actions '[{\"Type\":\"FINDING_FIELDS_UPDATE\",\n               \"FindingFieldsUpdate\":{\"Workflow\":{\"Status\":\"SUPPRESSED\"},\n               \"Note\":{\"Text\":\"개발계정 예외 승인 SEC-2025-014\",\"UpdatedBy\":\"secops\"}}}]'\n\n# 감사 증적: 미조치 Critical/High finding 연령 확인\naws securityhub get-findings \\\n  --filters '{\"SeverityLabel\":[{\"Value\":\"CRITICAL\",\"Comparison\":\"EQUALS\"},\n                                {\"Value\":\"HIGH\",\"Comparison\":\"EQUALS\"}],\n              \"WorkflowStatus\":[{\"Value\":\"NEW\",\"Comparison\":\"EQUALS\"}]}' \\\n  --query 'Findings[].[Title,AwsAccountId,FirstObservedAt,Severity.Label]' --output table</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='140' height='150' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90' y='42' text-anchor='middle' fill='currentColor' font-size='12'>소스</text><text x='34' y='66' fill='currentColor' font-size='11'>· GuardDuty</text><text x='34' y='88' fill='currentColor' font-size='11'>· Inspector</text><text x='34' y='110' fill='currentColor' font-size='11'>· Macie</text><text x='34' y='132' fill='currentColor' font-size='11'>· Access Analyzer</text><text x='34' y='154' fill='currentColor' font-size='11'>· Config / 3rd party</text><line x1='160' y1='95' x2='225' y2='95' stroke='currentColor' marker-end='url(#ar)'/><text x='192' y='86' text-anchor='middle' fill='currentColor' font-size='11'>ASFF</text><rect x='225' y='40' width='175' height='110' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='312' y='64' text-anchor='middle' fill='currentColor' font-size='12'>Security Hub</text><text x='312' y='86' text-anchor='middle' fill='currentColor' font-size='11'>중복 제거·정규화</text><text x='312' y='106' text-anchor='middle' fill='currentColor' font-size='11'>표준 평가(FSBP/CIS)</text><text x='312' y='126' text-anchor='middle' fill='currentColor' font-size='11'>보안 점수 산출</text><text x='312' y='145' text-anchor='middle' fill='currentColor' font-size='11'>자동화 규칙</text><line x1='400' y1='70' x2='465' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='400' y1='120' x2='465' y2='150' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='25' width='155' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='47' text-anchor='middle' fill='currentColor' font-size='11'>대시보드·점수</text><text x='542' y='67' text-anchor='middle' fill='currentColor' font-size='11'>경영진 보고</text><rect x='465' y='120' width='155' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='143' text-anchor='middle' fill='currentColor' font-size='11'>EventBridge</text><text x='542' y='163' text-anchor='middle' fill='currentColor' font-size='11'>→ 티켓·Slack</text><text x='542' y='180' text-anchor='middle' fill='currentColor' font-size='11'>→ 자동 교정</text><rect x='20' y='190' width='600' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='212' text-anchor='middle' fill='currentColor' font-size='12'>워크플로: NEW → NOTIFIED → RESOLVED / SUPPRESSED</text><text x='320' y='234' text-anchor='middle' fill='currentColor' font-size='11'>감사인이 보는 것은 점수가 아니라 미조치 연령(aging)과 억제 사유의 정당성</text></svg>",
+   "keyTerms": [
+    {
+     "term": "ASFF",
+     "meaning": "AWS Security Finding Format. 모든 보안 도구의 finding을 통일하는 JSON 스키마"
+    },
+    {
+     "term": "보안 표준(Security Standard)",
+     "meaning": "FSBP·CIS·PCI DSS·NIST 등 자동 평가되는 통제 항목 집합"
+    },
+    {
+     "term": "보안 점수(Security Score)",
+     "meaning": "통과한 통제 비율. 표준별·전체로 산출되어 추이 보고에 사용"
+    },
+    {
+     "term": "워크플로 상태",
+     "meaning": "NEW/NOTIFIED/RESOLVED/SUPPRESSED. finding 조치 진행 추적"
+    },
+    {
+     "term": "자동화 규칙(Automation Rules)",
+     "meaning": "조건에 따라 finding의 심각도 조정·억제·메모를 자동 적용"
+    },
+    {
+     "term": "인사이트(Insights)",
+     "meaning": "저장된 집계 뷰. 계정별·리소스별 위험 분포 파악에 사용"
+    },
+    {
+     "term": "교차 리전 집계",
+     "meaning": "여러 리전의 finding을 하나의 집계 리전에서 통합 조회하는 설정"
+    },
+    {
+     "term": "위임 관리자",
+     "meaning": "조직 전체 Security Hub를 운영하는 보안 계정"
+    }
+   ],
+   "pitfalls": [
+    "Config를 켜지 않은 채 표준만 활성화해 대부분 항목이 평가되지 않고 점수가 왜곡된다.",
+    "보안 점수만 보고하고 미조치 finding의 연령을 관리하지 않아, 높은 점수에도 통제 실패로 평가된다.",
+    "노이즈를 줄이려고 자동화 규칙으로 광범위하게 억제해 실제 위험까지 사라진다. 억제에는 승인 근거가 필요하다.",
+    "교차 리전 집계를 설정하지 않아 다른 리전의 finding을 보지 못한다.",
+    "Security Hub를 켜면 자동으로 위협을 탐지한다고 오해. 실제 탐지는 GuardDuty·Inspector 등이 하며 Hub는 집계자다.",
+    "신규 계정 자동 등록을 설정하지 않아 사각지대가 생긴다.",
+    "finding 조치 후 워크플로 상태를 갱신하지 않아 대시보드가 실제와 다르게 유지된다.",
+    "서드파티 도구 연동만 하고 ASFF 필드 매핑을 검증하지 않아 심각도가 잘못 표기된다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 전 계정·전 리전의 보안 탐지 결과가 단일 지점으로 집계되고 미조치 건이 추적 관리되는가",
+     "[운영] 심각도별 조치 SLA가 정의되어 있고 실제 조치 소요시간이 측정·보고되는가",
+     "[변경] finding 억제(SUPPRESSED) 처리에 승인 근거와 재검토 주기가 존재하는가",
+     "[운영] 보안 표준 준수율이 주기적으로 산출되어 경영진에 보고되는가",
+     "[접근] Security Hub 설정 변경(표준 비활성화, 자동화 규칙 추가) 권한이 제한되고 기록되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조·제15조 관점에서 보안 취약점·이상징후의 통합 관리 및 조치 현황 보고 체계 운영 여부",
+     "정보보호 현황이 경영진에게 정기적으로 보고되는 체계(정보보호최고책임자 보고) 운영 여부",
+     "클라우드 환경 보안 수준의 객관적 측정 지표 보유 및 개선 이력 관리 여부"
+    ],
+    "isms": [
+     "1.4.2 관리체계 점검: 보안 수준이 정기적으로 점검·측정되는가",
+     "2.11.3 이상행위 분석 및 모니터링: 탐지 결과가 통합 분석되고 조치되는가",
+     "1.4.3 관리체계 개선: 점검 결과에 따른 개선 이행이 관리되는가"
+    ],
+    "evidence": [
+     "Security Hub 요약 대시보드 및 표준별 보안 점수 캡처(측정일 포함)",
+     "위임 관리자·자동 등록·교차 리전 집계 설정 화면",
+     "미조치 Critical/High finding 목록과 최초 탐지일(연령 포함)",
+     "심각도별 조치 SLA 정의 문서와 실제 달성률 통계",
+     "자동화 규칙 목록과 억제 처리 건의 승인 근거",
+     "월간/분기 보안 현황 보고 문서 및 보고 이력"
+    ],
+    "auditorQuestions": [
+     "회사 전체의 보안 상태를 한눈에 확인할 수 있는 수단은 무엇인가?",
+     "현재 미조치 상태인 고위험 항목은 몇 건이며 가장 오래된 것은 언제 발견됐는가?",
+     "심각도별로 며칠 내 조치해야 한다는 기준이 있는가? 실제 달성률은?",
+     "자동으로 억제 처리되는 탐지가 있는가? 어떤 기준이며 누가 승인했는가?",
+     "보안 점수는 누구에게 얼마나 자주 보고되는가?"
+    ],
+    "controlExample": "보안 계정을 위임 관리자로 하여 전 계정·전 리전의 보안 탐지 결과를 Security Hub로 집계하고 FSBP·CIS 표준 준수율을 상시 측정한다. Critical은 5영업일, High는 10영업일 내 조치하는 SLA를 적용하며, 억제 처리는 정보보호책임자 승인과 반기 재검토를 거치고 월간 보안 점수와 미조치 현황을 경영진에 보고한다."
+   },
+   "related": [
+    "awssec-guardduty",
+    "awssec-inspector",
+    "awssec-macie",
+    "awssec-config",
+    "awssec-cis-benchmark",
+    "awssec-access-analyzer",
+    "awssec-audit-manager",
+    "awssec-incident-response"
+   ],
+   "learnMore": [
+    "AWS Security Hub User Guide",
+    "Security Hub - AWS Foundational Security Best Practices standard",
+    "Security Hub - Automation rules",
+    "AWS Security Finding Format (ASFF)"
+   ]
+  },
+  {
+   "id": "awssec-inspector",
+   "title": "Inspector",
+   "titleEn": "Amazon Inspector",
+   "aliases": [
+    "인스펙터",
+    "취약점 스캐너",
+    "CVE 스캔",
+    "컨테이너 이미지 스캔",
+    "패치 취약점"
+   ],
+   "tags": [
+    "vulnerability",
+    "detection",
+    "container"
+   ],
+   "level": "중급",
+   "oneLiner": "EC2·컨테이너 이미지·Lambda의 알려진 취약점을 자동 스캔하는 서비스",
+   "analogy": "Inspector는 건물의 모든 자물쇠 모델을 조사해 '이 모델은 최근 복제 열쇠 취약점이 공개됐다'고 알려주는 점검원과 같다. 자물쇠를 직접 부수거나 바꾸지는 않지만, 어떤 문의 자물쇠가 위험 목록에 올랐고 실제로 그 문이 바깥과 연결되어 있는지까지 알려줘서 교체 순서를 정할 수 있게 해준다.",
+   "explanation": "<p><strong>Amazon Inspector</strong>는 워크로드에 설치된 소프트웨어의 <strong>알려진 취약점(CVE)</strong>과 <strong>의도치 않은 네트워크 노출</strong>을 자동으로 찾아내는 취약점 관리 서비스다. 현재 세대(v2)는 에이전트를 따로 설치할 필요 없이 <strong>AWS Systems Manager 에이전트(SSM Agent)</strong>를 활용하며, 리소스가 생성되거나 패키지가 변경되면 <strong>지속적으로(continuous)</strong> 자동 재스캔한다.</p><p><strong>스캔 대상은 네 가지</strong>다. (1) <strong>EC2 인스턴스</strong>의 OS 패키지와 애플리케이션 라이브러리 취약점, (2) <strong>ECR 컨테이너 이미지</strong>(푸시 시점 스캔 + 재스캔), (3) <strong>Lambda 함수</strong>의 코드 의존성 및 코드 자체(코드 스캔), (4) <strong>네트워크 도달 가능성(Network Reachability)</strong> — 인터넷에서 해당 인스턴스의 특정 포트까지 실제 경로가 열려 있는지 IGW·NACL·보안그룹·라우팅을 종합 분석한다.</p><p><strong>EC2 스캔 모드</strong>가 둘로 나뉜다. <strong>에이전트 기반 스캔</strong>은 SSM Agent가 설치·연결되어 있어야 하며 가장 정확하다. <strong>에이전트리스 스캔(Agentless)</strong>은 EBS 스냅샷을 떠서 분석하므로 SSM이 없는 인스턴스도 커버한다. 하이브리드 모드를 쓰면 SSM이 있으면 에이전트, 없으면 에이전트리스로 자동 처리한다. 감사에서 '스캔 커버리지'를 물으면 이 모드 설정과 미커버 인스턴스 수를 제시해야 한다.</p><p><strong>Inspector 점수</strong>가 실무적으로 유용하다. 단순 CVSS 점수가 아니라 <strong>네트워크 도달 가능성과 익스플로잇 공개 여부</strong>를 반영해 조정된 점수를 준다. 같은 CVSS 9.8이라도 인터넷에서 도달 가능한 인스턴스가 훨씬 높은 우선순위를 받는다. 쉽게 말하면, <strong>'이론적 위험'이 아니라 '실제로 공격당할 수 있는 위험' 순으로 정렬</strong>해 준다. 수천 건의 CVE 앞에서 무엇부터 고칠지 정하는 데 결정적이다.</p><p><strong>CI/CD 통합</strong>도 중요하다. ECR 푸시 시 스캔 결과로 배포를 차단하는 게이트를 만들거나, Inspector SBOM(소프트웨어 자재명세서) 내보내기로 공급망 관리에 활용할 수 있다. 2026년 현재 SBOM 관리는 금융권 공급망 보안 요구에서 점점 중요해지고 있다.</p><p><strong>감사 관점</strong>에서 Inspector는 <strong>취약점 관리 프로세스</strong>의 증적원이다. 감사인이 보는 것은 스캔 결과 자체가 아니라 <strong>프로세스의 완결성</strong>이다. (1) 모든 워크로드가 스캔 범위에 포함되는가(커버리지), (2) 심각도별 조치 기한(예: Critical 7일, High 30일)이 정의되고 지켜지는가, (3) 기한 초과 건이 에스컬레이션되는가, (4) 조치 불가 건에 보상통제와 승인이 있는가. 특히 <strong>패치 관리(SSM Patch Manager)와 연결</strong>해 '탐지→패치→재스캔 확인'의 고리를 만들면 ITGC의 운영 통제로 인정받기 쉽다.</p>",
+   "howItWorks": "<ol><li>보안 계정을 Inspector 위임 관리자로 지정하고 조직 전체 자동 활성화를 설정한다.</li><li>스캔 대상(EC2, ECR, Lambda, Lambda 코드)과 EC2 스캔 모드(하이브리드 권장)를 지정한다.</li><li>EC2는 SSM Agent를 통해 설치 패키지 인벤토리를 수집하고, 없으면 EBS 스냅샷 기반으로 분석한다.</li><li>수집된 소프트웨어 목록을 CVE 데이터베이스와 대조해 취약점을 식별한다.</li><li>동시에 네트워크 경로를 분석해 해당 취약 포트가 인터넷에서 도달 가능한지 판정한다.</li><li>도달 가능성과 익스플로잇 존재 여부를 반영한 Inspector 점수로 우선순위가 매겨진다.</li><li>finding이 Security Hub로 전송되고 EventBridge로 담당 팀에 티켓이 생성된다.</li><li>담당자가 패치(SSM Patch Manager) 또는 이미지 재빌드로 조치한다.</li><li>패키지가 변경되면 Inspector가 자동 재스캔하고 해결된 finding을 CLOSED로 전환한다.</li><li>ECR 푸시 단계에서는 Critical 취약점이 있으면 파이프라인이 배포를 중단한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 EC2 210대, ECR 이미지 340개, Lambda 120개를 운영한다. 2025년 4분기 Inspector 도입 첫 스캔에서 Critical 87건, High 1,240건이 나왔다. 그러나 네트워크 도달 가능성을 반영하니 '인터넷에서 도달 가능 + 익스플로잇 공개'인 항목은 11건이었고, 이를 최우선으로 7일 내 처리했다. 컨테이너 이미지는 베이스 이미지가 <code>amazonlinux:2</code> 구버전인 것이 원인이어서 골든 이미지를 갱신하자 High 취약점의 68%가 한 번에 사라졌다. 현재는 ECR 푸시 시 Critical이 있으면 배포가 자동 차단되고, 월간 취약점 리포트에 '심각도별 잔존 건수와 평균 조치 소요일'을 기록한다.</p><pre><code># 조직 단위 활성화 (보안 계정)\naws inspector2 enable --resource-types EC2 ECR LAMBDA LAMBDA_CODE\naws inspector2 update-organization-configuration \\\n  --auto-enable ec2=true,ecr=true,lambda=true,lambdaCode=true\n\n# 스캔 커버리지 확인 (감사 증적)\naws inspector2 list-coverage \\\n  --filter-criteria '{\"resourceType\":[{\"comparison\":\"EQUALS\",\"value\":\"AWS_EC2_INSTANCE\"}]}' \\\n  --query 'coveredResources[].[resourceId,scanStatus.statusCode,scanStatus.reason]' --output table\n\n# 실제 위험이 높은 것만 추출 (인터넷 도달 가능 + Critical)\naws inspector2 list-findings --filter-criteria '{\n  \"severity\":[{\"comparison\":\"EQUALS\",\"value\":\"CRITICAL\"}],\n  \"networkProtocol\":[{\"comparison\":\"EQUALS\",\"value\":\"TCP\"}],\n  \"findingStatus\":[{\"comparison\":\"EQUALS\",\"value\":\"ACTIVE\"}]}' \\\n  --query 'findings[].[title,inspectorScore,resources[0].id]' --output table\n\n# SBOM 내보내기 (공급망 관리)\naws inspector2 create-sbom-export \\\n  --report-format SPDX_2_3 \\\n  --s3-destination bucketName=paynow-sbom,keyPrefix=2026q1/</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='150' height='125' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='47' text-anchor='middle' fill='currentColor' font-size='12'>스캔 대상</text><text x='36' y='72' fill='currentColor' font-size='11'>· EC2 (OS·라이브러리)</text><text x='36' y='95' fill='currentColor' font-size='11'>· ECR 이미지</text><text x='36' y='118' fill='currentColor' font-size='11'>· Lambda + 코드</text><text x='36' y='141' fill='currentColor' font-size='11'>· 네트워크 도달성</text><line x1='170' y1='87' x2='235' y2='87' stroke='currentColor' marker-end='url(#ar)'/><rect x='235' y='40' width='165' height='95' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='317' y='64' text-anchor='middle' fill='currentColor' font-size='12'>지속 스캔</text><text x='317' y='86' text-anchor='middle' fill='currentColor' font-size='11'>CVE DB 대조</text><text x='317' y='106' text-anchor='middle' fill='currentColor' font-size='11'>+ 도달 경로 분석</text><text x='317' y='126' text-anchor='middle' fill='currentColor' font-size='11'>+ 익스플로잇 여부</text><line x1='400' y1='87' x2='465' y2='87' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='45' width='155' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='68' text-anchor='middle' fill='currentColor' font-size='12'>Inspector 점수</text><text x='542' y='90' text-anchor='middle' fill='currentColor' font-size='11'>실제 위험 기준</text><text x='542' y='110' text-anchor='middle' fill='currentColor' font-size='11'>우선순위 정렬</text><line x1='317' y1='135' x2='317' y2='170' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='170' width='290' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='193' text-anchor='middle' fill='currentColor' font-size='12'>조치 경로</text><text x='165' y='214' text-anchor='middle' fill='currentColor' font-size='11'>SSM Patch Manager 패치</text><text x='165' y='232' text-anchor='middle' fill='currentColor' font-size='11'>골든 이미지 재빌드 → 재배포</text><rect x='330' y='170' width='290' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='193' text-anchor='middle' fill='currentColor' font-size='12'>파이프라인 게이트</text><text x='475' y='214' text-anchor='middle' fill='currentColor' font-size='11'>ECR 푸시 시 Critical → 배포 차단</text><text x='475' y='232' text-anchor='middle' fill='currentColor' font-size='11'>SBOM 내보내기 → 공급망 관리</text></svg>",
+   "keyTerms": [
+    {
+     "term": "CVE",
+     "meaning": "공개된 소프트웨어 취약점에 부여되는 국제 식별번호"
+    },
+    {
+     "term": "네트워크 도달 가능성",
+     "meaning": "인터넷에서 해당 포트까지 실제 경로가 열려 있는지 분석한 결과"
+    },
+    {
+     "term": "Inspector 점수",
+     "meaning": "CVSS에 도달 가능성·익스플로잇 존재를 반영해 조정한 실질 위험 점수"
+    },
+    {
+     "term": "에이전트리스 스캔",
+     "meaning": "EBS 스냅샷을 분석해 SSM Agent 없는 인스턴스도 스캔하는 방식"
+    },
+    {
+     "term": "지속 스캔(Continuous)",
+     "meaning": "패키지 변경·신규 CVE 공개 시 자동으로 재평가하는 동작"
+    },
+    {
+     "term": "SBOM",
+     "meaning": "소프트웨어 구성 부품 목록. 공급망 취약점 대응의 기초 자료"
+    },
+    {
+     "term": "커버리지(Coverage)",
+     "meaning": "전체 자산 중 실제 스캔되고 있는 비율. 감사 핵심 지표"
+    },
+    {
+     "term": "억제 규칙(Suppression Rule)",
+     "meaning": "승인된 예외 취약점을 결과에서 제외하는 규칙"
+    }
+   ],
+   "pitfalls": [
+    "SSM Agent가 없거나 IAM 역할이 없는 인스턴스가 스캔되지 않는데, 커버리지를 확인하지 않아 '전부 스캔 중'으로 오인한다.",
+    "CVSS 점수만 보고 우선순위를 정해, 인터넷에 노출된 실질 위험 건을 놓친다.",
+    "컨테이너 이미지의 취약점을 개별 수정하려 한다. 대부분 베이스 이미지 갱신으로 한 번에 해결된다.",
+    "ECR 스캔을 푸시 시점에만 하고 재스캔을 끄면, 이미 배포된 이미지의 신규 CVE를 놓친다.",
+    "취약점 수만 보고하고 조치 기한·달성률을 관리하지 않아 감사에서 프로세스 부재로 지적된다.",
+    "억제 규칙을 근거 없이 사용해 미조치 건을 숨긴다.",
+    "Lambda 코드 스캔을 켜지 않아 서버리스 영역이 사각지대로 남는다.",
+    "패치 후 재스캔 결과를 확인하지 않아 실제로 해결됐는지 검증되지 않는다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 모든 서버·컨테이너 이미지·함수가 취약점 스캔 대상에 포함되며 커버리지가 측정·관리되는가",
+     "[운영] 심각도별 조치 기한이 정의되고 기한 내 조치율이 측정·보고되는가",
+     "[운영] 기한을 초과한 취약점이 에스컬레이션되고 보상통제와 함께 승인되는가",
+     "[변경] 패치·이미지 갱신이 변경관리 절차를 통해 배포되고 재스캔으로 해결이 검증되는가",
+     "[변경] 배포 파이프라인에 고위험 취약점 차단 게이트가 존재하는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조 관점에서 정보처리시스템의 보안 취약점 점검 및 조치 요건 이행 여부",
+     "취약점 점검 주기(정기·수시)와 조치 기한이 내부규정으로 정의되고 준수되는지",
+     "외부 공개 시스템에 대한 취약점 점검이 별도 강화 기준으로 수행되는지"
+    ],
+    "isms": [
+     "2.11.2 취약점 점검 및 조치: 점검 계획·수행·조치·재점검이 이루어지는가",
+     "2.10.8 패치관리: 보안 패치가 적시에 적용되고 미적용 시 대응 방안이 마련되는가",
+     "2.9.1 변경관리: 패치 적용이 변경 절차를 통해 통제되는가"
+    ],
+    "evidence": [
+     "Inspector 커버리지 리포트(스캔 대상 수, 미커버 리소스와 사유)",
+     "심각도별 활성 취약점 건수와 최초 탐지일 목록",
+     "심각도별 조치 기한 정의 문서(내부 규정)와 기한 내 조치율 통계",
+     "패치 적용 이력(SSM Patch Manager 리포트) 및 재스캔 후 해결 증빙",
+     "ECR 파이프라인 차단 설정과 실제 차단 사례 로그",
+     "억제 규칙 목록과 각 건의 승인·재검토 기록"
+    ],
+    "auditorQuestions": [
+     "서버와 컨테이너 이미지의 취약점을 어떻게 점검하며 주기는 어떻게 되는가?",
+     "스캔되지 않는 자산이 있는가? 몇 대이며 이유는 무엇인가?",
+     "심각도가 높은 취약점은 며칠 내 조치해야 하는가? 최근 분기 달성률은?",
+     "기한을 넘긴 취약점은 어떻게 관리되는가? 현재 몇 건인가?",
+     "취약한 이미지가 운영에 배포되는 것을 어떻게 막는가?"
+    ],
+    "controlExample": "전 계정의 EC2·ECR 이미지·Lambda는 Amazon Inspector로 지속 스캔되며, Critical은 7일·High는 30일 내 조치하는 기준을 적용한다. ECR 푸시 단계에서 Critical 취약점이 탐지되면 배포 파이프라인이 자동 중단되고, 기한 초과 건은 월간 취약점 회의에서 보상통제와 함께 정보보호책임자 승인을 받아 관리한다."
+   },
+   "related": [
+    "awssec-security-hub",
+    "awssec-guardduty",
+    "awssec-config",
+    "awssec-cis-benchmark",
+    "cicd-github-actions",
+    "k8s-image-security",
+    "aws-ecr",
+    "plat-change-management"
+   ],
+   "learnMore": [
+    "Amazon Inspector User Guide",
+    "Amazon Inspector - Scanning AWS resources",
+    "Amazon Inspector - Understanding findings and scores",
+    "Amazon Inspector - SBOM export"
+   ]
+  },
+  {
+   "id": "awssec-macie",
+   "title": "Macie",
+   "titleEn": "Amazon Macie",
+   "aliases": [
+    "메이시",
+    "민감정보 탐지",
+    "개인정보 스캔",
+    "S3 데이터 분류",
+    "PII 탐지"
+   ],
+   "tags": [
+    "data-protection",
+    "privacy",
+    "detection"
+   ],
+   "level": "중급",
+   "oneLiner": "S3에 저장된 개인정보·민감정보를 자동으로 찾아 분류하는 서비스",
+   "analogy": "Macie는 창고의 수천 개 상자를 열어보고 '이 상자엔 주민등록번호가 들어 있다'고 라벨을 붙여주는 검수원과 같다. 사람이 상자를 다 열어볼 수는 없으니 샘플을 뜯어 내용물 패턴을 확인하고, 중요한 물건이 잠기지 않은 창고에 방치돼 있으면 즉시 보고한다.",
+   "explanation": "<p><strong>Amazon Macie</strong>는 <strong>S3에 저장된 데이터에서 민감정보를 자동으로 찾아내고 분류</strong>하는 데이터 보안 서비스다. 머신러닝과 패턴 매칭을 이용해 주민등록번호·여권번호·신용카드번호·계좌번호·이메일·API 키 같은 정보를 식별하고, 해당 객체가 어떤 버킷에 어떤 보호 수준으로 저장되어 있는지 함께 알려준다.</p><p><strong>왜 필요한가.</strong> 개인정보보호 감사에서 가장 흔한 질문은 '개인정보가 어디에 있는지 회사가 알고 있는가'다. 실무에서는 데이터 레이크, 분석용 덤프, 로그, 개발용 복사본 등에 개인정보가 흩어져 있고 아무도 전수를 모른다. 특히 <strong>운영 DB를 개발 환경으로 덤프한 파일</strong>이 S3에 남아 있는 경우가 매우 흔하다. Macie는 이 '모르는 데이터'를 데이터로 바꿔준다. 쉽게 말하면, <strong>개인정보 자산 목록을 사람 대신 만들어 주는 도구</strong>다.</p><p><strong>기능은 두 층</strong>이다. 첫째 <strong>자동 민감 데이터 검색(Automated Discovery)</strong>은 켜두면 Macie가 비용 효율적으로 버킷을 샘플링해 지속적으로 민감도를 평가하고 <strong>S3 버킷 인벤토리</strong>를 유지한다. 여기에는 버킷의 암호화 여부, 퍼블릭 접근 가능 여부, 다른 계정과 공유 여부도 함께 표시되어 <strong>'민감정보 + 공개 상태' 조합</strong>을 즉시 찾아낼 수 있다. 둘째 <strong>민감 데이터 검색 작업(Discovery Job)</strong>은 특정 버킷을 지정해 전수 또는 샘플 스캔을 수행하는 일회성·정기 작업이다.</p><p><strong>관리형 데이터 식별자</strong>가 기본 제공되며 국가별 식별자도 포함된다. 한국 주민등록번호(KRN), 여권번호, 운전면허번호 등이 지원되므로 국내 개인정보보호법·ISMS-P 대응에 바로 쓸 수 있다. 회사 고유 패턴(고객번호 형식, 내부 계좌 형식)은 <strong>사용자 지정 데이터 식별자(Custom Data Identifier)</strong>로 정규식과 키워드 조합을 정의해 추가한다.</p><p><strong>비용 관리가 중요하다.</strong> 요금은 버킷 인벤토리 평가(계정·버킷 수 기준)와 <strong>스캔한 데이터 양(GB)</strong>으로 과금된다. 페타바이트급 데이터 레이크를 전수 스캔하면 비용이 매우 커지므로, 자동 검색으로 후보를 좁힌 뒤 중요 버킷만 상세 스캔하는 2단계 접근이 일반적이다. 또 <strong>허용 목록(Allow List)</strong>으로 테스트 데이터 패턴을 제외해 오탐을 줄인다.</p><p><strong>감사 관점</strong>에서 Macie는 개인정보 관련 통제의 출발점인 <strong>'데이터 식별·분류'</strong>를 자동화한다. 핵심 점검 포인트는 (1) 민감정보 보유 버킷이 식별되고 자산 대장·데이터 분류 체계와 연결되는가, (2) 민감정보 버킷에 암호화·퍼블릭 차단·CloudTrail 데이터 이벤트가 적용되어 있는가, (3) 탐지된 민감정보에 대해 조치(삭제·마스킹·이관·접근 제한)가 이루어지고 기록되는가다. Macie finding은 Security Hub로 전달되므로 조치 추적은 기존 워크플로에 태울 수 있다.</p>",
+   "howItWorks": "<ol><li>보안 계정을 Macie 위임 관리자로 지정하고 조직 전체 자동 활성화를 켠다.</li><li>자동 민감 데이터 검색을 활성화하면 Macie가 전 계정의 S3 버킷 인벤토리를 만든다.</li><li>인벤토리에 각 버킷의 암호화·퍼블릭 접근·공유 상태와 객체 수·크기가 정리된다.</li><li>Macie가 객체를 샘플링해 관리형·사용자 지정 데이터 식별자로 민감정보 유형을 판별한다.</li><li>민감도 점수가 매겨지고 민감정보가 발견된 버킷이 강조 표시된다.</li><li>중요 버킷에 대해 상세 검색 작업을 예약 실행해 어떤 객체의 어느 위치에 무엇이 있는지 찾는다.</li><li>finding이 생성되어 Security Hub와 EventBridge로 전달된다.</li><li>'민감정보 보유 + 퍼블릭 접근 가능' 조합은 최우선으로 즉시 차단 조치한다.</li><li>개인정보보호 담당자가 보유 근거를 확인하고 불필요 데이터는 파기, 필요 데이터는 접근 제한·암호화·보존기간을 설정한다.</li><li>조치 결과가 데이터 분류 대장에 반영되고 정기 재스캔으로 상태가 검증된다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 2025년 개인정보보호 실태점검을 앞두고 Macie를 도입했다. 전 계정 S3 버킷 1,842개를 인벤토리화했고, 자동 검색 결과 민감정보가 포함된 버킷이 37개로 좁혀졌다. 이 중 4개는 2년 전 데이터 분석 PoC 때 만든 것으로 운영 DB 덤프(주문자 이름·휴대폰·주소 210만 건)가 암호화 없이 저장되어 있었고, 1개는 퍼블릭 읽기가 가능한 상태였다. 즉시 퍼블릭 차단 후 해당 버킷을 격리하고, 보유 근거가 없는 3개 버킷은 파기했다. 유지가 필요한 버킷에는 KMS 암호화, 버킷 정책 제한, CloudTrail 데이터 이벤트를 적용했다. 현재는 월 1회 자동 재스캔과 신규 버킷 생성 시 자동 평가가 운영된다.</p><pre><code># 조직 단위 활성화 및 자동 검색 설정\naws macie2 enable-macie --finding-publishing-frequency FIFTEEN_MINUTES\naws macie2 update-organization-configuration --auto-enable\naws macie2 update-automated-discovery-configuration --status ENABLED\n\n# 사용자 지정 식별자 (내부 고객번호 패턴 예시)\naws macie2 create-custom-data-identifier \\\n  --name shoplink-customer-id \\\n  --regex 'SL-[0-9]{4}-[0-9]{7}' \\\n  --keywords customer_id 고객번호 --maximum-match-distance 30\n\n# 특정 버킷 상세 스캔 작업\naws macie2 create-classification-job --job-type ONE_TIME \\\n  --name pii-audit-2026q1 \\\n  --s3-job-definition '{\"bucketDefinitions\":[{\"accountId\":\"210987654321\",\n                        \"buckets\":[\"shoplink-analytics-dump\"]}]}'\n\n# 감사 증적: 민감정보 보유 + 공개 상태 버킷 추출\naws macie2 describe-buckets \\\n  --criteria '{\"sensitivityScore\":{\"gte\":50},\n               \"publicAccess.effectivePermission\":{\"eq\":[\"PUBLIC\"]}}' \\\n  --query 'buckets[].[bucketName,sensitivityScore,publicAccess.effectivePermission]'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='160' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='100' y='47' text-anchor='middle' fill='currentColor' font-size='12'>S3 버킷 전체</text><text x='100' y='70' text-anchor='middle' fill='currentColor' font-size='11'>1,842개</text><text x='100' y='92' text-anchor='middle' fill='currentColor' font-size='11'>로그·백업·덤프</text><text x='100' y='114' text-anchor='middle' fill='currentColor' font-size='11'>데이터 레이크</text><line x1='180' y1='80' x2='245' y2='80' stroke='currentColor' marker-end='url(#ar)'/><rect x='245' y='30' width='165' height='100' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='327' y='54' text-anchor='middle' fill='currentColor' font-size='12'>Macie 분석</text><text x='327' y='76' text-anchor='middle' fill='currentColor' font-size='11'>샘플링 + 패턴 매칭</text><text x='327' y='96' text-anchor='middle' fill='currentColor' font-size='11'>주민번호·카드·계좌</text><text x='327' y='116' text-anchor='middle' fill='currentColor' font-size='11'>+ 사용자 지정 패턴</text><line x1='410' y1='80' x2='470' y2='80' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='35' width='150' height='90' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='58' text-anchor='middle' fill='currentColor' font-size='12'>민감정보 버킷</text><text x='545' y='80' text-anchor='middle' fill='currentColor' font-size='11'>37개로 축소</text><text x='545' y='100' text-anchor='middle' fill='currentColor' font-size='11'>+ 암호화/공개 상태</text><line x1='545' y1='125' x2='545' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='160' width='290' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='183' text-anchor='middle' fill='currentColor' font-size='12'>최우선 조치 조합</text><text x='475' y='205' text-anchor='middle' fill='currentColor' font-size='11'>민감정보 보유 + 퍼블릭/외부 공유</text><text x='475' y='226' text-anchor='middle' fill='currentColor' font-size='11'>→ 즉시 차단 · 격리 · 파기 검토</text><rect x='20' y='160' width='290' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='183' text-anchor='middle' fill='currentColor' font-size='12'>후속 통제</text><text x='165' y='205' text-anchor='middle' fill='currentColor' font-size='11'>KMS 암호화 · 접근 제한</text><text x='165' y='226' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail 데이터 이벤트 · 보존기간</text></svg>",
+   "keyTerms": [
+    {
+     "term": "관리형 데이터 식별자",
+     "meaning": "주민등록번호·카드번호 등 AWS가 미리 정의한 민감정보 패턴"
+    },
+    {
+     "term": "사용자 지정 데이터 식별자",
+     "meaning": "정규식과 키워드로 회사 고유 민감정보 패턴을 정의한 것"
+    },
+    {
+     "term": "자동 민감 데이터 검색",
+     "meaning": "샘플링 기반으로 지속 평가해 버킷 민감도 인벤토리를 유지하는 기능"
+    },
+    {
+     "term": "민감도 점수(Sensitivity Score)",
+     "meaning": "버킷에 민감정보가 얼마나 있는지 나타내는 지표"
+    },
+    {
+     "term": "검색 작업(Classification Job)",
+     "meaning": "특정 버킷을 지정해 실행하는 일회성·정기 상세 스캔"
+    },
+    {
+     "term": "허용 목록(Allow List)",
+     "meaning": "테스트 데이터 등 오탐 유발 패턴을 제외하는 목록"
+    },
+    {
+     "term": "S3 버킷 인벤토리",
+     "meaning": "버킷별 암호화·퍼블릭 접근·공유 상태를 포함한 현황표"
+    },
+    {
+     "term": "데이터 분류(Data Classification)",
+     "meaning": "정보를 민감도에 따라 등급화하고 그에 맞는 통제를 적용하는 체계"
+    }
+   ],
+   "pitfalls": [
+    "전체 데이터를 전수 스캔해 비용이 폭증한다. 자동 검색으로 후보를 좁힌 뒤 선별 스캔하는 2단계가 정석이다.",
+    "Macie가 S3만 대상이라는 점을 간과하고 RDS·DynamoDB·EFS의 개인정보도 찾아줄 것으로 기대한다.",
+    "탐지 결과를 받고도 데이터 소유 부서를 특정하지 못해 조치가 지연된다. 버킷 태그로 소유자를 관리해야 한다.",
+    "오탐이 많다고 허용 목록을 광범위하게 적용해 실제 민감정보까지 제외된다.",
+    "발견된 개인정보를 삭제만 하고 왜 거기에 있었는지(파이프라인 원인)를 고치지 않아 다시 쌓인다.",
+    "민감정보 버킷을 찾아놓고 CloudTrail 데이터 이벤트를 켜지 않아 '누가 열람했는가'는 여전히 답할 수 없다.",
+    "신규 계정·신규 버킷 자동 평가를 설정하지 않아 시간이 지나며 사각지대가 다시 생긴다.",
+    "결과를 개인정보 자산 대장과 연결하지 않아 감사에서 '식별은 했으나 관리되지 않는다'는 지적을 받는다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 중요정보·개인정보가 저장된 스토리지가 식별되고 자산 대장·데이터 분류 체계에 반영되는가",
+     "[접근] 민감정보 보유 버킷에 암호화·퍼블릭 차단·접근 제한이 적용되고 접근 이력이 기록되는가",
+     "[운영] 탐지된 민감정보에 대한 보유 근거 확인과 파기·이관·보호조치가 기한 내 수행되는가",
+     "[운영] 신규 생성 버킷이 자동으로 평가 대상에 포함되는가",
+     "[ITAC] 데이터 파이프라인이 운영 데이터를 비운영 환경으로 복사할 때 마스킹·비식별 처리가 적용되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 및 신용정보법 관점에서 개인신용정보의 보유 현황 파악과 암호화·접근통제 적용 여부",
+     "개인신용정보의 보유기간 경과 시 파기 요건 이행 여부와 파기 기록 보유",
+     "비운영(개발·테스트) 환경에서 실데이터 사용 제한 및 비식별 조치 적용 여부"
+    ],
+    "isms": [
+     "3.1.x 개인정보 수집·이용 / 3.4.2 개인정보 파기: 보유 근거 없는 개인정보의 파기가 이루어지는가",
+     "2.1.3 정보자산 관리: 개인정보 보유 자산이 식별·분류·관리되는가",
+     "2.7.1 암호정책 적용 / 2.6.3 응용프로그램 접근: 저장 개인정보의 보호조치가 적용되는가"
+    ],
+    "evidence": [
+     "Macie S3 버킷 인벤토리 export(버킷별 민감도 점수, 암호화·퍼블릭 상태)",
+     "민감정보 탐지 finding 목록과 각 건의 조치 결과(파기·암호화·접근제한)",
+     "사용자 지정 데이터 식별자 정의 내역",
+     "민감정보 보유 버킷의 버킷 정책·암호화 설정·CloudTrail 데이터 이벤트 설정",
+     "개인정보 자산 대장과 Macie 탐지 결과의 대사표",
+     "파기 대상 데이터의 파기 승인·수행 기록"
+    ],
+    "auditorQuestions": [
+     "회사의 개인정보가 어느 스토리지에 저장되어 있는지 전수로 파악하고 있는가?",
+     "그 목록은 어떻게 만들어졌고 얼마나 자주 갱신되는가?",
+     "개인정보가 들어 있는 저장소 중 외부에 공개된 것이 있는가? 어떻게 확인했는가?",
+     "개발·분석 환경에 운영 실데이터 사본이 존재하는가? 어떻게 통제하는가?",
+     "보유 근거가 없는 개인정보를 발견하면 어떤 절차로 파기하는가?"
+    ],
+    "controlExample": "전 계정의 S3 버킷은 Amazon Macie 자동 민감 데이터 검색 대상으로 등록되어 민감도와 공개 상태가 상시 평가되며, 민감정보 보유 버킷은 개인정보 자산 대장과 대사된다. 민감정보 보유와 외부 공개가 동시에 탐지되면 즉시 퍼블릭 접근을 차단하고, 보유 근거가 없는 데이터는 개인정보보호 담당자 승인 하에 파기하고 기록을 보관한다."
+   },
+   "related": [
+    "awssec-security-hub",
+    "awssec-cloudtrail",
+    "awssec-kms",
+    "awssec-s3-access-logs",
+    "awssec-config",
+    "awssec-access-analyzer",
+    "aws-s3",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "Amazon Macie User Guide",
+    "Macie - Managed data identifiers",
+    "Macie - Automated sensitive data discovery",
+    "Macie - Custom data identifiers"
+   ]
+  },
+  {
+   "id": "awssec-detective",
+   "title": "Detective",
+   "titleEn": "Amazon Detective",
+   "aliases": [
+    "디텍티브",
+    "침해 원인분석",
+    "포렌식 분석",
+    "행동 그래프",
+    "조사 도구"
+   ],
+   "tags": [
+    "investigation",
+    "forensics",
+    "detection"
+   ],
+   "level": "심화",
+   "oneLiner": "보안 탐지의 근본 원인을 그래프로 분석해 주는 조사 도구",
+   "analogy": "Detective는 사건 현장 사진 한 장(탐지 결과)을 받아 '이 사람이 지난 한 달간 어디를 다녔고 누구를 만났는지' 시간선과 관계도로 재구성해 주는 수사관과 같다. 경보가 울린 순간만 보면 원인을 알 수 없지만, 관계도를 펼치면 어디서 시작되어 어디까지 퍼졌는지 보인다.",
+   "explanation": "<p><strong>Amazon Detective</strong>는 보안 탐지가 발생했을 때 <strong>'왜 이런 일이 생겼는가'를 조사(investigation)</strong>하는 데 특화된 서비스다. GuardDuty가 '이상하다'고 알려주면, Detective는 그 주변을 파고들어 <strong>근본 원인과 영향 범위</strong>를 찾도록 돕는다.</p><p><strong>핵심은 행동 그래프(Behavior Graph)</strong>다. Detective는 CloudTrail 이벤트, VPC Flow Logs, GuardDuty finding, EKS 감사 로그를 자동으로 수집해 <strong>최대 1년치</strong>를 그래프 형태로 연결한다. 노드는 IAM 역할·사용자·EC2 인스턴스·IP 주소·API 호출이고, 엣지는 그들 사이의 관계다. 사용자가 직접 로그를 모으거나 쿼리를 짤 필요가 없다는 점이 SIEM과의 큰 차이다.</p><p><strong>조사 흐름</strong>은 이렇다. GuardDuty finding에서 'Detective로 조사' 버튼을 누르면 해당 주체의 프로필 페이지가 열린다. 여기에는 <strong>평소 행동 기준선(baseline)과 대비한 이상치</strong>가 시각화된다. 예를 들어 '이 역할은 평소 하루 12회 API를 호출하는데 그날은 4,200회였다', '평소 호출한 적 없는 <code>iam:CreateAccessKey</code>가 나타났다', '평소 접속하지 않던 지역 IP가 등장했다' 같은 것이다. 시간 범위를 조정하며 전후 맥락을 넓혀갈 수 있다.</p><p>쉽게 말하면, <strong>탐지(GuardDuty) → 조사(Detective) → 대응(인시던트 절차)</strong>의 가운데 단계를 담당한다. 탐지만 있고 조사 도구가 없으면, 보안 담당자가 Athena로 CloudTrail을 수작업 질의하며 몇 시간을 쓰게 된다.</p><p><strong>Detective 조사(Investigation) 기능</strong>도 있다. 특정 IAM 주체나 리소스를 지정하면 Detective가 자동으로 관련 지표를 종합해 <strong>위험 심각도와 MITRE ATT&amp;CK 전술 매핑</strong>이 포함된 조사 보고서를 생성한다. 사람이 어디를 봐야 할지 모를 때 출발점을 제공한다.</p><p><strong>전제 조건</strong>이 있다. Detective를 활성화하려면 해당 계정에서 <strong>GuardDuty가 최소 48시간 이상 활성화</strong>되어 있어야 한다. 조직 단위로 위임 관리자를 지정해 운영하며, 요금은 수집·처리한 로그 데이터 양 기준이다. GuardDuty·Security Hub와 달리 '켜두면 뭔가 알려주는' 서비스가 아니라 <strong>필요할 때 쓰는 분석 도구</strong>라는 점을 이해해야 비용과 기대치를 맞출 수 있다.</p><p><strong>감사 관점</strong>에서 Detective는 <strong>침해사고 대응 역량</strong>의 증거다. 감사인이 '사고가 나면 원인과 영향 범위를 어떻게 파악하느냐'고 물을 때, 절차서만 있는 것과 실제 조사 도구가 구축되어 있고 훈련 기록이 있는 것은 평가가 다르다. 또 조사 과정에서 확인한 내용(접근 범위, 유출 여부)은 <strong>금융감독당국·개인정보보호위원회 신고 판단</strong>의 근거 자료가 되므로, 조사 결과를 보고서로 남기는 절차가 함께 필요하다.</p>",
+   "howItWorks": "<ol><li>조직의 보안 계정을 Detective 위임 관리자로 지정하고 멤버 계정을 등록한다(GuardDuty 48시간 이상 선행 필요).</li><li>Detective가 CloudTrail·VPC Flow Logs·GuardDuty·EKS 감사 로그를 지속 수집해 행동 그래프를 구축한다.</li><li>GuardDuty에서 심각도 높은 finding이 발생한다(예: 인스턴스 자격증명 외부 사용).</li><li>분석가가 finding에서 Detective로 이동해 해당 IAM 역할·인스턴스의 프로필을 연다.</li><li>평소 기준선 대비 API 호출량 급증, 신규 API 유형, 낯선 지역 IP 등 이상 지표를 확인한다.</li><li>그래프를 따라가며 그 자격증명으로 어떤 리소스에 접근했는지, 새 사용자·키를 만들었는지 추적한다.</li><li>시간 범위를 사고 발생 전후로 넓혀 최초 침투 경로(예: 취약한 웹앱 → 메타데이터 접근)를 식별한다.</li><li>영향 범위(접근된 S3 버킷, 조회된 데이터)를 정리해 유출 여부를 판단한다.</li><li>조사 결과를 인시던트 보고서에 기록하고 근본 원인 조치와 재발 방지 대책을 수립한다.</li><li>필요 시 규제기관 신고 여부를 이 조사 결과에 근거해 결정한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2026년 2월 GuardDuty가 배치 서버 역할의 자격증명이 해외에서 사용됐다고 탐지했다. 담당자가 Detective로 이동해 해당 역할 프로필을 열자, 평소 하루 평균 API 호출 34회이던 역할이 사고 당일 2시 12분부터 3시 41분 사이 1,870회를 호출한 것이 한눈에 보였다. 호출 목록에는 평소 없던 <code>s3:ListBuckets</code>, <code>s3:GetObject</code>, <code>iam:CreateUser</code>가 있었다. 그래프를 따라가니 실제 접근된 버킷은 로그 버킷 1개뿐이고 개인정보 버킷에는 접근 시도가 AccessDenied로 모두 차단된 것이 확인됐다. 조사 결과 '개인정보 유출 없음'으로 판단해 규제기관 신고 대상이 아님을 소명했고, 전체 조사에 걸린 시간은 40분이었다.</p><pre><code># 조직 단위 활성화 (보안 계정)\naws detective create-graph --tags Purpose=SecurityInvestigation\naws detective update-organization-configuration --auto-enable\n\n# 그래프와 멤버 현황 확인\naws detective list-graphs\naws detective list-members --graph-arn arn:aws:detective:ap-northeast-2:999988887777:graph:abc123\n\n# 조사 시작 (특정 IAM 주체 대상)\naws detective start-investigation \\\n  --graph-arn arn:aws:detective:ap-northeast-2:999988887777:graph:abc123 \\\n  --entity-arn arn:aws:iam::123456789012:role/batch-runner \\\n  --scope-start-time 2026-02-11T00:00:00Z \\\n  --scope-end-time 2026-02-12T00:00:00Z\n\n# 조사 결과 요약 조회\naws detective get-investigation \\\n  --graph-arn arn:aws:detective:ap-northeast-2:999988887777:graph:abc123 \\\n  --investigation-id inv-0a1b2c3d</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='130' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='53' text-anchor='middle' fill='currentColor' font-size='12'>GuardDuty</text><text x='85' y='73' text-anchor='middle' fill='currentColor' font-size='11'>탐지: 이상하다</text><line x1='150' y1='60' x2='215' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='215' y='20' width='190' height='120' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='310' y='43' text-anchor='middle' fill='currentColor' font-size='12'>행동 그래프</text><text x='310' y='65' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail + FlowLogs</text><text x='310' y='84' text-anchor='middle' fill='currentColor' font-size='11'>+ EKS 감사 + finding</text><text x='310' y='106' text-anchor='middle' fill='currentColor' font-size='11'>최대 1년치 자동 연결</text><text x='310' y='127' text-anchor='middle' fill='currentColor' font-size='11'>주체·IP·리소스 관계</text><line x1='405' y1='60' x2='470' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='25' width='150' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='48' text-anchor='middle' fill='currentColor' font-size='12'>기준선 대비</text><text x='545' y='70' text-anchor='middle' fill='currentColor' font-size='11'>평소 34회 → 1870회</text><text x='545' y='89' text-anchor='middle' fill='currentColor' font-size='11'>신규 API·낯선 IP</text><line x1='310' y1='140' x2='310' y2='170' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='170' width='290' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='193' text-anchor='middle' fill='currentColor' font-size='12'>조사 산출물</text><text x='165' y='214' text-anchor='middle' fill='currentColor' font-size='11'>최초 침투 경로 · 영향 범위</text><text x='165' y='233' text-anchor='middle' fill='currentColor' font-size='11'>실제 접근된 데이터 여부</text><rect x='330' y='170' width='290' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='193' text-anchor='middle' fill='currentColor' font-size='12'>감사·규제 연결</text><text x='475' y='214' text-anchor='middle' fill='currentColor' font-size='11'>유출 여부 판단 근거</text><text x='475' y='233' text-anchor='middle' fill='currentColor' font-size='11'>신고 여부 결정 · 인시던트 보고서</text></svg>",
+   "keyTerms": [
+    {
+     "term": "행동 그래프(Behavior Graph)",
+     "meaning": "주체·리소스·IP 간 관계와 시간축을 연결한 분석용 그래프"
+    },
+    {
+     "term": "기준선(Baseline)",
+     "meaning": "해당 주체의 평소 행동 패턴. 이상치 판단의 기준"
+    },
+    {
+     "term": "조사(Investigation)",
+     "meaning": "특정 주체에 대해 자동으로 위험 지표를 종합해 보고서를 만드는 기능"
+    },
+    {
+     "term": "MITRE ATT&CK",
+     "meaning": "공격 전술·기법 분류 체계. 조사 결과 매핑에 사용"
+    },
+    {
+     "term": "근본 원인 분석(RCA)",
+     "meaning": "사고의 최초 침투 경로와 확산 경로를 규명하는 활동"
+    },
+    {
+     "term": "영향 범위(Blast Radius)",
+     "meaning": "침해된 자격증명으로 실제 접근 가능했던·접근된 자원의 범위"
+    },
+    {
+     "term": "위임 관리자",
+     "meaning": "조직 전체 Detective 그래프를 운영하는 보안 계정"
+    },
+    {
+     "term": "전제 조건",
+     "meaning": "GuardDuty가 48시간 이상 활성화되어 있어야 Detective를 켤 수 있다"
+    }
+   ],
+   "pitfalls": [
+    "Detective가 탐지 서비스라고 오해. 탐지는 GuardDuty가 하고 Detective는 조사 도구다.",
+    "사고가 터진 뒤에 활성화하려다 데이터가 없어 조사할 수 없다. 평시에 켜두어야 과거 데이터가 쌓인다.",
+    "GuardDuty를 켜지 않은 계정에서 Detective를 활성화하려다 전제 조건 미충족으로 실패한다.",
+    "비용을 이유로 일부 계정만 등록해, 정작 사고가 난 계정이 그래프에 없다.",
+    "조사 결과를 화면에서만 확인하고 보고서로 남기지 않아 감사·규제 대응 증적이 되지 않는다.",
+    "Detective만으로 애플리케이션 로그·OS 로그까지 볼 수 있다고 기대. 대상 데이터 소스는 한정적이다.",
+    "훈련 없이 사고 당일 처음 사용해, 정작 급할 때 화면을 해석하지 못한다. 모의훈련이 필요하다.",
+    "조사 권한을 넓게 부여해 일반 개발자도 전 계정의 활동 이력을 열람할 수 있게 둔다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 보안 사고 발생 시 근본 원인과 영향 범위를 분석할 수 있는 도구와 절차가 갖춰져 있는가",
+     "[운영] 조사 결과가 인시던트 보고서로 기록되고 재발 방지 대책이 추적되는가",
+     "[접근] 조사 도구에 대한 접근 권한이 보안·포렌식 담당자로 제한되는가",
+     "[운영] 조사에 필요한 로그(CloudTrail·Flow Logs)가 충분한 기간 확보되어 있는가",
+     "[운영] 모의 사고 대응 훈련에서 조사 절차가 실제로 수행·검증되는가"
+    ],
+    "fss": [
+     "전자금융감독규정상 침해사고 발생 시 원인 분석 및 피해 범위 파악 체계 보유 여부",
+     "침해사고 발생 시 금융감독당국 보고에 필요한 사실관계(접근 범위·유출 여부) 확인 수단 보유 여부",
+     "사고 조사 기록의 보존과 사후 개선 조치 이행 관리 여부"
+    ],
+    "isms": [
+     "2.11.1 사고 예방 및 대응체계 구축: 사고 조사·분석 절차와 도구가 마련되어 있는가",
+     "2.11.5 사고 대응 및 복구: 사고 원인 분석과 재발 방지 대책 수립이 이루어지는가",
+     "2.9.4 로그 및 접속기록 관리: 조사에 필요한 로그가 보존되는가"
+    ],
+    "evidence": [
+     "Detective 활성화 현황 및 조직 멤버 계정 등록 목록",
+     "최근 인시던트의 조사 기록(조사 대상, 확인된 이상 지표, 결론)",
+     "인시던트 보고서와 근본 원인·재발 방지 대책 이행 현황",
+     "조사 도구 접근 권한 보유자 목록",
+     "모의 사고 대응 훈련 계획·수행·결과 보고서",
+     "조사에 사용된 로그의 보존기간 설정 증빙"
+    ],
+    "auditorQuestions": [
+     "보안 사고가 발생하면 원인과 영향 범위를 어떤 방법으로 파악하는가?",
+     "최근 사고에서 실제로 어떤 데이터에 접근이 있었는지 어떻게 확인했는가?",
+     "조사를 수행할 수 있는 사람은 누구이며 권한은 어떻게 통제되는가?",
+     "조사에 필요한 로그는 얼마나 오래 보관되는가? 1년 전 사건도 조사 가능한가?",
+     "사고 조사 절차를 훈련해 본 적이 있는가? 마지막 훈련은 언제였는가?"
+    ],
+    "controlExample": "보안 계정을 위임 관리자로 하여 전 계정에 Amazon Detective를 활성화하고, GuardDuty 심각도 7.0 이상 탐지는 Detective 조사를 거쳐 근본 원인과 영향 범위를 규명한 뒤 인시던트 보고서로 기록한다. 조사 권한은 보안대응팀으로 제한되며, 연 2회 모의 사고 대응 훈련에서 조사 절차의 실효성을 검증한다."
+   },
+   "related": [
+    "awssec-guardduty",
+    "awssec-security-hub",
+    "awssec-cloudtrail",
+    "awssec-vpc-flow-logs",
+    "awssec-incident-response",
+    "awssec-iam-role-sts",
+    "obs-grafana",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "Amazon Detective User Guide",
+    "Detective - Behavior graph data sources",
+    "AWS Security Incident Response Guide"
+   ]
+  },
+  {
+   "id": "awssec-vpc-flow-logs",
+   "title": "VPC Flow Logs",
+   "titleEn": "Amazon VPC Flow Logs",
+   "aliases": [
+    "플로우 로그",
+    "네트워크 로그",
+    "트래픽 로그",
+    "VPC 흐름로그",
+    "통신기록"
+   ],
+   "tags": [
+    "logging",
+    "network",
+    "detection"
+   ],
+   "level": "중급",
+   "oneLiner": "VPC 안팎을 오간 IP 트래픽의 메타데이터를 기록하는 로그",
+   "analogy": "VPC Flow Logs는 건물 각 층의 통화 기록부와 같다. 누가 누구에게 몇 시에 몇 초간 전화했고 연결이 됐는지 거절됐는지는 다 적히지만, 통화 '내용'은 적히지 않는다. 그래도 '이 방에서 외부의 낯선 번호로 새벽마다 전화가 나갔다'는 사실만으로 사고를 밝혀낼 수 있다.",
+   "explanation": "<p><strong>VPC Flow Logs</strong>는 VPC 내 네트워크 인터페이스를 오가는 <strong>IP 트래픽의 메타데이터</strong>를 기록하는 기능이다. 기록되는 항목은 출발지·목적지 IP와 포트, 프로토콜, 패킷 수, 바이트 수, 시작·종료 시각, 그리고 <strong>수락(ACCEPT)/거부(REJECT)</strong> 여부다. 중요한 것은 <strong>패킷의 내용(payload)은 저장되지 않는다</strong>는 점이다. 내용까지 봐야 하면 <strong>VPC Traffic Mirroring</strong>이라는 별도 기능을 써야 한다.</p><p><strong>활성화 단위는 세 가지</strong>다. <strong>VPC 전체</strong>, <strong>서브넷</strong>, <strong>개별 ENI(네트워크 인터페이스)</strong>. 보통은 VPC 단위로 켜서 전체를 커버한다. 저장 대상은 <strong>CloudWatch Logs</strong>(실시간 경보·메트릭 필터에 유리), <strong>S3</strong>(대량 장기 보존·Athena 분석에 유리), <strong>Kinesis Data Firehose</strong>(SIEM 전송)이며, 보통 S3 장기 보존 + CloudWatch 실시간 감시를 병행한다.</p><p><strong>기본 필드 외에 사용자 지정 형식</strong>을 쓰면 훨씬 유용해진다. <code>pkt-srcaddr</code>/<code>pkt-dstaddr</code>(NAT 뒤 실제 주소), <code>flow-direction</code>(ingress/egress), <code>traffic-path</code>(트래픽이 IGW·NAT·TGW 중 어디로 갔는지), <code>vpc-id</code>·<code>subnet-id</code>·<code>instance-id</code>, <code>tcp-flags</code> 등을 추가할 수 있다. 특히 NAT 게이트웨이 뒤의 실제 발신자를 알려면 <code>pkt-srcaddr</code>가 필수다.</p><p><strong>활용은 크게 네 가지</strong>다. (1) <strong>보안 조사</strong> — 침해 시 어떤 인스턴스가 외부 어디와 통신했는지 추적. GuardDuty와 Detective의 핵심 입력이기도 하다. (2) <strong>접근 통제 검증</strong> — REJECT 로그를 보면 보안그룹·NACL이 실제로 차단하고 있음을 증명할 수 있다. 반대로 예상치 못한 ACCEPT는 통제 공백의 신호다. (3) <strong>네트워크 문제 진단</strong> — 연결이 안 될 때 보안그룹 문제인지 라우팅 문제인지 판별. (4) <strong>비용·성능 분석</strong> — AZ 간 트래픽, NAT 경유량 파악.</p><p>쉽게 말하면, <strong>'누가 누구와 통신했는가'를 남기는 네트워크판 CloudTrail</strong>이다. CloudTrail이 AWS API 호출을 남긴다면, Flow Logs는 그 아래층의 IP 통신을 남긴다.</p><p><strong>주의할 점</strong>이 몇 가지 있다. Flow Logs는 <strong>집계 간격(기본 10분, 최소 1분)</strong>으로 묶여 배달되므로 실시간이 아니다. 또 인스턴스 메타데이터(169.254.169.254), DHCP, Amazon DNS 트래픽 등 <strong>일부 트래픽은 기록되지 않는다</strong>. 로그 양이 매우 크므로 S3 수명주기와 Parquet 형식(S3 저장 시 선택 가능) 활용이 비용에 직결된다.</p><p><strong>감사 관점</strong>에서 Flow Logs는 <strong>네트워크 접근통제의 유효성을 입증하는 증거</strong>다. 방화벽 규칙표만 제시하면 '설계'만 보여주는 것이지만, REJECT 로그는 '실제로 차단되고 있다'는 운영 증거다. 점검 포인트는 (1) 모든 운영 VPC에 활성화되어 있는가, (2) 보존기간이 규제 요구를 충족하는가, (3) 로그가 별도 계정에 보호되어 보관되는가, (4) 이상 통신(비인가 아웃바운드, 대량 전송)에 대한 탐지 규칙이 있는가다.</p>",
+   "howItWorks": "<ol><li>네트워크팀이 운영 VPC 전체에 Flow Logs를 활성화하고 사용자 지정 형식을 지정한다.</li><li>대상은 S3(로그 아카이브 계정, Parquet, 수명주기 적용)와 CloudWatch Logs(실시간 감시)를 병행 설정한다.</li><li>ENI를 통과하는 트래픽이 집계 간격 단위로 묶여 레코드로 생성된다.</li><li>각 레코드에 출발지·목적지·포트·바이트·ACCEPT/REJECT가 기록된다.</li><li>CloudWatch 메트릭 필터가 '운영 서브넷에서 인터넷 대역으로의 비인가 포트 아웃바운드'를 감지하면 경보를 발생시킨다.</li><li>GuardDuty가 Flow Logs를 분석해 악성 IP 통신·채굴 풀 접속 등을 탐지한다.</li><li>보안 사고 발생 시 Athena로 S3의 Flow Logs를 질의해 통신 상대와 전송량을 확인한다.</li><li>Detective가 같은 데이터를 그래프로 연결해 조사 속도를 높인다.</li><li>S3 수명주기가 일정 기간 후 Glacier로 전환하고 규제 보존기간 후 삭제한다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 2026년 3월, 결제 서버 1대에서 평소 없던 대량 아웃바운드 트래픽이 감지됐다. Athena로 Flow Logs를 질의하니 해당 인스턴스가 새벽 2시부터 4시까지 특정 해외 IP로 12GB를 전송한 기록이 나왔다. 동시에 REJECT 로그에서 같은 인스턴스가 내부 DB 서브넷의 3306 포트로 수백 번 접속 시도했다가 모두 차단된 것도 확인됐다. 이 두 사실로 '침해는 발생했으나 DB 접근은 보안그룹으로 차단됐다'는 영향 범위를 확정할 수 있었다. 이후 운영 서브넷의 아웃바운드를 기본 차단하고 필요한 목적지만 허용하는 정책으로 전환했다.</p><pre><code># VPC 단위 Flow Logs 활성화 (S3, 사용자 지정 형식)\naws ec2 create-flow-logs \\\n  --resource-type VPC --resource-ids vpc-0a1b2c3d \\\n  --traffic-type ALL \\\n  --log-destination-type s3 \\\n  --log-destination arn:aws:s3:::shoplink-flowlogs-archive \\\n  --max-aggregation-interval 60 \\\n  --destination-options 'FileFormat=parquet,HiveCompatiblePartitions=true' \\\n  --log-format '${version} ${account-id} ${interface-id} ${srcaddr} ${dstaddr} \\\n${srcport} ${dstport} ${protocol} ${packets} ${bytes} ${start} ${end} \\\n${action} ${log-status} ${vpc-id} ${subnet-id} ${instance-id} ${pkt-srcaddr} \\\n${pkt-dstaddr} ${flow-direction} ${traffic-path}'\n\n# Athena 질의: 대량 외부 전송 탐지\nSELECT instance_id, dstaddr, SUM(bytes)/1024/1024 AS mb\nFROM vpc_flow_logs\nWHERE action = 'ACCEPT' AND flow_direction = 'egress'\n  AND start &gt;= 1772236800\nGROUP BY instance_id, dstaddr\nHAVING SUM(bytes) &gt; 1073741824\nORDER BY mb DESC;\n\n# 차단 증적: 특정 인스턴스의 REJECT 기록\nSELECT srcaddr, dstaddr, dstport, COUNT(*) AS tries\nFROM vpc_flow_logs\nWHERE action = 'REJECT' AND srcaddr = '10.20.3.41'\nGROUP BY srcaddr, dstaddr, dstport ORDER BY tries DESC;</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='220' height='120' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='130' y='47' text-anchor='middle' fill='currentColor' font-size='12'>VPC</text><rect x='35' y='60' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='85' text-anchor='middle' fill='currentColor' font-size='11'>앱 서브넷</text><rect x='140' y='60' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='185' y='85' text-anchor='middle' fill='currentColor' font-size='11'>DB 서브넷</text><line x1='125' y1='80' x2='140' y2='80' stroke='currentColor' marker-end='url(#ar)'/><text x='130' y='120' text-anchor='middle' fill='currentColor' font-size='11'>ENI 단위로 기록 (내용 제외)</text><text x='130' y='138' text-anchor='middle' fill='currentColor' font-size='11'>ACCEPT / REJECT</text><line x1='240' y1='85' x2='305' y2='85' stroke='currentColor' marker-end='url(#ar)'/><rect x='305' y='30' width='150' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='380' y='53' text-anchor='middle' fill='currentColor' font-size='12'>레코드 필드</text><text x='380' y='75' text-anchor='middle' fill='currentColor' font-size='11'>src/dst IP·포트</text><text x='380' y='94' text-anchor='middle' fill='currentColor' font-size='11'>bytes·packets</text><text x='380' y='113' text-anchor='middle' fill='currentColor' font-size='11'>pkt-srcaddr(NAT뒤)</text><text x='380' y='132' text-anchor='middle' fill='currentColor' font-size='11'>flow-direction</text><line x1='455' y1='60' x2='515' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='455' y1='110' x2='515' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='515' y='20' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='567' y='42' text-anchor='middle' fill='currentColor' font-size='11'>S3 + Athena</text><text x='567' y='61' text-anchor='middle' fill='currentColor' font-size='11'>장기 보존</text><rect x='515' y='110' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='567' y='132' text-anchor='middle' fill='currentColor' font-size='11'>CloudWatch</text><text x='567' y='151' text-anchor='middle' fill='currentColor' font-size='11'>실시간 경보</text><rect x='20' y='170' width='600' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='193' text-anchor='middle' fill='currentColor' font-size='12'>감사 활용</text><text x='320' y='215' text-anchor='middle' fill='currentColor' font-size='11'>REJECT 로그 = 접근통제가 실제로 작동한다는 운영 증거</text><text x='320' y='235' text-anchor='middle' fill='currentColor' font-size='11'>예상치 못한 ACCEPT = 통제 공백 신호 / GuardDuty·Detective의 입력</text></svg>",
+   "keyTerms": [
+    {
+     "term": "ENI(네트워크 인터페이스)",
+     "meaning": "Flow Logs가 기록되는 최소 단위. 인스턴스·엔드포인트에 붙는 가상 랜카드"
+    },
+    {
+     "term": "ACCEPT / REJECT",
+     "meaning": "보안그룹·NACL에 의해 허용됐는지 차단됐는지 표시하는 필드"
+    },
+    {
+     "term": "pkt-srcaddr / pkt-dstaddr",
+     "meaning": "NAT·로드밸런서 뒤의 실제 출발지·목적지 주소"
+    },
+    {
+     "term": "flow-direction",
+     "meaning": "ingress(들어옴)/egress(나감) 구분. 데이터 유출 탐지에 중요"
+    },
+    {
+     "term": "traffic-path",
+     "meaning": "트래픽이 IGW·NAT·TGW·VPC 피어링 중 어디를 지났는지"
+    },
+    {
+     "term": "집계 간격",
+     "meaning": "레코드를 묶는 시간 단위(기본 10분, 최소 1분). 실시간이 아님"
+    },
+    {
+     "term": "Traffic Mirroring",
+     "meaning": "패킷 내용까지 복제해 분석하는 별도 기능. Flow Logs는 메타데이터만"
+    },
+    {
+     "term": "Parquet 형식",
+     "meaning": "S3 저장 시 선택 가능한 컬럼형 포맷. Athena 질의 성능과 비용에 유리"
+    }
+   ],
+   "pitfalls": [
+    "Flow Logs에 패킷 내용이 담긴다고 오해. 메타데이터만 기록되며 내용 분석은 Traffic Mirroring이 필요하다.",
+    "NAT 게이트웨이 뒤의 실제 발신 인스턴스를 찾으려는데 pkt-srcaddr 필드를 포함하지 않아 추적이 불가능하다.",
+    "일부 VPC에만 켜서 사각지대가 생긴다. 신규 VPC 생성 시 자동 활성화(Config 규칙·IaC 모듈)가 필요하다.",
+    "CloudWatch Logs로만 보내 비용이 급증하거나, S3로만 보내 실시간 경보를 못 만든다. 용도별 병행이 정석이다.",
+    "보존기간을 짧게 설정해 사고 조사 시점에 로그가 이미 삭제되어 있다.",
+    "집계 간격 때문에 로그가 즉시 나타나지 않는데 '기록이 안 된다'고 오판한다.",
+    "REJECT 로그를 노이즈로 여겨 필터링해 버려, 정작 통제 작동 증거와 스캔 탐지 신호를 잃는다.",
+    "로그 버킷을 같은 운영 계정에 두어 침해 시 함께 삭제될 수 있는 구조로 남긴다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 모든 운영 VPC에 Flow Logs가 활성화되어 있고 신규 VPC에도 자동 적용되는가",
+     "[운영] 로그가 별도 계정의 보호된 저장소에 규제 요구 기간 동안 보존되는가",
+     "[접근] 네트워크 접근통제(보안그룹·NACL)가 실제 작동함을 REJECT 기록으로 검증할 수 있는가",
+     "[운영] 비인가 아웃바운드·대량 전송 등 이상 통신에 대한 탐지 규칙과 대응 절차가 있는가",
+     "[변경] Flow Logs 설정 삭제·변경 권한이 제한되고 해당 행위가 기록·경보되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 관점에서 네트워크 접근 기록의 생성·보존 요건 충족 여부",
+     "전자금융기반시설의 내·외부 통신 기록이 침해사고 조사 가능한 형태로 확보되는지",
+     "망 분리·접근통제 정책의 실제 적용 여부를 통신 기록으로 검증할 수 있는지"
+    ],
+    "isms": [
+     "2.6.1 네트워크 접근: 네트워크 접근통제 정책이 적용되고 기록되는가",
+     "2.9.4 로그 및 접속기록 관리: 네트워크 로그가 생성·보존·보호되는가",
+     "2.11.3 이상행위 분석 및 모니터링: 이상 트래픽에 대한 탐지가 수행되는가"
+    ],
+    "evidence": [
+     "aws ec2 describe-flow-logs 출력(대상 VPC, 트래픽 유형, 대상 저장소, 로그 형식)",
+     "Flow Logs 저장 S3 버킷의 보존 설정·수명주기·접근 정책",
+     "REJECT 로그 샘플(특정 차단 정책이 실제 작동함을 보여주는 질의 결과)",
+     "이상 통신 탐지 경보 설정과 최근 발생·조치 이력",
+     "사고 조사 시 Flow Logs를 활용한 분석 기록",
+     "신규 VPC 자동 활성화를 보장하는 Config 규칙 또는 IaC 모듈 코드"
+    ],
+    "auditorQuestions": [
+     "서버 간, 그리고 외부와의 통신 기록이 남고 있는가? 어느 범위까지인가?",
+     "특정 서버가 외부 어디와 통신했는지 조회할 수 있는가? 시연해 달라.",
+     "보안그룹이 실제로 접근을 차단하고 있음을 무엇으로 증명할 수 있는가?",
+     "통신 기록은 얼마나 오래 보관되며 누가 삭제할 수 있는가?",
+     "비정상적인 대량 외부 전송이 발생하면 어떻게 탐지되는가?"
+    ],
+    "controlExample": "모든 운영 VPC에 대해 ALL 트래픽 유형의 Flow Logs를 활성화하여 로그 아카이브 계정의 S3에 Parquet 형식으로 1년간 보관하며, 신규 VPC는 Terraform 모듈과 AWS Config 규칙으로 활성화가 강제된다. 운영 서브넷에서의 비인가 아웃바운드와 대량 전송은 CloudWatch 경보로 탐지되어 보안관제에 통지된다."
+   },
+   "related": [
+    "awssec-cloudtrail",
+    "awssec-guardduty",
+    "awssec-detective",
+    "awssec-network-firewall",
+    "awssec-s3-access-logs",
+    "aws-vpc",
+    "net-tls",
+    "obs-loki"
+   ],
+   "learnMore": [
+    "Amazon VPC User Guide - VPC Flow Logs",
+    "VPC Flow Logs - Flow log record examples",
+    "Querying VPC Flow Logs with Amazon Athena"
+   ]
+  },
+  {
+   "id": "awssec-s3-access-logs",
+   "title": "S3 서버 액세스 로그",
+   "titleEn": "Amazon S3 Server Access Logging",
+   "aliases": [
+    "S3 액세스 로그",
+    "버킷 접근기록",
+    "서버 액세스 로깅",
+    "S3 열람기록",
+    "객체 접근로그"
+   ],
+   "tags": [
+    "logging",
+    "storage",
+    "audit"
+   ],
+   "level": "중급",
+   "oneLiner": "S3 버킷에 대한 모든 요청을 상세히 기록하는 로깅 기능",
+   "analogy": "S3 서버 액세스 로그는 도서관 대출대의 수기 장부와 같다. 누가 몇 시에 어떤 책을 요청했고, 빌려줬는지 거절했는지, 몇 페이지짜리였는지까지 한 줄씩 적힌다. 전자 시스템(CloudTrail 데이터 이벤트)보다 투박하지만 값이 싸고, 두 장부를 대조하면 기록 누락을 서로 보완할 수 있다.",
+   "explanation": "<p><strong>S3 서버 액세스 로깅(Server Access Logging)</strong>은 특정 S3 버킷에 들어온 <strong>모든 요청을 텍스트 로그로 기록</strong>하는 기능이다. 요청자(계정·IAM 주체 또는 익명), 요청 시각, 버킷명, 객체 키, 작업 유형(<code>REST.GET.OBJECT</code> 등), HTTP 상태 코드, 에러 코드, 전송 바이트, 소요 시간, 요청 IP, 사용자 에이전트, TLS 버전 등이 한 줄씩 기록된다.</p><p><strong>CloudTrail 데이터 이벤트와 무엇이 다른가.</strong> 실무에서 가장 많이 헷갈리는 지점이다. 둘 다 S3 객체 접근을 기록하지만 성격이 다르다. <strong>CloudTrail 데이터 이벤트</strong>는 이벤트 기반 JSON으로 약 5분 내 배달되고, <strong>조직 트레일로 중앙 집중·무결성 검증·EventBridge 실시간 연동</strong>이 가능하다. 반면 <strong>서버 액세스 로그</strong>는 배달이 <strong>best-effort(몇 시간 지연 가능, 드물게 누락)</strong>이고 무결성 검증 기능이 없지만, <strong>비용이 훨씬 저렴</strong>하고 CloudTrail이 기록하지 않는 일부 필드(소요 시간, 전송 바이트, 사용자 에이전트, 정적 웹사이트 요청 등)를 남긴다.</p><p>쉽게 말하면, <strong>CloudTrail 데이터 이벤트는 '감사용 정식 장부', 서버 액세스 로그는 '운영·분석용 상세 장부'</strong>다. 규제 대응이 목적이면 CloudTrail 데이터 이벤트가 우선이고, 서버 액세스 로그는 보완재나 비용 대안으로 쓴다. 두 개를 함께 켜서 교차 검증하는 조직도 많다.</p><p><strong>설정 시 주의점</strong>이 있다. 로그는 <strong>다른 버킷</strong>(로그 대상 버킷)에 저장해야 한다. 자기 자신에게 쓰면 로그가 로그를 만드는 <strong>무한 루프</strong>가 발생해 비용이 폭증한다. 대상 버킷에는 S3 로깅 서비스 주체가 쓸 수 있는 권한이 필요하다(현재는 버킷 정책 방식). 또 대상 버킷에 <strong>SSE-KMS 암호화</strong>를 쓰려면 버킷 키 설정 등 추가 조건이 있어, 보통 SSE-S3 또는 지정된 구성으로 운영한다.</p><p><strong>활용 사례</strong>는 이렇다. (1) 개인정보 파일 열람자 추적, (2) 특정 객체가 언제부터 외부에서 접근되기 시작했는지 확인, (3) 403 응답 급증으로 스캔 시도 탐지, (4) 대량 다운로드로 인한 유출 징후 탐지, (5) 요청 패턴 분석으로 비용·성능 최적화. Athena로 로그 버킷을 질의하는 것이 표준 분석 방식이다.</p><p><strong>감사 관점</strong>에서 핵심은 <strong>'중요 데이터 버킷의 접근 기록이 남고 있는가'</strong>다. 개인정보·회계 데이터가 담긴 버킷에 아무 로깅도 없으면, '누가 열람했는가'라는 기본 질문에 답할 수 없어 ITGC 접근통제 결함으로 직결된다. 점검 포인트는 (1) 중요 버킷 전체에 로깅(서버 액세스 또는 CloudTrail 데이터 이벤트)이 적용되어 있는가, (2) 로그 저장 버킷이 별도 계정에 보호되어 있고 보존기간이 충족되는가, (3) 로그가 실제로 검토·분석되는가다. AWS Config 규칙 <code>s3-bucket-logging-enabled</code>로 상시 점검할 수 있다.</p>",
+   "howItWorks": "<ol><li>로그 아카이브 계정에 전용 로그 대상 버킷을 만들고 수명주기·객체 잠금을 설정한다.</li><li>대상 버킷에 S3 로깅 서비스가 객체를 쓸 수 있도록 버킷 정책을 부여한다.</li><li>중요 데이터 버킷(소스 버킷)에서 서버 액세스 로깅을 활성화하고 대상 버킷과 접두어(prefix)를 지정한다.</li><li>사용자나 애플리케이션이 소스 버킷에 GetObject·PutObject·DeleteObject 등을 호출한다.</li><li>S3가 요청 내역을 배치로 묶어 대상 버킷에 텍스트 로그 파일로 배달한다(수 분~수 시간 지연).</li><li>Glue 크롤러 또는 수동 DDL로 Athena 테이블을 정의한다.</li><li>보안팀이 Athena로 '특정 객체를 조회한 주체', '403 급증', '단일 IP의 대량 다운로드'를 질의한다.</li><li>이상 패턴이 발견되면 인시던트 절차로 전환하고, CloudTrail 데이터 이벤트와 교차 검증한다.</li><li>Config 규칙이 로깅 미설정 버킷을 탐지하면 자동 교정 또는 티켓이 생성된다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 정산 원장 파일을 <code>paynow-settlement</code> 버킷에 보관한다. 2026년 1월 내부감사에서 '정산 파일 열람자를 특정할 수 있는가'라는 질문을 받았다. 이 버킷은 CloudTrail 데이터 이벤트와 서버 액세스 로그를 모두 켜둔 상태였다. Athena 질의로 지난 분기 해당 접두어의 GetObject 요청 4,182건 중 사람 주체(SSO 역할)의 요청은 11건이며 모두 정산팀 3인이었음을 확인했다. 또 서버 액세스 로그의 전송 바이트 필드로 '한 번에 전체 원장을 내려받은 사례는 없음'도 함께 제시했다. 두 로그의 건수가 일치함을 보여 기록 신뢰성까지 입증했다.</p><pre><code># 로그 대상 버킷 정책 (로그 아카이브 계정)\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Sid\": \"S3ServerAccessLogsPolicy\",\n    \"Effect\": \"Allow\",\n    \"Principal\": { \"Service\": \"logging.s3.amazonaws.com\" },\n    \"Action\": \"s3:PutObject\",\n    \"Resource\": \"arn:aws:s3:::paynow-s3-access-logs/settlement/*\",\n    \"Condition\": {\n      \"StringEquals\": { \"aws:SourceAccount\": \"123456789012\" },\n      \"ArnLike\": { \"aws:SourceArn\": \"arn:aws:s3:::paynow-settlement\" }\n    }\n  }]\n}\n\n# 소스 버킷에 로깅 활성화\naws s3api put-bucket-logging --bucket paynow-settlement \\\n  --bucket-logging-status '{\"LoggingEnabled\":{\n    \"TargetBucket\":\"paynow-s3-access-logs\",\"TargetPrefix\":\"settlement/\"}}'\n\n# 감사 증적: 로깅 미설정 버킷 점검\naws s3api list-buckets --query 'Buckets[].Name' --output text | tr '\\t' '\\n' | \\\nwhile read b; do\n  s=$(aws s3api get-bucket-logging --bucket $b --query 'LoggingEnabled.TargetBucket' --output text 2&gt;/dev/null)\n  [ \"$s\" = \"None\" ] &amp;&amp; echo \"NO-LOGGING: $b\"\ndone\n\n# Athena: 특정 객체 열람자 추적\nSELECT requestdatetime, requester, remoteip, operation, key, httpstatus, bytessent\nFROM s3_access_logs\nWHERE key LIKE 'ledger/2026-01%' AND operation = 'REST.GET.OBJECT'\nORDER BY requestdatetime;</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='35' width='140' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='90' y='58' text-anchor='middle' fill='currentColor' font-size='12'>소스 버킷</text><text x='90' y='78' text-anchor='middle' fill='currentColor' font-size='11'>정산·개인정보</text><text x='90' y='96' text-anchor='middle' fill='currentColor' font-size='11'>중요 데이터</text><line x1='160' y1='70' x2='225' y2='70' stroke='currentColor' marker-end='url(#ar)'/><text x='192' y='61' text-anchor='middle' fill='currentColor' font-size='11'>요청</text><rect x='225' y='20' width='170' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='310' y='43' text-anchor='middle' fill='currentColor' font-size='12'>기록 항목</text><text x='310' y='65' text-anchor='middle' fill='currentColor' font-size='11'>요청자·시각·객체키</text><text x='310' y='84' text-anchor='middle' fill='currentColor' font-size='11'>작업·상태코드·IP</text><text x='310' y='103' text-anchor='middle' fill='currentColor' font-size='11'>바이트·소요시간</text><line x1='395' y1='70' x2='455' y2='70' stroke='currentColor' marker-end='url(#ar)'/><rect x='455' y='30' width='165' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='537' y='53' text-anchor='middle' fill='currentColor' font-size='12'>로그 대상 버킷</text><text x='537' y='75' text-anchor='middle' fill='currentColor' font-size='11'>반드시 다른 버킷</text><text x='537' y='94' text-anchor='middle' fill='currentColor' font-size='11'>(자기 자신 = 무한루프)</text><rect x='20' y='140' width='290' height='105' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='163' text-anchor='middle' fill='currentColor' font-size='12'>CloudTrail 데이터 이벤트</text><text x='165' y='185' text-anchor='middle' fill='currentColor' font-size='11'>JSON · 약 5분 배달</text><text x='165' y='204' text-anchor='middle' fill='currentColor' font-size='11'>조직 집중 · 무결성 검증</text><text x='165' y='223' text-anchor='middle' fill='currentColor' font-size='11'>EventBridge 실시간</text><text x='165' y='241' text-anchor='middle' fill='currentColor' font-size='11'>→ 규제 대응 정식 장부</text><rect x='330' y='140' width='290' height='105' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='163' text-anchor='middle' fill='currentColor' font-size='12'>서버 액세스 로그</text><text x='475' y='185' text-anchor='middle' fill='currentColor' font-size='11'>텍스트 · best-effort 지연</text><text x='475' y='204' text-anchor='middle' fill='currentColor' font-size='11'>저비용 · 상세 필드</text><text x='475' y='223' text-anchor='middle' fill='currentColor' font-size='11'>Athena 분석</text><text x='475' y='241' text-anchor='middle' fill='currentColor' font-size='11'>→ 운영·분석 보완 장부</text></svg>",
+   "keyTerms": [
+    {
+     "term": "소스 버킷 / 대상 버킷",
+     "meaning": "로깅 대상이 되는 버킷과 로그가 저장되는 별도 버킷"
+    },
+    {
+     "term": "best-effort 배달",
+     "meaning": "지연되거나 드물게 누락될 수 있는 전달 방식. 무결성 보장은 없음"
+    },
+    {
+     "term": "operation 필드",
+     "meaning": "REST.GET.OBJECT 등 수행된 작업 유형"
+    },
+    {
+     "term": "requester",
+     "meaning": "요청한 계정·IAM 주체. 익명 접근은 anonymous로 표시"
+    },
+    {
+     "term": "bytessent",
+     "meaning": "전송된 바이트 수. 대량 다운로드 탐지에 사용"
+    },
+    {
+     "term": "CloudTrail 데이터 이벤트",
+     "meaning": "S3 객체 접근을 JSON으로 남기는 감사용 로그. 무결성 검증 지원"
+    },
+    {
+     "term": "로깅 무한 루프",
+     "meaning": "대상 버킷을 자기 자신으로 지정할 때 발생하는 비용 폭증 사고"
+    },
+    {
+     "term": "s3-bucket-logging-enabled",
+     "meaning": "로깅 미설정 버킷을 탐지하는 AWS Config 관리형 규칙"
+    }
+   ],
+   "pitfalls": [
+    "대상 버킷을 소스 버킷 자신으로 지정해 로그가 로그를 만드는 무한 루프와 비용 폭증이 발생한다.",
+    "서버 액세스 로그를 규제 대응용 정식 감사로그로 제출한다. best-effort라 누락 가능성이 있어 CloudTrail 데이터 이벤트가 더 적합하다.",
+    "중요 버킷에 아무 로깅도 켜지 않아 '누가 열람했는가'에 답할 수 없다. 접근통제 결함으로 직결된다.",
+    "로그 대상 버킷을 같은 운영 계정에 두어 침해 시 함께 삭제될 수 있다.",
+    "로그만 쌓아두고 한 번도 분석하지 않아, 감사에서 '기록은 있으나 검토 증거 없음'으로 지적된다.",
+    "로그 배달 지연을 모르고 방금 한 요청이 안 보인다며 로깅이 안 된다고 오판한다.",
+    "로그 버킷에 수명주기를 설정하지 않아 저장 비용이 계속 증가한다.",
+    "대상 버킷 암호화 설정 조건을 확인하지 않아 로그 배달이 조용히 실패한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 중요정보가 저장된 버킷에 대해 접근 기록(서버 액세스 로그 또는 CloudTrail 데이터 이벤트)이 남는가",
+     "[운영] 로그가 별도 계정의 보호된 버킷에 규제 요구 기간 동안 보존되는가",
+     "[운영] 로그가 주기적으로 분석·검토되고 이상 접근에 대한 조치가 기록되는가",
+     "[운영] 로깅이 설정되지 않은 버킷을 상시 탐지·조치하는 절차가 있는가",
+     "[접근] 로그 저장 버킷에 대한 접근·삭제 권한이 제한되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 및 전자금융거래법상 중요 데이터 접근기록의 생성·보존 요건 충족 여부",
+     "개인신용정보 접근 기록의 보존 및 정기 점검 수행 여부",
+     "접근기록의 위·변조 방지 조치(별도 계정 보관, 객체 잠금) 적용 여부"
+    ],
+    "isms": [
+     "2.9.4 로그 및 접속기록 관리: 중요 정보 접근기록이 생성·보존·보호되는가",
+     "2.9.5 로그 및 접속기록 점검: 기록에 대한 정기 점검이 수행되는가",
+     "3.x 개인정보 접근기록 관리: 개인정보 처리 이력이 확인 가능한가"
+    ],
+    "evidence": [
+     "중요 버킷별 로깅 설정 현황(get-bucket-logging 출력 또는 Config 규칙 결과)",
+     "로그 대상 버킷의 위치(계정), 접근 정책, 보존·객체 잠금 설정",
+     "특정 중요 객체의 열람 이력 조회 결과(Athena 질의 캡처)",
+     "로그 정기 점검 수행 기록(점검자·점검일·발견 사항)",
+     "로깅 미설정 버킷 탐지·조치 이력",
+     "서버 액세스 로그와 CloudTrail 데이터 이벤트 건수 대사 결과"
+    ],
+    "auditorQuestions": [
+     "중요 데이터가 담긴 버킷에 누가 접근했는지 조회할 수 있는가? 시연해 달라.",
+     "모든 중요 버킷에 접근 로깅이 켜져 있음을 어떻게 확인하는가?",
+     "로그는 어디에 얼마나 보관되며 누가 삭제할 수 있는가?",
+     "로그를 정기적으로 검토하는가? 최근 검토에서 발견된 이상 접근이 있었는가?",
+     "서버 액세스 로그와 CloudTrail 중 무엇을 감사 증적으로 사용하며 그 이유는 무엇인가?"
+    ],
+    "controlExample": "개인정보·정산 데이터가 저장된 S3 버킷은 CloudTrail 데이터 이벤트와 서버 액세스 로깅을 함께 적용하여 로그 아카이브 계정의 전용 버킷에 5년간 보관한다. 로깅 미설정 버킷은 AWS Config 규칙 s3-bucket-logging-enabled로 일 단위 탐지해 자동 교정하며, 중요 버킷의 사람 주체 열람 이력은 분기별로 검토하고 결과를 기록한다."
+   },
+   "related": [
+    "awssec-cloudtrail",
+    "awssec-macie",
+    "awssec-config",
+    "awssec-kms",
+    "awssec-access-analyzer",
+    "awssec-vpc-flow-logs",
+    "aws-s3",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "Amazon S3 User Guide - Logging requests with server access logging",
+    "S3 - Server access log format",
+    "S3 - Logging options for Amazon S3",
+    "Querying S3 access logs with Athena"
+   ]
+  },
+  {
+   "id": "awssec-waf",
+   "title": "WAF",
+   "titleEn": "AWS WAF (Web Application Firewall)",
+   "aliases": [
+    "웹방화벽",
+    "WAF",
+    "SQL인젝션 차단",
+    "봇 차단",
+    "웹ACL"
+   ],
+   "tags": [
+    "network",
+    "application-security",
+    "protection"
+   ],
+   "level": "중급",
+   "oneLiner": "웹 요청의 내용을 검사해 공격성 트래픽을 차단하는 웹 방화벽",
+   "analogy": "WAF는 공연장 입구에서 가방을 열어보는 보안 검색대와 같다. 일반 방화벽이 '초대장이 있는가'만 확인한다면, WAF는 가방 안에 위험물이 들었는지 내용물을 들여다본다. 같은 문으로 들어오는 정상 관객과 위험물 소지자를 내용 기준으로 가려내는 것이다.",
+   "explanation": "<p><strong>AWS WAF(Web Application Firewall)</strong>는 HTTP/HTTPS 요청의 <strong>내용을 검사해</strong> 공격성 요청을 차단하는 웹 방화벽이다. 보안그룹·NACL이 IP와 포트 수준(L3/L4)에서 판단한다면, WAF는 <strong>애플리케이션 계층(L7)</strong>에서 URL 경로, 쿼리 문자열, 헤더, 쿠키, 요청 본문(body), HTTP 메서드를 들여다보고 판단한다.</p><p><strong>적용 대상</strong>은 <strong>CloudFront, Application Load Balancer(ALB), API Gateway, AppSync, Cognito 사용자 풀, App Runner, Verified Access</strong>다. 즉 WAF는 독립 장비가 아니라 <strong>이들 앞단에 붙이는 필터</strong>다. CloudFront에 붙이는 WAF는 글로벌 스코프(us-east-1에서 생성)이고, ALB에 붙이는 것은 리전 스코프다.</p><p><strong>구성 단위는 웹 ACL(Web ACL)</strong>이다. 웹 ACL 안에 규칙(Rule)들이 우선순위를 갖고 배열되며, 각 규칙은 조건에 맞으면 <strong>Allow / Block / Count / CAPTCHA / Challenge</strong> 중 하나를 수행한다. 규칙은 크게 세 유형이다. (1) <strong>AWS 관리형 규칙 그룹</strong> — 공통 취약점(Core rule set), SQL 인젝션, XSS, 알려진 악성 입력, 봇 컨트롤, 계정 탈취 방지(ATP), IP 평판 목록 등을 AWS가 관리·갱신한다. (2) <strong>마켓플레이스 규칙 그룹</strong> — F5·Imperva 등 서드파티. (3) <strong>사용자 지정 규칙</strong> — 특정 경로 차단, 국가 차단(geo match), <strong>속도 기반 규칙(Rate-based rule)</strong>으로 초당 요청 폭주 차단 등.</p><p>쉽게 말하면, <strong>'이 요청이 정상 사용자인가 공격인가'를 내용으로 판별하는 문지기</strong>다. 특히 <strong>속도 기반 규칙</strong>은 로그인 무차별 대입(credential stuffing), 쿠폰 매크로, 결제 API 남용 같은 실제 서비스 문제를 가장 빠르게 막아주는 실무 무기다.</p><p><strong>운영의 핵심은 Count 모드</strong>다. 새 규칙을 바로 Block으로 켜면 정상 트래픽이 차단되어 매출 사고가 난다. 먼저 Count로 두고 <strong>WAF 로그</strong>를 분석해 오탐(false positive)을 확인한 뒤 Block으로 전환하는 것이 정석이다. WAF 로그는 CloudWatch Logs·S3·Kinesis Firehose로 내보낼 수 있으며, 어떤 규칙이 어떤 요청을 잡았는지 전부 남는다.</p><p><strong>규제 관점</strong>에서 국내 금융권은 전자금융감독규정상 <strong>웹 취약점 대응과 침해 차단 조치</strong>가 요구되며, 개인정보보호 관련 안전조치에서도 외부 공개 웹 서비스에 대한 보호 대책이 요구된다. WAF는 이에 대한 대표적 기술적 통제 수단이다.</p><p><strong>감사 관점</strong>의 점검 포인트는 (1) 외부 공개 웹/API 전체에 WAF가 적용되어 있는가(일부 엔드포인트 누락이 흔하다), (2) 규칙이 Block으로 실제 작동하는가 아니면 Count만인가, (3) 규칙 변경이 승인·기록되는가, (4) 차단 로그가 보존·검토되는가, (5) 예외(allow list) 처리에 근거가 있는가다. 'WAF를 도입했다'가 아니라 <strong>'무엇을 실제로 차단하고 있는가'</strong>를 증명해야 한다.</p>",
+   "howItWorks": "<ol><li>보안팀이 웹 ACL을 생성하고 AWS 관리형 규칙 그룹(Core, SQLi, 악성 입력, IP 평판)을 추가한다.</li><li>서비스 특성에 맞춰 사용자 지정 규칙(로그인 경로 속도 제한, 관리자 경로 IP 제한)을 추가하고 우선순위를 정한다.</li><li>신규 규칙은 먼저 Count 모드로 배포하고 WAF 로그를 S3·CloudWatch로 내보낸다.</li><li>1~2주간 로그를 분석해 정상 요청이 잡히는지(오탐) 확인하고 예외 규칙을 조정한다.</li><li>검증이 끝나면 규칙을 Block으로 전환하고 웹 ACL을 CloudFront 배포 또는 ALB에 연결한다.</li><li>사용자 요청이 들어오면 WAF가 우선순위 순으로 규칙을 평가한다.</li><li>SQL 인젝션 패턴이 탐지되면 즉시 403으로 차단하고 로그에 규칙명과 요청 상세를 남긴다.</li><li>같은 IP가 5분간 2,000회를 초과하면 속도 기반 규칙이 해당 IP를 일시 차단한다.</li><li>CloudWatch 메트릭으로 차단 건수 급증을 감지하면 보안팀에 경보가 발송된다.</li><li>Firewall Manager가 조직 내 모든 ALB·CloudFront에 기본 웹 ACL이 적용되어 있는지 상시 점검한다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 2026년 2월 한정판 운동화 판매 이벤트에서 매크로 봇 때문에 정상 고객이 구매하지 못하는 사고를 겪었다. 분석 결과 단일 IP 대역에서 초당 400회씩 구매 API를 호출하고 있었다. 대응으로 CloudFront 앞에 웹 ACL을 구성해 (1) 구매 API 경로에 IP당 5분 300회 속도 제한, (2) 로그인 경로에 봇 컨트롤 규칙과 CAPTCHA, (3) AWS 관리형 SQLi·Core 규칙을 Block으로 적용했다. 규칙은 2주간 Count로 검증해 정상 모바일 앱 트래픽이 걸리지 않음을 확인한 뒤 전환했다. 다음 이벤트에서는 차단 87만 건이 기록됐고 정상 고객 구매 성공률이 크게 개선됐다.</p><pre><code># 웹 ACL 생성 (속도 기반 + 관리형 규칙)\naws wafv2 create-web-acl --name shoplink-prod --scope CLOUDFRONT --region us-east-1 \\\n  --default-action Allow={} \\\n  --visibility-config SampledRequestsEnabled=true,CloudWatchMetricsEnabled=true,MetricName=shoplinkProd \\\n  --rules '[\n    {\"Name\":\"AWSCommonRuleSet\",\"Priority\":1,\n     \"Statement\":{\"ManagedRuleGroupStatement\":{\"VendorName\":\"AWS\",\"Name\":\"AWSManagedRulesCommonRuleSet\"}},\n     \"OverrideAction\":{\"None\":{}},\n     \"VisibilityConfig\":{\"SampledRequestsEnabled\":true,\"CloudWatchMetricsEnabled\":true,\"MetricName\":\"common\"}},\n    {\"Name\":\"CheckoutRateLimit\",\"Priority\":10,\n     \"Statement\":{\"RateBasedStatement\":{\"Limit\":300,\"AggregateKeyType\":\"IP\",\n       \"ScopeDownStatement\":{\"ByteMatchStatement\":{\"SearchString\":\"/api/checkout\",\n         \"FieldToMatch\":{\"UriPath\":{}},\"PositionalConstraint\":\"STARTS_WITH\",\n         \"TextTransformations\":[{\"Priority\":0,\"Type\":\"LOWERCASE\"}]}}}},\n     \"Action\":{\"Block\":{}},\n     \"VisibilityConfig\":{\"SampledRequestsEnabled\":true,\"CloudWatchMetricsEnabled\":true,\"MetricName\":\"checkoutRate\"}}\n  ]'\n\n# 로깅 활성화 (감사 증적)\naws wafv2 put-logging-configuration --logging-configuration \\\n  'ResourceArn=arn:aws:wafv2:us-east-1:123456789012:global/webacl/shoplink-prod/abc,\n   LogDestinationConfigs=arn:aws:firehose:us-east-1:123456789012:deliverystream/aws-waf-logs-shoplink'\n\n# 차단 현황 조회\naws wafv2 get-sampled-requests --web-acl-arn &lt;arn&gt; --rule-metric-name checkoutRate \\\n  --scope CLOUDFRONT --time-window StartTime=2026-02-10T00:00:00Z,EndTime=2026-02-10T23:59:59Z \\\n  --max-items 100</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='63' text-anchor='middle' fill='currentColor' font-size='12'>클라이언트</text><text x='75' y='83' text-anchor='middle' fill='currentColor' font-size='11'>정상 + 공격</text><line x1='130' y1='70' x2='195' y2='70' stroke='currentColor' marker-end='url(#ar)'/><rect x='195' y='20' width='170' height='140' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='280' y='42' text-anchor='middle' fill='currentColor' font-size='12'>웹 ACL (우선순위순)</text><rect x='207' y='55' width='146' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='280' y='71' text-anchor='middle' fill='currentColor' font-size='11'>1. IP 평판 · 관리형</text><rect x='207' y='84' width='146' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='280' y='100' text-anchor='middle' fill='currentColor' font-size='11'>2. SQLi / XSS</text><rect x='207' y='113' width='146' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='280' y='129' text-anchor='middle' fill='currentColor' font-size='11'>3. 속도 기반 / 봇</text><text x='280' y='152' text-anchor='middle' fill='currentColor' font-size='11'>Allow·Block·Count·CAPTCHA</text><line x1='365' y1='55' x2='430' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='365' y1='120' x2='430' y2='150' stroke='currentColor' marker-end='url(#ar)'/><rect x='430' y='20' width='190' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525' y='42' text-anchor='middle' fill='currentColor' font-size='11'>CloudFront / ALB / API GW</text><text x='525' y='62' text-anchor='middle' fill='currentColor' font-size='11'>→ 백엔드 (허용)</text><rect x='430' y='125' width='190' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525' y='147' text-anchor='middle' fill='currentColor' font-size='11'>403 차단</text><text x='525' y='167' text-anchor='middle' fill='currentColor' font-size='11'>WAF 로그 기록</text><rect x='20' y='185' width='600' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='207' text-anchor='middle' fill='currentColor' font-size='12'>운영 원칙: 신규 규칙은 Count → 로그 검증 → Block 전환</text><text x='320' y='229' text-anchor='middle' fill='currentColor' font-size='11'>감사 포인트: 전 공개 엔드포인트 적용 여부 · 실제 Block 여부 · 규칙 변경 승인 · 로그 보존</text></svg>",
+   "keyTerms": [
+    {
+     "term": "웹 ACL(Web ACL)",
+     "meaning": "규칙들을 우선순위로 묶어 보호 대상에 연결하는 WAF의 최상위 단위"
+    },
+    {
+     "term": "관리형 규칙 그룹",
+     "meaning": "AWS·서드파티가 관리·갱신하는 기성 규칙 묶음(Core, SQLi, 봇 컨트롤 등)"
+    },
+    {
+     "term": "속도 기반 규칙(Rate-based)",
+     "meaning": "일정 시간 내 요청 수 초과 시 차단. 무차별 대입·매크로 대응의 핵심"
+    },
+    {
+     "term": "Count 모드",
+     "meaning": "차단하지 않고 매칭만 기록하는 모드. 오탐 검증에 사용"
+    },
+    {
+     "term": "CAPTCHA / Challenge",
+     "meaning": "사람 여부를 확인하는 중간 조치. 완전 차단 대신 마찰을 주는 방식"
+    },
+    {
+     "term": "지오 매칭(Geo Match)",
+     "meaning": "요청 국가 기준 허용·차단 규칙"
+    },
+    {
+     "term": "스코프(Scope)",
+     "meaning": "CLOUDFRONT(글로벌, us-east-1) 또는 REGIONAL(ALB·API GW)"
+    },
+    {
+     "term": "WAF 로그",
+     "meaning": "어떤 규칙이 어떤 요청을 매칭했는지 남기는 기록. 오탐 분석·감사 증적"
+    }
+   ],
+   "pitfalls": [
+    "새 규칙을 바로 Block으로 켜서 정상 고객 트래픽이 차단되고 매출 사고가 난다. Count 검증이 필수다.",
+    "WAF를 도입했지만 대부분 규칙이 Count 상태여서 실제로는 아무것도 막지 않는다. 감사에서 자주 드러난다.",
+    "일부 공개 엔드포인트(신규 ALB, 내부 관리자 API)에 웹 ACL을 붙이지 않아 사각지대가 생긴다. Firewall Manager로 강제해야 한다.",
+    "WAF 로깅을 켜지 않아 오탐 분석도, 차단 증적 제출도 불가능하다.",
+    "요청 본문 검사에 크기 제한이 있다는 점을 몰라, 큰 POST 본문 속 공격을 놓친다.",
+    "CloudFront용 WAF를 서울 리전에서 만들려다 실패한다. 글로벌 스코프는 us-east-1이다.",
+    "속도 기반 규칙의 기준 IP가 CDN·프록시 뒤 공인 IP로 집계되어 정상 사용자 다수가 한꺼번에 차단된다.",
+    "WAF만 믿고 애플리케이션 코드의 입력 검증을 소홀히 한다. WAF는 보완재이지 대체재가 아니다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 외부에 공개된 모든 웹·API 엔드포인트에 WAF가 적용되어 있고 누락이 상시 탐지되는가",
+     "[운영] 주요 공격 유형(SQLi, XSS, 무차별 대입)에 대한 규칙이 Block 모드로 실제 작동하는가",
+     "[변경] 웹 ACL 규칙 추가·수정·예외 처리(allow list)가 승인 절차를 거치고 기록되는가",
+     "[운영] WAF 로그가 보존되고 차단 추이·오탐이 정기적으로 검토되는가",
+     "[접근] WAF 설정 변경 권한이 보안팀으로 제한되고 CloudTrail에 기록되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조·제15조 관점에서 외부 공개 전자금융 서비스에 대한 침해 차단 조치 적용 여부",
+     "웹 취약점 점검 결과에 대한 보완 통제로서 웹 방화벽 운영 및 룰셋 최신성 유지 여부",
+     "이상거래·비정상 접근 시도의 탐지·차단 기록 보존 및 점검 여부"
+    ],
+    "isms": [
+     "2.10.1 보안시스템 운영: 보안시스템(WAF) 정책이 정의·승인·적용되고 정기 검토되는가",
+     "2.6.1 네트워크 접근 / 2.6.3 응용프로그램 접근: 외부 접근에 대한 보호 조치가 적용되는가",
+     "2.11.3 이상행위 분석 및 모니터링: 차단 이벤트가 모니터링·분석되는가"
+    ],
+    "evidence": [
+     "웹 ACL 목록과 연결된 보호 대상(CloudFront 배포, ALB) 매핑표",
+     "규칙별 액션 설정(Block/Count) 현황 캡처",
+     "WAF 로그 저장 설정과 최근 차단 이벤트 샘플(규칙명·요청 내용 포함)",
+     "규칙 변경 이력(CloudTrail UpdateWebACL)과 대응 승인 티켓",
+     "예외(allow list) 목록과 각 예외의 사유·승인자·재검토일",
+     "Firewall Manager 정책으로 WAF 미적용 리소스가 0건임을 보여주는 화면"
+    ],
+    "auditorQuestions": [
+     "외부에 공개된 웹 서비스와 API는 무엇이며 모두 웹 방화벽으로 보호되는가?",
+     "실제로 차단 중인 공격 유형은 무엇인가? 최근 한 달 차단 건수를 보여달라.",
+     "규칙을 추가하거나 예외를 만들 때 누가 승인하는가?",
+     "정상 사용자가 잘못 차단되는 경우는 어떻게 파악하고 조치하는가?",
+     "WAF 로그는 얼마나 보관되며 누가 검토하는가?"
+    ],
+    "controlExample": "외부 공개 웹·API 엔드포인트는 전부 AWS WAF 웹 ACL에 연결되며, AWS 관리형 공통·SQLi 규칙과 로그인·결제 경로 속도 제한 규칙이 Block 모드로 운영된다. 신규 규칙은 2주간 Count 모드로 검증 후 보안팀 승인을 거쳐 전환하고, WAF 로그는 1년간 보존하여 월간 차단 추이와 오탐 현황을 검토한다."
+   },
+   "related": [
+    "awssec-shield",
+    "awssec-firewall-manager",
+    "awssec-network-firewall",
+    "awssec-acm",
+    "awssec-security-hub",
+    "aws-cloudfront",
+    "aws-elb",
+    "net-tls"
+   ],
+   "learnMore": [
+    "AWS WAF Developer Guide",
+    "AWS WAF - Managed rule groups",
+    "AWS WAF - Rate-based rule statement",
+    "AWS WAF - Logging web ACL traffic"
+   ]
+  },
+  {
+   "id": "awssec-shield",
+   "title": "Shield",
+   "titleEn": "AWS Shield / Shield Advanced",
+   "aliases": [
+    "실드",
+    "DDoS 방어",
+    "디도스",
+    "Shield Advanced",
+    "SRT"
+   ],
+   "tags": [
+    "network",
+    "ddos",
+    "protection"
+   ],
+   "level": "중급",
+   "oneLiner": "대규모 분산 서비스 거부(DDoS) 공격을 흡수·완화하는 보호 서비스",
+   "analogy": "Shield는 홍수에 대비한 제방과 배수 시설 같다. 평소에는 존재조차 의식하지 않지만, 폭우(공격 트래픽)가 쏟아지면 물길을 돌려 건물이 잠기지 않게 한다. 기본 제방(Standard)은 모두에게 무료로 제공되고, 유료 등급(Advanced)은 전담 수방대와 피해 보상까지 포함된 계약이다.",
+   "explanation": "<p><strong>AWS Shield</strong>는 <strong>DDoS(Distributed Denial of Service, 분산 서비스 거부)</strong> 공격으로부터 서비스를 보호하는 서비스다. DDoS는 수많은 좀비 기기에서 대량 트래픽을 보내 서버나 회선을 마비시키는 공격으로, 취약점을 찌르는 것이 아니라 <strong>용량을 고갈</strong>시키는 것이 특징이다.</p><p><strong>Shield Standard</strong>는 모든 AWS 고객에게 <strong>자동·무료</strong>로 적용된다. 별도 설정이 없으며 CloudFront, Route 53, ELB 등 AWS 엣지 인프라에서 <strong>L3/L4 계층 공격</strong>(SYN 플러드, UDP 리플렉션, 볼류메트릭 공격)을 상시 완화한다. 대부분의 일반적인 공격은 여기서 걸러진다.</p><p><strong>Shield Advanced</strong>는 유료 구독(월 3,000달러 수준, 1년 약정, 조직 단위 과금)으로 다음을 추가로 제공한다. (1) <strong>대규모·정교한 공격에 대한 향상된 탐지와 자동 완화</strong>, (2) <strong>SRT(Shield Response Team)</strong> — AWS 전문 대응팀에 직접 연락하거나 사전 승인 시 대신 완화 조치를 수행, (3) <strong>DDoS 비용 보호(Cost Protection)</strong> — 공격으로 인한 오토스케일링·데이터 전송 요금 급증분 크레딧 환급, (4) <strong>WAF·Firewall Manager 이용료 포함</strong>, (5) <strong>실시간 공격 가시성과 상세 리포트</strong>, (6) <strong>사전 구성 상태 검사(Health-based detection)</strong>로 Route 53 헬스체크와 연동해 오탐을 줄인다.</p><p>쉽게 말하면, <strong>Standard는 기본 제공 보험, Advanced는 전담 대응팀과 보상이 포함된 고급 보험</strong>이다. 금융권처럼 서비스 중단이 곧 규제 이슈가 되는 곳에서는 Advanced를 채택하는 경우가 많다.</p><p><strong>중요한 점: L7(애플리케이션 계층) 공격은 WAF가 담당</strong>한다. HTTP 플러드처럼 정상처럼 보이는 요청을 대량으로 보내는 공격은 Shield만으로는 부족하고, WAF의 속도 기반 규칙과 결합해야 한다. Shield Advanced는 <strong>자동 애플리케이션 계층 완화(Automatic Application Layer DDoS Mitigation)</strong> 기능으로 공격 패턴에 맞는 WAF 규칙을 자동 생성·적용할 수 있다.</p><p><strong>아키텍처 설계도 방어의 일부</strong>다. 오리진(EC2·ALB)을 인터넷에 직접 노출하지 않고 CloudFront 뒤에 두며, 오리진 보안그룹을 CloudFront 관리형 접두어 목록으로 제한하면 공격 표면이 크게 줄어든다. Route 53과 CloudFront는 전 세계 엣지에서 트래픽을 분산 흡수하므로 그 자체가 DDoS 완화 장치다.</p><p><strong>감사 관점</strong>에서 DDoS 대응은 <strong>가용성 통제</strong> 영역이다. 금융권은 전자금융감독규정상 <strong>서비스 연속성과 침해사고 대응</strong> 요건이 있고, ISMS-P도 가용성 확보와 사고 대응 절차를 요구한다. 점검 포인트는 (1) DDoS 대응 체계와 책임자가 정의되어 있는가, (2) 보호 대상 리소스가 등록·관리되는가, (3) 공격 발생 시 에스컬레이션 절차와 연락 체계(SRT 포함)가 문서화·훈련되었는가, (4) 과거 공격 이력과 대응 결과가 기록되어 있는가다.</p>",
+   "howItWorks": "<ol><li>서비스 아키텍처를 CloudFront·Route 53·ALB 기반으로 구성하고 오리진을 직접 노출하지 않는다.</li><li>Shield Standard가 자동으로 적용되어 엣지에서 L3/L4 공격을 상시 완화한다.</li><li>중요 서비스는 Shield Advanced를 구독하고 보호 대상 리소스(CloudFront 배포, ALB, EIP, Route 53 호스팅 영역)를 등록한다.</li><li>Route 53 헬스체크를 연결해 서비스 정상 여부 기반으로 탐지 정확도를 높인다.</li><li>공격이 시작되면 Shield가 트래픽 패턴 이상을 탐지하고 자동 완화를 적용한다.</li><li>L7 공격이면 자동 애플리케이션 계층 완화가 WAF 규칙을 생성해 적용한다.</li><li>CloudWatch 지표와 Shield 콘솔에서 공격 유형·규모·완화 상태를 실시간으로 확인한다.</li><li>필요 시 사전 등록된 담당자가 SRT에 연락하거나, 사전 승인(proactive engagement)에 따라 SRT가 먼저 개입한다.</li><li>공격 종료 후 상세 리포트를 확보하고, 발생한 추가 비용은 비용 보호로 크레딧 신청한다.</li><li>사후 검토에서 아키텍처·WAF 규칙을 보완하고 인시던트 보고서를 작성한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2026년 1월 설 연휴 직전 새벽에 결제 API 도메인으로 초당 180만 요청, 최대 420Gbps의 혼합 DDoS 공격을 받았다. CloudFront 뒤에 오리진이 숨어 있었고 Shield Advanced가 구독 중이라 L3/L4 트래픽은 엣지에서 흡수됐다. HTTP 플러드 부분은 자동 애플리케이션 계층 완화가 WAF 규칙을 생성해 차단했고, 동시에 사전 승인된 SRT가 개입해 규칙을 미세 조정했다. 서비스 지연은 최대 90초였고 중단은 없었다. 공격 기간 오토스케일링으로 증가한 비용 1,240만원은 DDoS 비용 보호로 크레딧 환급받았다. 이 전 과정이 인시던트 보고서와 감독당국 보고 자료의 근거가 되었다.</p><pre><code># Shield Advanced 보호 등록\naws shield create-protection \\\n  --name paynow-api-cdn \\\n  --resource-arn arn:aws:cloudfront::123456789012:distribution/E1ABCDEF\n\n# 사전 대응(Proactive Engagement) 연락처 등록\naws shield associate-proactive-engagement-details \\\n  --emergency-contact-list \\\n    'EmailAddress=secops@paynow.example,PhoneNumber=+8210XXXXXXXX,ContactNotes=1차 온콜' \\\n    'EmailAddress=ciso@paynow.example,PhoneNumber=+8210YYYYYYYY,ContactNotes=CISO'\n\n# 진행 중·과거 공격 조회 (감사 증적)\naws shield list-attacks \\\n  --start-time FromInclusive=2026-01-01T00:00:00Z \\\n  --end-time ToExclusive=2026-03-31T23:59:59Z \\\n  --query 'AttackSummaries[].[AttackId,ResourceArn,StartTime,AttackVectors[].VectorType]'\n\n# 오리진 보호: CloudFront만 허용하는 보안그룹 규칙\naws ec2 authorize-security-group-ingress --group-id sg-0origin \\\n  --ip-permissions 'IpProtocol=tcp,FromPort=443,ToPort=443,\n    PrefixListIds=[{PrefixListId=pl-cloudfront-managed}]'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='55' text-anchor='middle' fill='currentColor' font-size='12'>공격 트래픽</text><text x='80' y='75' text-anchor='middle' fill='currentColor' font-size='11'>420Gbps</text><text x='80' y='93' text-anchor='middle' fill='currentColor' font-size='11'>+ HTTP 플러드</text><line x1='140' y1='65' x2='205' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='205' y='20' width='175' height='95' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='292' y='43' text-anchor='middle' fill='currentColor' font-size='12'>AWS 엣지</text><text x='292' y='64' text-anchor='middle' fill='currentColor' font-size='11'>CloudFront / Route 53</text><text x='292' y='84' text-anchor='middle' fill='currentColor' font-size='11'>Shield: L3/L4 흡수</text><text x='292' y='104' text-anchor='middle' fill='currentColor' font-size='11'>WAF: L7 차단</text><line x1='380' y1='65' x2='450' y2='65' stroke='currentColor' marker-end='url(#ar)'/><text x='415' y='56' text-anchor='middle' fill='currentColor' font-size='11'>정상만</text><rect x='450' y='30' width='170' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535' y='55' text-anchor='middle' fill='currentColor' font-size='12'>오리진 (ALB/EC2)</text><text x='535' y='76' text-anchor='middle' fill='currentColor' font-size='11'>SG = CloudFront 접두어만</text><text x='535' y='93' text-anchor='middle' fill='currentColor' font-size='11'>인터넷 직접 노출 없음</text><rect x='20' y='130' width='290' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='153' text-anchor='middle' fill='currentColor' font-size='12'>Standard (무료·자동)</text><text x='165' y='176' text-anchor='middle' fill='currentColor' font-size='11'>L3/L4 상시 완화</text><text x='165' y='196' text-anchor='middle' fill='currentColor' font-size='11'>설정 불필요</text><text x='165' y='220' text-anchor='middle' fill='currentColor' font-size='11'>대부분의 일반 공격 커버</text><rect x='330' y='130' width='290' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='153' text-anchor='middle' fill='currentColor' font-size='12'>Advanced (유료)</text><text x='475' y='176' text-anchor='middle' fill='currentColor' font-size='11'>SRT 전담 대응 · 사전 개입</text><text x='475' y='196' text-anchor='middle' fill='currentColor' font-size='11'>DDoS 비용 보호(크레딧)</text><text x='475' y='220' text-anchor='middle' fill='currentColor' font-size='11'>L7 자동 완화 · 상세 리포트</text></svg>",
+   "keyTerms": [
+    {
+     "term": "DDoS",
+     "meaning": "다수 기기에서 대량 트래픽을 보내 서비스 용량을 고갈시키는 공격"
+    },
+    {
+     "term": "Shield Standard",
+     "meaning": "모든 고객에게 무료·자동 적용되는 L3/L4 기본 방어"
+    },
+    {
+     "term": "Shield Advanced",
+     "meaning": "SRT 지원·비용 보호·L7 자동 완화를 포함한 유료 구독"
+    },
+    {
+     "term": "SRT(Shield Response Team)",
+     "meaning": "AWS의 DDoS 전문 대응팀. 사전 승인 시 선제 개입 가능"
+    },
+    {
+     "term": "DDoS 비용 보호",
+     "meaning": "공격으로 늘어난 확장·전송 비용을 크레딧으로 돌려주는 보장"
+    },
+    {
+     "term": "볼류메트릭 공격",
+     "meaning": "회선 대역폭을 채워 마비시키는 대량 트래픽 공격"
+    },
+    {
+     "term": "HTTP 플러드",
+     "meaning": "정상처럼 보이는 요청을 대량 발생시키는 L7 공격. WAF 대응 영역"
+    },
+    {
+     "term": "관리형 접두어 목록",
+     "meaning": "CloudFront 등 AWS 서비스의 IP 범위를 보안그룹에서 참조하는 목록"
+    }
+   ],
+   "pitfalls": [
+    "Shield Advanced를 구독했다고 L7 공격까지 자동 방어된다고 오해. HTTP 플러드는 WAF 규칙과 함께 설계해야 한다.",
+    "오리진 EC2·ALB를 인터넷에 직접 노출한 채로 두어, 엣지 방어를 우회한 직접 공격이 가능하다.",
+    "Advanced를 구독만 하고 보호 대상 리소스를 등록하지 않아 실제로는 적용되지 않는다.",
+    "긴급 연락처(Proactive Engagement)를 등록하지 않아 공격 시 SRT가 선제 개입하지 못한다.",
+    "구독이 조직 단위 과금·1년 약정임을 모르고 계정별로 붙였다 떼며 비용 분쟁이 생긴다.",
+    "공격 이력을 기록하지 않아 감사나 감독당국 보고 시 대응 경과를 설명하지 못한다.",
+    "DDoS 대응 훈련 없이 문서만 갖춰, 실제 상황에서 누구에게 연락할지 혼선이 발생한다.",
+    "비용 보호 크레딧 신청 기한을 놓쳐 환급을 받지 못한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 서비스 가용성을 위협하는 DDoS에 대한 대응 체계와 책임자가 정의되어 있는가",
+     "[운영] 보호 대상 리소스가 등록·관리되고 신규 공개 서비스가 누락되지 않는가",
+     "[운영] 공격 발생 시 에스컬레이션 절차와 외부(AWS SRT) 연락 체계가 문서화·훈련되었는가",
+     "[운영] 과거 공격 이력과 대응 결과가 인시던트 기록으로 보존되는가",
+     "[변경] 오리진 직접 노출 여부 등 아키텍처 보호 설정이 주기적으로 점검되는가"
+    ],
+    "fss": [
+     "전자금융감독규정상 전자금융거래의 안정적 운영을 위한 침해사고 대응 및 서비스 연속성 확보 조치 여부",
+     "대규모 침해 시도 발생 시 금융감독당국 보고 절차와 내부 판단 기준 보유 여부",
+     "전자금융기반시설 가용성 확보를 위한 용량·방어 대책 수립 및 훈련 실시 여부"
+    ],
+    "isms": [
+     "2.11.1 사고 예방 및 대응체계 구축 / 2.11.5 사고 대응 및 복구: DDoS 대응 절차와 훈련이 운영되는가",
+     "2.9.2 성능 및 장애관리: 가용성 위협에 대한 모니터링과 대응이 이루어지는가",
+     "2.10.1 보안시스템 운영: 방어 체계가 운영·점검되는가"
+    ],
+    "evidence": [
+     "Shield Advanced 구독 현황 및 보호 등록 리소스 목록(list-protections)",
+     "긴급 연락처(Proactive Engagement) 등록 화면",
+     "과거 공격 이력(list-attacks 출력)과 각 건의 대응 경과 기록",
+     "DDoS 대응 절차서 및 최근 모의훈련 결과 보고서",
+     "오리진 보안그룹 설정(CloudFront 접두어 제한) 증빙",
+     "DDoS 비용 보호 크레딧 신청·수령 내역"
+    ],
+    "auditorQuestions": [
+     "DDoS 공격을 받은 적이 있는가? 언제, 어떤 규모였으며 어떻게 대응했는가?",
+     "공격이 발생하면 누가 언제 인지하고 누구에게 보고하는가?",
+     "백엔드 서버가 인터넷에 직접 노출되어 있지는 않은가? 어떻게 확인했는가?",
+     "AWS 전문 대응팀과의 연락 체계가 준비되어 있는가?",
+     "DDoS 대응 훈련을 실시한 적이 있는가? 마지막 훈련은 언제인가?"
+    ],
+    "controlExample": "인터넷에 공개된 결제·앱 서비스는 CloudFront와 Route 53 뒤에 배치하고 오리진 보안그룹을 CloudFront 관리형 접두어로 제한하며, 핵심 리소스는 Shield Advanced 보호 대상으로 등록한다. DDoS 발생 시 온콜 담당자가 15분 내 인지·보고하고 사전 등록된 AWS SRT와 공동 대응하며, 연 1회 모의훈련을 실시하고 결과를 기록한다."
+   },
+   "related": [
+    "awssec-waf",
+    "awssec-firewall-manager",
+    "awssec-network-firewall",
+    "awssec-incident-response",
+    "aws-cloudfront",
+    "aws-route53",
+    "net-dns",
+    "obs-alerting"
+   ],
+   "learnMore": [
+    "AWS Shield Developer Guide",
+    "AWS Shield Advanced - Proactive engagement",
+    "AWS Best Practices for DDoS Resiliency",
+    "AWS Shield - Automatic application layer DDoS mitigation"
+   ]
+  },
+  {
+   "id": "awssec-network-firewall",
+   "title": "Network Firewall",
+   "titleEn": "AWS Network Firewall",
+   "aliases": [
+    "네트워크 방화벽",
+    "NGFW",
+    "IPS",
+    "egress 필터링",
+    "도메인 필터링"
+   ],
+   "tags": [
+    "network",
+    "protection",
+    "egress"
+   ],
+   "level": "심화",
+   "oneLiner": "VPC 경계에서 상태 기반 검사와 도메인 필터링을 수행하는 관리형 방화벽",
+   "analogy": "Network Firewall은 회사 건물 정문에 세운 보안 검색대이자 외출 검문소와 같다. 보안그룹이 각 사무실 문에 달린 잠금장치라면, 이것은 건물 전체의 유일한 출입구에서 들어오고 나가는 모든 사람과 물건을 검사한다. 특히 '직원이 회사 밖 어디로 나가는지'까지 통제할 수 있다는 점이 다르다.",
+   "explanation": "<p><strong>AWS Network Firewall</strong>은 VPC 경계에 배치하는 <strong>관리형 상태 기반(stateful) 네트워크 방화벽·침입방지(IPS)</strong> 서비스다. 보안그룹·NACL로는 어려운 <strong>심층 패킷 검사, 도메인 기반 필터링, 시그니처 기반 침입 탐지·차단</strong>을 수행한다.</p><p><strong>기존 통제와의 차이</strong>가 중요하다. <strong>보안그룹</strong>은 인스턴스 단위 상태 기반 허용 목록이고, <strong>NACL</strong>은 서브넷 단위 무상태 필터다. 둘 다 <strong>IP와 포트</strong>로만 판단한다. Network Firewall은 여기에 더해 <strong>도메인 이름(<code>*.github.com</code> 허용, 그 외 차단)</strong>, TLS SNI 기반 필터링, Suricata 호환 규칙으로 <strong>알려진 공격 시그니처</strong> 차단까지 가능하다.</p><p><strong>가장 큰 실무 가치는 아웃바운드(egress) 통제</strong>다. 침해 사고의 핵심 단계는 '내부 서버가 공격자 서버로 접속해 데이터를 보내거나 명령을 받는 것(C2 통신, 데이터 유출)'이다. 대부분의 조직은 인바운드는 철저히 막지만 아웃바운드는 <code>0.0.0.0/0 허용</code>으로 열어둔다. Network Firewall로 <strong>허용된 도메인만 나갈 수 있게</strong> 하면 이 경로가 막힌다. 쉽게 말하면, <strong>'들어오는 문'뿐 아니라 '나가는 문'을 통제하는 장치</strong>다.</p><p><strong>구성 요소</strong>는 계층적이다. <strong>방화벽(Firewall)</strong> → <strong>방화벽 정책(Firewall Policy)</strong> → <strong>규칙 그룹(Rule Group)</strong> 순으로 구성되며, 규칙 그룹은 <strong>무상태(stateless)</strong>와 <strong>상태 기반(stateful)</strong>으로 나뉜다. 무상태는 빠른 1차 필터, 상태 기반은 Suricata 규칙 문법으로 도메인 목록·시그니처·프로토콜 이상을 검사한다. AWS가 제공하는 <strong>관리형 위협 시그니처 규칙 그룹</strong>(악성 도메인, 봇넷, 멀웨어 C2)을 구독해 쓸 수도 있다.</p><p><strong>배치(라우팅) 설계가 핵심 난이도</strong>다. 방화벽은 <strong>전용 서브넷</strong>에 엔드포인트로 배치되고, 트래픽이 그 엔드포인트를 <strong>반드시 거치도록 라우팅 테이블을 재구성</strong>해야 한다. 대표 패턴은 (1) <strong>중앙집중형(Centralized)</strong> — 검사용 VPC에 방화벽을 두고 Transit Gateway로 전 VPC 트래픽을 우회시킨다. (2) <strong>분산형(Distributed)</strong> — VPC마다 방화벽을 둔다. 계정이 많으면 중앙집중형이 관리·비용 면에서 유리하다.</p><p><strong>비용</strong>은 엔드포인트 시간당 요금 + 처리 데이터(GB) 요금으로, AZ마다 엔드포인트가 필요해 규모가 커지면 상당하다. 모든 트래픽을 검사할지, 인터넷 방향만 검사할지 범위를 명확히 해야 한다.</p><p><strong>감사 관점</strong>에서 Network Firewall은 <strong>망 분리·아웃바운드 통제</strong> 요구에 대한 직접적 답변이다. 국내 금융권은 전자금융감독규정상 <strong>망 분리와 외부 통신 통제</strong>가 강하게 요구되고, ISMS-P도 네트워크 접근통제를 요구한다. 점검 포인트는 (1) 아웃바운드가 기본 차단·예외 허용 구조인가, (2) 허용 도메인 목록의 승인·검토 절차가 있는가, (3) 방화벽 로그(alert/flow)가 보존·검토되는가, (4) 라우팅이 실제로 방화벽을 경유하도록 구성되어 있는가(우회 경로 점검)다.</p>",
+   "howItWorks": "<ol><li>네트워크 계정의 검사 VPC(또는 각 VPC)에 방화벽 전용 서브넷을 AZ별로 만든다.</li><li>방화벽을 생성하면 각 전용 서브넷에 게이트웨이 로드밸런서 기반 엔드포인트가 배치된다.</li><li>라우팅 테이블을 수정해 워크로드 서브넷 → 방화벽 엔드포인트 → IGW/NAT 순으로 트래픽이 흐르게 한다.</li><li>무상태 규칙 그룹이 1차로 명백한 차단 대상(비허용 프로토콜 등)을 걸러낸다.</li><li>상태 기반 규칙 그룹이 도메인 허용 목록과 위협 시그니처를 검사한다.</li><li>워크로드가 <code>github.com</code>에 접속하면 SNI가 허용 목록에 있어 통과한다.</li><li>같은 서버가 알려진 C2 도메인에 접속을 시도하면 차단되고 alert 로그가 남는다.</li><li>alert·flow 로그가 S3/CloudWatch/Firehose로 전송되어 SIEM과 보안관제에서 분석된다.</li><li>Firewall Manager가 조직 내 신규 VPC에도 동일한 방화벽 정책을 자동 배포한다.</li><li>보안팀이 차단 로그를 검토해 오탐은 허용 목록에 추가(승인 필요)하고, 의심 통신은 인시던트로 전환한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2025년 규제 실사에서 '운영 서버의 인터넷 아웃바운드가 전면 허용되어 있어 데이터 유출 경로가 통제되지 않는다'는 지적을 받았다. 개선으로 네트워크 계정에 검사 VPC를 만들고 Transit Gateway를 통해 전 워크로드 VPC의 인터넷 방향 트래픽을 Network Firewall로 우회시켰다. 상태 기반 규칙에 허용 도메인 42개(<code>*.amazonaws.com</code>, <code>*.pypi.org</code>, PG사 API 도메인 등)만 등록하고 나머지는 차단했다. 전환 첫 주에 차단된 요청 중 3건은 개발자가 임시로 쓰던 외부 파일 공유 사이트였고, 정식 승인 절차로 재검토했다. 이후 감사에서는 '허용 도메인 목록 + 승인 기록 + 차단 로그'로 아웃바운드 통제를 입증한다.</p><pre><code># 도메인 허용 목록 규칙 그룹\naws network-firewall create-rule-group \\\n  --rule-group-name egress-allowlist --type STATEFUL --capacity 200 \\\n  --rule-group '{\n    \"RulesSource\": {\n      \"RulesSourceList\": {\n        \"Targets\": [\".amazonaws.com\", \".pypi.org\", \"api.pg-partner.co.kr\"],\n        \"TargetTypes\": [\"TLS_SNI\", \"HTTP_HOST\"],\n        \"GeneratedRulesType\": \"ALLOWLIST\"\n      }\n    }\n  }'\n\n# 방화벽 정책에 연결 (기본은 차단)\naws network-firewall create-firewall-policy \\\n  --firewall-policy-name paynow-egress \\\n  --firewall-policy '{\n    \"StatelessDefaultActions\": [\"aws:forward_to_sfe\"],\n    \"StatelessFragmentDefaultActions\": [\"aws:forward_to_sfe\"],\n    \"StatefulDefaultActions\": [\"aws:drop_established\", \"aws:alert_established\"],\n    \"StatefulRuleGroupReferences\": [\n      {\"ResourceArn\": \"arn:aws:network-firewall:ap-northeast-2:111122223333:stateful-rulegroup/egress-allowlist\"}\n    ]\n  }'\n\n# 로깅 설정 (감사 증적)\naws network-firewall update-logging-configuration \\\n  --firewall-name paynow-inspection \\\n  --logging-configuration '{\"LogDestinationConfigs\":[\n    {\"LogType\":\"ALERT\",\"LogDestinationType\":\"S3\",\n     \"LogDestination\":{\"bucketName\":\"paynow-nfw-logs\",\"prefix\":\"alert/\"}},\n    {\"LogType\":\"FLOW\",\"LogDestinationType\":\"S3\",\n     \"LogDestination\":{\"bucketName\":\"paynow-nfw-logs\",\"prefix\":\"flow/\"}}]}'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='130' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='53' text-anchor='middle' fill='currentColor' font-size='12'>워크로드 VPC</text><text x='85' y='74' text-anchor='middle' fill='currentColor' font-size='11'>앱 서버</text><text x='85' y='92' text-anchor='middle' fill='currentColor' font-size='11'>외부 접속 시도</text><line x1='150' y1='67' x2='215' y2='67' stroke='currentColor' marker-end='url(#ar)'/><text x='182' y='58' text-anchor='middle' fill='currentColor' font-size='11'>TGW</text><rect x='215' y='20' width='185' height='105' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='307' y='43' text-anchor='middle' fill='currentColor' font-size='12'>Network Firewall</text><text x='307' y='64' text-anchor='middle' fill='currentColor' font-size='11'>무상태 1차 필터</text><text x='307' y='83' text-anchor='middle' fill='currentColor' font-size='11'>상태기반: 도메인/SNI</text><text x='307' y='102' text-anchor='middle' fill='currentColor' font-size='11'>Suricata 시그니처</text><text x='307' y='119' text-anchor='middle' fill='currentColor' font-size='11'>기본 = 차단</text><line x1='400' y1='45' x2='465' y2='40' stroke='currentColor' marker-end='url(#ar)'/><line x1='400' y1='105' x2='465' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='20' width='155' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='40' text-anchor='middle' fill='currentColor' font-size='11'>허용 도메인</text><text x='542' y='59' text-anchor='middle' fill='currentColor' font-size='11'>→ 인터넷 통과</text><rect x='465' y='120' width='155' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='141' text-anchor='middle' fill='currentColor' font-size='11'>C2·비인가 도메인</text><text x='542' y='160' text-anchor='middle' fill='currentColor' font-size='11'>차단 + alert 로그</text><rect x='20' y='140' width='170' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105' y='161' text-anchor='middle' fill='currentColor' font-size='11'>보안그룹/NACL</text><text x='105' y='180' text-anchor='middle' fill='currentColor' font-size='11'>IP·포트만 판단</text><rect x='20' y='205' width='600' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='229' text-anchor='middle' fill='currentColor' font-size='11'>감사 포인트: 아웃바운드 기본 차단 · 허용 도메인 승인 대장 · 라우팅 우회 경로 점검 · alert 로그 보존</text></svg>",
+   "keyTerms": [
+    {
+     "term": "상태 기반(Stateful) 검사",
+     "meaning": "연결의 흐름과 맥락을 추적하며 검사하는 방식"
+    },
+    {
+     "term": "무상태(Stateless) 규칙",
+     "meaning": "패킷 단위로 빠르게 판단하는 1차 필터"
+    },
+    {
+     "term": "도메인 허용 목록",
+     "meaning": "TLS SNI·HTTP Host 기준으로 허용할 도메인만 정의하는 규칙"
+    },
+    {
+     "term": "Suricata 규칙",
+     "meaning": "오픈소스 IDS/IPS 규칙 문법. 상태 기반 규칙 작성에 사용"
+    },
+    {
+     "term": "C2 통신",
+     "meaning": "침해된 서버가 공격자 명령·제어 서버와 주고받는 통신"
+    },
+    {
+     "term": "egress 통제",
+     "meaning": "내부에서 외부로 나가는 통신을 제한하는 것. 유출 방지의 핵심"
+    },
+    {
+     "term": "중앙집중형 검사 VPC",
+     "meaning": "Transit Gateway로 전 VPC 트래픽을 한 곳에 모아 검사하는 구성"
+    },
+    {
+     "term": "alert / flow 로그",
+     "meaning": "규칙 매칭 경보 로그와 통과 트래픽 기록. 감사·조사 증적"
+    }
+   ],
+   "pitfalls": [
+    "방화벽을 만들었지만 라우팅 테이블을 수정하지 않아 트래픽이 방화벽을 거치지 않는다. 우회 경로 점검이 필수다.",
+    "보안그룹만으로 도메인 기반 차단이 된다고 오해. 보안그룹은 IP·포트만 판단한다.",
+    "아웃바운드 전면 차단을 사전 검증 없이 적용해 패키지 다운로드·외부 API 연동이 끊기며 대규모 장애가 난다.",
+    "AZ별 엔드포인트 비용과 데이터 처리 요금을 과소평가해 예산을 초과한다.",
+    "TLS 암호화 트래픽의 경우 SNI로만 판단 가능하다는 한계를 모르고 전체 내용 검사가 되는 것으로 기대한다.",
+    "허용 도메인을 임시로 추가한 뒤 정리하지 않아 목록이 수백 개로 늘고 통제 의미가 희석된다.",
+    "alert 로그만 켜고 flow 로그를 끄거나 보존기간이 짧아 사고 조사 시 자료가 부족하다.",
+    "신규 VPC에 방화벽 정책이 자동 적용되지 않아 사각지대가 생긴다. Firewall Manager 연계가 필요하다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 운영 환경의 인터넷 아웃바운드가 기본 차단·예외 허용 구조로 통제되는가",
+     "[변경] 허용 도메인·규칙 추가가 승인 절차를 거치고 주기적으로 재검토되는가",
+     "[운영] 방화벽 로그(alert·flow)가 보존되고 차단 이벤트가 검토·조치되는가",
+     "[운영] 트래픽이 실제로 방화벽을 경유하도록 라우팅이 구성되어 있고 우회 경로가 점검되는가",
+     "[접근] 방화벽 정책 변경 권한이 네트워크·보안팀으로 제한되고 기록되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 등 망 분리 및 외부 통신 통제 요건 충족 여부",
+     "전자금융기반시설에서 외부로의 비인가 통신 차단 조치와 기록 보존 여부",
+     "네트워크 구성도와 실제 트래픽 경로의 일치 여부 및 정기 점검 수행"
+    ],
+    "isms": [
+     "2.6.1 네트워크 접근: 네트워크 영역 분리와 접근통제 정책이 적용되는가",
+     "2.10.1 보안시스템 운영: 방화벽 정책이 승인·적용·검토되는가",
+     "2.9.4 로그 및 접속기록 관리: 방화벽 로그가 보존·점검되는가"
+    ],
+    "evidence": [
+     "방화벽·정책·규칙 그룹 구성 내역(describe-firewall-policy 출력)",
+     "허용 도메인 목록과 각 항목의 승인 근거·요청 부서·재검토일",
+     "라우팅 테이블 설정 캡처(워크로드 → 방화벽 엔드포인트 경유 확인)",
+     "alert 로그 샘플(차단된 비인가 도메인 접속 시도)과 로그 보존 설정",
+     "방화벽 정책 변경 이력(CloudTrail)과 변경관리 티켓",
+     "Firewall Manager 정책으로 신규 VPC 자동 적용을 보장하는 설정 화면"
+    ],
+    "auditorQuestions": [
+     "운영 서버가 인터넷의 임의 주소로 접속할 수 있는가? 어떻게 제한하는가?",
+     "허용된 외부 도메인 목록은 무엇이며 누가 승인했는가?",
+     "새로운 외부 연동이 필요하면 어떤 절차를 거치는가?",
+     "방화벽을 거치지 않고 나갈 수 있는 경로가 없다는 것을 어떻게 확인했는가?",
+     "차단된 통신 기록을 검토하는가? 최근 의심스러운 차단이 있었는가?"
+    ],
+    "controlExample": "모든 워크로드 VPC의 인터넷 방향 트래픽은 Transit Gateway를 통해 검사 VPC의 AWS Network Firewall을 경유하며, 아웃바운드는 기본 차단 후 승인된 도메인 허용 목록만 통과한다. 도메인 추가는 보안팀 승인과 반기 재검토를 거치고, alert·flow 로그는 1년간 보존하여 비인가 통신 시도를 주간 검토한다."
+   },
+   "related": [
+    "awssec-firewall-manager",
+    "awssec-waf",
+    "awssec-vpc-flow-logs",
+    "awssec-guardduty",
+    "awssec-ram",
+    "aws-vpc",
+    "net-dns",
+    "comp-fss-egfs"
+   ],
+   "learnMore": [
+    "AWS Network Firewall Developer Guide",
+    "AWS Network Firewall - Stateful rule groups",
+    "AWS Network Firewall - Deployment models",
+    "AWS Network Firewall - Logging"
+   ]
+  },
+  {
+   "id": "awssec-firewall-manager",
+   "title": "Firewall Manager",
+   "titleEn": "AWS Firewall Manager",
+   "aliases": [
+    "방화벽 매니저",
+    "FMS",
+    "정책 일괄적용",
+    "보안정책 강제",
+    "조직 방화벽 관리"
+   ],
+   "tags": [
+    "governance",
+    "network",
+    "multi-account"
+   ],
+   "level": "중급",
+   "oneLiner": "조직 전 계정의 방화벽·보안 정책을 중앙에서 강제 배포하는 서비스",
+   "analogy": "Firewall Manager는 본사 총무팀이 전 지점의 출입문 잠금 규정을 중앙에서 설정하고, 새 지점이 생기면 자동으로 같은 잠금장치를 달아주는 시스템과 같다. 지점장이 임의로 문을 열어두면 즉시 '규정 위반' 목록에 뜨고, 설정에 따라 자동으로 다시 잠긴다.",
+   "explanation": "<p><strong>AWS Firewall Manager(FMS)</strong>는 AWS Organizations 전 계정에 걸쳐 <strong>보안 정책을 중앙에서 정의하고 자동 적용·강제</strong>하는 서비스다. 계정이 수십 개인 환경에서 '모든 ALB에 WAF가 붙어 있는가', '모든 VPC에 Network Firewall이 있는가'를 사람이 확인하는 것은 불가능하다. FMS는 이를 <strong>정책으로 선언하고 자동 유지</strong>한다.</p><p><strong>관리 가능한 정책 유형</strong>은 여러 가지다. (1) <strong>AWS WAF 정책</strong> — 지정한 웹 ACL을 조건에 맞는 CloudFront·ALB·API Gateway에 자동 연결, (2) <strong>Shield Advanced 정책</strong> — 보호 대상 자동 등록, (3) <strong>보안 그룹 정책</strong> — 공통 보안그룹 배포, 감사 정책(0.0.0.0/0 22번 포트 금지 등), 미사용·중복 보안그룹 정리, (4) <strong>Network Firewall 정책</strong> — 전 VPC에 방화벽 자동 배포, (5) <strong>Route 53 Resolver DNS Firewall 정책</strong> — 악성 도메인 질의 차단, (6) <strong>Palo Alto 등 서드파티 방화벽 정책</strong>.</p><p>쉽게 말하면, <strong>보안 정책의 '드리프트(drift)'를 막는 장치</strong>다. 아무리 잘 설정해도 시간이 지나면 새 계정, 새 리소스, 누군가의 임시 변경으로 구멍이 생긴다. FMS는 이를 지속적으로 감지하고 되돌린다.</p><p><strong>적용 모드가 두 가지</strong>다. <strong>자동 교정(Auto-remediate)</strong>은 위반을 발견하면 즉시 정책을 강제 적용한다. <strong>감사 전용(Audit mode)</strong>은 위반 목록만 보여주고 조치는 사람이 한다. 운영 리소스에 영향이 큰 정책은 감사 모드로 시작해 위반 규모를 확인한 뒤 자동 교정으로 전환하는 것이 안전하다.</p><p><strong>전제 조건</strong>이 몇 가지 있다. (1) AWS Organizations의 <strong>모든 기능(all features)</strong> 활성화, (2) FMS <strong>관리자 계정 지정</strong>(보안 계정 위임 권장), (3) 전 계정 <strong>AWS Config 활성화</strong>, (4) Shield Advanced 정책을 쓰려면 구독 필요. Config가 꺼진 계정에서는 위반 탐지가 동작하지 않으므로, Config 활성화가 사실상 모든 거버넌스의 기반임을 다시 확인하게 된다.</p><p><strong>범위 지정</strong>이 유연하다. 정책 적용 대상을 전체 계정, 특정 OU, 특정 계정으로 지정하거나, <strong>리소스 태그</strong>로 포함·제외할 수 있다. 예를 들어 '<code>Env=prod</code> 태그가 붙은 ALB에만 운영용 웹 ACL 적용, <code>Exempt=approved</code> 태그가 있으면 제외' 같은 구성이 가능하다. 감사 관점에서는 이 <strong>제외 태그가 곧 예외 목록</strong>이므로, 누가 그 태그를 붙일 수 있는지와 승인 근거가 점검 대상이 된다.</p><p><strong>감사 관점</strong>에서 FMS는 <strong>'전사 보안 정책이 실제로 전 계정에 적용되고 있다'를 한 화면으로 입증</strong>하는 도구다. 감사인이 '신규 계정이나 신규 로드밸런서에도 WAF가 적용되는가'를 물을 때, 절차서 대신 FMS 정책 준수 현황(준수 계정 수/위반 리소스 0건)을 제시할 수 있다. 점검 포인트는 (1) 핵심 정책이 정의·적용되어 있는가, (2) 위반 건이 남아 있지 않은가, (3) 제외 태그·예외에 승인 근거가 있는가, (4) FMS 관리자 계정 권한이 통제되는가다.</p>",
+   "howItWorks": "<ol><li>Organizations에서 모든 기능을 활성화하고 보안 계정을 Firewall Manager 관리자로 위임 지정한다.</li><li>전 계정·전 리전에 AWS Config를 활성화한다(위반 탐지의 전제).</li><li>보안팀이 표준 웹 ACL을 만들고 FMS WAF 정책을 생성해 적용 범위(Workloads OU, Env=prod 태그)를 지정한다.</li><li>처음에는 감사 전용 모드로 배포해 현재 위반 리소스 수를 파악한다.</li><li>영향도 검토와 담당팀 협의 후 자동 교정 모드로 전환한다.</li><li>FMS가 대상 계정의 ALB·CloudFront를 스캔해 웹 ACL이 없는 리소스에 자동 연결한다.</li><li>개발자가 새 ALB를 만들면 FMS가 이를 감지해 자동으로 웹 ACL을 붙인다.</li><li>누군가 웹 ACL 연결을 해제하면 FMS가 위반으로 표시하고 자동 교정 모드에서는 다시 연결한다.</li><li>보안그룹 감사 정책이 0.0.0.0/0 22번 포트 규칙을 탐지해 위반 목록에 올린다.</li><li>FMS 준수 현황이 Security Hub로 전달되고 월간 거버넌스 리포트에 포함된다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 계정 34개, ALB 96개를 운영한다. 2025년 점검에서 ALB 96개 중 WAF가 연결된 것은 61개뿐이었고, 나머지는 신규 서비스 출시 때 누락된 것이었다. FMS WAF 정책을 감사 모드로 배포해 위반 35건을 확인한 뒤, 각 팀에 2주 유예를 주고 자동 교정으로 전환했다. 동시에 보안그룹 감사 정책으로 '0.0.0.0/0에서 22·3389·3306 포트 허용 금지'를 배포해 위반 19건을 정리했다. 2026년 현재 신규 ALB는 생성 즉시 웹 ACL이 자동 연결되며, 예외는 <code>FMSExempt=approved</code> 태그로 관리하되 태그 부착 권한은 보안팀에만 부여되어 있다.</p><pre><code># FMS 관리자 계정 위임 (Organizations 관리 계정에서)\naws fms associate-admin-account --admin-account 999988887777\n\n# WAF 정책 생성 (Env=prod ALB에 표준 웹 ACL 강제)\naws fms put-policy --policy '{\n  \"PolicyName\": \"shoplink-prod-waf\",\n  \"SecurityServicePolicyData\": {\n    \"Type\": \"WAFV2\",\n    \"ManagedServiceData\": \"{\\\"type\\\":\\\"WAFV2\\\",\\\"preProcessRuleGroups\\\":[{\\\"managedRuleGroupIdentifier\\\":{\\\"vendorName\\\":\\\"AWS\\\",\\\"managedRuleGroupName\\\":\\\"AWSManagedRulesCommonRuleSet\\\"},\\\"overrideAction\\\":{\\\"type\\\":\\\"NONE\\\"}}],\\\"defaultAction\\\":{\\\"type\\\":\\\"ALLOW\\\"}}\"\n  },\n  \"ResourceType\": \"AWS::ElasticLoadBalancingV2::LoadBalancer\",\n  \"ResourceTags\": [{\"Key\":\"Env\",\"Value\":\"prod\"}],\n  \"ExcludeResourceTags\": false,\n  \"RemediationEnabled\": true,\n  \"IncludeMap\": {\"ORGUNIT\": [\"ou-abcd-workloads\"]}\n}'\n\n# 준수 현황 확인 (감사 증적)\naws fms list-compliance-status --policy-id 1a2b3c4d-1111-2222-3333-444455556666\naws fms get-compliance-detail \\\n  --policy-id 1a2b3c4d-1111-2222-3333-444455556666 \\\n  --member-account 210987654321 \\\n  --query 'PolicyComplianceDetail.Violators[].[ResourceId,ViolationReason]' --output table</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='170' height='105' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='105' y='48' text-anchor='middle' fill='currentColor' font-size='12'>FMS 관리자 계정</text><text x='105' y='70' text-anchor='middle' fill='currentColor' font-size='11'>WAF 정책</text><text x='105' y='89' text-anchor='middle' fill='currentColor' font-size='11'>보안그룹 감사 정책</text><text x='105' y='108' text-anchor='middle' fill='currentColor' font-size='11'>Network Firewall 정책</text><text x='105' y='125' text-anchor='middle' fill='currentColor' font-size='11'>DNS Firewall 정책</text><line x1='190' y1='60' x2='255' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='190' y1='78' x2='255' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='190' y1='95' x2='255' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='255' y='20' width='160' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='335' y='40' text-anchor='middle' fill='currentColor' font-size='11'>계정 A · ALB 12개</text><text x='335' y='59' text-anchor='middle' fill='currentColor' font-size='11'>웹 ACL 자동 연결</text><rect x='255' y='80' width='160' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='335' y='100' text-anchor='middle' fill='currentColor' font-size='11'>계정 B · 신규 ALB</text><text x='335' y='119' text-anchor='middle' fill='currentColor' font-size='11'>생성 즉시 적용</text><rect x='255' y='140' width='160' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='335' y='160' text-anchor='middle' fill='currentColor' font-size='11'>계정 C · SG 위반</text><text x='335' y='179' text-anchor='middle' fill='currentColor' font-size='11'>0.0.0.0/0:22 탐지</text><line x1='415' y1='105' x2='475' y2='105' stroke='currentColor' marker-end='url(#ar)'/><rect x='475' y='60' width='145' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='547' y='84' text-anchor='middle' fill='currentColor' font-size='12'>준수 현황</text><text x='547' y='106' text-anchor='middle' fill='currentColor' font-size='11'>위반 계정·리소스</text><text x='547' y='126' text-anchor='middle' fill='currentColor' font-size='11'>자동 교정 / 감사모드</text><text x='547' y='146' text-anchor='middle' fill='currentColor' font-size='11'>→ Security Hub</text><rect x='20' y='200' width='600' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='222' text-anchor='middle' fill='currentColor' font-size='12'>전제: Organizations 모든 기능 + 전 계정 AWS Config 활성화</text><text x='320' y='240' text-anchor='middle' fill='currentColor' font-size='11'>제외 태그 = 예외 목록 → 태그 부착 권한과 승인 근거가 감사 대상</text></svg>",
+   "keyTerms": [
+    {
+     "term": "FMS 정책",
+     "meaning": "적용할 보안 서비스 설정과 대상 범위를 정의한 중앙 정책"
+    },
+    {
+     "term": "자동 교정(Remediation)",
+     "meaning": "위반 리소스에 정책을 강제로 적용해 되돌리는 모드"
+    },
+    {
+     "term": "감사 전용 모드",
+     "meaning": "위반만 표시하고 자동 변경은 하지 않는 모드. 도입 초기에 사용"
+    },
+    {
+     "term": "관리자 계정 위임",
+     "meaning": "Organizations 관리 계정이 보안 계정에 FMS 운영 권한을 넘기는 설정"
+    },
+    {
+     "term": "보안 그룹 감사 정책",
+     "meaning": "금지된 보안그룹 규칙(예: 0.0.0.0/0:22)을 탐지·차단하는 정책 유형"
+    },
+    {
+     "term": "제외 태그",
+     "meaning": "정책 적용에서 제외할 리소스를 지정하는 태그. 사실상 예외 목록"
+    },
+    {
+     "term": "드리프트(Drift)",
+     "meaning": "설정이 시간이 지나며 기준에서 벗어나는 현상"
+    },
+    {
+     "term": "DNS Firewall 정책",
+     "meaning": "Route 53 Resolver에서 악성 도메인 질의를 차단하는 정책"
+    }
+   ],
+   "pitfalls": [
+    "AWS Config가 꺼진 계정이 있어 위반 탐지가 동작하지 않는데, FMS 대시보드가 준수로 보여 안심한다.",
+    "자동 교정을 검증 없이 켜서 운영 중인 예외 구성이 강제로 바뀌며 장애가 발생한다.",
+    "제외 태그를 누구나 붙일 수 있게 두어, 개발자가 스스로 정책을 회피한다.",
+    "Organizations 모든 기능이 활성화되지 않아 FMS 자체가 동작하지 않는다.",
+    "FMS 관리자 계정을 Organizations 관리 계정으로 두어, 관리 계정에 워크로드성 권한이 집중된다.",
+    "정책 범위를 태그 기반으로 잡았는데 태그 표준이 없어 상당수 리소스가 대상에서 누락된다.",
+    "위반 목록을 확인만 하고 조치 기한을 관리하지 않아 위반 상태가 장기간 지속된다.",
+    "Shield Advanced 정책을 만들었지만 구독이 없어 실제로는 적용되지 않는다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 전사 보안 정책(WAF, 보안그룹 기준, 방화벽)이 중앙에서 정의되어 전 계정에 자동 적용되는가",
+     "[운영] 정책 위반 리소스가 상시 탐지되고 기한 내 조치 또는 자동 교정되는가",
+     "[변경] 정책 예외(제외 태그) 부착 권한이 제한되고 각 예외에 승인 근거와 재검토 주기가 있는가",
+     "[접근] FMS 관리자 계정 권한이 보안팀으로 제한되고 정책 변경이 CloudTrail에 기록되는가",
+     "[운영] 신규 생성 계정·리소스에도 정책이 자동 적용됨이 검증되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 관점에서 접근통제·방화벽 정책이 전 시스템에 일관되게 적용·관리되는지",
+     "보안 정책의 예외 승인 절차와 기록 보존 여부",
+     "다수 시스템·계정에 대한 보안 정책 이행 현황을 주기적으로 점검·보고하는지"
+    ],
+    "isms": [
+     "2.10.1 보안시스템 운영: 보안시스템 정책이 일관되게 적용·관리되는가",
+     "2.6.1 네트워크 접근: 네트워크 접근통제 기준이 전사적으로 적용되는가",
+     "1.4.2 관리체계 점검: 정책 이행 현황이 점검·보고되는가"
+    ],
+    "evidence": [
+     "FMS 정책 목록과 각 정책의 적용 범위·교정 모드 설정 화면",
+     "정책별 준수 현황(list-compliance-status)과 위반 리소스 목록",
+     "위반 건의 조치 이력 또는 자동 교정 로그",
+     "제외 태그가 부착된 리소스 목록과 각 예외의 승인 문서",
+     "FMS 관리자 계정 위임 설정 및 권한 보유자 목록",
+     "전 계정 AWS Config 활성화 현황(FMS 전제조건 충족 증빙)"
+    ],
+    "auditorQuestions": [
+     "전 계정에 동일한 보안 정책이 적용되고 있음을 어떻게 확인하는가?",
+     "새 계정이나 새 로드밸런서가 만들어져도 자동으로 보호되는가? 시연해 달라.",
+     "정책을 적용받지 않는 예외 리소스가 있는가? 누가 승인했는가?",
+     "정책 위반이 발견되면 자동으로 고쳐지는가, 아니면 사람이 조치하는가?",
+     "정책을 변경할 수 있는 사람은 누구인가?"
+    ],
+    "controlExample": "보안 계정을 Firewall Manager 관리자로 위임하여 Workloads OU 전 계정에 표준 웹 ACL, 금지 보안그룹 규칙, Network Firewall 정책을 자동 교정 모드로 적용한다. 정책 예외는 보안팀만 부착 가능한 태그로 관리되며 반기마다 재검토하고, 정책별 준수 현황은 Security Hub를 통해 월간 거버넌스 보고에 포함된다."
+   },
+   "related": [
+    "awssec-waf",
+    "awssec-shield",
+    "awssec-network-firewall",
+    "awssec-config",
+    "awssec-organizations",
+    "awssec-scp",
+    "awssec-security-hub",
+    "awssec-multi-account"
+   ],
+   "learnMore": [
+    "AWS Firewall Manager Developer Guide",
+    "Firewall Manager - Policy types",
+    "Firewall Manager - Prerequisites",
+    "AWS Firewall Manager - Security group policies"
+   ]
+  },
+  {
+   "id": "awssec-incident-response",
+   "title": "AWS 침해사고 대응",
+   "titleEn": "AWS Security Incident Response",
+   "aliases": [
+    "IR",
+    "침해사고 대응",
+    "보안사고 절차",
+    "포렌식",
+    "사고 대응 플레이북"
+   ],
+   "tags": [
+    "incident",
+    "forensics",
+    "process"
+   ],
+   "level": "심화",
+   "oneLiner": "AWS 환경에서 보안 사고를 탐지·격리·조사·복구하는 절차 체계",
+   "analogy": "침해사고 대응은 화재 대응 매뉴얼과 같다. 불이 난 뒤 '어디에 소화기가 있더라'를 찾으면 늦는다. 평소에 경보기(탐지), 방화문(격리), 대피 경로(복구), 소방서 신고 기준(규제 보고)이 정해져 있고 훈련까지 되어 있어야 실제 상황에서 작동한다. 클라우드에서는 방화문을 닫는 일이 API 한 번으로 가능하다는 점이 다르다.",
+   "explanation": "<p><strong>침해사고 대응(Incident Response, IR)</strong>은 보안 사고를 <strong>준비 → 탐지·분석 → 격리·제거·복구 → 사후 활동</strong>의 단계로 처리하는 체계다(NIST SP 800-61 기준). AWS 환경의 IR은 온프레미스와 목적은 같지만 <strong>방법이 근본적으로 다르다</strong>. 서버실에 뛰어가 랜선을 뽑는 대신 API로 보안그룹을 교체하고, 디스크를 물리적으로 복제하는 대신 EBS 스냅샷을 뜬다.</p><p><strong>AWS IR의 가장 큰 특징은 '자격증명이 곧 공격 표면'</strong>이라는 점이다. 온프레미스 침해는 보통 서버 한 대에서 시작해 옆으로 퍼지지만, AWS에서는 <strong>액세스 키나 역할 하나가 탈취되면 즉시 계정 전체가 위험</strong>해진다. 따라서 IR의 1순위는 <strong>자격증명 무효화</strong>다. 액세스 키는 비활성화하고, 역할의 임시 자격증명은 <code>AWSRevokeOlderSessions</code> 인라인 정책(특정 시각 이전 발급 세션 전부 거부)으로 무효화한다. 단순히 역할을 지우면 서비스가 멈추므로 이 기법이 표준이다.</p><p><strong>4단계 실무 흐름</strong>은 이렇다. <strong>(1) 준비</strong> — 로깅(CloudTrail 조직 트레일, Flow Logs, 데이터 이벤트) 상시 활성화, 로그 아카이브 계정 분리, 포렌식 계정과 격리 VPC 사전 구축, IR 역할(<code>IncidentResponder</code>) 사전 생성, 연락 체계와 플레이북 문서화, 정기 훈련. <strong>(2) 탐지·분석</strong> — GuardDuty·Security Hub 경보 수신, Detective로 근본 원인과 영향 범위 파악, CloudTrail·Flow Logs로 타임라인 재구성. <strong>(3) 격리·제거·복구</strong> — 자격증명 무효화, 인스턴스를 격리 보안그룹으로 이동(종료하지 말 것 — 증거 소실), EBS 스냅샷과 메모리 덤프 확보, 취약점 패치 후 <strong>골든 이미지로 재생성</strong>(감염 인스턴스를 고쳐 쓰지 않는다). <strong>(4) 사후</strong> — 인시던트 보고서, 근본 원인 조치, 재발 방지 대책, 규제기관 신고 판단.</p><p><strong>증거 보전(Forensics)</strong>이 감사·법적 대응에서 결정적이다. 원칙은 <strong>'끄지 말고 격리하라'</strong>다. 인스턴스를 종료하면 메모리와 인스턴스 스토어 데이터가 사라진다. 표준 순서는 (1) 인스턴스 종료 방지(termination protection) 활성화, (2) 격리 보안그룹으로 교체(인바운드·아웃바운드 전면 차단), (3) EBS 스냅샷 생성, (4) 필요 시 메모리 덤프, (5) 태그로 '증거물' 표시, (6) 스냅샷을 <strong>포렌식 전용 계정</strong>으로 공유해 분석. 분석은 반드시 원본이 아닌 사본에서 수행한다.</p><p><strong>국내 규제 보고 요건</strong>이 IR 절차에 반드시 반영되어야 한다. 전자금융업자는 <strong>침해사고 발생 시 금융감독당국 보고</strong> 의무가 있고, 개인정보 유출 시에는 <strong>개인정보보호법상 통지·신고 기한</strong>이 있다. ISMS-P 인증기업은 사고 대응 절차와 훈련 증적을 유지해야 한다. 따라서 플레이북에는 <strong>'어떤 조건에서 누가 몇 시간 내에 어디에 보고하는가'</strong>가 명시되어야 하고, 이 판단의 근거가 되는 사실관계(유출 여부, 건수)를 Detective·CloudTrail로 확인하는 절차가 연결되어야 한다.</p><p><strong>감사 관점</strong>의 핵심은 <strong>'문서가 아니라 실행 증거'</strong>다. 감사인은 절차서 존재 여부보다 (1) 최근 사고의 실제 대응 타임라인, (2) 모의훈련(테이블탑·기술 훈련) 수행 기록, (3) 사후 개선 조치의 완료 여부, (4) IR 권한이 평소에는 비활성이고 사고 시에만 승인으로 활성화되는가(break-glass)를 본다.</p>",
+   "howItWorks": "<ol><li>[준비] 조직 트레일·Flow Logs·GuardDuty·Detective를 상시 활성화하고 로그를 로그 아카이브 계정에 보존한다.</li><li>[준비] 포렌식 계정과 격리 VPC, 격리 보안그룹, IR 전용 역할을 사전에 만들어 둔다.</li><li>[탐지] GuardDuty가 심각도 8.5 finding을 발생시키고 EventBridge가 온콜 담당자를 호출한다.</li><li>[분석] 담당자가 Detective로 해당 주체의 이상 행위와 접근 범위를 확인한다.</li><li>[격리] 탈취된 액세스 키는 비활성화하고, 역할 세션은 AWSRevokeOlderSessions 정책으로 일괄 무효화한다.</li><li>[격리] 감염 의심 인스턴스는 종료하지 않고 격리 보안그룹으로 교체하며 종료 방지를 켠다.</li><li>[증거] EBS 스냅샷을 생성하고 '증거물' 태그를 붙여 포렌식 계정으로 공유한다.</li><li>[분석] 포렌식 계정의 분석 인스턴스에 스냅샷 사본을 연결해 조사한다.</li><li>[복구] 근본 원인(취약점·설정 오류)을 조치한 뒤 골든 이미지로 새 인스턴스를 생성해 서비스를 복구한다.</li><li>[사후] 타임라인·영향 범위·조치를 인시던트 보고서로 작성하고, 규제 보고 기준 해당 여부를 판단해 이행한다.</li><li>[사후] 재발 방지 대책(예: IMDSv2 강제, SCP 추가)을 수립하고 이행을 추적한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'의 2026년 2월 사고 대응 기록이다. 02:14 GuardDuty가 인스턴스 자격증명 외부 사용을 탐지, 02:17 EventBridge 자동 대응이 해당 역할에 세션 무효화 정책을 부착하고 인스턴스를 격리, 02:19 온콜 담당자 인지, 02:35 Detective로 접근 범위 확인(로그 버킷 1개 접근, 개인정보 버킷은 AccessDenied), 03:10 EBS 스냅샷 확보 후 포렌식 계정 공유, 05:40 근본 원인 확인(웹앱 SSRF + IMDSv1), 07:00 패치된 골든 이미지로 서비스 재생성, 09:00 CISO 보고 및 '개인정보 유출 없음' 판단으로 신고 대상 아님 결론, 익일 전 계정 IMDSv2 강제 SCP 배포. 이 타임라인과 각 단계의 증적(CloudTrail·Detective 캡처·스냅샷 ID)이 인시던트 보고서에 첨부되어 분기 감사에 제출됐다.</p><pre><code># 1) 탈취 액세스 키 즉시 비활성화\naws iam update-access-key --user-name batch-user \\\n  --access-key-id AKIAXXXXXXXX --status Inactive\n\n# 2) 역할의 기존 임시 세션 전부 무효화 (역할 삭제 없이)\naws iam put-role-policy --role-name batch-runner \\\n  --policy-name AWSRevokeOlderSessions \\\n  --policy-document '{\n    \"Version\": \"2012-10-17\",\n    \"Statement\": [{\n      \"Effect\": \"Deny\", \"Action\": [\"*\"], \"Resource\": [\"*\"],\n      \"Condition\": {\"DateLessThan\": {\"aws:TokenIssueTime\": \"2026-02-11T02:17:00Z\"}}\n    }]\n  }'\n\n# 3) 인스턴스 격리 (종료 금지, 증거 보전)\naws ec2 modify-instance-attribute --instance-id i-0abc --disable-api-termination\naws ec2 modify-instance-attribute --instance-id i-0abc --groups sg-0quarantine\n\n# 4) 증거 스냅샷 확보 및 포렌식 계정 공유\nSNAP=$(aws ec2 create-snapshot --volume-id vol-0def \\\n  --description \"IR-2026-002 evidence\" \\\n  --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Evidence,Value=IR-2026-002},{Key=Retain,Value=true}]' \\\n  --query SnapshotId --output text)\naws ec2 modify-snapshot-attribute --snapshot-id $SNAP \\\n  --attribute createVolumePermission --operation-type add --user-ids 555566667777\n\n# 5) 재발 방지: IMDSv2 강제\naws ec2 modify-instance-metadata-options --instance-id i-0new \\\n  --http-tokens required --http-endpoint enabled</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='30' width='140' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='52' text-anchor='middle' fill='currentColor' font-size='12'>1. 준비</text><text x='85' y='73' text-anchor='middle' fill='currentColor' font-size='11'>로깅·로그계정 분리</text><text x='85' y='91' text-anchor='middle' fill='currentColor' font-size='11'>포렌식 계정·IR 역할</text><text x='85' y='108' text-anchor='middle' fill='currentColor' font-size='11'>플레이북·훈련</text><line x1='155' y1='72' x2='195' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='195' y='30' width='140' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265' y='52' text-anchor='middle' fill='currentColor' font-size='12'>2. 탐지·분석</text><text x='265' y='73' text-anchor='middle' fill='currentColor' font-size='11'>GuardDuty 경보</text><text x='265' y='91' text-anchor='middle' fill='currentColor' font-size='11'>Detective 원인분석</text><text x='265' y='108' text-anchor='middle' fill='currentColor' font-size='11'>영향 범위 확정</text><line x1='335' y1='72' x2='375' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='375' y='30' width='140' height='85' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='445' y='52' text-anchor='middle' fill='currentColor' font-size='12'>3. 격리·복구</text><text x='445' y='73' text-anchor='middle' fill='currentColor' font-size='11'>세션 무효화</text><text x='445' y='91' text-anchor='middle' fill='currentColor' font-size='11'>격리 SG (종료 금지)</text><text x='445' y='108' text-anchor='middle' fill='currentColor' font-size='11'>골든 이미지 재생성</text><line x1='515' y1='72' x2='555' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='500' y='130' width='120' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='152' text-anchor='middle' fill='currentColor' font-size='12'>4. 사후</text><text x='560' y='173' text-anchor='middle' fill='currentColor' font-size='11'>보고서·규제보고</text><text x='560' y='191' text-anchor='middle' fill='currentColor' font-size='11'>재발방지 이행</text><rect x='15' y='130' width='230' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='130' y='152' text-anchor='middle' fill='currentColor' font-size='12'>증거 보전 원칙</text><text x='130' y='173' text-anchor='middle' fill='currentColor' font-size='11'>끄지 말고 격리하라</text><text x='130' y='191' text-anchor='middle' fill='currentColor' font-size='11'>스냅샷 → 포렌식 계정 사본 분석</text><rect x='260' y='130' width='225' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='372' y='152' text-anchor='middle' fill='currentColor' font-size='12'>AWS 특유의 1순위</text><text x='372' y='173' text-anchor='middle' fill='currentColor' font-size='11'>자격증명 무효화</text><text x='372' y='191' text-anchor='middle' fill='currentColor' font-size='11'>TokenIssueTime 조건 Deny</text><text x='15' y='230' fill='currentColor' font-size='11'>감사인이 보는 것: 절차서가 아니라 실제 대응 타임라인 · 훈련 기록 · 개선 완료 여부</text></svg>",
+   "keyTerms": [
+    {
+     "term": "AWSRevokeOlderSessions",
+     "meaning": "TokenIssueTime 조건으로 특정 시각 이전 발급 임시 세션을 전부 거부하는 표준 정책"
+    },
+    {
+     "term": "격리 보안그룹",
+     "meaning": "인바운드·아웃바운드를 전면 차단해 감염 인스턴스를 묶어두는 보안그룹"
+    },
+    {
+     "term": "증거 보전(Preservation)",
+     "meaning": "종료·삭제 없이 스냅샷·메모리 덤프로 상태를 보존하는 활동"
+    },
+    {
+     "term": "포렌식 계정",
+     "meaning": "증거 사본을 분석하는 격리된 전용 AWS 계정"
+    },
+    {
+     "term": "골든 이미지",
+     "meaning": "검증된 기준 AMI. 감염 인스턴스를 고치지 않고 새로 만들 때 사용"
+    },
+    {
+     "term": "IMDSv2",
+     "meaning": "토큰 기반 메타데이터 서비스. SSRF를 통한 자격증명 탈취를 차단"
+    },
+    {
+     "term": "브레이크 글래스(Break-glass)",
+     "meaning": "평소 비활성 상태의 비상 권한을 승인 하에 임시 활성화하는 절차"
+    },
+    {
+     "term": "플레이북(Playbook)",
+     "meaning": "사고 유형별 대응 단계를 구체적으로 정의한 실행 지침"
+    },
+    {
+     "term": "테이블탑 훈련",
+     "meaning": "실제 조작 없이 시나리오 토론으로 진행하는 대응 훈련"
+    }
+   ],
+   "pitfalls": [
+    "감염 인스턴스를 즉시 종료해 메모리와 인스턴스 스토어 증거가 사라진다. 격리가 먼저다.",
+    "탈취된 역할을 삭제해 해당 역할을 쓰던 정상 서비스까지 중단된다. 세션 무효화 정책이 정답이다.",
+    "액세스 키만 비활성화하고 이미 발급된 임시 세션을 무효화하지 않아 공격자가 최대 12시간 계속 활동한다.",
+    "IR 권한을 평소에 상시 부여해, 그 권한 자체가 새로운 위험이 된다. 브레이크 글래스 방식이 필요하다.",
+    "로그 보존기간이 짧아 사고 조사 시점에 필요한 기간의 로그가 이미 삭제되어 있다.",
+    "규제 보고 기준과 기한이 플레이북에 없어, 기술 대응은 잘하고도 보고 의무를 놓친다.",
+    "감염 인스턴스를 패치해 다시 서비스에 투입한다. 잔존 백도어 위험 때문에 재생성이 원칙이다.",
+    "훈련 없이 문서만 유지해, 실제 상황에서 누가 무엇을 하는지 혼선이 발생한다.",
+    "사후 재발 방지 대책을 수립만 하고 이행 추적을 하지 않아 같은 사고가 반복된다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 침해사고 대응 절차와 유형별 플레이북이 문서화되고 책임자·연락 체계가 정의되어 있는가",
+     "[운영] 사고 탐지부터 격리·복구까지의 실제 대응 타임라인이 기록되고 사후 검토가 수행되는가",
+     "[접근] 사고 대응용 비상 권한이 평소 비활성 상태이며 사용 시 승인·기록되는가(브레이크 글래스)",
+     "[운영] 증거 보전 절차(스냅샷 확보, 종료 금지, 포렌식 계정 분리)가 정의·이행되는가",
+     "[운영] 정기 모의훈련이 수행되고 도출된 개선사항이 이행 추적되는가",
+     "[변경] 사고 후 근본 원인 조치와 재발 방지 대책이 변경관리 절차를 통해 반영되는가"
+    ],
+    "fss": [
+     "전자금융거래법·전자금융감독규정상 침해사고 발생 시 금융감독당국 보고 의무와 기한이 절차에 반영되어 있는지",
+     "침해사고 대응 조직·비상연락망·대응 절차의 수립과 정기 훈련 실시 여부",
+     "사고 관련 기록(로그·증거)의 보존과 감독당국 제출 가능성 확보 여부"
+    ],
+    "isms": [
+     "2.11.1 사고 예방 및 대응체계 구축: 대응 체계·조직·절차가 수립되어 있는가",
+     "2.11.4 사고 대응 훈련 및 개선: 정기 훈련과 결과에 따른 개선이 이루어지는가",
+     "2.11.5 사고 대응 및 복구: 사고 처리·복구·원인 분석이 절차에 따라 수행·기록되는가"
+    ],
+    "evidence": [
+     "침해사고 대응 절차서와 유형별 플레이북(자격증명 탈취, 랜섬웨어, 데이터 유출 등)",
+     "최근 인시던트의 대응 타임라인 보고서와 단계별 증적(경보 캡처, 조치 명령 로그)",
+     "비상 권한(IR 역할) 구성과 사용 승인·활성화 이력",
+     "증거 스냅샷 목록과 보존·접근 통제 설정",
+     "최근 모의훈련 계획·시나리오·수행 결과 및 도출 개선과제 이행 현황",
+     "규제 보고 판단 기준 문서와 실제 보고 이력(해당 시)"
+    ],
+    "auditorQuestions": [
+     "최근 1년간 보안 사고가 있었는가? 탐지부터 조치까지 얼마나 걸렸고 어떻게 처리했는가?",
+     "액세스 키가 탈취되었다고 판단되면 처음 15분 동안 무엇을 하는가?",
+     "감염된 서버의 증거는 어떻게 보전하며 누가 분석하는가?",
+     "사고 대응에 필요한 강력한 권한은 평소 누가 가지고 있는가?",
+     "개인정보 유출이 의심될 때 어떤 기준으로 신고 여부를 판단하고 누가 결정하는가?",
+     "마지막 모의훈련은 언제였으며 어떤 개선사항이 도출되어 완료되었는가?"
+    ],
+    "controlExample": "침해사고 대응 절차와 유형별 플레이북을 수립하여 GuardDuty 심각도 7.0 이상 탐지 시 온콜 담당자가 15분 내 1차 대응을 개시하고, 자격증명 탈취 시 세션 무효화와 인스턴스 격리를 즉시 수행하되 증거 보전을 위해 종료하지 않는다. 사고 대응 전용 권한은 평시 비활성 상태로 유지되어 정보보호책임자 승인 시에만 활성화되며, 연 2회 모의훈련과 사후 개선과제 이행을 추적한다."
+   },
+   "related": [
+    "awssec-guardduty",
+    "awssec-detective",
+    "awssec-cloudtrail",
+    "awssec-security-hub",
+    "awssec-iam-role-sts",
+    "awssec-access-key",
+    "awssec-vpc-flow-logs",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "AWS Security Incident Response Guide",
+    "NIST SP 800-61 Computer Security Incident Handling Guide",
+    "AWS - Revoking IAM role temporary security credentials",
+    "AWS Incident Response Playbooks (AWS Samples)"
+   ]
+  }
+ ]
+}

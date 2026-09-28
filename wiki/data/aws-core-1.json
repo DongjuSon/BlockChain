@@ -1,0 +1,1563 @@
+{
+  "category": "aws-core",
+  "categoryLabel": "AWS 핵심 서비스 (컴퓨팅·네트워크·스토리지)",
+  "entries": [
+    {
+      "id": "aws-global-infra",
+      "title": "글로벌 인프라 (리전/AZ/엣지)",
+      "titleEn": "AWS Global Infrastructure (Region / Availability Zone / Edge Location)",
+      "aliases": [
+        "리전",
+        "가용영역",
+        "AZ",
+        "엣지 로케이션",
+        "Region",
+        "Availability Zone",
+        "로컬 존"
+      ],
+      "tags": [
+        "infra",
+        "foundation",
+        "ha"
+      ],
+      "level": "기초",
+      "oneLiner": "AWS 데이터센터를 리전·가용영역·엣지로 계층화한 물리 배치 구조",
+      "analogy": "리전은 '서울 본사 / 도쿄 지사'처럼 지리적으로 떨어진 큰 거점이고, 가용영역(AZ)은 한 도시 안에 전기·네트워크가 분리된 '별도 건물 3채'와 같다. 엣지 로케이션은 고객 집 근처의 '편의점 픽업 보관함'처럼 콘텐츠를 가까운 곳에 미리 가져다 두는 곳이다.",
+      "explanation": "<p><strong>리전(Region)</strong>은 AWS가 서비스를 제공하는 지리적 단위다. 서울 리전은 <code>ap-northeast-2</code>, 도쿄는 <code>ap-northeast-1</code>, 버지니아 북부는 <code>us-east-1</code>처럼 코드로 부른다. 리전 안에는 <strong>가용 영역(Availability Zone, AZ)</strong>이 보통 3개 이상 있으며, 각 AZ는 한 개 이상의 물리 데이터센터로 구성되고 전력·냉방·네트워크가 서로 독립적이다. 쉽게 말하면 한 건물에 불이 나도 옆 건물은 멀쩡하도록 설계된 것이다.</p>\n<p>왜 필요한가? 금융·커머스 서비스는 '한 곳이 죽어도 서비스는 살아야' 한다. 서버를 2a와 2c 두 AZ에 나눠 놓으면 한 AZ 장애 시에도 나머지가 트래픽을 받는다. 국내 금융회사는 <strong>데이터 국내 보관</strong> 요구 때문에 서울 리전을 기본으로 쓰고, 재해복구(DR)는 같은 리전의 다른 AZ 또는 도쿄·오사카 리전을 활용하는 경우가 많다.</p>\n<p><strong>엣지 로케이션(Edge Location)</strong>은 리전보다 훨씬 많은(전 세계 600곳 이상) 소규모 거점으로 CloudFront(CDN), Route 53(DNS), Global Accelerator, AWS Shield가 여기서 동작한다. 사용자와 가까운 곳에서 응답하므로 지연이 줄고, DDoS를 앞단에서 흡수한다. 그 밖에 <strong>Local Zones</strong>(대도시 근접 소형 리전 확장), <strong>Wavelength</strong>(통신사 5G 망 내부), <strong>Outposts</strong>(고객 데이터센터에 AWS 랙 설치)도 인프라 계층의 일부다.</p>\n<p>서비스마다 '어느 범위에 존재하는가'가 다르다는 점이 중요하다. IAM·Route 53·CloudFront는 <strong>글로벌 서비스</strong>, S3·VPC·Lambda는 <strong>리전 서비스</strong>, EC2 인스턴스·EBS 볼륨·서브넷은 <strong>AZ 단위 자원</strong>이다. 예를 들어 EBS 볼륨은 만들어진 AZ 밖의 EC2에 붙일 수 없다.</p>\n<p>AZ 이름(2a, 2b, 2c)은 계정마다 실제 물리 AZ와의 매핑이 다르게 섞여 있다. 그래서 여러 계정을 비교할 때는 <code>AZ ID</code>(예: <code>apne2-az1</code>)를 써야 같은 물리 위치인지 알 수 있다.</p>",
+      "howItWorks": "<ol><li>아키텍트가 서비스를 배치할 리전을 고른다(데이터 주권, 지연, 서비스 지원 여부, 가격 순으로 검토).</li>\n<li>리전 안에 VPC를 만들고, 최소 2개 AZ에 서브넷을 하나씩 만든다.</li>\n<li>EC2/RDS/EKS 노드를 여러 AZ에 분산 배치하고, 로드밸런서(ALB)가 AZ를 가리지 않고 트래픽을 나눠준다.</li>\n<li>AZ 하나에 장애가 나면 헬스체크 실패 → ALB가 해당 AZ 인스턴스를 제외하고 나머지 AZ로만 트래픽을 보낸다.</li>\n<li>정적 콘텐츠·API 응답은 엣지 로케이션에서 캐시되어 사용자와 가장 가까운 곳에서 응답한다.</li>\n<li>리전 전체 장애 대비가 필요하면 다른 리전에 데이터를 복제(S3 CRR, RDS 리전 간 리드 레플리카)하고 Route 53 장애조치 라우팅으로 전환한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 서울 리전(ap-northeast-2)에 결제 API 서버 6대를 2a/2b/2c에 2대씩 배치하고, DB는 Multi-AZ RDS로 2a(주)–2c(대기)에 둔다. 2024년형 DR 계획은 오사카 리전(ap-northeast-3)에 S3 리전 간 복제와 야간 스냅샷 복사로 구성했다. 감사팀은 \"운영 데이터가 국외로 나가는가\"를 반드시 확인하는데, 오사카 복제는 금감원 사전 보고 대상이 되어 별도 승인 문서를 보관한다.</p>\n<pre><code># 계정에서 사용 가능한 AZ와 AZ ID 확인\naws ec2 describe-availability-zones --region ap-northeast-2 \\\n  --query 'AvailabilityZones[].[ZoneName,ZoneId,State]' --output table\n\n# 리소스가 어느 AZ에 있는지 확인 (EC2)\naws ec2 describe-instances --query \\\n  'Reservations[].Instances[].[InstanceId,Placement.AvailabilityZone]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='600' height='150' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>리전 ap-northeast-2 (서울)</text><rect x='40' y='50' width='170' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='125.0' y='97.0' text-anchor='middle' fill='currentColor'>AZ 2a</text><text x='125.0' y='113.0' text-anchor='middle' fill='currentColor' font-size='11'>데이터센터 1~n</text><rect x='235' y='50' width='170' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='97.0' text-anchor='middle' fill='currentColor'>AZ 2b</text><text x='320.0' y='113.0' text-anchor='middle' fill='currentColor' font-size='11'>데이터센터 1~n</text><rect x='430' y='50' width='170' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='97.0' text-anchor='middle' fill='currentColor'>AZ 2c</text><text x='515.0' y='113.0' text-anchor='middle' fill='currentColor' font-size='11'>데이터센터 1~n</text><text x='125' y='135' text-anchor='middle' fill='currentColor' font-size='11'>EC2 / EBS / 서브넷</text><text x='320' y='135' text-anchor='middle' fill='currentColor' font-size='11'>EC2 / EBS / 서브넷</text><text x='515' y='135' text-anchor='middle' fill='currentColor' font-size='11'>EC2 / EBS / 서브넷</text><rect x='40' y='195' width='160' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='120.0' y='214.5' text-anchor='middle' fill='currentColor'>엣지 로케이션</text><text x='120.0' y='230.5' text-anchor='middle' fill='currentColor' font-size='11'>CloudFront·Route 53</text><rect x='240' y='195' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='214.5' text-anchor='middle' fill='currentColor'>다른 리전(오사카)</text><text x='320.0' y='230.5' text-anchor='middle' fill='currentColor' font-size='11'>DR 복제 대상</text><rect x='440' y='195' width='160' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520.0' y='214.5' text-anchor='middle' fill='currentColor'>글로벌 서비스</text><text x='520.0' y='230.5' text-anchor='middle' fill='currentColor' font-size='11'>IAM·Route 53</text><line x1='120' y1='195' x2='120' y2='172' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='120.0' y='177.5' text-anchor='middle' fill='currentColor' font-size='12'>캐시</text><line x1='320' y1='195' x2='320' y2='172' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320.0' y='177.5' text-anchor='middle' fill='currentColor' font-size='12'>복제</text></svg>",
+      "keyTerms": [
+        {
+          "term": "리전(Region)",
+          "meaning": "지리적으로 독립된 AWS 서비스 제공 단위. 예: ap-northeast-2"
+        },
+        {
+          "term": "가용 영역(AZ)",
+          "meaning": "리전 안에서 전력·네트워크가 분리된 데이터센터 묶음"
+        },
+        {
+          "term": "AZ ID",
+          "meaning": "계정 간 공통으로 쓰는 물리 AZ 식별자. 예: apne2-az1"
+        },
+        {
+          "term": "엣지 로케이션",
+          "meaning": "CDN·DNS를 사용자 가까이에서 처리하는 소규모 거점"
+        },
+        {
+          "term": "Local Zones",
+          "meaning": "대도시 근처에 리전을 확장한 소형 인프라"
+        },
+        {
+          "term": "Multi-AZ",
+          "meaning": "여러 AZ에 자원을 나눠 한 AZ 장애를 견디는 배치 방식"
+        },
+        {
+          "term": "리전 서비스/글로벌 서비스",
+          "meaning": "자원이 존재하는 범위 구분. S3는 리전, IAM은 글로벌"
+        }
+      ],
+      "pitfalls": [
+        "같은 'ap-northeast-2a'라도 계정마다 물리 AZ가 다르다 — 계정 간 비교는 AZ ID로.",
+        "AZ 2개에 서버를 두었지만 DB나 NAT Gateway는 한 AZ에만 있어 '반쪽 HA'가 되는 경우가 흔하다.",
+        "리전 간 데이터 전송에는 비용과 규제(국외 이전) 문제가 따라온다.",
+        "새 서비스·인스턴스 타입은 us-east-1에 먼저 나오고 서울 리전에는 늦게 오는 경우가 있다.",
+        "글로벌 서비스(IAM, CloudFront)의 CloudTrail 로그는 us-east-1에 기록되므로 로그 수집 설정에서 빠뜨리기 쉽다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 운영 시스템이 실제로 2개 이상 AZ에 배치되어 있는지(HA 설계서 vs 실제 콘솔 상태) 확인.",
+          "[운영] DR 계획서에 명시된 리전/AZ와 실제 복제 설정(S3 CRR, 스냅샷 복사)이 일치하는지 연 1회 검증.",
+          "[접근] 리전 사용 제한(SCP로 미승인 리전 차단)이 적용되어 있는지 확인 — 승인되지 않은 리전에 자원이 생기면 통제 밖 자산이 된다.",
+          "[변경] 리전/AZ 배치 변경(예: 신규 리전 진출)은 아키텍처 변경관리 승인 대상인지."
+        ],
+        "fss": [
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차)에 따라 중요 정보처리시스템의 클라우드 이용 시 위치(국내 리전) 및 안전성 평가 기록 보관.",
+          "재해복구 목표(RTO/RPO)와 AZ/리전 분산 설계의 정합성 — 복구 훈련 결과 보고서.",
+          "국외 리전으로 데이터 복제 시 사전 보고·이용자 정보 국외이전 검토 기록."
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리 — AZ/리전 단위 복제 및 복구 시험 기록.",
+          "2.12.1 재해·재난 대비 안전조치 — 지리적 분산 배치 설계 및 BCP 문서.",
+          "1.2.1 정보자산 식별 — 리전별 자산 목록 관리."
+        ],
+        "evidence": [
+          "AWS 콘솔 > EC2 > 인스턴스 목록에서 AZ 열 export (또는 describe-instances 결과).",
+          "RDS Multi-AZ 설정 화면 캡처, ALB 활성 AZ 설정.",
+          "Organizations SCP 중 리전 제한 정책(JSON) 원본.",
+          "DR 훈련 결과 보고서 및 Route 53 장애조치 테스트 로그.",
+          "AWS Config 규칙 결과(예: 'multi-az' 관련 규칙 컴플라이언스 상태)."
+        ],
+        "auditorQuestions": [
+          "운영 서비스가 배치된 리전과 AZ 수는 무엇이며, 그 근거 문서는 무엇입니까?",
+          "한 AZ 전체가 장애일 때 서비스가 자동 복구되는지 최근 시험한 적이 있습니까?",
+          "국외 리전에 저장·복제되는 데이터가 있습니까? 있다면 승인 절차는?",
+          "승인되지 않은 리전에 자원이 생성되는 것을 어떻게 막고 있습니까?"
+        ],
+        "controlExample": "운영 계정은 SCP로 ap-northeast-2 외 리전 자원 생성을 차단하며, 핵심 서비스는 최소 2개 AZ에 분산 배치되고 연 1회 AZ 장애 모의훈련 결과를 보관한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-subnet",
+        "aws-cloudfront",
+        "aws-route53",
+        "aws-outposts-lightsail",
+        "aws-well-architected",
+        "awssec-organizations-scp"
+      ],
+      "learnMore": [
+        "AWS Global Infrastructure 페이지",
+        "Regions and Availability Zones (EC2 User Guide)",
+        "AWS Local Zones 개요"
+      ]
+    },
+    {
+      "id": "aws-account-arn-tags",
+      "title": "계정·리소스 기본구조 (ARN, 태그)",
+      "titleEn": "AWS Account, Resource Naming (ARN) and Tagging",
+      "aliases": [
+        "ARN",
+        "태그",
+        "리소스 이름",
+        "계정 구조",
+        "Amazon Resource Name",
+        "태깅 전략",
+        "멀티 계정"
+      ],
+      "tags": [
+        "foundation",
+        "governance",
+        "naming"
+      ],
+      "level": "기초",
+      "oneLiner": "AWS 자원을 식별(ARN)하고 분류(태그)하며 계정으로 경계를 나누는 기본 뼈대",
+      "analogy": "AWS 계정은 '독립된 회사 법인'과 같아서 자산·청구서·권한 경계가 따로 있다. ARN은 각 자산에 붙은 '주민등록번호'처럼 세상에 하나뿐인 이름이고, 태그는 자산에 붙이는 '포스트잇 라벨'(부서, 환경, 담당자)이다.",
+      "explanation": "<p><strong>AWS 계정(Account)</strong>은 자원·권한·비용의 가장 큰 경계다. 12자리 숫자 ID(예: <code>123456789012</code>)로 식별되며, 실무에서는 한 회사가 수십 개의 계정을 <strong>AWS Organizations</strong>로 묶어 운영한다. 대표적 분리 기준은 환경(prod/stage/dev), 업무(결제/정산/데이터), 기능(보안 로그 계정, 네트워크 계정)이다. 쉽게 말하면 '운영 계정'과 '개발 계정'을 아예 다른 회사처럼 나눠서 개발자가 실수로 운영 자원을 건드릴 수 없게 하는 것이다.</p>\n<p><strong>ARN(Amazon Resource Name)</strong>은 모든 자원의 고유 이름이다. 형식은 <code>arn:partition:service:region:account-id:resource</code>이며, 예를 들어 서울 리전 EC2 인스턴스는 <code>arn:aws:ec2:ap-northeast-2:123456789012:instance/i-0abc123</code>, S3 버킷은 리전·계정이 비어 있는 <code>arn:aws:s3:::paynow-prod-logs</code>다. IAM 정책의 <code>Resource</code> 항목, CloudTrail 로그, 감사 증빙 모두 ARN으로 자원을 지목하므로 감사인은 ARN을 읽을 줄 알아야 한다.</p>\n<p><strong>태그(Tag)</strong>는 자원에 붙이는 키–값 쌍(최대 50개)이다. <code>Environment=prod</code>, <code>Owner=payment-team</code>, <code>CostCenter=CC1020</code>, <code>DataClass=confidential</code> 같은 식이다. 태그는 단순 메모가 아니라 (1) 비용 배분(Cost Allocation Tag), (2) 권한 제어(ABAC — 태그 기반 접근제어), (3) 자동화(태그 기준 백업·패치·종료), (4) 감사 범위 식별(SOX 대상 자원 표시)에 쓰인다.</p>\n<p>태그를 강제하려면 <strong>Tag Policy</strong>(Organizations)로 허용 키·값을 정의하고, <strong>AWS Config</strong> 규칙 <code>required-tags</code>로 누락을 탐지하며, SCP나 IAM 조건 <code>aws:RequestTag</code>로 태그 없는 생성을 차단한다. 그 밖에 자원을 논리적으로 묶는 <strong>리소스 그룹(Resource Groups)</strong>, 계정 간 자원 공유용 <strong>RAM(Resource Access Manager)</strong>도 기본 구조에 속한다.</p>\n<p>정리하면 '계정으로 큰 울타리를 치고, ARN으로 정확히 지목하고, 태그로 분류·자동화한다'가 AWS 거버넌스의 출발점이다.</p>",
+      "howItWorks": "<ol><li>조직이 Organizations 관리 계정(management account)을 만들고, OU(조직 단위)별로 워크로드 계정을 생성한다(예: OU=Prod, OU=NonProd, OU=Security).</li>\n<li>IaC(Terraform 등)가 자원을 만들 때 표준 태그 세트를 자동 부여한다.</li>\n<li>생성 요청은 IAM 정책/SCP의 <code>aws:RequestTag</code> 조건을 통과해야 한다 — 필수 태그가 없으면 거부.</li>\n<li>AWS Config가 주기적으로 모든 자원을 스캔해 필수 태그 누락 자원을 NON_COMPLIANT로 표시한다.</li>\n<li>비용 관리(Cost Explorer)와 백업(AWS Backup)이 태그 값을 기준으로 자원을 골라 처리한다.</li>\n<li>감사 시 <code>SoxScope=yes</code> 태그로 필터링해 통제 대상 자산 목록을 뽑는다.</li></ol>",
+      "example": "<p>커머스 '마켓온'은 계정을 <code>mk-prod-payment</code>, <code>mk-prod-web</code>, <code>mk-stage</code>, <code>mk-security</code>(로그 집중)로 나눴다. 모든 자원에는 <code>Env</code>, <code>Service</code>, <code>Owner</code>, <code>SoxScope</code> 4개 태그가 필수이며, 태그 없는 EC2 생성은 SCP로 막힌다. 감사팀은 분기마다 Config에서 <code>required-tags</code> 위반 목록을 뽑아 담당자에게 시정 요청을 보낸다.</p>\n<pre><code># 필수 태그 없는 EC2 생성 차단 SCP (일부)\n{\n  \"Effect\": \"Deny\",\n  \"Action\": [\"ec2:RunInstances\"],\n  \"Resource\": \"arn:aws:ec2:*:*:instance/*\",\n  \"Condition\": {\"Null\": {\"aws:RequestTag/Owner\": \"true\"}}\n}\n\n# 태그로 SOX 범위 자원 조회\naws resourcegroupstaggingapi get-resources \\\n  --tag-filters Key=SoxScope,Values=yes --query 'ResourceTagMappingList[].ResourceARN'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='15' width='600' height='130' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='31' fill='currentColor' font-size='12'>AWS Organizations (관리 계정)</text><rect x='40' y='45' width='130' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='82.0' text-anchor='middle' fill='currentColor'>OU: Prod</text><text x='105.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>prod-payment / prod-web</text><rect x='190' y='45' width='130' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255.0' y='82.0' text-anchor='middle' fill='currentColor'>OU: NonProd</text><text x='255.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>stage / dev</text><rect x='340' y='45' width='130' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='405.0' y='82.0' text-anchor='middle' fill='currentColor'>OU: Security</text><text x='405.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>log-archive / audit</text><rect x='490' y='45' width='115' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='547.5' y='82.0' text-anchor='middle' fill='currentColor'>SCP·Tag Policy</text><text x='547.5' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>공통 규칙</text><rect x='40' y='170' width='270' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='175.0' y='202.0' text-anchor='middle' fill='currentColor'>ARN</text><text x='175.0' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>arn:aws:ec2:ap-northeast-2:1234:instance/i-01</text><rect x='340' y='170' width='265' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='472.5' y='202.0' text-anchor='middle' fill='currentColor'>태그</text><text x='472.5' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>Env=prod Owner=pay SoxScope=yes</text><line x1='105' y1='145' x2='120' y2='170' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='400' y1='145' x2='420' y2='170' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='320' y='255' text-anchor='middle' fill='currentColor' font-size='11'>계정 = 경계, ARN = 고유 이름, 태그 = 분류·자동화·감사 범위</text></svg>",
+      "keyTerms": [
+        {
+          "term": "계정 ID",
+          "meaning": "12자리 숫자로 된 계정 식별자"
+        },
+        {
+          "term": "ARN",
+          "meaning": "arn:aws:서비스:리전:계정:자원 형식의 전역 고유 이름"
+        },
+        {
+          "term": "Organizations",
+          "meaning": "여러 계정을 OU로 묶어 중앙에서 정책·청구를 관리하는 서비스"
+        },
+        {
+          "term": "SCP",
+          "meaning": "Service Control Policy. 계정이 할 수 있는 행위의 최대 한도"
+        },
+        {
+          "term": "태그(Tag)",
+          "meaning": "자원에 붙이는 키–값 라벨. 최대 50개"
+        },
+        {
+          "term": "Tag Policy",
+          "meaning": "허용 태그 키·값을 조직 차원에서 표준화하는 정책"
+        },
+        {
+          "term": "ABAC",
+          "meaning": "태그 값 기준으로 권한을 결정하는 접근제어 방식"
+        },
+        {
+          "term": "Resource Groups",
+          "meaning": "태그·CloudFormation 기준으로 자원을 묶어 보는 뷰"
+        }
+      ],
+      "pitfalls": [
+        "태그는 대소문자를 구분한다 — 'Env'와 'env'는 다른 키가 되어 집계가 깨진다.",
+        "S3 버킷 ARN에는 리전·계정이 없다(전역 유일). 정책에서 <code>bucket</code>과 <code>bucket/*</code>(객체)를 둘 다 써야 한다.",
+        "태그가 IAM 권한 조건으로 쓰이면(ABAC) 태그를 바꾸는 행위 자체가 권한 상승이 된다 — 태그 수정 권한을 제한해야 한다.",
+        "계정을 너무 잘게 나누면 네트워크·권한 관리 비용이 커지고, 너무 크면 폭발 반경이 넓어진다.",
+        "루트 사용자 이메일이 개인 계정으로 되어 있어 퇴사 시 계정 통제를 잃는 사고가 실제로 잦다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영/개발 계정이 분리되어 있고, 개발자가 운영 계정에 콘솔·CLI 접근 권한이 없는지.",
+          "[접근] 태그 수정 권한(ec2:CreateTags 등)이 ABAC 우회 수단이 되지 않도록 제한되는지.",
+          "[운영] SOX 범위 자원이 태그(예: SoxScope)로 식별되고 그 목록이 완전한지 — Config required-tags 위반 관리.",
+          "[변경] 신규 계정 생성·OU 이동·SCP 변경은 변경관리 승인 후 수행되는지.",
+          "[운영] 각 계정의 루트 사용자 MFA 적용 및 사용 이력 모니터링."
+        ],
+        "fss": [
+          "클라우드 이용 시 정보처리시스템의 자산 목록(계정·자원)을 관리하고 중요도 평가 결과를 보관.",
+          "전자금융감독규정 제14조의2에 따른 클라우드 이용 현황(계정·서비스 범위) 보고 자료의 정확성.",
+          "업무망(운영)과 개발망의 분리가 계정 분리로 구현되어 있는지."
+        ],
+        "isms": [
+          "1.2.1 정보자산 식별 — 태그·Config 인벤토리 기반 자산 목록.",
+          "2.5.1 사용자 계정 관리 — 계정별 루트/IAM 계정 관리.",
+          "2.6.1 네트워크 접근 — 계정 분리를 통한 환경 분리."
+        ],
+        "evidence": [
+          "Organizations 콘솔의 OU·계정 트리 화면 및 SCP 정책 JSON.",
+          "AWS Config > 규칙 > required-tags 컴플라이언스 결과 export(CSV).",
+          "Resource Groups Tagging API로 뽑은 SOX 범위 자원 ARN 목록.",
+          "루트 사용자 MFA 상태(IAM 자격 증명 보고서 credential report).",
+          "계정 생성 변경 티켓과 승인 기록."
+        ],
+        "auditorQuestions": [
+          "계정은 어떤 기준으로 나뉘어 있고, 운영 계정 접근 권한자는 누구입니까?",
+          "필수 태그는 무엇이며 누락 시 어떻게 탐지·차단합니까?",
+          "SOX 대상 시스템 자원을 어떻게 식별해 목록화합니까?",
+          "루트 사용자 자격증명은 누가 보관하며 마지막 사용은 언제입니까?"
+        ],
+        "controlExample": "모든 운영 자원은 Env/Service/Owner/SoxScope 태그를 필수로 가지며, 태그 누락 자원은 AWS Config가 일 단위로 탐지하여 담당자에게 통보하고 월별로 시정 현황을 리뷰한다."
+      },
+      "related": [
+        "aws-global-infra",
+        "awssec-iam",
+        "awssec-organizations-scp",
+        "awssec-config",
+        "awssec-cloudtrail",
+        "iac-terraform",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "Amazon Resource Names (ARNs) - IAM User Guide",
+        "Tagging AWS resources - Best Practices whitepaper",
+        "AWS Organizations User Guide"
+      ]
+    },
+    {
+      "id": "aws-ec2",
+      "title": "EC2",
+      "titleEn": "Amazon Elastic Compute Cloud",
+      "aliases": [
+        "가상서버",
+        "인스턴스",
+        "VM",
+        "EC2 인스턴스",
+        "이씨투",
+        "가상머신"
+      ],
+      "tags": [
+        "compute",
+        "iaas"
+      ],
+      "level": "기초",
+      "oneLiner": "AWS에서 원하는 사양의 가상 서버를 분 단위로 빌려 쓰는 서비스",
+      "analogy": "EC2는 '월세가 아니라 시간제로 빌리는 사무실'과 같다. 책상 수(CPU)·창고 크기(메모리)를 골라 계약하고, 필요 없으면 바로 반납한다. 사무실 열쇠(키 페어)와 출입문 규칙(보안 그룹)은 세입자가 직접 관리한다.",
+      "explanation": "<p><strong>EC2(Elastic Compute Cloud)</strong>는 AWS의 가상 서버 서비스다. 온프레미스에서 서버를 발주하고 랙에 꽂고 OS를 설치하던 일을, API 호출 한 번으로 몇 분 안에 끝낸다. 쉽게 말하면 '클릭 몇 번으로 생기는 리눅스/윈도우 서버'다.</p>\n<p>인스턴스는 <strong>인스턴스 타입</strong>으로 사양을 정한다. 이름 규칙은 <code>패밀리 + 세대 + 옵션 . 크기</code>로, <code>m7i.xlarge</code>는 범용(m) 7세대(7) 인텔(i) 4vCPU/16GB다. 패밀리는 범용(m, t), 컴퓨팅 최적화(c), 메모리 최적화(r, x), 스토리지 최적화(i, d), 가속(g, p)로 나뉜다. t 계열은 CPU 크레딧 기반 버스트 타입이라 상시 고부하에는 맞지 않는다.</p>\n<p>인스턴스를 구성하는 요소는 다음과 같다. <strong>AMI</strong>(OS와 소프트웨어가 담긴 이미지), <strong>EBS 볼륨</strong>(디스크), <strong>ENI</strong>(네트워크 카드, 사설 IP), <strong>보안 그룹</strong>(방화벽), <strong>키 페어</strong>(SSH 접속 키), <strong>인스턴스 프로파일</strong>(IAM 역할 — 서버가 다른 AWS 서비스를 호출할 권한), <strong>사용자 데이터(user data)</strong>(첫 부팅 시 실행되는 스크립트).</p>\n<p>인스턴스 안에서 <code>http://169.254.169.254</code>로 접근하는 <strong>인스턴스 메타데이터 서비스(IMDS)</strong>는 자기 자신의 정보와 IAM 역할의 임시 자격증명을 준다. 보안상 <strong>IMDSv2</strong>(토큰 필수)만 허용해야 SSRF 공격으로 자격증명이 새는 것을 막을 수 있다.</p>\n<p>접속 방식은 예전처럼 22번 포트를 열고 SSH하는 대신, <strong>SSM Session Manager</strong>로 포트를 열지 않고 IAM 권한으로 접속하고 세션 로그를 남기는 것이 2026년 표준이다. 요금은 온디맨드(초 단위), 예약/Savings Plans(약정 할인), 스팟(유휴 자원 최대 90% 할인)으로 나뉜다.</p>",
+      "howItWorks": "<ol><li>사용자가 AMI, 인스턴스 타입, 서브넷, 보안 그룹, IAM 역할, 키 페어를 지정해 <code>RunInstances</code>를 호출한다.</li>\n<li>EC2 서비스가 해당 AZ의 물리 호스트를 골라 가상머신을 띄우고, AMI 스냅샷에서 루트 EBS 볼륨을 만들어 붙인다.</li>\n<li>ENI가 서브넷에서 사설 IP를 받아 붙고, 보안 그룹 규칙이 적용된다.</li>\n<li>OS 부팅 → cloud-init이 user data 스크립트를 실행(패키지 설치, 에이전트 등록 등).</li>\n<li>애플리케이션이 IMDSv2로 IAM 역할의 임시 자격증명을 받아 S3·RDS 등을 호출한다.</li>\n<li>CloudWatch가 CPU·네트워크 지표를 수집하고, 필요 시 Auto Scaling이 같은 설정으로 인스턴스를 늘리거나 줄인다.</li>\n<li>인스턴스 중지(stop)는 EBS만 남기고 과금을 멈추며, 종료(terminate)는 인스턴스를 삭제한다.</li></ol>",
+      "example": "<p>'페이나우' 정산 배치 서버는 <code>r7i.2xlarge</code>(8vCPU/64GB) 2대로 운영 계정의 프라이빗 서브넷에 있다. 22번 포트는 어느 보안 그룹에도 열려 있지 않고, 운영자는 SSM Session Manager로만 접속하며 세션 기록은 S3에 90일 보관된다. 배치 서버의 IAM 역할은 정산 버킷 읽기·쓰기만 허용한다.</p>\n<pre><code># IMDSv2 강제 + SSM 접속 가능한 인스턴스 생성\naws ec2 run-instances --image-id ami-0abc1234 --instance-type r7i.2xlarge \\\n  --subnet-id subnet-0priv1 --security-group-ids sg-0settle \\\n  --iam-instance-profile Name=settle-batch-role \\\n  --metadata-options HttpTokens=required,HttpEndpoint=enabled \\\n  --tag-specifications 'ResourceType=instance,Tags=[{Key=Env,Value=prod},{Key=SoxScope,Value=yes}]'\n\n# 포트 개방 없이 접속 (세션 로그는 S3/CloudWatch로)\naws ssm start-session --target i-0123456789abcdef0</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='380' height='220' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>EC2 인스턴스 (AZ 2a)</text><rect x='40' y='50' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='115.0' y='72.0' text-anchor='middle' fill='currentColor'>AMI</text><text x='115.0' y='88.0' text-anchor='middle' fill='currentColor' font-size='11'>OS + 소프트웨어</text><rect x='40' y='115' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='115.0' y='137.0' text-anchor='middle' fill='currentColor'>EBS 루트 볼륨</text><text x='115.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='11'>gp3 100GB</text><rect x='40' y='180' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='115.0' y='202.0' text-anchor='middle' fill='currentColor'>IAM 역할</text><text x='115.0' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>인스턴스 프로파일</text><rect x='230' y='50' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='305.0' y='72.0' text-anchor='middle' fill='currentColor'>ENI</text><text x='305.0' y='88.0' text-anchor='middle' fill='currentColor' font-size='11'>사설 IP 10.0.1.10</text><rect x='230' y='115' width='150' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='305.0' y='137.0' text-anchor='middle' fill='currentColor'>보안 그룹</text><text x='305.0' y='153.0' text-anchor='middle' fill='currentColor' font-size='11'>인바운드 443만</text><rect x='230' y='180' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='305.0' y='202.0' text-anchor='middle' fill='currentColor'>IMDSv2</text><text x='305.0' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>169.254.169.254</text><rect x='440' y='40' width='170' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='525.0' y='62.0' text-anchor='middle' fill='currentColor'>SSM Session Manager</text><text x='525.0' y='78.0' text-anchor='middle' fill='currentColor' font-size='11'>포트 개방 없이 접속</text><rect x='440' y='120' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='142.0' text-anchor='middle' fill='currentColor'>CloudWatch</text><text x='525.0' y='158.0' text-anchor='middle' fill='currentColor' font-size='11'>지표·로그</text><rect x='440' y='195' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='217.0' text-anchor='middle' fill='currentColor'>S3 / RDS</text><text x='525.0' y='233.0' text-anchor='middle' fill='currentColor' font-size='11'>역할 권한으로 호출</text><line x1='440' y1='65' x2='400' y2='65' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='400' y1='140' x2='440' y2='140' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='380' y1='205' x2='440' y2='215' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "인스턴스 타입",
+          "meaning": "vCPU·메모리·네트워크 사양 조합. 예: m7i.xlarge"
+        },
+        {
+          "term": "AMI",
+          "meaning": "인스턴스를 만드는 원본 이미지"
+        },
+        {
+          "term": "키 페어",
+          "meaning": "SSH 접속용 공개/개인 키 쌍"
+        },
+        {
+          "term": "인스턴스 프로파일",
+          "meaning": "EC2에 IAM 역할을 붙이는 껍데기"
+        },
+        {
+          "term": "user data",
+          "meaning": "첫 부팅 때 실행되는 초기화 스크립트"
+        },
+        {
+          "term": "IMDS",
+          "meaning": "인스턴스 메타데이터 서비스. v2는 토큰 필수"
+        },
+        {
+          "term": "Session Manager",
+          "meaning": "SSM 기반 포트리스 원격 접속 도구"
+        },
+        {
+          "term": "stop vs terminate",
+          "meaning": "중지는 디스크 유지, 종료는 삭제"
+        }
+      ],
+      "pitfalls": [
+        "보안 그룹에 0.0.0.0/0으로 22/3389 포트를 열어 두는 것 — 가장 흔한 감사 지적.",
+        "IMDSv1 허용 상태로 두면 웹 앱의 SSRF 취약점이 곧바로 IAM 자격증명 유출로 이어진다.",
+        "키 페어를 여러 명이 공유하면 '누가 접속했는지' 추적이 불가능하다.",
+        "인스턴스 종료 시 '종료 시 삭제(DeleteOnTermination)'로 데이터 볼륨까지 사라질 수 있다.",
+        "t 계열 버스트 타입을 운영 DB/배치에 써서 크레딧 소진으로 성능이 급락하는 사례.",
+        "인스턴스에 액세스 키를 파일로 넣는 대신 IAM 역할을 써야 한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 EC2 OS 접근은 SSM Session Manager 등 IAM 기반으로 제한되고, 공용 키 페어 공유가 없는지.",
+          "[접근] 인스턴스 IAM 역할이 최소 권한인지, 관리자 정책(AdministratorAccess)이 붙은 인스턴스가 없는지.",
+          "[변경] AMI·인스턴스 타입·user data 변경이 변경관리 티켓과 연결되는지(IaC PR 기록).",
+          "[운영] 패치 관리(SSM Patch Manager) 적용 현황과 미패치 인스턴스 예외 승인.",
+          "[운영] 세션 로그·CloudTrail RunInstances/TerminateInstances 이벤트 모니터링."
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템 접근통제 — 운영 서버 접속 경로 단일화 및 접속 기록 보관(1년 이상 권고).",
+          "서버 취약점 점검(연 1회 이상) 결과 및 조치 기록 — Inspector 스캔 결과 활용.",
+          "운영 서버 보안 설정(불필요 포트 차단, 계정 관리) 기준 준수."
+        ],
+        "isms": [
+          "2.6.2 정보시스템 접근 — 서버 접근 경로 통제 및 세션 기록.",
+          "2.10.1 보안시스템 운영 / 2.10.2 클라우드 보안 — 보안 그룹·IMDS 설정.",
+          "2.11.2 취약점 점검 및 조치 — EC2 취약점 스캔.",
+          "2.9.1 변경관리 — 서버 구성 변경 승인."
+        ],
+        "evidence": [
+          "EC2 인스턴스 목록(describe-instances)에서 IMDS 옵션, 보안 그룹, IAM 역할 열 export.",
+          "SSM Session Manager 세션 이력(Session history) 및 S3 저장 로그 샘플.",
+          "보안 그룹 규칙 export에서 0.0.0.0/0 22·3389 개방 여부.",
+          "SSM Patch Manager 컴플라이언스 대시보드 캡처.",
+          "CloudTrail의 RunInstances/TerminateInstances 이벤트와 변경 티켓 대조표."
+        ],
+        "auditorQuestions": [
+          "운영 서버에 접속하는 방법은 무엇이며 접속 기록은 어디에 얼마나 보관됩니까?",
+          "인스턴스에 붙은 IAM 역할의 권한을 마지막으로 리뷰한 시점은?",
+          "IMDSv2를 강제하고 있습니까? 예외 인스턴스는?",
+          "OS 패치 주기와 미적용 서버 관리 방식은?",
+          "긴급 서버 생성/삭제는 어떤 승인 절차를 거칩니까?"
+        ],
+        "controlExample": "운영 EC2에 대한 OS 접근은 SSM Session Manager를 통해서만 허용되며(보안 그룹 22/3389 인바운드 금지), 모든 세션은 S3에 1년간 보관되고 월 1회 접속 이력을 리뷰한다."
+      },
+      "related": [
+        "aws-ami",
+        "aws-ebs",
+        "aws-security-group",
+        "aws-auto-scaling-group",
+        "aws-launch-template",
+        "aws-elastic-ip-eni",
+        "aws-purchase-options",
+        "awssec-ssm-session-manager",
+        "awssec-iam"
+      ],
+      "learnMore": [
+        "Amazon EC2 User Guide",
+        "EC2 Instance Types 페이지",
+        "Use IMDSv2 (EC2 User Guide)"
+      ]
+    },
+    {
+      "id": "aws-ami",
+      "title": "AMI",
+      "titleEn": "Amazon Machine Image",
+      "aliases": [
+        "머신 이미지",
+        "골든 이미지",
+        "서버 이미지",
+        "에이엠아이",
+        "이미지 템플릿"
+      ],
+      "tags": [
+        "compute",
+        "image",
+        "baseline"
+      ],
+      "level": "기초",
+      "oneLiner": "EC2 인스턴스를 찍어내는 원본 틀(OS+소프트웨어+설정 스냅샷)",
+      "analogy": "AMI는 '붕어빵 틀'과 같다. 틀 하나로 똑같은 붕어빵(서버)을 수백 개 찍어낼 수 있고, 틀을 바꾸면 이후 만드는 것만 바뀐다. 이미 구운 붕어빵은 영향이 없다.",
+      "explanation": "<p><strong>AMI(Amazon Machine Image)</strong>는 EC2 인스턴스를 만들 때 쓰는 원본 이미지다. 루트 볼륨의 EBS 스냅샷(OS, 설치된 패키지, 설정 파일), 시작 권한(어느 계정이 쓸 수 있는지), 블록 디바이스 매핑(어떤 볼륨을 붙일지)으로 구성된다. 쉽게 말하면 '설치가 끝난 서버를 통째로 사진 찍어 둔 것'이다.</p>\n<p>왜 필요한가? 서버 100대를 손으로 똑같이 세팅하면 반드시 편차가 생긴다. AMI로 만들면 모든 서버가 동일한 상태에서 출발하고, Auto Scaling이 새 서버를 띄울 때도 몇 분 안에 같은 상태가 된다. 보안 관점에서는 '검증된 기준 이미지(골든 이미지)'만 쓰게 강제해 취약한 OS나 승인되지 않은 소프트웨어가 운영에 들어오는 것을 막는다.</p>\n<p>AMI의 출처는 세 가지다. (1) <strong>AWS 제공</strong>(Amazon Linux 2023, Ubuntu, Windows Server), (2) <strong>Marketplace</strong>(벤더 제품 포함, 별도 요금), (3) <strong>사내 제작</strong>. 사내 제작은 <strong>EC2 Image Builder</strong>나 HashiCorp Packer로 파이프라인화하여 '기본 OS → 에이전트 설치(CloudWatch, SSM, EDR) → CIS 하드닝 → 취약점 스캔 → 승인 → 공유' 흐름을 자동화한다.</p>\n<p>AMI는 리전 단위 자원이다. 다른 리전에서 쓰려면 복사해야 하고, 다른 계정과 공유하려면 시작 권한을 부여한다(<code>Public</code>으로 열면 전 세계에 노출되니 주의). 암호화된 EBS 스냅샷 기반 AMI는 KMS 키도 함께 공유해야 한다. 오래된 AMI는 <strong>사용 중단(Deprecate)</strong>·<strong>등록 해제(Deregister)</strong>로 정리하되, 기반 스냅샷은 별도로 삭제해야 비용이 줄어든다.</p>\n<p>AMI ID는 <code>ami-0123abcd</code> 형태이며 리전마다 다르다. Launch Template이나 Terraform에서는 ID를 하드코딩하는 대신 SSM Parameter Store의 '최신 승인 AMI' 파라미터를 참조하는 것이 관리에 유리하다.</p>",
+      "howItWorks": "<ol><li>Image Builder 파이프라인이 기본 AMI(예: Amazon Linux 2023 최신)를 가져와 임시 인스턴스를 띄운다.</li>\n<li>구성 요소(component)가 실행되어 패키지 업데이트, 보안 에이전트 설치, CIS 벤치마크 하드닝을 적용한다.</li>\n<li>테스트 단계에서 Inspector 스캔 및 사내 검증 스크립트를 돌린다 — 실패하면 이미지가 만들어지지 않는다.</li>\n<li>통과하면 임시 인스턴스의 루트 볼륨을 스냅샷 떠서 새 AMI로 등록하고 <code>Version</code>, <code>ApprovedBy</code> 태그를 붙인다.</li>\n<li>배포 설정에 따라 운영 계정들과 공유하고 SSM 파라미터 <code>/golden/al2023/latest</code> 값을 갱신한다.</li>\n<li>Launch Template이 파라미터를 참조하므로, 이후 Auto Scaling이 만드는 인스턴스는 자동으로 새 이미지를 쓴다(기존 인스턴스는 교체 배포 필요).</li></ol>",
+      "example": "<p>'마켓온' 플랫폼팀은 매월 첫째 주에 골든 AMI를 갱신한다. 이미지에는 CloudWatch Agent, SSM Agent, CrowdStrike 센서, CIS Level 1 설정이 포함되며, 애플리케이션팀은 이 AMI 위에 자기 앱만 얹는다. 승인되지 않은 AMI로 운영 인스턴스를 만드는 것은 Config 규칙 <code>approved-amis-by-tag</code>로 탐지된다.</p>\n<pre><code># 승인 AMI ID를 SSM 파라미터에서 조회\naws ssm get-parameter --name /golden/al2023/latest --query Parameter.Value --output text\n\n# 특정 AMI를 운영 계정과 공유 (시작 권한 부여)\naws ec2 modify-image-attribute --image-id ami-0abc1234 \\\n  --launch-permission \"Add=[{UserId=111122223333}]\"\n\n# 공개(Public) AMI가 있는지 점검\naws ec2 describe-images --owners self --query 'Images[?Public==`true`].ImageId'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='127.0' text-anchor='middle' fill='currentColor'>기본 AMI</text><text x='75.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>AL2023</text><line x1='130' y1='130' x2='165' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='165' y='100' width='120' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='225.0' y='127.0' text-anchor='middle' fill='currentColor'>Image Builder</text><text x='225.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>에이전트·하드닝</text><line x1='285' y1='130' x2='320' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='320' y='100' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='375.0' y='127.0' text-anchor='middle' fill='currentColor'>테스트/스캔</text><text x='375.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>Inspector</text><line x1='430' y1='130' x2='465' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='465' y='100' width='150' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='540.0' y='127.0' text-anchor='middle' fill='currentColor'>골든 AMI v2026.09</text><text x='540.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>태그·승인</text><line x1='540' y1='160' x2='540' y2='195' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='440' y='195' width='200' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540.0' y='217.0' text-anchor='middle' fill='currentColor'>SSM 파라미터 /golden/latest</text><text x='540.0' y='233.0' text-anchor='middle' fill='currentColor' font-size='11'>Launch Template이 참조</text><line x1='440' y1='220' x2='300' y2='220' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='120' y='195' width='180' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='210.0' y='217.0' text-anchor='middle' fill='currentColor'>Auto Scaling 신규 인스턴스</text><text x='210.0' y='233.0' text-anchor='middle' fill='currentColor' font-size='11'>동일 상태로 기동</text><text x='320' y='40' text-anchor='middle' fill='currentColor' font-size='12'>골든 이미지 파이프라인: 검증된 틀만 운영에 들어간다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "골든 이미지",
+          "meaning": "보안·운영 기준을 만족하도록 검증된 표준 AMI"
+        },
+        {
+          "term": "EC2 Image Builder",
+          "meaning": "AMI 제작·테스트·배포를 자동화하는 AWS 서비스"
+        },
+        {
+          "term": "Packer",
+          "meaning": "HashiCorp의 이미지 빌드 도구"
+        },
+        {
+          "term": "시작 권한(Launch Permission)",
+          "meaning": "어느 계정이 이 AMI로 인스턴스를 만들 수 있는지"
+        },
+        {
+          "term": "블록 디바이스 매핑",
+          "meaning": "AMI가 인스턴스에 붙일 볼륨 정의"
+        },
+        {
+          "term": "Deprecate/Deregister",
+          "meaning": "AMI 사용 중단 예고/등록 해제"
+        },
+        {
+          "term": "CIS 벤치마크",
+          "meaning": "OS 보안 설정 표준. 하드닝 기준으로 사용"
+        }
+      ],
+      "pitfalls": [
+        "AMI를 지워도 기반 EBS 스냅샷은 남아 비용이 계속 나간다.",
+        "AMI를 실수로 Public 공유하면 내부 설정·자격증명이 세상에 노출된다.",
+        "골든 AMI를 갱신해도 이미 떠 있는 인스턴스는 그대로다 — 인스턴스 교체(rolling replace)까지 해야 패치가 끝난다.",
+        "AMI에 액세스 키·비밀번호·SSH 호스트키를 구워 넣는 실수.",
+        "AMI ID를 코드에 하드코딩해 리전을 옮기거나 이미지를 갱신할 때 깨진다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 골든 AMI 제작·승인 절차가 정의되어 있고 각 버전에 승인자 기록이 있는지.",
+          "[운영] 운영 인스턴스가 승인된 AMI만 사용하는지(Config approved-amis 규칙) 및 예외 관리.",
+          "[접근] AMI 공유(시작 권한) 변경 권한자 제한 및 Public 공유 차단(계정 수준 'Block public access for AMIs').",
+          "[운영] 오래된 AMI 폐기 주기와 이미지 취약점 스캔 결과."
+        ],
+        "fss": [
+          "정보처리시스템 도입·변경 시 보안성 검토 — 이미지 하드닝 기준 및 검토 기록.",
+          "취약점 점검 결과의 이미지 반영(패치 관리) 절차."
+        ],
+        "isms": [
+          "2.9.1 변경관리 — 이미지 버전 변경 승인.",
+          "2.10.2 클라우드 보안 — 표준 이미지 사용 강제.",
+          "2.11.2 취약점 점검 및 조치 — 이미지 스캔."
+        ],
+        "evidence": [
+          "Image Builder 파이프라인 정의 및 최근 빌드 이력(성공/실패, 테스트 결과).",
+          "AMI 목록(describe-images --owners self)과 태그·생성일·Public 여부.",
+          "Config 규칙 approved-amis-by-tag 컴플라이언스 결과.",
+          "EC2 설정에서 'AMI 퍼블릭 액세스 차단' 활성 화면.",
+          "골든 AMI 릴리스 노트 및 승인 티켓."
+        ],
+        "auditorQuestions": [
+          "운영 서버는 어떤 AMI에서 만들어지며 그 이미지는 누가 검증·승인합니까?",
+          "골든 이미지 갱신 주기는? 갱신 후 기존 인스턴스는 어떻게 교체합니까?",
+          "승인되지 않은 AMI 사용을 어떻게 탐지합니까?",
+          "AMI를 외부 계정과 공유한 이력이 있습니까?"
+        ],
+        "controlExample": "운영 EC2는 플랫폼팀이 월 1회 제작·승인한 골든 AMI만 사용하며, 미승인 AMI 사용은 AWS Config가 탐지하여 7일 내 교체하고 결과를 기록한다."
+      },
+      "related": [
+        "aws-ec2",
+        "aws-ebs",
+        "aws-launch-template",
+        "aws-auto-scaling-group",
+        "awssec-inspector",
+        "awssec-config",
+        "cicd-github-actions"
+      ],
+      "learnMore": [
+        "Amazon Machine Images (EC2 User Guide)",
+        "EC2 Image Builder User Guide",
+        "CIS Amazon Linux Benchmark"
+      ]
+    },
+    {
+      "id": "aws-ebs",
+      "title": "EBS",
+      "titleEn": "Amazon Elastic Block Store",
+      "aliases": [
+        "블록 스토리지",
+        "볼륨",
+        "디스크",
+        "EBS 볼륨",
+        "스냅샷",
+        "gp3"
+      ],
+      "tags": [
+        "storage",
+        "block"
+      ],
+      "level": "기초",
+      "oneLiner": "EC2 인스턴스에 붙이는 네트워크 기반 가상 하드디스크",
+      "analogy": "EBS는 '외장 하드'와 같다. 서버(EC2)에 꽂아 쓰고, 서버를 바꿔도 하드를 빼서 다른 서버에 꽂을 수 있다. 스냅샷은 그 하드를 특정 시점에 '복사해 금고에 넣어 둔 것'이다.",
+      "explanation": "<p><strong>EBS(Elastic Block Store)</strong>는 EC2 인스턴스에 붙여 쓰는 블록 스토리지, 즉 가상 디스크다. OS가 보기엔 <code>/dev/nvme0n1</code> 같은 일반 디스크지만 실제로는 네트워크 너머의 복제된 저장소에 있다. 그래서 인스턴스가 죽어도 데이터는 남고(루트 볼륨의 DeleteOnTermination 설정 제외), 볼륨을 떼어 다른 인스턴스에 붙일 수 있다. 단, 볼륨은 <strong>AZ 단위 자원</strong>이라 같은 AZ의 인스턴스에만 붙는다.</p>\n<p>볼륨 타입은 용도별로 나뉜다. <strong>gp3</strong>(범용 SSD, 기본 3,000 IOPS/125MB/s, 용량과 성능을 따로 조절 — 대부분의 표준), <strong>io2 Block Express</strong>(고성능 SSD, 최대 256,000 IOPS, 핵심 DB용), <strong>st1</strong>(처리량 최적화 HDD, 로그·빅데이터 순차 읽기), <strong>sc1</strong>(콜드 HDD, 저빈도 접근). 구형 gp2는 gp3로 옮기는 것이 성능·비용 모두 유리하다.</p>\n<p><strong>스냅샷(Snapshot)</strong>은 볼륨의 특정 시점 백업으로 S3에 증분 저장된다. 첫 스냅샷은 전체, 이후는 변경 블록만 저장해 비용이 적다. 스냅샷으로 새 볼륨을 만들거나 AMI를 만들 수 있고, 다른 리전/계정으로 복사해 DR에 쓴다. <strong>AWS Backup</strong>이나 <strong>Data Lifecycle Manager(DLM)</strong>로 태그 기준 자동 스냅샷·보존 정책을 걸 수 있다.</p>\n<p><strong>암호화</strong>는 KMS 키로 이뤄지며, 계정 설정에서 '기본 암호화'를 켜면 새 볼륨이 자동 암호화된다. 암호화된 볼륨의 스냅샷·복제본은 모두 암호화되고, 사용 중인 볼륨을 나중에 암호화하려면 스냅샷 → 암호화 복사 → 새 볼륨 절차가 필요하다. 감사에서는 '운영 볼륨 100% 암호화'가 흔한 요구사항이다.</p>\n<p>EBS 외에 인스턴스 내장 <strong>인스턴스 스토어</strong>(물리 호스트 로컬 디스크, 중지/종료 시 데이터 소멸)가 있는데 캐시·임시 용도 외에는 쓰면 안 된다. 여러 인스턴스가 하나의 볼륨을 동시에 붙이는 <strong>Multi-Attach</strong>는 io2에서만, 클러스터 파일시스템 전제하에 가능하다.</p>",
+      "howItWorks": "<ol><li>사용자가 AZ·타입·크기·IOPS·암호화 키를 지정해 볼륨을 만든다(또는 인스턴스 생성 시 자동 생성).</li>\n<li>같은 AZ의 인스턴스에 <code>AttachVolume</code>으로 붙이면 OS에 블록 디바이스로 나타난다.</li>\n<li>OS에서 파일시스템을 만들고 마운트하면 애플리케이션이 쓰기 시작. 쓰기는 AZ 내 여러 저장 노드에 복제된다.</li>\n<li>DLM/AWS Backup 정책이 매일 02:00에 스냅샷을 만든다 — 변경 블록만 S3에 증분 저장.</li>\n<li>장애 시: 최신 스냅샷에서 새 볼륨을 만들어 대체 인스턴스에 붙이고 마운트해 복구한다.</li>\n<li>DR: 스냅샷을 다른 리전으로 복사(암호화 키는 대상 리전 KMS 키로 재암호화).</li></ol>",
+      "example": "<p>'페이나우' 자체 운영 PostgreSQL 서버는 io2 Block Express 2TB(20,000 IOPS)를 데이터 볼륨으로 쓰고, WAL 볼륨은 gp3 500GB(6,000 IOPS)로 분리했다. AWS Backup 정책이 <code>Backup=daily</code> 태그가 붙은 볼륨을 매일 스냅샷 떠 35일 보관하고, 주 1회 오사카 리전으로 복사한다. 모든 볼륨은 고객관리형 KMS 키로 암호화된다.</p>\n<pre><code># 암호화된 gp3 볼륨 생성 후 인스턴스에 연결\naws ec2 create-volume --availability-zone ap-northeast-2a --size 500 \\\n  --volume-type gp3 --iops 6000 --throughput 250 \\\n  --encrypted --kms-key-id alias/paynow-ebs \\\n  --tag-specifications 'ResourceType=volume,Tags=[{Key=Backup,Value=daily}]'\naws ec2 attach-volume --volume-id vol-0abc --instance-id i-0123 --device /dev/sdf\n\n# 암호화되지 않은 볼륨 찾기 (감사용)\naws ec2 describe-volumes --filters Name=encrypted,Values=false \\\n  --query 'Volumes[].[VolumeId,Size,Attachments[0].InstanceId]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='330' height='200' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>AZ ap-northeast-2a</text><rect x='40' y='55' width='130' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='82.0' text-anchor='middle' fill='currentColor'>EC2 인스턴스</text><text x='105.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>/dev/nvme1n1</text><rect x='210' y='55' width='120' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270.0' y='82.0' text-anchor='middle' fill='currentColor'>EBS 볼륨</text><text x='270.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>gp3 500GB 암호화</text><line x1='170' y1='85' x2='210' y2='85' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='190.0' y='79.0' text-anchor='middle' fill='currentColor' font-size='12'>attach</text><rect x='210' y='140' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='270.0' y='167.0' text-anchor='middle' fill='currentColor'>복제 저장 노드</text><text x='270.0' y='183.0' text-anchor='middle' fill='currentColor' font-size='11'>AZ 내 다중 복제</text><line x1='270' y1='115' x2='270' y2='140' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='400' y='55' width='210' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505.0' y='82.0' text-anchor='middle' fill='currentColor'>스냅샷 (S3 증분 저장)</text><text x='505.0' y='98.0' text-anchor='middle' fill='currentColor' font-size='11'>매일 02:00, 35일 보관</text><line x1='330' y1='85' x2='400' y2='85' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='365.0' y='79.0' text-anchor='middle' fill='currentColor' font-size='12'>snapshot</text><rect x='400' y='140' width='210' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505.0' y='167.0' text-anchor='middle' fill='currentColor'>다른 리전 복사본</text><text x='505.0' y='183.0' text-anchor='middle' fill='currentColor' font-size='11'>DR용, KMS 재암호화</text><line x1='505' y1='115' x2='505' y2='140' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='505.0' y='121.5' text-anchor='middle' fill='currentColor' font-size='12'>copy</text><text x='320' y='245' text-anchor='middle' fill='currentColor' font-size='11'>볼륨은 AZ에 묶이지만 스냅샷은 리전·계정 간 이동 가능</text></svg>",
+      "keyTerms": [
+        {
+          "term": "gp3",
+          "meaning": "범용 SSD. 용량과 IOPS/처리량을 독립 조정"
+        },
+        {
+          "term": "io2 Block Express",
+          "meaning": "최고 성능 SSD. 핵심 DB용"
+        },
+        {
+          "term": "스냅샷",
+          "meaning": "S3에 증분 저장되는 시점 백업"
+        },
+        {
+          "term": "DLM",
+          "meaning": "Data Lifecycle Manager. 스냅샷 자동 생성·보존 정책"
+        },
+        {
+          "term": "DeleteOnTermination",
+          "meaning": "인스턴스 종료 시 볼륨 자동 삭제 여부"
+        },
+        {
+          "term": "인스턴스 스토어",
+          "meaning": "호스트 로컬 임시 디스크. 중지 시 소멸"
+        },
+        {
+          "term": "기본 암호화",
+          "meaning": "계정 설정으로 신규 볼륨 자동 암호화"
+        },
+        {
+          "term": "Multi-Attach",
+          "meaning": "io2 볼륨을 여러 인스턴스에 동시 연결"
+        }
+      ],
+      "pitfalls": [
+        "볼륨은 다른 AZ의 인스턴스에 붙일 수 없다 — 스냅샷을 거쳐 새 볼륨을 만들어야 한다.",
+        "스냅샷은 파일시스템 정합성을 보장하지 않는다 — DB는 정지/플러시 후 찍거나 애플리케이션 정합 백업을 써야 한다.",
+        "gp2에서 gp3로 바꾸지 않아 성능은 낮고 비용은 높은 상태로 방치.",
+        "루트 볼륨 DeleteOnTermination=true 기본값 때문에 종료와 함께 로그·데이터가 사라짐.",
+        "암호화된 스냅샷을 다른 계정과 공유할 때 KMS 키 정책을 함께 열어주지 않아 실패.",
+        "스냅샷은 늘어나기만 하고 보존 정책이 없어 비용이 눈덩이처럼 커짐."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 운영 볼륨의 백업(스냅샷) 정책이 문서화되고 실제 실행 로그(AWS Backup 작업 이력)가 있는지.",
+          "[운영] 스냅샷으로부터의 복구 테스트를 주기적으로 수행하고 결과를 기록하는지.",
+          "[접근] 스냅샷 공유·삭제 권한이 제한되고 CloudTrail로 추적되는지(DeleteSnapshot, ModifySnapshotAttribute).",
+          "[운영] 운영 볼륨 암호화 100% 및 KMS 키 관리(키 정책·로테이션).",
+          "[운영] 스냅샷 Public 공유 차단 설정."
+        ],
+        "fss": [
+          "전자금융감독규정상 중요 데이터 백업·소산 요건 — 스냅샷 보존 기간 및 리전 간 복사(소산) 증빙.",
+          "저장 데이터 암호화 요건 — EBS 볼륨 암호화 현황.",
+          "백업 매체 관리 및 복구 시험 기록."
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리 — 스냅샷 정책·복구 시험.",
+          "2.7.1 암호정책 적용 / 2.7.2 암호키 관리 — 볼륨 암호화 및 KMS.",
+          "2.9.7 정보자산의 재사용 및 폐기 — 볼륨·스냅샷 삭제 절차."
+        ],
+        "evidence": [
+          "AWS Backup 백업 계획(플랜) 정의와 최근 30일 작업 이력(성공/실패).",
+          "describe-volumes 결과에서 Encrypted 열 전체 true 확인 export.",
+          "EBS 기본 암호화 활성 설정 화면(리전별).",
+          "스냅샷 복구 시험 보고서(복구 시각, 소요 시간, 검증 결과).",
+          "CloudTrail DeleteSnapshot/ModifySnapshotAttribute 이벤트 조회 결과."
+        ],
+        "auditorQuestions": [
+          "운영 볼륨은 어떤 주기로 백업되고 얼마나 보관합니까?",
+          "마지막 복구 시험은 언제였고 RTO 안에 복구되었습니까?",
+          "암호화되지 않은 볼륨이 있습니까? 있다면 사유는?",
+          "스냅샷을 외부 계정과 공유하거나 삭제할 수 있는 사람은 누구입니까?",
+          "재해 시 다른 리전에 복사된 스냅샷으로 복구하는 절차가 문서화되어 있습니까?"
+        ],
+        "controlExample": "운영 EBS 볼륨은 KMS 고객관리형 키로 100% 암호화되며, AWS Backup이 매일 스냅샷을 생성해 35일 보관하고 분기별 복구 시험 결과를 IT운영팀장이 승인·보관한다."
+      },
+      "related": [
+        "aws-ec2",
+        "aws-ami",
+        "aws-efs",
+        "aws-fsx",
+        "aws-s3",
+        "awssec-kms",
+        "awsdata-aws-backup",
+        "awssec-cloudtrail"
+      ],
+      "learnMore": [
+        "Amazon EBS User Guide",
+        "Amazon EBS volume types",
+        "AWS Backup Developer Guide"
+      ]
+    },
+    {
+      "id": "aws-efs",
+      "title": "EFS",
+      "titleEn": "Amazon Elastic File System",
+      "aliases": [
+        "공유 파일시스템",
+        "NFS",
+        "네트워크 파일 스토리지",
+        "이에프에스",
+        "공유 스토리지"
+      ],
+      "tags": [
+        "storage",
+        "file",
+        "nfs"
+      ],
+      "level": "기초",
+      "oneLiner": "여러 서버가 동시에 마운트해 쓰는 관리형 NFS 공유 파일 스토리지",
+      "analogy": "EFS는 사무실의 '공용 파일 서버 드라이브(NAS)'와 같다. 누가 어느 자리에서든 같은 폴더를 열어 보고 저장할 수 있고, 용량 걱정 없이 넣는 만큼만 자동으로 늘어난다. 반면 EBS는 내 자리 PC에만 꽂힌 외장 하드다.",
+      "explanation": "<p><strong>EFS(Elastic File System)</strong>는 NFS v4 프로토콜로 접근하는 완전관리형 공유 파일 시스템이다. EBS가 한 인스턴스(같은 AZ)에만 붙는 블록 디스크라면, EFS는 <strong>여러 AZ의 수천 개 인스턴스·컨테이너·Lambda가 동시에</strong> 같은 디렉터리를 마운트할 수 있다. 용량을 미리 정하지 않고 쓴 만큼 과금되며 페타바이트까지 자동 확장된다. 쉽게 말하면 '용량 무제한 NAS를 AWS가 대신 운영해 주는 것'이다.</p>\n<p>왜 필요한가? 웹 서버 여러 대가 같은 업로드 파일을 봐야 하거나, 컨테이너가 재시작돼도 남는 공유 데이터가 필요하거나, 온프레미스 NAS를 옮기는 경우다. EKS의 <code>ReadWriteMany</code> PVC, SAP 공유 디렉터리(<code>/sapmnt</code>, <code>/usr/sap/trans</code>) 같은 사례가 대표적이다.</p>\n<p>구성 요소: <strong>파일 시스템</strong>(리전 자원), <strong>마운트 타깃</strong>(AZ별 서브넷에 만들어지는 ENI — 여기 붙은 보안 그룹이 2049 포트를 통제), <strong>액세스 포인트</strong>(특정 디렉터리·POSIX UID/GID를 강제하는 진입점 — 애플리케이션별 격리에 사용), <strong>스토리지 클래스</strong>(Standard, Infrequent Access, Archive — 수명주기 정책으로 자동 이동), <strong>처리량 모드</strong>(Elastic 권장, Bursting, Provisioned).</p>\n<p>가용성 유형은 <strong>Regional</strong>(여러 AZ에 복제, 운영 표준)과 <strong>One Zone</strong>(단일 AZ, 저렴하지만 AZ 장애 시 접근 불가)이 있다. 암호화는 저장 시(KMS)와 전송 시(TLS, <code>amazon-efs-utils</code>의 <code>-o tls</code> 옵션)를 각각 켜야 한다. 접근 통제는 세 겹이다: 보안 그룹(네트워크), 파일 시스템 정책(IAM 기반 — 누가 마운트·읽기·쓰기 가능한지, TLS 강제), POSIX 권한(OS 레벨).</p>\n<p>백업은 AWS Backup과 통합되며, 다른 리전으로의 <strong>복제(Replication)</strong> 기능으로 DR을 구성할 수 있다.</p>",
+      "howItWorks": "<ol><li>관리자가 VPC를 선택해 파일 시스템을 만들고, 사용할 각 AZ의 프라이빗 서브넷에 마운트 타깃을 생성한다.</li>\n<li>마운트 타깃 보안 그룹에 '앱 서버 보안 그룹에서 TCP 2049 허용' 규칙을 넣는다.</li>\n<li>파일 시스템 정책으로 <code>aws:SecureTransport</code>가 false인 접근을 거부하고, 특정 IAM 역할만 <code>ClientWrite</code>를 허용한다.</li>\n<li>EC2/컨테이너가 <code>mount -t efs -o tls,iam fs-0abc:/ /mnt/shared</code>로 마운트 — DNS가 같은 AZ의 마운트 타깃 IP로 안내한다.</li>\n<li>쓰기는 여러 AZ에 동기 복제되어 다른 AZ의 서버가 즉시 같은 파일을 본다.</li>\n<li>30일간 읽지 않은 파일은 수명주기 정책에 따라 IA 클래스로 옮겨져 비용이 줄고, 다시 접근하면 Standard로 복귀(옵션).</li></ol>",
+      "example": "<p>'마켓온' 상품 이미지 업로드 서비스는 웹 서버 4대(2a/2c)가 EFS <code>/uploads</code>를 공유한다. 액세스 포인트로 서비스별 루트 디렉터리(<code>/uploads/product</code>, <code>/uploads/review</code>)와 UID 1001을 강제해 다른 서비스가 서로의 파일을 못 보게 했다. 파일 시스템 정책은 TLS 없는 마운트를 거부하며, AWS Backup이 매일 백업해 30일 보관한다.</p>\n<pre><code># TLS + IAM 인증으로 마운트 (amazon-efs-utils 필요)\nsudo mount -t efs -o tls,iam,accesspoint=fsap-0123abcd fs-0abc1234:/ /mnt/uploads\n\n# 파일 시스템 정책: 비암호화 전송 거부\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Deny\", \"Principal\": {\"AWS\": \"*\"},\n    \"Action\": \"*\", \"Resource\": \"arn:aws:elasticfilesystem:ap-northeast-2:123456789012:file-system/fs-0abc1234\",\n    \"Condition\": {\"Bool\": {\"aws:SecureTransport\": \"false\"}}\n  }]\n}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='600' height='130' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>VPC</text><rect x='40' y='50' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='75.0' text-anchor='middle' fill='currentColor'>웹 서버 (2a)</text><rect x='40' y='100' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='125.0' text-anchor='middle' fill='currentColor'>웹 서버 (2c)</text><rect x='230' y='50' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='295.0' y='67.0' text-anchor='middle' fill='currentColor'>마운트 타깃 2a</text><text x='295.0' y='83.0' text-anchor='middle' fill='currentColor' font-size='11'>ENI + SG 2049</text><rect x='230' y='100' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='295.0' y='117.0' text-anchor='middle' fill='currentColor'>마운트 타깃 2c</text><text x='295.0' y='133.0' text-anchor='middle' fill='currentColor' font-size='11'>ENI + SG 2049</text><line x1='170' y1='70' x2='230' y2='70' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='200.0' y='64.0' text-anchor='middle' fill='currentColor' font-size='12'>NFS/TLS</text><line x1='170' y1='120' x2='230' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='200.0' y='114.0' text-anchor='middle' fill='currentColor' font-size='12'>NFS/TLS</text><rect x='420' y='50' width='180' height='90' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='510.0' y='92.0' text-anchor='middle' fill='currentColor'>EFS 파일 시스템</text><text x='510.0' y='108.0' text-anchor='middle' fill='currentColor' font-size='11'>Regional · KMS 암호화</text><line x1='360' y1='70' x2='420' y2='80' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='360' y1='120' x2='420' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='40' y='175' width='170' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='125.0' y='202.0' text-anchor='middle' fill='currentColor'>액세스 포인트</text><text x='125.0' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>/uploads/product, UID 1001</text><rect x='240' y='175' width='170' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='325.0' y='202.0' text-anchor='middle' fill='currentColor'>파일 시스템 정책</text><text x='325.0' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>IAM · TLS 강제</text><rect x='440' y='175' width='170' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525.0' y='202.0' text-anchor='middle' fill='currentColor'>AWS Backup / 복제</text><text x='525.0' y='218.0' text-anchor='middle' fill='currentColor' font-size='11'>일 백업 · 리전 간 복제</text><line x1='510' y1='175' x2='510' y2='150' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/></svg>",
+      "keyTerms": [
+        {
+          "term": "NFS v4",
+          "meaning": "EFS가 사용하는 네트워크 파일 프로토콜, TCP 2049"
+        },
+        {
+          "term": "마운트 타깃",
+          "meaning": "AZ별로 만드는 EFS 접속용 ENI"
+        },
+        {
+          "term": "액세스 포인트",
+          "meaning": "디렉터리·UID/GID를 고정한 애플리케이션별 진입점"
+        },
+        {
+          "term": "파일 시스템 정책",
+          "meaning": "IAM 기반 EFS 접근 정책(리소스 정책)"
+        },
+        {
+          "term": "Elastic 처리량",
+          "meaning": "사용량에 따라 자동 조정되는 권장 처리량 모드"
+        },
+        {
+          "term": "EFS IA / Archive",
+          "meaning": "저빈도 접근 파일용 저가 스토리지 클래스"
+        },
+        {
+          "term": "One Zone",
+          "meaning": "단일 AZ에만 저장되는 저비용 옵션"
+        },
+        {
+          "term": "amazon-efs-utils",
+          "meaning": "TLS·IAM 마운트를 지원하는 EFS 마운트 헬퍼"
+        }
+      ],
+      "pitfalls": [
+        "마운트 타깃을 한 AZ에만 만들어 다른 AZ 서버가 AZ 간 통신 비용을 내거나 장애 시 끊김.",
+        "보안 그룹 2049 포트를 VPC 전체(0.0.0.0/0)에 열어 두는 것.",
+        "TLS 없이 마운트해 전송 암호화가 빠짐 — 파일 시스템 정책으로 강제해야 한다.",
+        "작은 파일 대량 I/O(수백만 개)에는 지연이 커서 EBS/FSx가 나은 경우가 있다.",
+        "Windows 서버는 EFS를 쓸 수 없다(NFS 전용) — FSx for Windows File Server를 써야 한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] EFS 파일 시스템 정책과 액세스 포인트로 애플리케이션별 접근이 분리되는지, 익명 마운트가 차단되는지.",
+          "[운영] 저장/전송 암호화 활성 여부 및 KMS 키 관리.",
+          "[운영] AWS Backup 정책과 복구 시험 기록.",
+          "[변경] 마운트 타깃 보안 그룹·파일 시스템 정책 변경의 변경관리 연계."
+        ],
+        "fss": [
+          "중요 파일(거래 증빙, 전표 이미지 등) 저장소의 접근통제 및 암호화 요건.",
+          "백업 및 소산 요건 — 리전 간 복제 또는 백업 복사 현황."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 마운트 타깃 보안 그룹.",
+          "2.6.4 데이터베이스 접근(파일 저장소 준용) — 공유 스토리지 접근 권한 관리.",
+          "2.7.1 암호정책 적용 — 저장·전송 암호화.",
+          "2.9.3 백업 및 복구관리."
+        ],
+        "evidence": [
+          "EFS 콘솔 파일 시스템 상세: 암호화 상태, 스토리지 클래스, 가용성 유형 캡처.",
+          "파일 시스템 정책 JSON 원본과 액세스 포인트 목록.",
+          "마운트 타깃 보안 그룹 규칙 export.",
+          "AWS Backup 작업 이력 및 복구 시험 보고서.",
+          "CloudTrail의 PutFileSystemPolicy/DeleteFileSystem 이벤트."
+        ],
+        "auditorQuestions": [
+          "이 파일 시스템에는 어떤 데이터가 저장되며 접근 가능한 서버·역할은 무엇입니까?",
+          "전송 암호화(TLS)를 강제하고 있습니까?",
+          "서비스 간 디렉터리 격리는 어떻게 구현합니까?",
+          "백업 주기와 복구 시험 결과는?"
+        ],
+        "controlExample": "운영 EFS는 KMS 암호화와 TLS 전송을 파일 시스템 정책으로 강제하며, 서비스별 액세스 포인트로 디렉터리를 격리하고 AWS Backup으로 일 단위 백업 후 분기별 복구 시험을 수행한다."
+      },
+      "related": [
+        "aws-ebs",
+        "aws-fsx",
+        "aws-s3",
+        "aws-security-group",
+        "aws-storage-gateway",
+        "k8s-persistent-volume",
+        "awssec-kms"
+      ],
+      "learnMore": [
+        "Amazon EFS User Guide",
+        "Using IAM to control file system data access (EFS)",
+        "EFS access points"
+      ]
+    },
+    {
+      "id": "aws-auto-scaling-group",
+      "title": "Auto Scaling Group",
+      "titleEn": "Amazon EC2 Auto Scaling Group (ASG)",
+      "aliases": [
+        "ASG",
+        "오토스케일링",
+        "자동 확장",
+        "스케일 아웃",
+        "스케일 인",
+        "오토 스케일링 그룹"
+      ],
+      "tags": [
+        "compute",
+        "scaling",
+        "ha"
+      ],
+      "level": "중급",
+      "oneLiner": "부하·일정·헬스체크에 따라 EC2 대수를 자동으로 늘리고 줄이는 그룹",
+      "analogy": "ASG는 '손님 수에 따라 자동으로 계산대를 여닫는 마트'와 같다. 줄이 길어지면 계산대를 더 열고(스케일 아웃), 한가하면 닫는다(스케일 인). 계산원이 갑자기 쓰러지면(헬스체크 실패) 바로 교대 인원을 투입한다.",
+      "explanation": "<p><strong>Auto Scaling Group(ASG)</strong>은 같은 설정(Launch Template)으로 만들어진 EC2 인스턴스 묶음을 <strong>최소·희망·최대 대수</strong> 범위 안에서 자동 관리하는 서비스다. 쉽게 말하면 '서버 몇 대를 항상 유지하고, 바쁘면 늘리고, 죽으면 갈아 끼우는 자동 관리자'다.</p>\n<p>왜 필요한가? 첫째 <strong>가용성</strong> — 인스턴스가 비정상이면 자동 교체한다. 둘째 <strong>탄력성</strong> — 트래픽에 맞춰 대수를 조절해 비용을 아낀다. 셋째 <strong>표준화</strong> — 손으로 만든 서버 대신 항상 템플릿 기반으로 생성되어 구성이 일관된다. 운영에서는 대수가 1이라도 ASG로 감싸는 것이 '자가 치유'를 위해 권장된다.</p>\n<p>핵심 구성: <strong>Launch Template</strong>(무엇을 만들지), <strong>서브넷 목록</strong>(어느 AZ에 분산할지 — 여러 AZ 지정 필수), <strong>대상 그룹 연결</strong>(ALB/NLB에 자동 등록·해제), <strong>헬스체크 유형</strong>(EC2 상태 또는 ELB 헬스체크), <strong>스케일링 정책</strong>, <strong>수명주기 훅</strong>(인스턴스가 서비스 투입/종료 전 잠시 멈춰 초기화·로그 수거 시간을 주는 것), <strong>인스턴스 새로 고침(Instance Refresh)</strong>(템플릿 변경 시 점진적 교체 배포).</p>\n<p>스케일링 정책 종류: <strong>대상 추적(Target Tracking)</strong>(예: 평균 CPU 50% 유지 — 가장 많이 씀), <strong>단계 조정(Step)</strong>(지표 구간별 대수), <strong>예약(Scheduled)</strong>(매일 09:00에 10대), <strong>예측(Predictive)</strong>(과거 패턴 ML로 미리 확장). 스케일 인 시 어떤 인스턴스를 먼저 종료할지는 <strong>종료 정책</strong>과 <strong>스케일 인 보호</strong>로 조절한다.</p>\n<p>혼합 인스턴스 정책으로 온디맨드와 스팟을 섞거나 여러 인스턴스 타입을 후보로 두어 용량 부족을 피할 수 있다. 워밍 풀(Warm Pool)은 미리 초기화된 인스턴스를 대기시켜 확장 시간을 줄인다.</p>",
+      "howItWorks": "<ol><li>ASG가 희망 대수(예: 4)와 실제 정상 인스턴스 수를 계속 비교한다.</li>\n<li>CloudWatch 경보(예: 평균 CPU &gt; 60% 3분)가 울리면 스케일링 정책이 희망 대수를 6으로 올린다.</li>\n<li>ASG가 Launch Template으로 인스턴스 2대를 AZ 균형(2a:2c)을 맞춰 생성한다.</li>\n<li>수명주기 훅(pending:wait)에서 user data가 앱을 기동하고 훅을 완료하면 InService로 전환.</li>\n<li>ALB 대상 그룹에 자동 등록되어 헬스체크 통과 후 트래픽을 받는다.</li>\n<li>부하가 줄면 쿨다운 후 희망 대수를 내리고, 종료 정책에 따라 인스턴스를 고른 뒤 ALB에서 연결 드레이닝 → 종료 훅(로그 수거) → 종료.</li>\n<li>ELB 헬스체크 실패 인스턴스는 Unhealthy로 표시되어 자동 교체된다.</li></ol>",
+      "example": "<p>'페이나우' 결제 API ASG는 min 4 / desired 4 / max 20, 2a·2b·2c 프라이빗 서브넷에 배치되고 ALB 헬스체크(<code>/health</code>)를 사용한다. 대상 추적 정책은 ALB 요청 수/타깃 1,000을 기준으로 하고, 매일 23:50 정산 배치 전 예약 정책으로 min을 8로 올린다. 골든 AMI 갱신 시 Instance Refresh로 25%씩 교체하며 최소 정상 비율 75%를 유지한다.</p>\n<pre><code># 대상 추적 정책 (ALB 타깃당 요청 수)\naws autoscaling put-scaling-policy --auto-scaling-group-name paynow-api-asg \\\n  --policy-name req-per-target --policy-type TargetTrackingScaling \\\n  --target-tracking-configuration '{\n    \"PredefinedMetricSpecification\": {\n      \"PredefinedMetricType\": \"ALBRequestCountPerTarget\",\n      \"ResourceLabel\": \"app/paynow-alb/abc123/targetgroup/paynow-tg/def456\"},\n    \"TargetValue\": 1000.0}'\n\n# 템플릿 변경 후 점진 교체\naws autoscaling start-instance-refresh --auto-scaling-group-name paynow-api-asg \\\n  --preferences '{\"MinHealthyPercentage\": 75, \"InstanceWarmup\": 120}'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='52.0' text-anchor='middle' fill='currentColor'>CloudWatch 경보</text><text x='95.0' y='68.0' text-anchor='middle' fill='currentColor' font-size='11'>CPU > 60%</text><line x1='170' y1='55' x2='230' y2='55' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='200.0' y='49.0' text-anchor='middle' fill='currentColor' font-size='12'>트리거</text><rect x='230' y='30' width='180' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='52.0' text-anchor='middle' fill='currentColor'>스케일링 정책</text><text x='320.0' y='68.0' text-anchor='middle' fill='currentColor' font-size='11'>희망 대수 4 → 6</text><line x1='320' y1='80' x2='320' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='20' y='110' width='400' height='130' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='126' fill='currentColor' font-size='12'>ASG (min 4 / max 20)</text><rect x='40' y='140' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='165.0' text-anchor='middle' fill='currentColor'>EC2 2a</text><rect x='150' y='140' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='200.0' y='165.0' text-anchor='middle' fill='currentColor'>EC2 2b</text><rect x='260' y='140' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='310.0' y='165.0' text-anchor='middle' fill='currentColor'>EC2 2c</text><rect x='40' y='190' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90.0' y='215.0' text-anchor='middle' fill='currentColor'>EC2 2a</text><rect x='150' y='190' width='100' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='200.0' y='215.0' text-anchor='middle' fill='currentColor'>+ 신규</text><rect x='260' y='190' width='100' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='310.0' y='215.0' text-anchor='middle' fill='currentColor'>+ 신규</text><rect x='460' y='30' width='160' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540.0' y='52.0' text-anchor='middle' fill='currentColor'>Launch Template</text><text x='540.0' y='68.0' text-anchor='middle' fill='currentColor' font-size='11'>AMI·타입·SG·역할</text><line x1='460' y1='55' x2='410' y2='55' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><rect x='460' y='140' width='160' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540.0' y='162.0' text-anchor='middle' fill='currentColor'>ALB 대상 그룹</text><text x='540.0' y='178.0' text-anchor='middle' fill='currentColor' font-size='11'>자동 등록·헬스체크</text><line x1='420' y1='165' x2='460' y2='165' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='540' y='225' text-anchor='middle' fill='currentColor' font-size='11'>Unhealthy → 자동 교체</text></svg>",
+      "keyTerms": [
+        {
+          "term": "min / desired / max",
+          "meaning": "최소·희망·최대 인스턴스 수"
+        },
+        {
+          "term": "대상 추적 정책",
+          "meaning": "지표를 목표값으로 유지하도록 자동 조절"
+        },
+        {
+          "term": "수명주기 훅",
+          "meaning": "인스턴스 투입/종료 전 대기 시간을 주는 장치"
+        },
+        {
+          "term": "Instance Refresh",
+          "meaning": "템플릿 변경을 점진적으로 반영하는 롤링 교체"
+        },
+        {
+          "term": "쿨다운/워밍업",
+          "meaning": "연속 스케일링 사이의 대기 시간"
+        },
+        {
+          "term": "종료 정책",
+          "meaning": "스케일 인 시 어떤 인스턴스를 먼저 종료할지"
+        },
+        {
+          "term": "스케일 인 보호",
+          "meaning": "특정 인스턴스가 종료 대상에서 제외되도록 표시"
+        },
+        {
+          "term": "Warm Pool",
+          "meaning": "미리 초기화된 대기 인스턴스 풀"
+        }
+      ],
+      "pitfalls": [
+        "헬스체크 유형을 EC2로만 두면 앱이 죽어도 OS가 살아 있어 교체되지 않는다 — ELB 헬스체크를 켜야 한다.",
+        "ASG 밖에서 인스턴스를 손으로 수정하면 다음 교체 때 사라진다(스노우플레이크 서버).",
+        "서브넷을 한 AZ만 지정해 AZ 장애 시 전부 죽는 구성.",
+        "스케일 인 시 처리 중인 작업이 끊김 — 연결 드레이닝과 종료 훅으로 정리 시간을 줘야 한다.",
+        "max 값을 너무 크게 두어 장애 상황에서 비용 폭탄, 또는 너무 작아 확장 실패.",
+        "Launch Template 새 버전을 만들었지만 ASG가 '$Latest'가 아닌 특정 버전을 가리켜 반영이 안 됨."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] ASG 설정(템플릿 버전, min/max, 정책) 변경이 IaC PR·변경 티켓과 연결되는지 — CloudTrail UpdateAutoScalingGroup 이벤트 대조.",
+          "[운영] 운영 ASG의 다중 AZ 배치와 ELB 헬스체크 사용 여부.",
+          "[운영] 자동 생성 인스턴스가 승인된 템플릿·AMI만 사용하는지(ASG 밖 수동 인스턴스 존재 여부).",
+          "[접근] ASG 수정·삭제 권한이 플랫폼팀으로 제한되는지."
+        ],
+        "fss": [
+          "정보처리시스템 용량 관리 — 성능·용량 모니터링 및 확장 정책 문서화.",
+          "가용성 확보 — 이중화(다중 AZ) 구성 및 장애 시 자동 복구 시험 기록."
+        ],
+        "isms": [
+          "2.9.1 변경관리 — 스케일링 설정 변경 승인.",
+          "2.9.2 성능 및 장애관리 — 용량 계획 및 자동 확장 정책.",
+          "2.12.1 재해·재난 대비 안전조치 — 다중 AZ 자동 복구."
+        ],
+        "evidence": [
+          "ASG 상세 화면(min/desired/max, 서브넷, 헬스체크 유형, 템플릿 버전) 캡처.",
+          "스케일링 정책 목록 및 CloudWatch 경보 정의.",
+          "ASG 활동 이력(Activity history) 최근 90일 export.",
+          "Instance Refresh 실행 이력과 관련 변경 티켓.",
+          "CloudTrail UpdateAutoScalingGroup/SetDesiredCapacity 이벤트와 승인 기록 대조표."
+        ],
+        "auditorQuestions": [
+          "운영 ASG의 대수 범위와 확장 기준은 무엇이며 누가 승인했습니까?",
+          "인스턴스 비정상 시 자동 교체를 어떻게 확인합니까(최근 사례)?",
+          "템플릿 변경은 어떤 절차로 운영에 반영됩니까?",
+          "ASG 밖에서 수동으로 만든 운영 서버가 있습니까?"
+        ],
+        "controlExample": "운영 API 서버는 3개 AZ에 걸친 ASG로만 배포되며, ASG 설정 변경은 Terraform PR 승인 후 CI/CD로만 반영되고 CloudTrail 이벤트를 월 1회 변경 티켓과 대조한다."
+      },
+      "related": [
+        "aws-ec2",
+        "aws-launch-template",
+        "aws-elb",
+        "aws-ami",
+        "aws-purchase-options",
+        "obs-cloudwatch",
+        "iac-terraform",
+        "k8s-hpa"
+      ],
+      "learnMore": [
+        "Amazon EC2 Auto Scaling User Guide",
+        "Target tracking scaling policies",
+        "Instance refresh (Auto Scaling)"
+      ]
+    },
+    {
+      "id": "aws-launch-template",
+      "title": "Launch Template",
+      "titleEn": "EC2 Launch Template",
+      "aliases": [
+        "시작 템플릿",
+        "런치 템플릿",
+        "인스턴스 템플릿",
+        "Launch Configuration(구)",
+        "시작 구성"
+      ],
+      "tags": [
+        "compute",
+        "config",
+        "template"
+      ],
+      "level": "기초",
+      "oneLiner": "EC2 인스턴스 생성 파라미터를 버전 관리되는 설정으로 저장한 것",
+      "analogy": "Launch Template은 '커피 레시피 카드'와 같다. 원두(AMI), 컵 크기(인스턴스 타입), 토핑(태그·보안 그룹)을 적어 두면 누가 만들어도 같은 커피가 나온다. 레시피를 고치면 v2, v3처럼 버전이 남아 언제든 이전 레시피로 돌아갈 수 있다.",
+      "explanation": "<p><strong>Launch Template(시작 템플릿)</strong>은 EC2 인스턴스를 만들 때 필요한 설정 — AMI ID, 인스턴스 타입, 키 페어, 보안 그룹, IAM 인스턴스 프로파일, 네트워크 인터페이스, 블록 디바이스 매핑, user data, 태그, IMDS 옵션, 구매 옵션 — 을 하나의 객체로 저장한 것이다. Auto Scaling Group, EC2 Fleet, Spot Fleet, 그리고 단일 인스턴스 생성 시 모두 참조한다. 구 명칭 <strong>Launch Configuration(시작 구성)</strong>은 버전 관리·최신 기능이 없어 폐기 예정이며 새 ASG는 반드시 Launch Template을 써야 한다.</p>\n<p>왜 필요한가? 인스턴스 설정을 매번 콘솔에서 고르면 사람마다 달라지고 기록도 없다. 템플릿은 '어떤 설정으로 서버가 만들어졌는가'를 <strong>버전 번호로 추적</strong>하게 해 준다. 감사 관점에서 이는 '서버 구성 기준선(baseline)'과 '변경 이력'의 증빙이 된다.</p>\n<p>핵심 개념은 <strong>버전</strong>이다. 템플릿은 수정할 때마다 새 버전(1, 2, 3…)이 만들어지고 기존 버전은 불변이다. ASG는 특정 번호, <code>$Latest</code>, <code>$Default</code> 중 하나를 참조한다. 운영에서는 <code>$Latest</code>를 직접 쓰기보다 검토된 버전을 <code>$Default</code>로 지정하고 ASG가 <code>$Default</code>를 보게 하는 방식이 통제에 유리하다.</p>\n<p>템플릿에는 보안 기준선을 박아 둘 수 있다. IMDSv2 필수(<code>HttpTokens=required</code>), EBS 암호화, 필수 태그, 공인 IP 자동 할당 해제, 승인된 AMI(SSM 파라미터 참조 <code>resolve:ssm:/golden/latest</code>) 등이다. 이렇게 하면 '템플릿을 쓰는 한 기준을 어길 수 없는' 예방 통제가 된다.</p>\n<p>템플릿 자체도 IAM으로 보호한다. <code>ec2:CreateLaunchTemplateVersion</code>, <code>ec2:ModifyLaunchTemplate</code>(기본 버전 변경) 권한을 플랫폼팀에만 주고, 템플릿이 참조하는 IAM 역할에 대해 <code>iam:PassRole</code>을 제한해야 권한 상승을 막을 수 있다.</p>",
+      "howItWorks": "<ol><li>플랫폼팀이 Terraform으로 템플릿을 정의(AMI=SSM 파라미터, 타입, SG, 역할, user data, IMDSv2, 태그)하고 적용 → 버전 1 생성.</li>\n<li>ASG가 템플릿 <code>$Default</code>(=v1)를 참조하도록 설정.</li>\n<li>골든 AMI가 갱신되거나 타입을 바꾸면 PR → 승인 → 적용으로 버전 2가 생성된다(기존 v1은 그대로 남음).</li>\n<li>검증 후 v2를 <code>$Default</code>로 지정한다.</li>\n<li>ASG Instance Refresh가 실행되어 v2 기준으로 인스턴스를 점진 교체한다.</li>\n<li>문제가 생기면 <code>$Default</code>를 v1로 되돌리고 다시 Refresh하면 롤백된다.</li></ol>",
+      "example": "<p>'마켓온' 웹 서버 템플릿 <code>mk-web-lt</code>는 현재 v14가 기본 버전이다. AMI는 <code>resolve:ssm:/golden/al2023/latest</code>로 참조하고, IMDSv2 필수, gp3 암호화 루트 볼륨, 공인 IP 비할당, 태그 <code>Env=prod, SoxScope=yes</code>가 박혀 있다. 템플릿 버전 생성 권한은 플랫폼팀 역할에만 있으며, CloudTrail의 <code>CreateLaunchTemplateVersion</code> 이벤트는 매월 변경 티켓과 대조된다.</p>\n<pre><code># 새 버전 생성 (기존 v14 기반, 인스턴스 타입만 변경)\naws ec2 create-launch-template-version --launch-template-name mk-web-lt \\\n  --source-version 14 --version-description \"m7i.large로 상향 CHG-2031\" \\\n  --launch-template-data '{\"InstanceType\":\"m7i.large\",\n    \"MetadataOptions\":{\"HttpTokens\":\"required\"}}'\n\n# 검증 후 기본 버전 변경\naws ec2 modify-launch-template --launch-template-name mk-web-lt --default-version 15\n\n# 버전 이력 조회 (감사용)\naws ec2 describe-launch-template-versions --launch-template-name mk-web-lt \\\n  --query 'LaunchTemplateVersions[].[VersionNumber,CreateTime,CreatedBy,VersionDescription]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='90' width='150' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='95.0' y='127.0' text-anchor='middle' fill='currentColor'>Launch Template</text><text x='95.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>mk-web-lt</text><rect x='200' y='30' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255.0' y='49.5' text-anchor='middle' fill='currentColor'>v13</text><text x='255.0' y='65.5' text-anchor='middle' fill='currentColor' font-size='11'>불변</text><rect x='200' y='90' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255.0' y='109.5' text-anchor='middle' fill='currentColor'>v14 $Default</text><text x='255.0' y='125.5' text-anchor='middle' fill='currentColor' font-size='11'>승인됨</text><rect x='200' y='150' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255.0' y='169.5' text-anchor='middle' fill='currentColor'>v15 $Latest</text><text x='255.0' y='185.5' text-anchor='middle' fill='currentColor' font-size='11'>검증 중</text><line x1='170' y1='110' x2='200' y2='52' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='170' y1='125' x2='200' y2='112' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='170' y1='140' x2='200' y2='172' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='360' y='90' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='420.0' y='117.0' text-anchor='middle' fill='currentColor'>ASG</text><text x='420.0' y='133.0' text-anchor='middle' fill='currentColor' font-size='11'>$Default 참조</text><line x1='310' y1='112' x2='360' y2='118' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='520' y='40' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570.0' y='67.5' text-anchor='middle' fill='currentColor'>AMI(SSM)</text><rect x='520' y='100' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570.0' y='127.5' text-anchor='middle' fill='currentColor'>SG · IAM 역할</text><rect x='520' y='160' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570.0' y='187.5' text-anchor='middle' fill='currentColor'>IMDSv2 · 태그</text><line x1='95' y1='90' x2='95' y2='40' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='95' y='32' text-anchor='middle' fill='currentColor' font-size='11'>IaC PR 승인 → 새 버전</text><line x1='480' y1='120' x2='520' y2='62' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><line x1='480' y1='120' x2='520' y2='122' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><line x1='480' y1='120' x2='520' y2='182' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320' y='240' text-anchor='middle' fill='currentColor' font-size='11'>템플릿 = 서버 구성 기준선 + 버전 이력(증빙)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "버전(Version)",
+          "meaning": "템플릿 수정마다 생기는 불변 스냅샷 번호"
+        },
+        {
+          "term": "$Default / $Latest",
+          "meaning": "기본 버전 / 가장 최근 버전 참조"
+        },
+        {
+          "term": "Launch Configuration",
+          "meaning": "구 방식. 버전 없음, 신규 사용 불가 예정"
+        },
+        {
+          "term": "resolve:ssm",
+          "meaning": "AMI ID를 SSM 파라미터로 동적 참조하는 문법"
+        },
+        {
+          "term": "iam:PassRole",
+          "meaning": "템플릿에 IAM 역할을 지정할 때 필요한 권한"
+        },
+        {
+          "term": "블록 디바이스 매핑",
+          "meaning": "루트/데이터 볼륨 크기·타입·암호화 설정"
+        },
+        {
+          "term": "MetadataOptions",
+          "meaning": "IMDSv2 필수 여부 등 메타데이터 설정"
+        }
+      ],
+      "pitfalls": [
+        "ASG가 $Latest를 참조하면 검토 안 된 버전이 바로 운영에 들어간다.",
+        "템플릿에 보안 그룹과 네트워크 인터페이스 설정을 동시에 넣어 충돌 오류가 나는 경우.",
+        "Launch Configuration을 아직 쓰는 ASG — 최신 인스턴스 타입·혼합 정책을 못 쓴다.",
+        "user data에 비밀번호·토큰을 평문으로 넣음(템플릿 조회 권한자 누구나 볼 수 있음).",
+        "템플릿 버전 설명을 비워 두어 '왜 바꿨는지' 추적 불가."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 템플릿 버전 생성·기본 버전 변경이 변경 티켓과 연결되는지(버전 설명에 티켓 번호, CloudTrail 대조).",
+          "[접근] 템플릿 수정 권한과 iam:PassRole 권한이 플랫폼팀으로 제한되는지.",
+          "[운영] 운영 템플릿에 보안 기준선(IMDSv2, 암호화, 태그, 승인 AMI)이 포함되는지.",
+          "[운영] 운영 ASG가 $Latest가 아닌 승인 버전을 참조하는지."
+        ],
+        "fss": [
+          "정보처리시스템 구성 기준(보안 설정 표준)의 문서화 및 적용 증빙.",
+          "변경 시 사전 승인 및 이력 관리 요건 충족."
+        ],
+        "isms": [
+          "2.9.1 변경관리 — 템플릿 버전 변경 승인·이력.",
+          "2.10.2 클라우드 보안 — 표준 구성 템플릿 적용.",
+          "2.5.3 사용자 인증 / 2.6.2 정보시스템 접근 — user data 내 자격증명 금지."
+        ],
+        "evidence": [
+          "describe-launch-template-versions 결과(버전, 생성자, 생성 시각, 설명).",
+          "템플릿 데이터 JSON(IMDS 옵션, 암호화, 태그, AMI 참조 방식).",
+          "템플릿 수정 권한을 가진 IAM 역할·정책 목록.",
+          "ASG가 참조하는 템플릿 버전 화면.",
+          "CloudTrail CreateLaunchTemplateVersion/ModifyLaunchTemplate 이벤트와 변경 티켓 대조표."
+        ],
+        "auditorQuestions": [
+          "운영 서버 템플릿을 수정할 수 있는 사람은 누구이며 어떤 승인 절차를 거칩니까?",
+          "템플릿에 어떤 보안 기준이 포함되어 있습니까?",
+          "최근 3개월 버전 변경 내역과 그 사유를 보여 주실 수 있습니까?",
+          "롤백은 어떻게 수행합니까?"
+        ],
+        "controlExample": "운영 Launch Template의 버전 생성 및 기본 버전 변경은 Terraform PR 승인 후에만 수행되며, 버전 설명에 변경 티켓 번호를 기재하고 월 1회 CloudTrail 이벤트와 대조한다."
+      },
+      "related": [
+        "aws-auto-scaling-group",
+        "aws-ec2",
+        "aws-ami",
+        "aws-security-group",
+        "aws-purchase-options",
+        "iac-terraform",
+        "awssec-iam"
+      ],
+      "learnMore": [
+        "Launch templates (EC2 User Guide)",
+        "Launch templates (Auto Scaling User Guide)",
+        "Use AWS Systems Manager parameters instead of AMI IDs in launch templates"
+      ]
+    },
+    {
+      "id": "aws-elb",
+      "title": "Elastic Load Balancing (ALB/NLB/GWLB)",
+      "titleEn": "Elastic Load Balancing — Application / Network / Gateway Load Balancer",
+      "aliases": [
+        "ELB",
+        "ALB",
+        "NLB",
+        "GWLB",
+        "로드밸런서",
+        "부하분산",
+        "L7 로드밸런서",
+        "L4 로드밸런서"
+      ],
+      "tags": [
+        "network",
+        "load-balancer",
+        "ha"
+      ],
+      "level": "중급",
+      "oneLiner": "트래픽을 여러 서버로 나눠 주는 관리형 로드밸런서 3종(L7 ALB, L4 NLB, 보안장비용 GWLB)",
+      "analogy": "로드밸런서는 은행 창구의 '번호표 안내원'과 같다. ALB는 용무를 물어보고(URL·헤더) 대출 창구·예금 창구로 나눠 보내는 똑똑한 안내원, NLB는 묻지 않고 초고속으로 빈 창구에 밀어 넣는 안내원, GWLB는 모든 손님을 먼저 '보안 검색대'(방화벽 장비)로 통과시키는 안내원이다.",
+      "explanation": "<p><strong>Elastic Load Balancing(ELB)</strong>은 들어오는 트래픽을 여러 대상(EC2, 컨테이너, IP, Lambda)에 분산하고 비정상 대상을 제외하는 관리형 서비스다. 현재 세 종류가 쓰이며 구형 <strong>Classic Load Balancer(CLB)</strong>는 폐기 대상이다.</p>\n<p><strong>ALB(Application Load Balancer)</strong>는 L7(HTTP/HTTPS/gRPC)에서 동작한다. 경로(<code>/api/*</code>)·호스트(<code>pay.example.com</code>)·헤더·쿼리 기반 라우팅, 리다이렉트, 고정 응답, 인증(OIDC/Cognito), WAF 연동, TLS 종료, WebSocket, 가중치 기반 타깃 그룹(카나리 배포)을 지원한다. 마이크로서비스·웹 API의 기본 선택이다. 클라이언트 IP는 <code>X-Forwarded-For</code> 헤더로 전달된다.</p>\n<p><strong>NLB(Network Load Balancer)</strong>는 L4(TCP/UDP/TLS)에서 동작한다. 초당 수백만 요청, 초저지연, <strong>AZ별 고정 IP(Elastic IP)</strong> 제공이 특징이라 외부 기관이 IP 화이트리스트를 요구하는 금융 연동, 게임, 비HTTP 프로토콜, PrivateLink 엔드포인트 서비스 뒷단에 쓴다. 클라이언트 IP가 기본 보존된다.</p>\n<p><strong>GWLB(Gateway Load Balancer)</strong>는 L3 게이트웨이로, 트래픽을 방화벽·IDS/IPS 같은 서드파티 가상 어플라이언스 풀로 투명하게 통과시키는(GENEVE 캡슐화) 용도다. 중앙 검사 VPC에서 모든 인터넷 진출입 트래픽을 Palo Alto·Fortinet 장비로 검사하는 구성에 쓰인다.</p>\n<p>공통 구성 요소: <strong>리스너</strong>(어떤 포트/프로토콜을 받을지), <strong>규칙</strong>(조건 → 액션), <strong>대상 그룹</strong>(대상 목록 + 헬스체크 설정), <strong>헬스체크</strong>(주기·경로·정상 임계값). 외부용(internet-facing)과 내부용(internal)을 구분하고, 로드밸런서는 최소 2개 AZ 서브넷에 배치된다. <strong>액세스 로그</strong>(S3)와 CloudWatch 지표(5xx, 대상 응답 시간)는 감사·장애 분석의 핵심 증빙이다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 DNS(예: <code>api.paynow.com</code> → ALB의 CNAME)로 로드밸런서 노드 IP를 받는다(AZ마다 노드 존재).</li>\n<li>리스너(443/HTTPS)가 요청을 받고 ACM 인증서로 TLS를 종료한다.</li>\n<li>규칙 평가: <code>/v1/payments*</code>면 payments 대상 그룹, 나머지는 기본 대상 그룹으로.</li>\n<li>대상 그룹 안에서 헬스체크를 통과한 대상 중 하나를 알고리즘(라운드 로빈, 최소 미해결 요청)으로 고른다. 교차 영역 부하분산이 켜져 있으면 AZ 간에도 고르게.</li>\n<li>대상에 요청을 전달하며 <code>X-Forwarded-For</code>, <code>X-Forwarded-Proto</code> 헤더를 추가.</li>\n<li>응답을 클라이언트에 반환하고, 액세스 로그 한 줄(클라이언트 IP, 대상, 상태 코드, 지연)을 S3에 기록.</li>\n<li>헬스체크가 연속 실패(예: 3회)하면 대상을 Unhealthy로 바꾸고 트래픽에서 제외, ASG가 교체한다.</li></ol>",
+      "example": "<p>'페이나우'는 외부 ALB(WAF 연동, ACM 인증서) 뒤에 ECS 서비스 3개를 경로 기반으로 분리했고, 카드사 전용 연동은 고정 IP가 필요해 내부 NLB(EIP 2개)를 별도로 둔다. 인터넷 진출입은 보안 VPC의 GWLB를 통해 방화벽 어플라이언스로 검사된다. ALB 액세스 로그는 S3에 1년 보관하며, 감사 시 특정 거래의 요청 경로 증빙으로 쓴다.</p>\n<pre><code># ALB 경로 기반 규칙 추가\naws elbv2 create-rule --listener-arn arn:aws:elasticloadbalancing:...:listener/app/paynow-alb/... \\\n  --priority 10 \\\n  --conditions Field=path-pattern,Values='/v1/payments/*' \\\n  --actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:...:targetgroup/payments-tg/...\n\n# 액세스 로그 켜기\naws elbv2 modify-load-balancer-attributes --load-balancer-arn &lt;alb-arn&gt; \\\n  --attributes Key=access_logs.s3.enabled,Value=true Key=access_logs.s3.bucket,Value=paynow-alb-logs</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65.0' y='130.0' text-anchor='middle' fill='currentColor'>클라이언트</text><line x1='110' y1='125' x2='160' y2='125' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='135.0' y='119.0' text-anchor='middle' fill='currentColor' font-size='12'>HTTPS</text><rect x='160' y='40' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='225.0' y='62.0' text-anchor='middle' fill='currentColor'>ALB (L7)</text><text x='225.0' y='78.0' text-anchor='middle' fill='currentColor' font-size='11'>경로·호스트 규칙</text><rect x='160' y='105' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='225.0' y='127.0' text-anchor='middle' fill='currentColor'>NLB (L4)</text><text x='225.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>고정 IP · TCP</text><rect x='160' y='170' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='225.0' y='192.0' text-anchor='middle' fill='currentColor'>GWLB (L3)</text><text x='225.0' y='208.0' text-anchor='middle' fill='currentColor' font-size='11'>GENEVE 검사</text><line x1='290' y1='65' x2='350' y2='45' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='290' y1='65' x2='350' y2='90' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='350' y='30' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='410.0' y='50.0' text-anchor='middle' fill='currentColor'>TG: /v1/payments</text><rect x='350' y='75' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='410.0' y='95.0' text-anchor='middle' fill='currentColor'>TG: /v1/users</text><line x1='290' y1='130' x2='350' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='350' y='115' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='410.0' y='135.0' text-anchor='middle' fill='currentColor'>TG: 카드사 연동</text><line x1='290' y1='195' x2='350' y2='195' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='350' y='180' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='410.0' y='200.0' text-anchor='middle' fill='currentColor'>방화벽 어플라이언스</text><rect x='500' y='30' width='120' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560.0' y='64.5' text-anchor='middle' fill='currentColor'>ECS/EC2 대상</text><text x='560.0' y='80.5' text-anchor='middle' fill='currentColor' font-size='11'>헬스체크 통과분만</text><line x1='470' y1='45' x2='500' y2='55' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='470' y1='90' x2='500' y2='80' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='470' y1='130' x2='500' y2='100' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='500' y='150' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560.0' y='177.0' text-anchor='middle' fill='currentColor'>S3 액세스 로그</text><text x='560.0' y='193.0' text-anchor='middle' fill='currentColor' font-size='11'>1년 보관</text><line x1='225' y1='155' x2='225' y2='170' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320' y='245' text-anchor='middle' fill='currentColor' font-size='11'>리스너 → 규칙 → 대상 그룹 → 헬스체크 통과 대상</text></svg>",
+      "keyTerms": [
+        {
+          "term": "리스너",
+          "meaning": "로드밸런서가 받는 포트/프로토콜 정의"
+        },
+        {
+          "term": "대상 그룹(Target Group)",
+          "meaning": "대상 목록과 헬스체크 설정 묶음"
+        },
+        {
+          "term": "헬스체크",
+          "meaning": "대상 정상 여부 판단. 경로·주기·임계값"
+        },
+        {
+          "term": "교차 영역 부하분산",
+          "meaning": "AZ 간에도 고르게 분산하는 옵션"
+        },
+        {
+          "term": "X-Forwarded-For",
+          "meaning": "ALB가 원 클라이언트 IP를 전달하는 헤더"
+        },
+        {
+          "term": "연결 드레이닝(등록 취소 지연)",
+          "meaning": "대상 제거 전 진행 중 요청 완료 대기"
+        },
+        {
+          "term": "고정 세션(Sticky Session)",
+          "meaning": "같은 클라이언트를 같은 대상으로 보내는 기능"
+        },
+        {
+          "term": "GENEVE",
+          "meaning": "GWLB가 어플라이언스로 트래픽을 캡슐화하는 프로토콜"
+        }
+      ],
+      "pitfalls": [
+        "ALB 뒤 서버 로그에 클라이언트 IP 대신 ALB IP만 남음 — X-Forwarded-For를 로그 포맷에 넣어야 한다.",
+        "NLB는 보안 그룹 지원이 2023년에야 추가됐다. 대상 보안 그룹에서 NLB 트래픽을 어떻게 허용하는지 혼동.",
+        "헬스체크 경로가 인증 필요 경로라 항상 401 → 전 대상 Unhealthy.",
+        "HTTP 80 리스너를 리다이렉트 없이 방치해 평문 통신 허용.",
+        "액세스 로그를 켜지 않아 사고 조사 시 근거 없음.",
+        "내부 API에 internet-facing ALB를 만들어 외부 노출."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 외부 노출 로드밸런서 목록과 각 리스너의 노출 필요성 승인 여부(internet-facing 인벤토리).",
+          "[운영] TLS 정책(TLS 1.2 이상), ACM 인증서 만료 관리, HTTP→HTTPS 리다이렉트.",
+          "[변경] 리스너 규칙·대상 그룹 변경의 변경관리 연계(CloudTrail CreateRule/ModifyListener).",
+          "[운영] 액세스 로그 활성·보존 및 WAF 연동(외부 ALB).",
+          "[ITAC] 거래 흐름 추적을 위한 액세스 로그·애플리케이션 로그 연계."
+        ],
+        "fss": [
+          "전자금융감독규정 — 외부 통신 구간 암호화(TLS) 및 접속 기록 보관.",
+          "인터넷 구간과 내부망 분리(DMZ 구성) — 외부 ALB와 내부 ALB의 분리.",
+          "침입차단·탐지(WAF/GWLB 검사) 운영 기록."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 외부 접점 최소화.",
+          "2.6.6 원격접근 통제 / 2.6.7 인터넷 접속 통제 — 진출입 검사.",
+          "2.7.1 암호정책 적용 — TLS 정책.",
+          "2.11.3 이상행위 분석 및 모니터링 — 액세스 로그 분석."
+        ],
+        "evidence": [
+          "describe-load-balancers 결과(Scheme: internet-facing/internal, 서브넷, SG).",
+          "리스너·규칙·TLS 보안 정책 export 및 ACM 인증서 만료일.",
+          "액세스 로그 S3 버킷 설정과 샘플 로그, 보존 수명주기 정책.",
+          "WAF Web ACL 연동 화면(외부 ALB).",
+          "대상 그룹 헬스체크 설정과 CloudWatch UnHealthyHostCount 그래프."
+        ],
+        "auditorQuestions": [
+          "외부에 노출된 로드밸런서는 몇 개이며 각각의 노출 승인 근거는?",
+          "TLS 최소 버전과 인증서 갱신 절차는?",
+          "액세스 로그는 어디에 얼마나 보관되며 이상 징후 모니터링에 활용됩니까?",
+          "리스너 규칙 변경은 누가 어떤 승인을 거쳐 수행합니까?"
+        ],
+        "controlExample": "외부 노출 ALB는 TLS 1.2 이상 정책과 WAF를 적용하며, 액세스 로그를 S3에 1년 보관하고 리스너 규칙 변경은 변경관리 승인 후 IaC로만 수행한다."
+      },
+      "related": [
+        "aws-auto-scaling-group",
+        "aws-ecs",
+        "aws-security-group",
+        "aws-route53",
+        "aws-cloudfront",
+        "aws-global-accelerator",
+        "aws-privatelink-vpc-endpoint",
+        "awssec-waf",
+        "awssec-acm",
+        "k8s-ingress"
+      ],
+      "learnMore": [
+        "Elastic Load Balancing User Guide",
+        "Application Load Balancer Guide",
+        "Network Load Balancer Guide",
+        "Gateway Load Balancer Guide"
+      ]
+    },
+    {
+      "id": "aws-vpc",
+      "title": "VPC",
+      "titleEn": "Amazon Virtual Private Cloud",
+      "aliases": [
+        "가상 사설 네트워크",
+        "브이피씨",
+        "가상 네트워크",
+        "VPC 네트워크",
+        "프라이빗 클라우드 네트워크"
+      ],
+      "tags": [
+        "network",
+        "foundation"
+      ],
+      "level": "기초",
+      "oneLiner": "AWS 안에 논리적으로 격리된 나만의 사설 네트워크 공간",
+      "analogy": "VPC는 '아파트 단지 안에 담장을 친 우리 회사 전용 구역'과 같다. 담장 안을 구역(서브넷)으로 나누고, 정문(Internet Gateway)과 뒷문(NAT), 경비실(보안 그룹·NACL), 다른 단지로 가는 전용 통로(피어링·TGW)를 우리가 설계한다.",
+      "explanation": "<p><strong>VPC(Virtual Private Cloud)</strong>는 AWS 리전 안에 만드는 논리적으로 격리된 가상 네트워크다. 우리가 IP 대역(CIDR, 예: <code>10.20.0.0/16</code>)을 정하고, 그 안에 서브넷·라우팅·게이트웨이·방화벽 규칙을 설계한다. 쉽게 말하면 '온프레미스 네트워크 장비실을 소프트웨어로 만든 것'이다. 거의 모든 컴퓨팅 자원(EC2, RDS, EKS, Lambda VPC 모드)은 VPC 안에 놓인다.</p>\n<p>왜 필요한가? 인터넷과 분리된 공간에서 서버끼리 사설 IP로 안전하게 통신하고, 외부 노출 지점을 최소한으로 통제하기 위해서다. 금융권에서는 '업무망·DMZ·개발망 분리' 요건을 VPC 분리와 서브넷 계층으로 구현한다.</p>\n<p>구성 요소를 한 번에 보면: <strong>CIDR 블록</strong>(주 대역 + 보조 대역 추가 가능, 생성 후 축소 불가), <strong>서브넷</strong>(AZ에 속하는 하위 대역), <strong>라우팅 테이블</strong>(패킷의 목적지별 경로), <strong>Internet Gateway</strong>(인터넷 출입구), <strong>NAT Gateway</strong>(프라이빗 서브넷의 아웃바운드 전용 출구), <strong>보안 그룹</strong>(인스턴스 단위 상태 저장 방화벽), <strong>NACL</strong>(서브넷 단위 상태 비저장 방화벽), <strong>VPC 엔드포인트</strong>(AWS 서비스로 가는 사설 통로), <strong>VPC 피어링/Transit Gateway</strong>(다른 VPC·온프레미스 연결), <strong>VPC Flow Logs</strong>(트래픽 메타데이터 기록), <strong>DHCP 옵션·DNS(Route 53 Resolver)</strong>.</p>\n<p>설계 원칙: (1) 회사 전체 IP 계획(IPAM)에서 VPC마다 겹치지 않는 대역을 할당해야 나중에 연결이 가능하다. (2) 서브넷은 최소 2개 AZ에 퍼블릭/프라이빗/데이터 3계층으로. (3) 기본 VPC(default VPC)는 운영에 쓰지 않고 삭제하거나 비워 둔다. (4) Flow Logs는 항상 켠다.</p>\n<p>계정당 리전당 VPC 5개(기본 한도)이며, 조직 규모가 커지면 계정마다 VPC를 두고 Transit Gateway 허브로 연결하는 '허브-스포크' 구조가 표준이다.</p>",
+      "howItWorks": "<ol><li>네트워크팀이 IPAM에서 <code>10.20.0.0/16</code>을 할당받아 VPC를 만든다.</li>\n<li>2a/2c 각각에 퍼블릭(<code>10.20.0.0/24</code>, <code>10.20.1.0/24</code>), 프라이빗 앱(<code>10.20.10.0/24</code>, <code>10.20.11.0/24</code>), 데이터(<code>10.20.20.0/24</code>, <code>10.20.21.0/24</code>) 서브넷을 만든다.</li>\n<li>IGW를 붙이고 퍼블릭 라우팅 테이블에 <code>0.0.0.0/0 → igw</code>, 프라이빗 테이블에 <code>0.0.0.0/0 → nat</code>를 넣는다. 데이터 서브넷에는 인터넷 경로를 아예 두지 않는다.</li>\n<li>S3·DynamoDB·SSM 등은 VPC 엔드포인트로 사설 접근하도록 만든다.</li>\n<li>보안 그룹으로 'ALB→앱 8080', '앱→DB 5432'만 허용하는 최소 규칙을 구성.</li>\n<li>Flow Logs를 CloudWatch Logs/S3로 보내고, 거부(REJECT) 트래픽을 모니터링한다.</li>\n<li>다른 VPC·온프레미스와는 TGW 또는 피어링으로 연결하고 라우팅 테이블에 경로를 추가한다.</li></ol>",
+      "example": "<p>'페이나우' 운영 계정에는 <code>paynow-prod-vpc (10.20.0.0/16)</code> 하나가 있고, 3계층×3AZ = 9개 서브넷으로 나뉜다. 퍼블릭 서브넷에는 ALB와 NAT Gateway만, 앱 서브넷에는 ECS 태스크, 데이터 서브넷에는 RDS·ElastiCache만 있다. 개발 VPC(<code>10.30.0.0/16</code>)는 별도 계정에 있으며 TGW로 연결되지만 라우팅 테이블에서 운영 데이터 서브넷으로의 경로는 없다. Flow Logs는 S3에 1년 보관된다.</p>\n<pre><code># VPC 생성 + DNS 옵션\naws ec2 create-vpc --cidr-block 10.20.0.0/16 \\\n  --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=paynow-prod-vpc}]'\naws ec2 modify-vpc-attribute --vpc-id vpc-0abc --enable-dns-hostnames\n\n# Flow Logs (전체 트래픽, S3)\naws ec2 create-flow-logs --resource-type VPC --resource-ids vpc-0abc \\\n  --traffic-type ALL --log-destination-type s3 \\\n  --log-destination arn:aws:s3:::paynow-flowlogs/prod/</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='15' width='600' height='225' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='31' fill='currentColor' font-size='12'>VPC 10.20.0.0/16 (리전 ap-northeast-2)</text><rect x='40' y='45' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='67.0' text-anchor='middle' fill='currentColor'>퍼블릭 서브넷</text><text x='105.0' y='83.0' text-anchor='middle' fill='currentColor' font-size='11'>ALB · NAT GW</text><rect x='40' y='110' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='132.0' text-anchor='middle' fill='currentColor'>프라이빗 앱 서브넷</text><text x='105.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>ECS · EC2</text><rect x='40' y='175' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='197.0' text-anchor='middle' fill='currentColor'>데이터 서브넷</text><text x='105.0' y='213.0' text-anchor='middle' fill='currentColor' font-size='11'>RDS · Cache</text><text x='105' y='240' text-anchor='middle' fill='currentColor' font-size='11'>AZ 2a</text><rect x='200' y='45' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='67.0' text-anchor='middle' fill='currentColor'>퍼블릭 서브넷</text><text x='265.0' y='83.0' text-anchor='middle' fill='currentColor' font-size='11'>ALB · NAT GW</text><rect x='200' y='110' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='132.0' text-anchor='middle' fill='currentColor'>프라이빗 앱 서브넷</text><text x='265.0' y='148.0' text-anchor='middle' fill='currentColor' font-size='11'>ECS · EC2</text><rect x='200' y='175' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='197.0' text-anchor='middle' fill='currentColor'>데이터 서브넷</text><text x='265.0' y='213.0' text-anchor='middle' fill='currentColor' font-size='11'>RDS · Cache</text><text x='265' y='240' text-anchor='middle' fill='currentColor' font-size='11'>AZ 2c</text><rect x='380' y='45' width='100' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='430.0' y='70.0' text-anchor='middle' fill='currentColor'>IGW</text><rect x='380' y='105' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='430.0' y='122.0' text-anchor='middle' fill='currentColor'>VPC 엔드포인트</text><text x='430.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>S3·SSM</text><rect x='380' y='165' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='430.0' y='182.0' text-anchor='middle' fill='currentColor'>TGW 연결</text><text x='430.0' y='198.0' text-anchor='middle' fill='currentColor' font-size='11'>온프렘·타VPC</text><rect x='500' y='45' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='70.0' text-anchor='middle' fill='currentColor'>인터넷</text><rect x='500' y='165' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='190.0' text-anchor='middle' fill='currentColor'>온프레미스</text><line x1='330' y1='70' x2='380' y2='65' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='480' y1='65' x2='500' y2='65' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='330' y1='135' x2='380' y2='125' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='330' y1='190' x2='380' y2='185' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='480' y1='185' x2='500' y2='185' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='500' y='105' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='122.0' text-anchor='middle' fill='currentColor'>Flow Logs → S3</text><text x='555.0' y='138.0' text-anchor='middle' fill='currentColor' font-size='11'>1년 보관</text></svg>",
+      "keyTerms": [
+        {
+          "term": "CIDR",
+          "meaning": "IP 대역 표기. /16은 65,536개 주소"
+        },
+        {
+          "term": "서브넷",
+          "meaning": "VPC 안의 AZ 단위 하위 네트워크"
+        },
+        {
+          "term": "라우팅 테이블",
+          "meaning": "서브넷 패킷의 목적지별 경로 정의"
+        },
+        {
+          "term": "IGW / NAT GW",
+          "meaning": "인터넷 양방향 출입구 / 아웃바운드 전용 출구"
+        },
+        {
+          "term": "보안 그룹 / NACL",
+          "meaning": "인스턴스 단위 / 서브넷 단위 방화벽"
+        },
+        {
+          "term": "VPC Flow Logs",
+          "meaning": "네트워크 트래픽 메타데이터 로그"
+        },
+        {
+          "term": "IPAM",
+          "meaning": "VPC IP 대역을 중앙 계획·할당하는 관리자"
+        },
+        {
+          "term": "기본 VPC",
+          "meaning": "계정 생성 시 자동 생성되는 VPC. 운영 사용 비권장"
+        }
+      ],
+      "pitfalls": [
+        "VPC 대역이 온프레미스나 다른 VPC와 겹쳐 나중에 연결 불가 — IPAM으로 사전 계획.",
+        "CIDR은 축소가 안 된다. 너무 작게 잡으면 EKS 파드 IP가 금방 고갈된다.",
+        "기본 VPC의 퍼블릭 서브넷에 운영 서버를 띄우는 실수.",
+        "Flow Logs를 안 켜 사고 후 통신 이력을 확인 못 함.",
+        "DNS hostnames 옵션을 끄면 일부 서비스(EFS, PrivateLink) 이름 해석이 안 됨.",
+        "VPC 하나에 운영·개발을 같이 넣어 네트워크 분리가 안 됨."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 VPC와 개발 VPC의 분리 및 상호 경로 제한(라우팅 테이블·SG 검토).",
+          "[운영] VPC Flow Logs 활성화 및 보존(모든 운영 VPC).",
+          "[변경] VPC·서브넷·라우팅·게이트웨이 변경이 네트워크 변경관리로 승인되는지(CloudTrail ec2:Create*/Modify* 이벤트).",
+          "[운영] 기본 VPC 미사용·삭제 및 인터넷 접점(IGW 연결 VPC) 인벤토리.",
+          "[접근] 네트워크 구성 변경 권한이 네트워크/플랫폼팀으로 제한."
+        ],
+        "fss": [
+          "전자금융감독규정 제15조(해킹 등 방지대책) 준용 — 내부망·DMZ·외부망 분리 구성 및 접근통제.",
+          "망분리 요건의 클라우드 구현 방식(VPC·서브넷 분리) 설계 문서 및 보안성 검토 기록.",
+          "네트워크 접속 기록(Flow Logs) 보관."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 네트워크 영역 분리 및 접근통제.",
+          "2.10.2 클라우드 보안 — VPC 구성 기준.",
+          "2.9.1 변경관리 — 네트워크 변경 승인.",
+          "2.11.3 이상행위 분석 및 모니터링 — Flow Logs 분석."
+        ],
+        "evidence": [
+          "VPC 목록(describe-vpcs)과 각 VPC의 용도·계정·CIDR 대장.",
+          "서브넷·라우팅 테이블 export(어느 서브넷이 IGW 경로를 갖는지).",
+          "Flow Logs 설정 화면 및 S3/CloudWatch 저장 확인.",
+          "네트워크 구성도(설계 문서)와 실제 구성의 대조 결과.",
+          "네트워크 변경 티켓과 CloudTrail 이벤트 대조표."
+        ],
+        "auditorQuestions": [
+          "운영·개발·DMZ는 어떻게 분리되어 있으며 상호 접근 경로는 무엇입니까?",
+          "인터넷에 직접 연결된 VPC와 서브넷은 무엇입니까?",
+          "VPC Flow Logs는 켜져 있고 어디에 얼마나 보관됩니까?",
+          "네트워크 구성 변경은 누가 승인하고 어떻게 기록됩니까?",
+          "IP 대역 계획은 어디서 관리합니까?"
+        ],
+        "controlExample": "운영 워크로드는 전용 운영 계정의 VPC에만 배치되며 개발 VPC와의 라우팅은 TGW 라우팅 테이블에서 차단된다. 모든 운영 VPC는 Flow Logs를 S3에 1년 보관하고, 네트워크 변경은 네트워크팀 승인 후 IaC로만 수행한다."
+      },
+      "related": [
+        "aws-subnet",
+        "aws-route-table",
+        "aws-internet-gateway",
+        "aws-nat-gateway",
+        "aws-security-group",
+        "aws-nacl",
+        "aws-vpc-peering",
+        "aws-transit-gateway",
+        "aws-privatelink-vpc-endpoint",
+        "net-subnet-cidr"
+      ],
+      "learnMore": [
+        "Amazon VPC User Guide",
+        "VPC Flow Logs",
+        "Amazon VPC IP Address Manager (IPAM)"
+      ]
+    },
+    {
+      "id": "aws-subnet",
+      "title": "서브넷 (퍼블릭/프라이빗)",
+      "titleEn": "VPC Subnet — Public / Private",
+      "aliases": [
+        "퍼블릭 서브넷",
+        "프라이빗 서브넷",
+        "Subnet",
+        "서브네트",
+        "DMZ 서브넷",
+        "격리 서브넷"
+      ],
+      "tags": [
+        "network",
+        "foundation"
+      ],
+      "level": "기초",
+      "oneLiner": "VPC를 AZ 단위로 쪼갠 하위 네트워크. 인터넷 경로 유무로 퍼블릭/프라이빗이 갈린다",
+      "analogy": "서브넷은 건물 안의 '층'과 같다. 1층 로비(퍼블릭)는 정문으로 바로 드나들 수 있지만, 사무실 층(프라이빗)은 로비를 거쳐야만 들어올 수 있고 밖으로 나갈 때도 정해진 출구(NAT)로만 나간다. 금고층(격리 서브넷)은 아예 밖과 통하는 문이 없다.",
+      "explanation": "<p><strong>서브넷(Subnet)</strong>은 VPC의 IP 대역을 더 작게 나눈 네트워크 조각이며 <strong>정확히 하나의 AZ</strong>에 속한다. 예를 들어 VPC <code>10.20.0.0/16</code> 안에 <code>10.20.10.0/24</code>(256개 주소, AWS가 5개 예약하므로 251개 사용 가능)를 2a에 만든다. EC2·RDS·ENI는 반드시 어떤 서브넷에 배치된다.</p>\n<p>'퍼블릭'과 '프라이빗'은 서브넷 자체의 속성이 아니라 <strong>연결된 라우팅 테이블에 Internet Gateway 경로(<code>0.0.0.0/0 → igw-xxx</code>)가 있는가</strong>로 결정된다. 쉽게 말하면 '정문으로 가는 길이 지도에 있으면 퍼블릭'이다. 퍼블릭 서브넷의 인스턴스가 실제 인터넷과 통신하려면 공인 IP(자동 할당 또는 EIP)도 필요하다.</p>\n<p>일반적인 3계층 설계: <strong>퍼블릭 서브넷</strong>에는 ALB, NAT Gateway, 배스천(요즘은 SSM으로 대체) 같이 외부와 직접 닿아야 하는 것만 둔다. <strong>프라이빗 앱 서브넷</strong>에는 애플리케이션 서버·컨테이너를 두고 NAT Gateway로 아웃바운드만 허용한다. <strong>격리(데이터) 서브넷</strong>에는 DB·캐시를 두고 인터넷 경로를 아예 만들지 않으며, 필요한 AWS 서비스는 VPC 엔드포인트로만 접근한다.</p>\n<p>서브넷 설정 중 감사에 중요한 것은 <strong>'퍼블릭 IPv4 주소 자동 할당(map-public-ip-on-launch)'</strong>이다. 이 옵션이 켜진 서브넷에 만든 인스턴스는 자동으로 공인 IP를 받으므로 프라이빗 서브넷에서는 반드시 꺼야 한다. 또 서브넷마다 NACL 하나가 연결되어 서브넷 경계 방화벽 역할을 한다.</p>\n<p>크기 계획 시 EKS는 파드마다 IP를 쓰므로 노드 서브넷을 /20 이상 크게 잡고, 각 AZ에 동일한 계층을 대칭으로 만드는 것이 원칙이다. 서브넷은 생성 후 CIDR을 바꿀 수 없다.</p>",
+      "howItWorks": "<ol><li>VPC 대역에서 AZ별·계층별 CIDR을 잘라 서브넷을 만든다(예: 2a 퍼블릭 10.20.0.0/24).</li>\n<li>서브넷에 라우팅 테이블을 명시적으로 연결한다(미연결 시 VPC 기본 테이블 사용 — 위험).</li>\n<li>퍼블릭 테이블에는 IGW 경로, 프라이빗 테이블에는 NAT 경로, 격리 테이블에는 로컬 경로만.</li>\n<li>프라이빗·격리 서브넷은 공인 IP 자동 할당을 끈다.</li>\n<li>인스턴스를 서브넷에 배치하면 서브넷 대역에서 사설 IP를 받고, 라우팅 테이블·NACL이 적용된다.</li>\n<li>인바운드 요청: 인터넷 → IGW → 퍼블릭 서브넷의 ALB → 프라이빗 서브넷 앱 → 격리 서브넷 DB 순으로 흐른다.</li></ol>",
+      "example": "<p>'마켓온' 운영 VPC의 서브넷 대장: 퍼블릭 2a/2c(<code>10.30.0.0/24</code>, <code>10.30.1.0/24</code>), 앱 2a/2c(<code>10.30.16.0/20</code>, <code>10.30.32.0/20</code>, EKS 노드용), DB 2a/2c(<code>10.30.100.0/24</code>, <code>10.30.101.0/24</code>). DB 서브넷 라우팅 테이블에는 <code>10.30.0.0/16 local</code>과 S3 엔드포인트 경로만 있다. Config 규칙 <code>subnet-auto-assign-public-ip-disabled</code>가 퍼블릭 서브넷 외의 자동 할당을 탐지한다.</p>\n<pre><code># 프라이빗 앱 서브넷 생성 및 공인 IP 자동 할당 해제\naws ec2 create-subnet --vpc-id vpc-0abc --cidr-block 10.30.16.0/20 \\\n  --availability-zone ap-northeast-2a \\\n  --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=mk-prod-app-2a},{Key=Tier,Value=private}]'\naws ec2 modify-subnet-attribute --subnet-id subnet-0app2a --no-map-public-ip-on-launch\n\n# 공인 IP 자동 할당이 켜진 서브넷 찾기 (감사)\naws ec2 describe-subnets --filters Name=map-public-ip-on-launch,Values=true \\\n  --query 'Subnets[].[SubnetId,CidrBlock,Tags[?Key==`Name`].Value|[0]]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='100' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70.0' y='45.0' text-anchor='middle' fill='currentColor'>인터넷</text><line x1='120' y1='40' x2='170' y2='40' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='170' y='20' width='80' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='210.0' y='45.0' text-anchor='middle' fill='currentColor'>IGW</text><rect x='20' y='75' width='600' height='175' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='91' fill='currentColor' font-size='12'>VPC (AZ 2a 단면)</text><rect x='40' y='105' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='125.0' y='127.0' text-anchor='middle' fill='currentColor'>퍼블릭 서브넷</text><text x='125.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>ALB · NAT GW · 공인 IP</text><rect x='235' y='105' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='127.0' text-anchor='middle' fill='currentColor'>프라이빗 앱 서브넷</text><text x='320.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>EC2/ECS · 사설 IP</text><rect x='430' y='105' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='127.0' text-anchor='middle' fill='currentColor'>격리 DB 서브넷</text><text x='515.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>RDS · 인터넷 경로 없음</text><line x1='210' y1='130' x2='235' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='222.5' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>ALB→앱</text><line x1='405' y1='130' x2='430' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='417.5' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>앱→DB</text><line x1='210' y1='50' x2='125' y2='105' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='40' y='185' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='125.0' y='212.5' text-anchor='middle' fill='currentColor'>RT: 0.0.0.0/0 → igw</text><rect x='235' y='185' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='212.5' text-anchor='middle' fill='currentColor'>RT: 0.0.0.0/0 → nat</text><rect x='430' y='185' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515.0' y='212.5' text-anchor='middle' fill='currentColor'>RT: local + S3 엔드포인트만</text><line x1='320' y1='105' x2='125' y2='60' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='222.5' y='76.5' text-anchor='middle' fill='currentColor' font-size='12'>아웃바운드(NAT)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "퍼블릭 서브넷",
+          "meaning": "라우팅 테이블에 IGW 경로가 있는 서브넷"
+        },
+        {
+          "term": "프라이빗 서브넷",
+          "meaning": "IGW 경로가 없고 NAT로만 아웃바운드하는 서브넷"
+        },
+        {
+          "term": "격리 서브넷",
+          "meaning": "인터넷 경로가 전혀 없는 서브넷(DB용)"
+        },
+        {
+          "term": "map-public-ip-on-launch",
+          "meaning": "서브넷의 공인 IP 자동 할당 설정"
+        },
+        {
+          "term": "예약 주소",
+          "meaning": "서브넷마다 AWS가 예약하는 5개 IP"
+        },
+        {
+          "term": "Tier 태그",
+          "meaning": "서브넷 계층을 표시하는 태그 관행"
+        },
+        {
+          "term": "서브넷 그룹",
+          "meaning": "RDS·ElastiCache가 사용할 서브넷 묶음"
+        }
+      ],
+      "pitfalls": [
+        "서브넷에 라우팅 테이블을 명시 연결하지 않아 기본 테이블(IGW 경로 포함일 수 있음)을 쓰는 경우.",
+        "프라이빗 서브넷인데 공인 IP 자동 할당이 켜져 있어 서버가 외부 노출.",
+        "DB를 퍼블릭 서브넷에 두고 보안 그룹만 믿는 구성 — 설정 실수 한 번에 노출.",
+        "EKS 서브넷을 /24로 잡아 파드 IP 고갈.",
+        "AZ별 대칭 없이 한 AZ에만 서브넷을 만들어 HA 불가.",
+        "서브넷 이름에 'private'이라고 써 놓고 실제 라우팅은 퍼블릭인 경우 — 이름이 아니라 라우팅으로 판단."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] DB·핵심 시스템이 격리/프라이빗 서브넷에만 배치되어 있는지(서브넷–라우팅 테이블–자원 매핑 검토).",
+          "[운영] 프라이빗 서브넷의 공인 IP 자동 할당 비활성(Config 규칙) 및 공인 IP 보유 인스턴스 인벤토리.",
+          "[변경] 서브넷 생성·속성 변경의 변경관리 승인.",
+          "[운영] 서브넷 대장(용도·CIDR·AZ·계층)이 최신인지."
+        ],
+        "fss": [
+          "내부망·DMZ 분리 요건 — 계층별 서브넷 설계 및 DB 영역 인터넷 차단 증빙.",
+          "정보처리시스템의 외부 노출 최소화 — 공인 IP 보유 자원 관리."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 네트워크 영역 분리(DMZ/내부/DB).",
+          "2.6.4 데이터베이스 접근 — DB 서브넷 격리.",
+          "2.10.2 클라우드 보안 — 서브넷 설정 기준."
+        ],
+        "evidence": [
+          "describe-subnets 결과(CIDR, AZ, MapPublicIpOnLaunch, 태그).",
+          "서브넷별 연결 라우팅 테이블 export.",
+          "RDS 서브넷 그룹 화면(격리 서브넷만 포함 확인).",
+          "Config 규칙 subnet-auto-assign-public-ip-disabled 결과.",
+          "공인 IP를 가진 인스턴스/ENI 목록(describe-network-interfaces Association.PublicIp)."
+        ],
+        "auditorQuestions": [
+          "DB 서버가 위치한 서브넷의 라우팅 테이블에 인터넷 경로가 없음을 보여 주실 수 있습니까?",
+          "퍼블릭 서브넷에 있는 자원은 무엇이며 각각 필요한 이유는?",
+          "프라이빗 서브넷의 공인 IP 자동 할당 설정은 어떻게 통제합니까?",
+          "서브넷 설계 문서와 실제 구성의 정합성은 누가 언제 확인합니까?"
+        ],
+        "controlExample": "운영 DB 및 캐시는 인터넷 경로가 없는 격리 서브넷에만 배치되며, 프라이빗 서브넷의 공인 IP 자동 할당은 비활성화하고 AWS Config로 일 단위 점검한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-route-table",
+        "aws-internet-gateway",
+        "aws-nat-gateway",
+        "aws-nacl",
+        "aws-security-group",
+        "aws-elastic-ip-eni",
+        "awsdata-rds"
+      ],
+      "learnMore": [
+        "Subnets for your VPC (VPC User Guide)",
+        "VPC with public and private subnets (NAT) example",
+        "AWS Config managed rules for VPC"
+      ]
+    },
+    {
+      "id": "aws-route-table",
+      "title": "라우팅 테이블",
+      "titleEn": "VPC Route Table",
+      "aliases": [
+        "라우트 테이블",
+        "Route Table",
+        "경로 테이블",
+        "라우팅",
+        "라우트"
+      ],
+      "tags": [
+        "network",
+        "routing"
+      ],
+      "level": "기초",
+      "oneLiner": "서브넷에서 나가는 패킷을 목적지 대역별로 어느 게이트웨이로 보낼지 정한 규칙표",
+      "analogy": "라우팅 테이블은 건물 각 층에 붙은 '출구 안내판'과 같다. '같은 건물 → 복도로', '옆 건물 → 연결 통로로', '그 외 모든 곳 → 정문으로'라고 적혀 있다. 안내판에 없는 목적지로는 아예 갈 수 없다.",
+      "explanation": "<p><strong>라우팅 테이블(Route Table)</strong>은 VPC 안에서 패킷이 목적지 IP에 따라 어디로 나가야 하는지 정의한 규칙 목록이다. 각 규칙은 <strong>대상(Destination) CIDR</strong>과 <strong>타깃(Target)</strong>(local, igw, nat, pcx 피어링, tgw, vgw 가상 프라이빗 게이트웨이, vpce 엔드포인트, eni)으로 구성된다. 서브넷은 하나의 라우팅 테이블에 연결되고, 하나의 테이블은 여러 서브넷에 연결될 수 있다.</p>\n<p>모든 테이블에는 VPC 대역 전체를 가리키는 <strong>local 경로</strong>(예: <code>10.20.0.0/16 → local</code>)가 자동으로 있어 삭제할 수 없다. 이 덕분에 같은 VPC 안 서브넷끼리는 별도 설정 없이 통신한다. 그 외 경로를 어떻게 넣느냐가 서브넷의 성격을 결정한다: <code>0.0.0.0/0 → igw</code>면 퍼블릭, <code>0.0.0.0/0 → nat</code>면 프라이빗, 인터넷 경로 없음이면 격리.</p>\n<p>경로 선택은 <strong>가장 구체적인 경로 우선(longest prefix match)</strong>이다. <code>0.0.0.0/0 → nat</code>와 <code>10.0.0.0/8 → tgw</code>가 함께 있으면 <code>10.1.2.3</code>으로 가는 패킷은 /8 규칙을 따라 TGW로 간다. 이 원리를 모르면 '왜 온프레미스 대역이 NAT로 나가려 하지?' 같은 장애를 겪는다.</p>\n<p>테이블 종류: <strong>기본 라우팅 테이블(main)</strong>은 명시 연결이 없는 서브넷이 자동으로 쓰는 테이블이다. 실수로 여기에 IGW 경로를 넣으면 모든 미연결 서브넷이 퍼블릭이 되므로 main은 비워 두고 서브넷마다 <strong>사용자 지정 테이블</strong>을 명시 연결하는 것이 안전하다. <strong>게이트웨이 라우팅 테이블</strong>(IGW/VGW에 연결)은 들어오는 트래픽을 방화벽 어플라이언스로 우회시키는 고급 용법이다.</p>\n<p>동적 경로: Transit Gateway·VGW의 <strong>경로 전파(propagation)</strong>를 켜면 BGP로 배운 온프레미스 대역이 자동으로 테이블에 나타난다. 게이트웨이 엔드포인트(S3/DynamoDB)를 만들면 접두사 목록(<code>pl-xxxx</code>) 경로가 자동 추가된다.</p>",
+      "howItWorks": "<ol><li>프라이빗 앱 서브넷의 EC2(10.20.10.5)가 인터넷 <code>203.0.113.9</code>로 패킷을 보낸다.</li>\n<li>서브넷에 연결된 라우팅 테이블에서 목적지와 일치하는 가장 구체적인 경로를 찾는다 — <code>0.0.0.0/0 → nat-0abc</code>.</li>\n<li>패킷이 NAT Gateway(퍼블릭 서브넷)로 전달되고, NAT 서브넷의 테이블에서 <code>0.0.0.0/0 → igw</code>를 따라 인터넷으로 나간다.</li>\n<li>같은 EC2가 온프레미스 <code>172.16.5.10</code>으로 보내면 <code>172.16.0.0/12 → tgw-0xyz</code>가 더 구체적이므로 TGW로 간다.</li>\n<li>S3(<code>52.x.x.x</code>, pl-78a54011 접두사)로 보내면 <code>pl-78a54011 → vpce-0s3</code> 경로로 인터넷을 거치지 않고 사설 접근.</li>\n<li>테이블에 없는 사설 대역으로는 패킷이 폐기된다(응답 없음) — Flow Logs에 NODATA/REJECT로 남지 않고 라우팅 단계에서 버려진다.</li></ol>",
+      "example": "<p>'페이나우' 운영 VPC 라우팅 테이블 3종. <code>rt-public</code>: local, <code>0.0.0.0/0→igw</code>. <code>rt-app-2a</code>: local, <code>0.0.0.0/0→nat-2a</code>, <code>10.0.0.0/8→tgw</code>, <code>pl-s3→vpce</code>. <code>rt-db</code>: local, <code>pl-s3→vpce</code>만. AZ별 NAT를 두었으므로 앱 테이블도 AZ별로 나뉜다. 네트워크팀은 Terraform 상태와 실제 테이블을 주 1회 drift 검사한다.</p>\n<pre><code># 프라이빗 테이블에 NAT 기본 경로 + TGW 경로 추가\naws ec2 create-route --route-table-id rtb-0app2a \\\n  --destination-cidr-block 0.0.0.0/0 --nat-gateway-id nat-0abc2a\naws ec2 create-route --route-table-id rtb-0app2a \\\n  --destination-cidr-block 10.0.0.0/8 --transit-gateway-id tgw-0xyz\n\n# IGW로 가는 경로를 가진 테이블 전부 찾기 (감사: 퍼블릭 판정)\naws ec2 describe-route-tables --query \\\n  'RouteTables[?Routes[?starts_with(GatewayId, `igw-`)]].[RouteTableId,Associations[].SubnetId]'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='90' width='130' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85.0' y='117.0' text-anchor='middle' fill='currentColor'>EC2 10.20.10.5</text><text x='85.0' y='133.0' text-anchor='middle' fill='currentColor' font-size='11'>프라이빗 앱 서브넷</text><line x1='150' y1='120' x2='200' y2='120' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='200' y='30' width='240' height='200' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='208' y='46' fill='currentColor' font-size='12'>라우팅 테이블 rt-app-2a</text><rect x='215' y='55' width='210' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='76.0' text-anchor='middle' fill='currentColor'>10.20.0.0/16 → local</text><rect x='215' y='95' width='210' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='116.0' text-anchor='middle' fill='currentColor'>10.0.0.0/8 → tgw</text><rect x='215' y='135' width='210' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='156.0' text-anchor='middle' fill='currentColor'>pl-s3 → vpce</text><rect x='215' y='175' width='210' height='32' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='196.0' text-anchor='middle' fill='currentColor'>0.0.0.0/0 → nat</text><rect x='490' y='40' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='65.0' text-anchor='middle' fill='currentColor'>같은 VPC</text><rect x='490' y='90' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='115.0' text-anchor='middle' fill='currentColor'>TGW → 온프렘</text><rect x='490' y='140' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='165.0' text-anchor='middle' fill='currentColor'>S3 엔드포인트</text><rect x='490' y='190' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='215.0' text-anchor='middle' fill='currentColor'>NAT → IGW → 인터넷</text><line x1='425' y1='71' x2='490' y2='60' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='425' y1='111' x2='490' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='425' y1='151' x2='490' y2='160' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='425' y1='191' x2='490' y2='210' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='320' y='250' text-anchor='middle' fill='currentColor' font-size='11'>가장 구체적인 경로(긴 프리픽스)가 우선</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Destination / Target",
+          "meaning": "목적지 CIDR / 보낼 게이트웨이"
+        },
+        {
+          "term": "local 경로",
+          "meaning": "VPC 내부 통신용 자동 경로. 삭제 불가"
+        },
+        {
+          "term": "Longest prefix match",
+          "meaning": "더 구체적인 CIDR 경로가 우선 적용되는 원칙"
+        },
+        {
+          "term": "main 라우팅 테이블",
+          "meaning": "명시 연결 없는 서브넷이 쓰는 기본 테이블"
+        },
+        {
+          "term": "경로 전파(Propagation)",
+          "meaning": "TGW/VGW가 배운 경로를 자동 추가"
+        },
+        {
+          "term": "접두사 목록(Prefix List)",
+          "meaning": "여러 CIDR을 묶은 목록. S3 엔드포인트 경로 등"
+        },
+        {
+          "term": "게이트웨이 라우팅 테이블",
+          "meaning": "IGW/VGW 인바운드를 어플라이언스로 우회시키는 테이블"
+        },
+        {
+          "term": "blackhole",
+          "meaning": "타깃이 삭제되어 무효가 된 경로 상태"
+        }
+      ],
+      "pitfalls": [
+        "main 테이블에 IGW 경로를 넣어 미연결 서브넷이 전부 퍼블릭이 되는 사고.",
+        "AZ별 NAT를 두고도 라우팅 테이블을 하나로 써서 AZ 간 비용 발생 및 단일 장애점.",
+        "TGW 연결 후 경로를 추가하지 않아 '연결은 됐는데 통신 안 됨'.",
+        "NAT Gateway를 삭제하고 경로를 남겨 blackhole 상태로 방치.",
+        "온프레미스 대역이 0.0.0.0/0에 흡수되어 NAT로 나가는 잘못된 설계."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] DB/핵심 서브넷의 라우팅 테이블에 인터넷(igw/nat) 경로가 없는지.",
+          "[변경] 경로 추가·삭제(CreateRoute/DeleteRoute/ReplaceRoute)가 네트워크 변경관리로 승인되고 CloudTrail로 추적되는지.",
+          "[운영] IaC 상태와 실제 라우팅 테이블의 drift 점검 주기.",
+          "[운영] blackhole 경로·미사용 테이블 정리."
+        ],
+        "fss": [
+          "내부망·DMZ 간 통신 경로 통제 — 라우팅 설계 문서와 실제 경로 정합성.",
+          "외부망 연결 경로(인터넷·전용선) 목록 관리 및 변경 승인."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 네트워크 영역 간 경로 통제.",
+          "2.9.1 변경관리 — 라우팅 변경 승인 및 기록."
+        ],
+        "evidence": [
+          "describe-route-tables 전체 export(테이블–서브넷 연결–경로).",
+          "네트워크 설계서의 라우팅 정책과 실제 대조표.",
+          "CloudTrail CreateRoute/DeleteRoute 이벤트 목록과 변경 티켓.",
+          "Terraform plan(drift) 실행 결과.",
+          "Network Access Analyzer 또는 Reachability Analyzer 분석 결과(DB 서브넷→인터넷 도달 불가 증명)."
+        ],
+        "auditorQuestions": [
+          "DB 서브넷에서 인터넷으로 나갈 수 있는 경로가 없음을 어떻게 증명합니까?",
+          "라우팅 변경은 누가 어떤 절차로 수행합니까?",
+          "main 라우팅 테이블에는 어떤 경로가 있습니까?",
+          "온프레미스 대역으로의 경로는 어떻게 관리됩니까(정적/전파)?"
+        ],
+        "controlExample": "운영 VPC의 라우팅 테이블 변경은 네트워크팀 승인과 Terraform PR을 통해서만 이루어지며, 주 1회 drift 검사와 분기별 Reachability Analyzer 점검으로 DB 서브넷의 인터넷 경로 부재를 확인한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-subnet",
+        "aws-internet-gateway",
+        "aws-nat-gateway",
+        "aws-transit-gateway",
+        "aws-vpc-peering",
+        "aws-privatelink-vpc-endpoint",
+        "net-routing-basics"
+      ],
+      "learnMore": [
+        "Route tables for your VPC (VPC User Guide)",
+        "Route priority (VPC User Guide)",
+        "Reachability Analyzer"
+      ]
+    },
+    {
+      "id": "aws-internet-gateway",
+      "title": "Internet Gateway",
+      "titleEn": "Internet Gateway (IGW) / Egress-only Internet Gateway",
+      "aliases": [
+        "IGW",
+        "인터넷 게이트웨이",
+        "인터넷 관문",
+        "Egress-only IGW",
+        "아이지더블유"
+      ],
+      "tags": [
+        "network",
+        "gateway",
+        "internet"
+      ],
+      "level": "기초",
+      "oneLiner": "VPC와 인터넷을 양방향으로 연결하는 관문. VPC당 하나",
+      "analogy": "Internet Gateway는 회사 건물의 '정문'과 같다. 정문이 없으면 아무도 밖에서 들어오거나 밖으로 나갈 수 없다. 정문이 있어도 '정문으로 가는 길이 안내판(라우팅 테이블)에 있는 층'만 이용할 수 있고, 밖에 알려진 주소(공인 IP)가 있어야 우편이 도착한다.",
+      "explanation": "<p><strong>Internet Gateway(IGW)</strong>는 VPC를 인터넷에 연결하는 수평 확장·고가용성 관문이다. VPC 하나에 IGW 하나만 연결(attach)할 수 있으며 대역폭 제한이나 별도 요금이 없다. 쉽게 말하면 'VPC에 인터넷 선을 꽂는 것'인데, 꽂았다고 모든 서버가 인터넷에 노출되는 것은 아니다.</p>\n<p>인스턴스가 IGW를 통해 실제로 통신하려면 세 조건이 모두 필요하다. (1) VPC에 IGW가 연결되어 있고, (2) 인스턴스 서브넷의 라우팅 테이블에 <code>0.0.0.0/0 → igw</code> 경로가 있으며, (3) 인스턴스가 <strong>공인 IPv4 주소</strong>(자동 할당 또는 Elastic IP)를 가져야 한다. 셋 중 하나라도 없으면 인터넷과 직접 통신할 수 없다. 이것이 퍼블릭/프라이빗 서브넷 구분의 실체다.</p>\n<p>IGW는 <strong>1:1 NAT</strong>를 수행한다. 인스턴스는 사설 IP(10.20.0.5)만 알고 있지만 IGW가 나갈 때 공인 IP로, 들어올 때 사설 IP로 바꿔 준다. IPv6는 주소가 전 세계 고유이므로 NAT 없이 그대로 통과한다.</p>\n<p><strong>Egress-only Internet Gateway</strong>는 IPv6 전용 '아웃바운드만 허용' 관문이다. IPv4에서 NAT Gateway가 하는 역할(나가는 건 되고 들어오는 건 차단)을 IPv6에서 상태 저장 방식으로 수행한다.</p>\n<p>감사 관점에서 IGW는 '인터넷 접점의 존재 여부'를 결정하는 자산이다. 격리가 요구되는 VPC(예: 내부 배치 전용, 데이터 처리 전용)에는 IGW를 아예 붙이지 않는 것이 가장 강한 예방 통제이며, IGW 연결 행위(<code>AttachInternetGateway</code>)는 반드시 알림 대상이다. 계정 수준의 <strong>VPC Block Public Access</strong> 설정으로 IGW를 통한 인바운드/양방향 트래픽을 조직 차원에서 차단할 수도 있다.</p>",
+      "howItWorks": "<ol><li>네트워크팀이 IGW를 만들고 VPC에 연결한다(VPC당 1개).</li>\n<li>퍼블릭 서브넷 라우팅 테이블에 <code>0.0.0.0/0 → igw-xxx</code>를 추가한다.</li>\n<li>ALB 또는 EIP를 가진 인스턴스가 퍼블릭 서브넷에 생성된다.</li>\n<li>인터넷 사용자가 공인 IP <code>3.35.x.x</code>로 요청 → IGW가 대상을 사설 IP로 변환해 서브넷으로 전달(보안 그룹·NACL 검사 통과 시).</li>\n<li>인스턴스의 응답은 라우팅 테이블을 따라 IGW로 가고, IGW가 출발지를 공인 IP로 바꿔 인터넷으로 내보낸다.</li>\n<li>공인 IP가 없는 프라이빗 인스턴스의 패킷이 IGW에 도달해도 변환할 주소가 없어 폐기된다.</li></ol>",
+      "example": "<p>'페이나우' 운영 VPC에는 IGW가 하나 있고 퍼블릭 서브넷의 ALB·NAT Gateway만 이를 사용한다. 데이터 처리 전용 VPC(<code>paynow-batch-vpc</code>)는 IGW를 붙이지 않아 인터넷과 물리적으로 단절되며, 필요한 S3·KMS 접근은 VPC 엔드포인트로 처리한다. EventBridge 규칙이 <code>AttachInternetGateway</code> 이벤트를 감지하면 보안팀 Slack에 즉시 알린다.</p>\n<pre><code># IGW 생성 및 연결\naws ec2 create-internet-gateway --tag-specifications \\\n  'ResourceType=internet-gateway,Tags=[{Key=Name,Value=paynow-prod-igw}]'\naws ec2 attach-internet-gateway --internet-gateway-id igw-0abc --vpc-id vpc-0prod\n\n# IGW가 붙은 VPC 인벤토리 (감사: 인터넷 접점 파악)\naws ec2 describe-internet-gateways \\\n  --query 'InternetGateways[].[InternetGatewayId,Attachments[0].VpcId,Attachments[0].State]' --output table</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='127.0' text-anchor='middle' fill='currentColor'>인터넷 사용자</text><text x='75.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>→ 3.35.x.x</text><line x1='130' y1='130' x2='190' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='190' y='95' width='110' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='245.0' y='127.0' text-anchor='middle' fill='currentColor'>IGW</text><text x='245.0' y='143.0' text-anchor='middle' fill='currentColor' font-size='11'>1:1 NAT 공인↔사설</text><line x1='300' y1='130' x2='360' y2='130' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='350' y='30' width='270' height='210' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='358' y='46' fill='currentColor' font-size='12'>VPC</text><rect x='365' y='60' width='240' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485.0' y='84.5' text-anchor='middle' fill='currentColor'>퍼블릭 서브넷</text><text x='485.0' y='100.5' text-anchor='middle' fill='currentColor' font-size='11'>RT: 0.0.0.0/0 → igw · ALB(공인 IP)</text><rect x='365' y='130' width='240' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485.0' y='149.5' text-anchor='middle' fill='currentColor'>프라이빗 서브넷</text><text x='485.0' y='165.5' text-anchor='middle' fill='currentColor' font-size='11'>공인 IP 없음 → IGW 직접 통신 불가</text><rect x='365' y='185' width='240' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485.0' y='204.5' text-anchor='middle' fill='currentColor'>격리 VPC (IGW 미연결)</text><text x='485.0' y='220.5' text-anchor='middle' fill='currentColor' font-size='11'>가장 강한 예방 통제</text><line x1='360' y1='130' x2='365' y2='88' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='245' y='200' text-anchor='middle' fill='currentColor' font-size='12'>조건 3가지:</text><text x='245' y='218' text-anchor='middle' fill='currentColor' font-size='11'>IGW 연결 + 경로 + 공인 IP</text></svg>",
+      "keyTerms": [
+        {
+          "term": "IGW",
+          "meaning": "VPC의 인터넷 양방향 관문. VPC당 1개"
+        },
+        {
+          "term": "attach/detach",
+          "meaning": "IGW를 VPC에 연결/해제"
+        },
+        {
+          "term": "1:1 NAT",
+          "meaning": "IGW가 사설 IP와 공인 IP를 맞바꾸는 동작"
+        },
+        {
+          "term": "Egress-only IGW",
+          "meaning": "IPv6 아웃바운드 전용 관문"
+        },
+        {
+          "term": "공인 IPv4 / EIP",
+          "meaning": "인터넷에서 도달 가능한 주소"
+        },
+        {
+          "term": "VPC Block Public Access",
+          "meaning": "IGW 경유 트래픽을 계정/조직 차원에서 차단하는 설정"
+        }
+      ],
+      "pitfalls": [
+        "IGW를 붙였다고 인스턴스가 인터넷에 되는 게 아니다 — 경로와 공인 IP도 필요.",
+        "IGW를 분리(detach)하려면 그 VPC에 EIP 매핑된 인스턴스가 없어야 한다.",
+        "'테스트'로 격리 VPC에 IGW를 붙였다가 그대로 두는 경우 — 알림과 정기 점검 필요.",
+        "IPv6를 켜 놓고 Egress-only IGW 대신 IGW 경로를 넣어 IPv6로 인바운드가 열림.",
+        "2024년부터 공인 IPv4 주소는 시간당 과금되므로 불필요한 공인 IP를 남기면 비용."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 인터넷 접점 인벤토리 — IGW가 연결된 VPC 목록과 각각의 업무상 필요성 승인.",
+          "[변경] AttachInternetGateway/DetachInternetGateway 이벤트에 대한 실시간 알림 및 변경 승인 대조.",
+          "[운영] 격리 요구 VPC(내부 배치, 데이터 처리)에 IGW 미연결 상태 유지 확인.",
+          "[운영] VPC Block Public Access 등 조직 차원의 예방 설정 적용 여부."
+        ],
+        "fss": [
+          "외부 네트워크 연결 지점 관리 — 인터넷 연결 VPC의 목록·승인 및 보안성 검토.",
+          "내부 업무망의 인터넷 차단 요건 — 격리 VPC의 IGW 부재 증빙."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 — 인터넷 연결 지점 통제.",
+          "2.6.7 인터넷 접속 통제 — 내부 시스템의 인터넷 연결 최소화.",
+          "2.11.3 이상행위 분석 및 모니터링 — IGW 연결 이벤트 감시."
+        ],
+        "evidence": [
+          "describe-internet-gateways 결과(IGW–VPC 매핑) 및 VPC 용도 대장.",
+          "EventBridge 규칙(AttachInternetGateway 알림) 정의 및 알림 이력.",
+          "IGW 경로를 가진 라우팅 테이블·서브넷 목록.",
+          "VPC Block Public Access 설정 화면(적용 시).",
+          "공인 IP 보유 ENI 목록과 필요성 검토 기록."
+        ],
+        "auditorQuestions": [
+          "인터넷에 연결된 VPC는 몇 개이며 각각의 연결 승인 근거는?",
+          "IGW가 새로 연결되면 누가 어떻게 알게 됩니까?",
+          "인터넷 연결이 없어야 하는 VPC는 무엇이고 그 상태를 어떻게 확인합니까?",
+          "공인 IP를 가진 자원의 목록을 주기적으로 검토합니까?"
+        ],
+        "controlExample": "인터넷 연결이 필요한 VPC는 네트워크 보안 검토 후 승인 목록으로 관리하며, IGW 연결·해제 이벤트는 EventBridge로 보안팀에 실시간 통보되고 월 1회 승인 목록과 대조한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-subnet",
+        "aws-route-table",
+        "aws-nat-gateway",
+        "aws-elastic-ip-eni",
+        "aws-security-group",
+        "aws-privatelink-vpc-endpoint"
+      ],
+      "learnMore": [
+        "Connect to the internet using an internet gateway (VPC User Guide)",
+        "Egress-only internet gateways",
+        "VPC Block Public Access"
+      ]
+    },
+    {
+      "id": "aws-nat-gateway",
+      "title": "NAT Gateway",
+      "titleEn": "Network Address Translation Gateway",
+      "aliases": [
+        "NAT GW",
+        "냇 게이트웨이",
+        "NAT",
+        "아웃바운드 게이트웨이",
+        "NAT 인스턴스(구)"
+      ],
+      "tags": [
+        "network",
+        "gateway",
+        "egress"
+      ],
+      "level": "기초",
+      "oneLiner": "프라이빗 서브넷 자원이 인터넷으로 '나가기만' 할 수 있게 해 주는 관리형 NAT 장비",
+      "analogy": "NAT Gateway는 회사 '대표 전화 교환기'와 같다. 직원(사설 IP)이 밖에 전화를 걸면 상대에게는 회사 대표번호(NAT의 EIP)만 보이고, 외부에서 직원 자리로 직접 전화를 걸 수는 없다. 걸었던 전화의 답만 교환기가 해당 직원에게 연결해 준다.",
+      "explanation": "<p><strong>NAT Gateway</strong>는 프라이빗 서브넷의 인스턴스가 인터넷(패키지 저장소, 외부 API, SaaS)이나 다른 네트워크에 <strong>아웃바운드 연결을 시작</strong>할 수 있게 하되, 외부에서 먼저 연결을 시작하는 것은 막는 관리형 서비스다. 쉽게 말하면 '나갈 수는 있지만 들어올 수는 없는 문'이다. 구형 방식인 <strong>NAT 인스턴스</strong>(EC2로 직접 구성)는 관리 부담과 단일 장애점 때문에 더 이상 권장되지 않는다.</p>\n<p>두 유형이 있다. <strong>퍼블릭 NAT Gateway</strong>는 퍼블릭 서브넷에 두고 Elastic IP를 붙여 인터넷으로 나가며, <strong>프라이빗 NAT Gateway</strong>는 EIP 없이 다른 VPC·온프레미스로 갈 때 출발지 IP를 변환하는 용도(대역 겹침 해결)다.</p>\n<p>동작상 중요한 특징: NAT Gateway는 <strong>AZ 단위 자원</strong>이다. 2a에 있는 NAT가 죽으면 그것을 쓰는 모든 서브넷의 아웃바운드가 끊긴다. 따라서 운영에서는 <strong>AZ마다 NAT를 하나씩</strong> 두고, 각 AZ 프라이빗 서브넷의 라우팅 테이블이 자기 AZ의 NAT를 가리키게 한다. 성능은 NAT당 최대 100Gbps, 초당 1천만 패킷, 대상당 55,000 동시 연결(포트 수 한계; EIP를 최대 8개 붙여 확장 가능).</p>\n<p>비용은 시간당 요금 + 처리 데이터 GB당 요금이 붙는다. S3·DynamoDB·ECR 같은 AWS 서비스로 가는 트래픽이 NAT를 거치면 비용이 크게 나오므로 <strong>VPC 엔드포인트</strong>로 우회시키는 것이 비용·보안 모두 유리하다.</p>\n<p>보안 관점에서 NAT Gateway의 EIP는 회사의 '대표 출구 IP'가 되어 외부 기관(카드사, 은행 API)의 IP 화이트리스트에 등록된다. 그래서 NAT EIP 변경은 외부 연동에 영향을 주는 변경관리 대상이며, NAT를 통해 어떤 외부 목적지로 나가는지는 Flow Logs나 Network Firewall로 통제·기록해야 한다.</p>",
+      "howItWorks": "<ol><li>프라이빗 서브넷 EC2(10.20.10.5)가 <code>api.cardcompany.com</code>(203.0.113.50:443)으로 연결을 시작한다.</li>\n<li>라우팅 테이블 <code>0.0.0.0/0 → nat-2a</code>에 따라 패킷이 NAT Gateway로 간다.</li>\n<li>NAT가 출발지를 자신의 사설 IP·포트로 바꾸고 변환 테이블에 기록한 뒤 퍼블릭 서브넷 라우팅(<code>0.0.0.0/0 → igw</code>)을 따라 IGW로 보낸다.</li>\n<li>IGW가 NAT의 사설 IP를 EIP(3.35.1.1)로 변환해 인터넷으로 내보낸다 — 카드사에는 3.35.1.1만 보인다.</li>\n<li>응답이 3.35.1.1로 돌아오면 IGW → NAT가 변환 테이블을 보고 10.20.10.5로 되돌려 준다.</li>\n<li>외부에서 3.35.1.1로 먼저 연결을 시도하면 변환 테이블에 항목이 없어 폐기된다.</li></ol>",
+      "example": "<p>'페이나우'는 2a/2b/2c 퍼블릭 서브넷에 NAT Gateway를 각각 두고(EIP 3.35.1.1~3), 세 IP를 카드사·VAN사 화이트리스트에 등록했다. S3·ECR·SSM·CloudWatch 트래픽은 VPC 엔드포인트로 돌려 NAT 데이터 비용을 70% 줄였다. NAT EIP 변경은 외부 연동 영향 때문에 CAB 승인 대상이다.</p>\n<pre><code># AZ별 NAT Gateway 생성\naws ec2 allocate-address --domain vpc --query AllocationId   # eipalloc-0a\naws ec2 create-nat-gateway --subnet-id subnet-0pub2a --allocation-id eipalloc-0a \\\n  --tag-specifications 'ResourceType=natgateway,Tags=[{Key=Name,Value=paynow-nat-2a}]'\n\n# NAT 처리량·오류 모니터링 (포트 고갈 징후)\naws cloudwatch get-metric-statistics --namespace AWS/NATGateway \\\n  --metric-name ErrorPortAllocation --dimensions Name=NatGatewayId,Value=nat-0abc \\\n  --start-time 2026-09-13T00:00:00Z --end-time 2026-09-14T00:00:00Z --period 3600 --statistics Sum</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='400' height='220' rx='8' fill='none' stroke='currentColor' stroke-dasharray='6,4'/><text x='28' y='36' fill='currentColor' font-size='12'>VPC</text><rect x='40' y='150' width='160' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='120.0' y='177.0' text-anchor='middle' fill='currentColor'>프라이빗 서브넷 2a</text><text x='120.0' y='193.0' text-anchor='middle' fill='currentColor' font-size='11'>EC2 10.20.10.5</text><rect x='40' y='50' width='160' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='120.0' y='77.0' text-anchor='middle' fill='currentColor'>퍼블릭 서브넷 2a</text><text x='120.0' y='93.0' text-anchor='middle' fill='currentColor' font-size='11'>NAT GW · EIP 3.35.1.1</text><line x1='120' y1='150' x2='120' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='120.0' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>0.0.0.0/0 → nat</text><rect x='240' y='150' width='160' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='177.0' text-anchor='middle' fill='currentColor'>프라이빗 서브넷 2c</text><text x='320.0' y='193.0' text-anchor='middle' fill='currentColor' font-size='11'>EC2 10.20.11.7</text><rect x='240' y='50' width='160' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320.0' y='77.0' text-anchor='middle' fill='currentColor'>퍼블릭 서브넷 2c</text><text x='320.0' y='93.0' text-anchor='middle' fill='currentColor' font-size='11'>NAT GW · EIP 3.35.1.2</text><line x1='320' y1='150' x2='320' y2='110' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><text x='320.0' y='124.0' text-anchor='middle' fill='currentColor' font-size='12'>AZ별 NAT</text><rect x='460' y='50' width='80' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='500.0' y='85.0' text-anchor='middle' fill='currentColor'>IGW</text><line x1='200' y1='80' x2='460' y2='80' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><line x1='400' y1='95' x2='460' y2='95' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='560' y='50' width='70' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='595.0' y='77.0' text-anchor='middle' fill='currentColor'>인터넷</text><text x='595.0' y='93.0' text-anchor='middle' fill='currentColor' font-size='11'>카드사 API</text><line x1='540' y1='80' x2='560' y2='80' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)'/><rect x='460' y='160' width='170' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545.0' y='187.0' text-anchor='middle' fill='currentColor'>VPC 엔드포인트</text><text x='545.0' y='203.0' text-anchor='middle' fill='currentColor' font-size='11'>S3·ECR은 NAT 우회</text><line x1='400' y1='190' x2='460' y2='190' stroke='currentColor' stroke-width='1.5' marker-end='url(#ar)' stroke-dasharray='5,4'/><text x='320' y='250' text-anchor='middle' fill='currentColor' font-size='11'>나가는 연결만 허용, 들어오는 연결은 차단</text></svg>",
+      "keyTerms": [
+        {
+          "term": "NAT",
+          "meaning": "네트워크 주소 변환. 사설 IP를 공인 IP로 바꿈"
+        },
+        {
+          "term": "퍼블릭/프라이빗 NAT GW",
+          "meaning": "인터넷용 / VPC·온프렘 간 주소 변환용"
+        },
+        {
+          "term": "Elastic IP",
+          "meaning": "NAT에 붙는 고정 공인 IP. 외부 화이트리스트 대상"
+        },
+        {
+          "term": "포트 고갈",
+          "meaning": "동시 연결 55,000 초과 시 ErrorPortAllocation 발생"
+        },
+        {
+          "term": "NAT 인스턴스",
+          "meaning": "EC2로 직접 만든 구형 NAT. 비권장"
+        },
+        {
+          "term": "VPC 엔드포인트 우회",
+          "meaning": "AWS 서비스 트래픽을 NAT 대신 엔드포인트로 보내는 최적화"
+        },
+        {
+          "term": "연결 추적",
+          "meaning": "NAT가 세션별 변환 정보를 기억하는 테이블"
+        }
+      ],
+      "pitfalls": [
+        "NAT를 한 AZ에만 두고 모든 서브넷이 그것을 바라봄 — 그 AZ 장애 시 전체 아웃바운드 중단.",
+        "NAT Gateway를 프라이빗 서브넷에 만들면 인터넷으로 못 나간다(NAT 자체가 IGW 경로 필요).",
+        "NAT 보안 그룹이 없다 — 대신 NACL과 인스턴스 보안 그룹으로 통제해야 한다.",
+        "S3/ECR 대용량 트래픽을 NAT로 보내 비용 폭탄.",
+        "NAT EIP를 바꾸고 외부 기관 화이트리스트 갱신을 놓쳐 연동 장애.",
+        "아웃바운드가 '어디로든' 열려 있어 데이터 유출 경로가 됨 — 목적지 통제(Network Firewall, 프록시) 검토."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 프라이빗 서브넷의 아웃바운드 목적지 통제 — 허용 도메인/IP 정책(Network Firewall, 프록시, SG 아웃바운드) 존재 여부.",
+          "[변경] NAT EIP 변경·NAT 삭제가 외부 연동 영향 평가와 함께 변경관리 승인되는지.",
+          "[운영] AZ별 NAT 구성(HA)과 NAT 지표(ErrorPortAllocation, PacketsDropCount) 모니터링.",
+          "[운영] NAT 경유 트래픽의 Flow Logs 보존 및 이상 목적지 분석."
+        ],
+        "fss": [
+          "내부 시스템의 인터넷 통신 통제 — 허용 목적지 관리 및 기록.",
+          "외부 기관 연동 시 출발지 IP(NAT EIP) 관리 대장 및 변경 통보 절차.",
+          "정보 유출 방지 대책 — 아웃바운드 트래픽 모니터링."
+        ],
+        "isms": [
+          "2.6.7 인터넷 접속 통제 — 내부 시스템의 인터넷 접속 경로 통제.",
+          "2.6.1 네트워크 접근 — 아웃바운드 정책.",
+          "2.9.2 성능 및 장애관리 — NAT 용량·HA."
+        ],
+        "evidence": [
+          "describe-nat-gateways 결과(서브넷/AZ, EIP, 상태) 및 AZ별 구성 확인.",
+          "NAT EIP 대장과 외부 기관 화이트리스트 등록 이력.",
+          "Network Firewall/프록시의 허용 목적지 규칙 export(있는 경우).",
+          "Flow Logs 기반 NAT 아웃바운드 목적지 상위 목록 분석 보고서.",
+          "CloudWatch NAT 지표 대시보드 캡처."
+        ],
+        "auditorQuestions": [
+          "프라이빗 서버가 인터넷의 어떤 목적지로든 나갈 수 있습니까? 제한 방식은?",
+          "NAT Gateway는 AZ별로 구성되어 있습니까?",
+          "NAT의 공인 IP가 바뀌면 외부 기관에 어떻게 통보합니까?",
+          "NAT를 통한 대량 데이터 전송을 탐지하는 체계가 있습니까?"
+        ],
+        "controlExample": "운영 VPC의 인터넷 아웃바운드는 AZ별 NAT Gateway와 Network Firewall 허용 도메인 목록을 통해서만 이루어지며, NAT EIP 변경은 외부 연동 영향 평가 후 CAB 승인을 받고 월 1회 Flow Logs 기반 목적지 분석을 수행한다."
+      },
+      "related": [
+        "aws-vpc",
+        "aws-subnet",
+        "aws-route-table",
+        "aws-internet-gateway",
+        "aws-elastic-ip-eni",
+        "aws-privatelink-vpc-endpoint",
+        "awssec-network-firewall",
+        "aws-global-infra"
+      ],
+      "learnMore": [
+        "NAT gateways (VPC User Guide)",
+        "NAT gateway pricing 및 비용 최적화 가이드",
+        "AWS Network Firewall Developer Guide"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1632 @@
+{
+ "category": "aws-security",
+ "categoryLabel": "AWS 보안·IAM·계정 거버넌스",
+ "entries": [
+  {
+   "id": "awssec-permission-boundary",
+   "title": "권한 경계",
+   "titleEn": "IAM Permissions Boundary",
+   "aliases": [
+    "퍼미션 바운더리",
+    "Permissions Boundary",
+    "권한상한",
+    "IAM 경계정책",
+    "위임관리"
+   ],
+   "tags": [
+    "iam",
+    "governance",
+    "delegation"
+   ],
+   "level": "심화",
+   "oneLiner": "IAM 사용자·역할이 가질 수 있는 권한의 최대 한도를 정하는 정책",
+   "analogy": "권한 경계는 회사 법인카드의 '한도'와 같다. 부서장이 팀원에게 카드 사용 권한을 얼마든지 줄 수 있지만, 카드 자체에 월 300만원 한도가 걸려 있으면 그 이상은 절대 결제되지 않는다. 부서장이 실수로 '무제한 사용 가능'이라고 적어줘도 한도가 이긴다. 즉 권한을 주는 사람의 실수를 시스템이 막아주는 장치다.",
+   "explanation": "<p><strong>권한 경계(Permissions Boundary)</strong>는 IAM 사용자(User)나 IAM 역할(Role)에 붙이는 특수한 관리형 정책으로, 그 주체(principal)가 <strong>최대한 가질 수 있는 권한의 상한선</strong>을 정의한다. 중요한 점은 권한 경계 자체는 권한을 <strong>주지 않는다</strong>는 것이다. 오직 '여기까지만'이라는 울타리 역할만 한다. 실제 유효 권한은 <code>자격증명 정책(Identity Policy)</code>과 <code>권한 경계</code>의 <strong>교집합</strong>이다.</p><p><strong>왜 필요한가.</strong> 대기업이나 플랫폼팀 환경에서는 중앙 보안팀이 모든 IAM 역할을 만들어 줄 수 없다. 개발팀이 Lambda나 EKS용 역할을 스스로 만들게 하고 싶은데, 그러면 개발자가 <code>AdministratorAccess</code>가 붙은 역할을 만들어 권한 상승(privilege escalation)을 할 수 있다. 이 문제를 푸는 것이 권한 경계다. 보안팀은 '너는 IAM 역할을 만들어도 좋다. 단 반드시 이 경계 정책을 붙여야 하고, 경계 정책은 S3/DynamoDB/Logs만 허용한다'는 조건을 건다.</p><p>쉽게 말하면, <strong>권한을 위임하되 위임의 폭을 시스템이 강제로 제한</strong>하는 기능이다. 사람의 리뷰나 승인 절차에 기대지 않고 API 차원에서 막기 때문에 SOX 관점에서 매우 강력한 예방통제(preventive control)다.</p><p><strong>구성요소는 세 가지</strong>다. 첫째 <strong>경계 정책 문서</strong>(허용 상한을 담은 관리형 정책), 둘째 <strong>위임 정책</strong>(개발자에게 <code>iam:CreateRole</code>을 주되 <code>iam:PermissionsBoundary</code> 조건 키로 특정 경계를 강제), 셋째 <strong>경계 우회 방지</strong>(<code>iam:DeleteRolePermissionsBoundary</code>, <code>iam:PutRolePermissionsBoundary</code>를 Deny로 막기). 이 세 개가 다 갖춰져야 실제로 통제가 성립한다. 하나라도 빠지면 개발자가 경계를 떼어내고 관리자 권한을 붙일 수 있다.</p><p><strong>SCP(서비스 제어 정책)와의 차이</strong>를 헷갈리는 사람이 많다. SCP는 <strong>계정 전체</strong>에 적용되는 조직 단위 상한이고, 권한 경계는 <strong>개별 사용자/역할</strong>에 적용되는 상한이다. 둘 다 '허용하지 않고 제한만 한다'는 점은 같다. 실제 유효 권한은 SCP ∩ 권한경계 ∩ 자격증명정책 ∩ (리소스 정책) 의 교집합에서 명시적 Deny를 뺀 것이다.</p><p><strong>감사 관점</strong>에서 권한 경계는 '권한 부여 권한(IAM 관리 권한)'이라는 최고 위험 자산을 통제하는 수단이다. 감사인은 '개발자가 스스로 역할을 만들 수 있다'는 사실 자체보다, 그 역할이 넘을 수 없는 천장이 기술적으로 존재하는지를 본다. 경계 정책의 변경 이력(CloudTrail <code>CreatePolicyVersion</code>)과 경계 미적용 역할 탐지(AWS Config 규칙)가 핵심 증적이다.</p>",
+   "howItWorks": "<ol><li>보안팀이 <code>DeveloperBoundary</code>라는 관리형 정책을 만든다. 내용은 'S3, DynamoDB, CloudWatch Logs, SQS만 Allow, iam:* 은 Deny'.</li><li>보안팀이 개발자 역할에 위임 정책을 붙인다. <code>iam:CreateRole</code>/<code>iam:AttachRolePolicy</code>를 허용하되, Condition에 <code>iam:PermissionsBoundary = arn:...:policy/DeveloperBoundary</code>를 요구한다.</li><li>개발자가 Lambda용 역할을 만들면서 경계를 지정하지 않으면 API가 <code>AccessDenied</code>로 거부된다.</li><li>개발자가 경계를 붙여 역할을 만들고, 거기에 실수로 <code>AdministratorAccess</code>를 붙인다.</li><li>Lambda가 그 역할로 EC2 인스턴스를 만들려 하면, 자격증명 정책은 Allow지만 경계에 없으므로 <strong>암묵적 거부</strong>가 되어 차단된다.</li><li>같은 Lambda가 S3에 PutObject를 하면 자격증명 정책 Allow ∩ 경계 Allow 이므로 성공한다.</li><li>개발자가 경계를 떼려고 <code>DeleteRolePermissionsBoundary</code>를 호출하면, 위임 정책의 명시적 Deny에 걸려 실패한다.</li><li>AWS Config 규칙 <code>iam-role-managed-policy-check</code> 및 커스텀 규칙이 경계 없는 역할을 매일 스캔해 비준수로 표시한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 개발팀 8개가 각자 Lambda·ECS 역할을 직접 만든다. 보안팀 3명이 연간 400개 역할 생성 요청을 수동 승인하는 것이 병목이어서, 2025년부터 권한 경계 위임 모델로 전환했다. 개발자는 <code>/dev/</code> 경로(path) 아래에만 역할을 만들 수 있고, 반드시 <code>PayNowDevBoundary</code> 경계를 붙여야 한다. 전환 후 역할 생성 리드타임이 평균 3일에서 10분으로 줄었고, 감사 대응은 '경계 정책 1건 리뷰 + 경계 미적용 역할 0건 증빙'으로 단순해졌다.</p><pre><code># 1) 경계 정책 (상한선)\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    { \"Sid\": \"AllowedServices\", \"Effect\": \"Allow\",\n      \"Action\": [\"s3:*\", \"dynamodb:*\", \"logs:*\", \"sqs:*\"], \"Resource\": \"*\" },\n    { \"Sid\": \"NoIamNoOrg\", \"Effect\": \"Deny\",\n      \"Action\": [\"iam:*\", \"organizations:*\", \"kms:ScheduleKeyDeletion\"], \"Resource\": \"*\" }\n  ]\n}\n\n# 2) 개발자에게 주는 위임 정책 (경계 강제 + 우회 차단)\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    { \"Effect\": \"Allow\",\n      \"Action\": [\"iam:CreateRole\", \"iam:AttachRolePolicy\", \"iam:PutRolePolicy\"],\n      \"Resource\": \"arn:aws:iam::123456789012:role/dev/*\",\n      \"Condition\": { \"StringEquals\": {\n        \"iam:PermissionsBoundary\": \"arn:aws:iam::123456789012:policy/PayNowDevBoundary\" } } },\n    { \"Effect\": \"Deny\",\n      \"Action\": [\"iam:DeleteRolePermissionsBoundary\", \"iam:PutRolePermissionsBoundary\"],\n      \"Resource\": \"*\" }\n  ]\n}\n\n# 3) 경계 미적용 역할 탐지\naws iam list-roles --path-prefix /dev/ \\\n  --query 'Roles[?!PermissionsBoundary].RoleName'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>유효 권한 = 자격증명 정책 ∩ 권한 경계</text><rect x='30' y='40' width='230' height='150' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='145' y='60' text-anchor='middle' fill='currentColor'>자격증명 정책</text><text x='145' y='78' text-anchor='middle' fill='currentColor' font-size='11'>Admin (s3,ec2,iam...)</text><rect x='180' y='40' width='230' height='150' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='340' y='60' text-anchor='middle' fill='currentColor'>권한 경계</text><text x='340' y='78' text-anchor='middle' fill='currentColor' font-size='11'>s3, dynamodb, logs</text><rect x='190' y='95' width='60' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='220' y='125' text-anchor='middle' fill='currentColor' font-size='11'>교집합</text><text x='220' y='142' text-anchor='middle' fill='currentColor' font-size='11'>= 실제</text><text x='90' y='140' text-anchor='middle' fill='currentColor' font-size='11'>ec2:* 차단</text><text x='90' y='158' text-anchor='middle' fill='currentColor' font-size='11'>iam:* 차단</text><text x='340' y='140' text-anchor='middle' fill='currentColor' font-size='11'>정책에 없으면</text><text x='340' y='158' text-anchor='middle' fill='currentColor' font-size='11'>역시 불가</text><line x1='430' y1='115' x2='490' y2='115' stroke='currentColor' marker-end='url(#ar)'/><rect x='490' y='90' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='555' y='110' text-anchor='middle' fill='currentColor' font-size='12'>API 호출</text><text x='555' y='128' text-anchor='middle' fill='currentColor' font-size='12'>허용/거부</text><text x='30' y='215' fill='currentColor' font-size='11'>※ 경계는 권한을 주지 않는다. 상한만 정한다.</text><text x='30' y='235' fill='currentColor' font-size='11'>※ SCP(계정 상한) ∩ 경계(주체 상한) ∩ 정책 순으로 좁아진다.</text></svg>",
+   "keyTerms": [
+    {
+     "term": "권한 경계(Permissions Boundary)",
+     "meaning": "사용자/역할이 가질 수 있는 최대 권한을 정의하는 관리형 정책"
+    },
+    {
+     "term": "유효 권한(Effective Permissions)",
+     "meaning": "자격증명 정책과 경계의 교집합에서 명시적 Deny를 뺀 실제 허용 범위"
+    },
+    {
+     "term": "권한 상승(Privilege Escalation)",
+     "meaning": "낮은 권한 주체가 IAM 조작으로 더 높은 권한을 얻는 공격 경로"
+    },
+    {
+     "term": "iam:PermissionsBoundary",
+     "meaning": "역할 생성 시 특정 경계 부착을 강제할 때 쓰는 IAM 조건 키"
+    },
+    {
+     "term": "위임 정책(Delegation Policy)",
+     "meaning": "개발자에게 IAM 생성 권한을 주되 경계 부착을 조건으로 다는 정책"
+    },
+    {
+     "term": "SCP(Service Control Policy)",
+     "meaning": "계정 단위 상한. 권한 경계는 주체 단위 상한이라는 점이 다르다"
+    },
+    {
+     "term": "IAM 경로(Path)",
+     "meaning": "/dev/ 처럼 역할 이름 앞에 붙이는 계층 구분자. 위임 범위를 리소스 ARN으로 제한할 때 사용"
+    }
+   ],
+   "pitfalls": [
+    "권한 경계를 붙이면 권한이 생긴다고 오해. 경계는 오직 상한만 정하며 자격증명 정책이 없으면 아무것도 못 한다.",
+    "경계는 붙였는데 PutRolePermissionsBoundary/DeleteRolePermissionsBoundary를 Deny로 막지 않아, 개발자가 경계를 떼고 관리자 권한을 얻는 구멍이 남는다.",
+    "경계를 리소스 기반 정책에도 적용된다고 착각. 권한 경계는 주체 기반 평가에만 관여하며 다른 계정에서 오는 리소스 정책 접근에는 영향이 다르다.",
+    "경계 정책에 Deny를 남발해 정상 서비스가 깨진 뒤 원인을 못 찾는다. 경계 거부는 '암묵적 거부'처럼 보여 디버깅이 어렵다 — IAM Policy Simulator로 확인해야 한다.",
+    "서비스 연결 역할(Service-Linked Role)에도 경계를 강제하려다 서비스 활성화 자체가 실패한다. 예외 경로를 설계해야 한다.",
+    "경계 정책을 한 번 만들고 방치. 새 서비스 도입 때마다 경계 갱신 요청이 쌓여 결국 경계에 s3:* 대신 *:* 를 넣어버리는 무력화가 자주 일어난다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] IAM 역할·사용자 생성 권한이 위임된 주체가 식별되어 있고, 위임 시 권한 경계 부착이 기술적으로 강제되는가",
+     "[접근] 권한 경계 제거·변경 API(PutRolePermissionsBoundary, DeleteRolePermissionsBoundary)가 명시적 Deny로 차단되어 있는가",
+     "[변경] 경계 정책 문서의 변경이 보안팀 승인과 코드 리뷰(IaC PR)를 거치는가, CloudTrail에 변경 이력이 남는가",
+     "[운영] 경계가 부착되지 않은 역할을 주기적으로 탐지하고 조치하는 프로세스가 있는가(AWS Config 커스텀 규칙 등)",
+     "[접근] 권한 경계 도입 이후에도 최소권한 원칙이 자격증명 정책 수준에서 함께 검토되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 정보처리시스템 접근통제 관점에서 권한 부여 권한 자체가 최소한의 인원·범위로 제한되는지 확인",
+     "직무분리 원칙상 권한을 부여하는 주체와 권한을 사용하는 주체의 분리가 권한 경계 위임 모델에서도 유지되는지 확인",
+     "클라우드 이용 관련 내부통제에서 권한 상승 경로에 대한 위험평가가 수행되고 경계 정책이 그 대응방안으로 문서화되어 있는지"
+    ],
+    "isms": [
+     "2.5.1 사용자 계정 관리: 계정·역할 생성 절차와 권한 상한 통제가 정의·운영되는가",
+     "2.5.2 사용자 식별 / 2.5.5 특수 계정 및 권한 관리: 권한 부여 권한(IAM 관리자)이 특수 권한으로 식별·최소화되는가",
+     "2.9.1 변경관리: 경계 정책 변경이 변경관리 절차를 통해 승인·기록되는가"
+    ],
+    "evidence": [
+     "권한 경계 정책 문서 전문(aws iam get-policy-version 출력)과 최근 변경 이력",
+     "위임 정책 전문 및 iam:PermissionsBoundary 조건이 포함되어 있음을 보여주는 캡처",
+     "경계 미적용 역할 목록 조회 결과(aws iam list-roles --query 'Roles[?!PermissionsBoundary]')",
+     "경계 제거 시도에 대한 CloudTrail AccessDenied 이벤트 샘플",
+     "IAM 역할 생성 위임 대상자 목록과 승인 근거(HR/조직도 연계)"
+    ],
+    "auditorQuestions": [
+     "개발팀이 IAM 역할을 직접 만들 수 있는가? 있다면 어떤 기술적 상한이 걸려 있는가?",
+     "권한 경계를 떼어낼 수 있는 사람은 누구이며 어떻게 차단되어 있는가?",
+     "경계 정책을 변경하려면 어떤 승인 절차를 거치는가? 최근 6개월 변경 건을 보여달라.",
+     "경계가 붙지 않은 역할이 존재하는지 어떻게 주기적으로 확인하는가?",
+     "경계 때문에 서비스가 차단된 사례가 있었는가? 그때 예외는 어떻게 처리했는가?"
+    ],
+    "controlExample": "운영 계정에서 개발팀에 위임된 IAM 역할 생성 권한은 /dev/ 경로와 PayNowDevBoundary 권한 경계 부착을 조건으로만 허용되며, 경계의 제거·변경 API는 명시적 Deny로 차단된다. 경계 정책 변경은 보안팀 승인 및 Terraform PR 리뷰를 거치고, 경계 미적용 역할은 AWS Config 규칙으로 일 단위 탐지하여 5영업일 내 조치한다."
+   },
+   "related": [
+    "awssec-iam",
+    "awssec-iam-policy-syntax",
+    "awssec-policy-evaluation",
+    "awssec-scp",
+    "awssec-iam-role-sts",
+    "awssec-abac",
+    "iac-terraform",
+    "comp-sox-itgc"
+   ],
+   "learnMore": [
+    "AWS IAM User Guide - Permissions boundaries for IAM entities",
+    "AWS IAM User Guide - Policy evaluation logic",
+    "AWS Security Blog - Delegate permission management to developers"
+   ]
+  },
+  {
+   "id": "awssec-abac",
+   "title": "ABAC (태그 기반 접근제어)",
+   "titleEn": "Attribute-Based Access Control",
+   "aliases": [
+    "ABAC",
+    "속성기반 접근통제",
+    "태그 기반 권한",
+    "tag-based access",
+    "aws:PrincipalTag"
+   ],
+   "tags": [
+    "iam",
+    "authorization",
+    "tagging"
+   ],
+   "level": "심화",
+   "oneLiner": "사람과 리소스에 붙은 태그를 비교해 접근을 허용하는 방식",
+   "analogy": "ABAC는 사원증과 사무실 문패의 부서명이 같아야 문이 열리는 출입 시스템과 같다. 사람이 늘어도 문이 늘어도 규칙은 '사원증 부서 = 문패 부서' 한 줄이면 된다. 반면 RBAC는 문마다 '누가 들어올 수 있다'는 명단을 붙여두는 방식이라, 사람이 바뀔 때마다 모든 문의 명단을 고쳐야 한다.",
+   "explanation": "<p><strong>ABAC(Attribute-Based Access Control, 속성 기반 접근통제)</strong>는 주체(사람·역할)에 붙은 속성과 리소스에 붙은 속성을 <strong>런타임에 비교</strong>해서 접근을 허용하는 방식이다. AWS에서 이 속성은 대부분 <strong>태그(Tag)</strong>로 표현된다. 대표적인 조건 키는 주체 태그 <code>aws:PrincipalTag/Project</code>, 리소스 태그 <code>aws:ResourceTag/Project</code>, 요청에 담긴 태그 <code>aws:RequestTag/Project</code>다.</p><p><strong>왜 필요한가.</strong> 전통적인 RBAC(역할 기반)에서는 프로젝트가 20개면 역할도 20개, 정책도 20개가 필요하다. 새 프로젝트가 생길 때마다 IAM 정책을 새로 만들고 승인받아야 해서 정책 수가 수백 개로 폭발한다. ABAC를 쓰면 <strong>정책 1개</strong>로 끝난다. '요청자의 Project 태그와 리소스의 Project 태그가 같으면 허용'이라는 문장 하나가 모든 프로젝트에 적용되기 때문이다.</p><p>쉽게 말하면, <strong>권한을 사람 명단이 아니라 규칙으로 표현</strong>하는 것이다. 사람이 부서를 옮기면 IdP(Okta 등)에서 부서 속성만 바꾸면 되고, IAM 정책은 건드리지 않는다. 이 점이 인사이동 대응(mover 처리)이 중요한 ITGC 관점에서 큰 장점이자 동시에 큰 위험이다. IdP 속성 하나가 곧 권한이므로 <strong>속성의 무결성</strong>이 통제의 핵심이 된다.</p><p><strong>주체 태그는 어디서 오는가.</strong> 크게 세 경로다. (1) IAM 사용자/역할에 직접 붙인 태그, (2) IAM Identity Center에서 IdP 속성을 세션 태그로 전달, (3) <code>AssumeRole</code> 호출 시 <code>--tags</code>로 넘기는 <strong>세션 태그(Session Tag)</strong>. SAML 연동에서는 <code>https://aws.amazon.com/SAML/Attributes/PrincipalTag:Project</code> 어트리뷰트로 전달된다. 세션 태그는 <code>sts:TagSession</code> 권한이 필요하며, <code>TransitiveTagKeys</code>를 지정하면 역할 체이닝 시에도 태그가 유지된다.</p><p><strong>ABAC가 성립하려면 태그 위조 방지가 필수</strong>다. 사용자가 리소스를 만들 때 자기 마음대로 <code>Project=finance</code> 태그를 붙일 수 있다면 통제는 무너진다. 그래서 보통 <code>aws:RequestTag</code> 조건으로 '자기 Project 태그와 같은 값만 붙일 수 있다', <code>aws:TagKeys</code> 조건으로 '필수 태그가 반드시 있어야 한다', 그리고 <code>Deny ec2:CreateTags/DeleteTags</code>로 사후 변조를 막는 3중 장치를 함께 건다. SCP로 조직 전체에 태그 변경 금지를 거는 것도 흔하다.</p><p><strong>감사 관점에서 ABAC는 '권한 매트릭스가 문서가 아니라 데이터'</strong>가 되는 변화다. 감사인에게 '누가 어떤 리소스에 접근 가능한가'를 보여줄 때 정책 목록이 아니라 '태그 조합 현황 + 태그 무결성 통제'를 제시해야 한다. 태그 미부착 리소스, 태그 변경 이력, IdP 속성 변경 승인 기록이 핵심 증적이 된다.</p>",
+   "howItWorks": "<ol><li>HR 시스템에서 직원의 부서/프로젝트가 Okta 사용자 속성으로 동기화된다.</li><li>직원이 IAM Identity Center로 로그인하면 SAML Assertion에 <code>PrincipalTag:Project=payment</code>가 담긴다.</li><li>STS가 역할을 assume하면서 세션 태그로 <code>Project=payment</code>를 세션에 붙인다.</li><li>직원이 <code>ec2:StopInstances</code>를 호출한다.</li><li>IAM이 정책의 Condition <code>aws:PrincipalTag/Project == aws:ResourceTag/Project</code>를 평가한다.</li><li>대상 인스턴스의 태그가 <code>Project=payment</code>면 값이 일치하므로 허용, <code>Project=settlement</code>면 불일치로 거부된다.</li><li>새 리소스를 만들 때는 <code>aws:RequestTag/Project</code>가 본인 태그와 같아야만 생성이 허용된다.</li><li>이후 태그를 바꾸려는 시도는 명시적 Deny(또는 SCP)로 차단되고, 시도 자체가 CloudTrail에 AccessDenied로 기록된다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 개발 계정 하나에서 12개 스쿼드가 EC2·RDS·S3를 공유한다. 예전에는 스쿼드마다 IAM 역할과 정책을 따로 만들어 정책이 96개까지 늘었고, 스쿼드 통합·분리 때마다 보안팀이 2주씩 작업했다. ABAC 전환 후 정책은 <code>ShopLinkSquadABAC</code> 1개로 줄었다. 스쿼드가 새로 생기면 Okta 그룹 속성에 <code>Squad=growth</code>를 추가하고 리소스에 같은 태그만 붙이면 끝난다. 2026년 상반기 IAM 정책 변경 요청은 96건에서 4건으로 감소했다.</p><pre><code># ABAC 정책 1개로 모든 스쿼드 커버\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    { \"Sid\": \"SameSquadOnly\", \"Effect\": \"Allow\",\n      \"Action\": [\"ec2:StartInstances\", \"ec2:StopInstances\", \"ec2:RebootInstances\"],\n      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",\n      \"Condition\": { \"StringEquals\": {\n        \"aws:ResourceTag/Squad\": \"${aws:PrincipalTag/Squad}\" } } },\n    { \"Sid\": \"CreateOnlyWithMySquadTag\", \"Effect\": \"Allow\",\n      \"Action\": \"ec2:RunInstances\", \"Resource\": \"*\",\n      \"Condition\": { \"StringEquals\": {\n        \"aws:RequestTag/Squad\": \"${aws:PrincipalTag/Squad}\" },\n        \"Null\": { \"aws:RequestTag/Squad\": \"false\" } } },\n    { \"Sid\": \"NoTagTampering\", \"Effect\": \"Deny\",\n      \"Action\": [\"ec2:CreateTags\", \"ec2:DeleteTags\"], \"Resource\": \"*\",\n      \"Condition\": { \"ForAnyValue:StringEquals\": { \"aws:TagKeys\": [\"Squad\"] } } }\n  ]\n}\n\n# 세션 태그를 직접 넘기며 역할 맡기\naws sts assume-role --role-arn arn:aws:iam::123456789012:role/SquadEngineer \\\n  --role-session-name eddie --tags Key=Squad,Value=growth \\\n  --transitive-tag-keys Squad</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='140' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='90' y='52' text-anchor='middle' fill='currentColor' font-size='12'>사용자 세션</text><text x='90' y='72' text-anchor='middle' fill='currentColor' font-size='11'>Squad=growth</text><line x1='160' y1='60' x2='250' y2='60' stroke='currentColor' marker-end='url(#ar)'/><text x='205' y='50' text-anchor='middle' fill='currentColor' font-size='11'>API 호출</text><rect x='250' y='25' width='150' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='325' y='50' text-anchor='middle' fill='currentColor' font-size='12'>IAM 평가</text><text x='325' y='72' text-anchor='middle' fill='currentColor' font-size='11'>PrincipalTag</text><text x='325' y='88' text-anchor='middle' fill='currentColor' font-size='11'>= ResourceTag ?</text><line x1='400' y1='50' x2='480' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='400' y1='80' x2='480' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='480' y='25' width='140' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='43' text-anchor='middle' fill='currentColor' font-size='11'>EC2 A</text><text x='550' y='60' text-anchor='middle' fill='currentColor' font-size='11'>Squad=growth 허용</text><rect x='480' y='100' width='140' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='118' text-anchor='middle' fill='currentColor' font-size='11'>EC2 B</text><text x='550' y='135' text-anchor='middle' fill='currentColor' font-size='11'>Squad=pay 거부</text><rect x='20' y='140' width='380' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='160' text-anchor='middle' fill='currentColor' font-size='12'>태그 무결성 3중 통제</text><text x='210' y='180' text-anchor='middle' fill='currentColor' font-size='11'>RequestTag 강제 · TagKeys 필수 · CreateTags Deny</text><text x='20' y='215' fill='currentColor' font-size='11'>정책 1개가 모든 스쿼드에 적용 — 스쿼드 추가 시 IAM 변경 불필요</text><text x='20' y='235' fill='currentColor' font-size='11'>속성 출처(Okta/HR)의 정확성이 곧 권한의 정확성</text></svg>",
+   "keyTerms": [
+    {
+     "term": "ABAC",
+     "meaning": "주체 속성과 리소스 속성을 비교해 인가를 결정하는 접근통제 모델"
+    },
+    {
+     "term": "aws:PrincipalTag",
+     "meaning": "요청한 주체(사용자·역할·세션)에 붙은 태그 값을 참조하는 조건 키"
+    },
+    {
+     "term": "aws:ResourceTag",
+     "meaning": "접근 대상 리소스에 붙은 태그 값을 참조하는 조건 키"
+    },
+    {
+     "term": "aws:RequestTag",
+     "meaning": "생성·태깅 요청에 포함된 태그 값. 태그 위조 방지에 사용"
+    },
+    {
+     "term": "세션 태그(Session Tag)",
+     "meaning": "AssumeRole 시 세션에 임시로 붙이는 태그. sts:TagSession 권한 필요"
+    },
+    {
+     "term": "전이 태그(Transitive Tag)",
+     "meaning": "역할 체이닝 시에도 유지되도록 지정한 세션 태그"
+    },
+    {
+     "term": "aws:TagKeys",
+     "meaning": "요청에 포함된 태그 키 집합. 필수 태그 강제나 특정 키 변경 금지에 사용"
+    },
+    {
+     "term": "RBAC",
+     "meaning": "역할 단위 명단 기반 접근통제. ABAC와 혼합해 쓰는 경우가 많다"
+    }
+   ],
+   "pitfalls": [
+    "태그 위조 방지를 빼먹는다. RequestTag 조건과 CreateTags Deny가 없으면 사용자가 스스로 권한을 넓힐 수 있다.",
+    "모든 AWS 서비스가 ResourceTag 조건을 지원한다고 가정. 서비스·액션별로 지원 여부가 달라 지원하지 않는 액션에서는 ABAC가 무력하다(서비스 인가 참조 문서 확인 필요).",
+    "태그 값의 대소문자·표기 흔들림(payment / Payment / pay)으로 조용히 접근이 거부되거나 허용된다. 태그 값 표준과 검증이 필요하다.",
+    "IdP 속성만 바꾸면 즉시 권한이 바뀌므로, 속성 변경 자체에 승인 절차가 없으면 사실상 무통제 권한 변경이 된다.",
+    "기존 리소스에 태그가 없어 ABAC 정책이 전부 거부로 동작. 전환 전에 태그 백필(backfill)과 미태깅 리소스 처리 계획이 필요하다.",
+    "ABAC만으로 직무분리를 달성했다고 보고. 같은 태그 안에서의 개발/운영 분리는 여전히 별도 통제가 필요하다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 권한을 결정하는 속성(태그)의 출처가 HR/IdP로 단일화되어 있고, 속성 변경에 승인 절차가 있는가",
+     "[접근] 사용자가 자신의 권한을 넓히는 방향으로 리소스 태그를 생성·변경하지 못하도록 기술적으로 차단되어 있는가",
+     "[변경] ABAC 정책 문서 변경이 IaC 리뷰·승인을 거치며 변경 이력이 보존되는가",
+     "[운영] 필수 태그 미부착 리소스를 주기적으로 탐지하고 조치하는 절차가 있는가",
+     "[접근] 인사이동·퇴직 시 속성 변경이 권한 회수로 즉시 연결되는지(세션 만료 포함) 검증되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 접근통제 관점에서 접근권한 부여·변경·말소 기록이 태그·속성 변경 이력으로 추적 가능한지",
+     "직무분리 요건이 태그 기반 모델에서도 유지되는지(동일 태그 내 개발자와 운영자 구분)",
+     "권한 부여 근거가 되는 속성 데이터의 정확성·최신성에 대한 정기 점검 수행 여부"
+    ],
+    "isms": [
+     "2.5.1 사용자 계정 관리 / 2.5.6 접근권한 검토: 속성 기반 권한의 적정성을 정기적으로 검토하는가",
+     "2.1.3 정보자산 관리: 리소스 태그가 자산 식별·분류 체계와 연계되어 관리되는가",
+     "2.6.2 정보시스템 접근: 속성 불일치 시 접근이 차단되는지 기술적으로 검증되는가"
+    ],
+    "evidence": [
+     "ABAC 정책 전문(aws iam get-policy-version)과 태그 위조 방지 Deny 구문 캡처",
+     "IdP(Okta) 속성 매핑 설정 화면과 SAML 어트리뷰트 구성",
+     "필수 태그 미부착 리소스 목록(AWS Config required-tags 규칙 결과)",
+     "태그 변경 시도에 대한 CloudTrail AccessDenied 이벤트 샘플",
+     "인사이동 케이스 1~2건의 속성 변경 → 접근 차단 확인 스크린샷",
+     "태그 표준 문서(키 목록, 허용 값, 소유 부서)"
+    ],
+    "auditorQuestions": [
+     "어떤 태그가 권한 판단에 쓰이는가? 그 값은 어디(HR/IdP)에서 오는가?",
+     "사용자가 리소스 태그를 스스로 바꿀 수 있는가? 막혀 있다면 어떻게 확인할 수 있는가?",
+     "태그가 없는 리소스는 어떻게 처리되는가? 접근이 거부되는가, 아니면 예외 정책이 있는가?",
+     "직원이 다른 스쿼드로 이동하면 이전 스쿼드 리소스 접근은 언제 끊기는가?",
+     "ABAC를 지원하지 않는 서비스·액션은 어떻게 통제하는가?"
+    ],
+    "controlExample": "개발 계정의 EC2·RDS 접근 권한은 사용자 세션 태그(Squad)와 리소스 태그(Squad)의 일치 여부로 결정되며, 세션 태그는 HR과 동기화된 Okta 속성에서만 생성된다. 사용자의 태그 생성·변경 API는 명시적 Deny로 차단되고, 필수 태그 미부착 리소스는 AWS Config 규칙으로 일 단위 탐지하여 소유 스쿼드에 자동 티켓이 발행된다."
+   },
+   "related": [
+    "awssec-iam-policy-syntax",
+    "awssec-policy-evaluation",
+    "awssec-identity-center",
+    "awssec-external-idp-saml",
+    "awssec-permission-boundary",
+    "awssec-iam-role-sts",
+    "sec-sso-oidc",
+    "comp-sox-itgc"
+   ],
+   "learnMore": [
+    "AWS IAM User Guide - What is ABAC for AWS?",
+    "AWS IAM User Guide - Session tags",
+    "AWS Prescriptive Guidance - ABAC tagging strategy"
+   ]
+  },
+  {
+   "id": "awssec-scp-region-restriction",
+   "title": "SCP 리전 제한",
+   "titleEn": "Region Restriction with SCP",
+   "aliases": [
+    "리전 제한",
+    "region lock",
+    "데이터 국외이전 통제",
+    "aws:RequestedRegion",
+    "리전 차단 SCP"
+   ],
+   "tags": [
+    "governance",
+    "scp",
+    "compliance",
+    "data-residency"
+   ],
+   "level": "중급",
+   "oneLiner": "조직 정책으로 허용 리전 밖의 AWS API 호출을 전면 차단하는 통제",
+   "analogy": "리전 제한 SCP는 법인카드에 '국내 가맹점에서만 결제 가능'이라는 설정을 걸어두는 것과 같다. 직원이 해외 사이트에서 결제하려 해도 카드사가 승인 단계에서 막는다. 직원의 카드 한도가 얼마인지, 무엇을 사려 했는지와 무관하게 '장소' 조건 하나로 걸러내는 방식이다.",
+   "explanation": "<p><strong>리전 제한(Region Restriction)</strong>은 AWS Organizations의 <strong>SCP(Service Control Policy, 서비스 제어 정책)</strong>를 이용해 허용된 리전(예: ap-northeast-2 서울) 밖에서의 API 호출을 전부 거부하는 통제다. 조건 키 <code>aws:RequestedRegion</code>을 사용해 '요청 리전이 허용 목록에 없으면 Deny'라는 한 줄로 구현한다.</p><p><strong>왜 필요한가.</strong> 세 가지 이유가 있다. 첫째 <strong>데이터 소재지(Data Residency) 규제</strong>다. 국내 금융권은 개인신용정보의 국외 이전에 제약이 있어 '데이터는 국내 리전에만 둔다'는 것을 증명해야 한다. 둘째 <strong>공격 표면 축소</strong>다. 탈취된 액세스 키로 공격자가 사람이 잘 안 보는 리전(예: ap-south-1)에 암호화폐 채굴 EC2를 대량 생성하는 사고(크립토재킹)가 흔한데, 리전 제한이 걸려 있으면 원천 차단된다. 셋째 <strong>비용·운영 가시성</strong>이다. 쓰지 않는 리전에 자원이 생기면 모니터링·백업·패치 대상에서 누락된다.</p><p>쉽게 말하면, <strong>'우리 회사는 서울과 버지니아만 쓴다'는 원칙을 문서가 아니라 API 차단으로 강제</strong>하는 것이다. 감사인이 '국외 이전이 없음을 어떻게 보장하느냐'고 물으면, 정책 문서 대신 SCP 한 장과 차단 로그를 보여줄 수 있다.</p><p><strong>주의할 점은 글로벌 서비스</strong>다. IAM, Organizations, Route 53, CloudFront, Support, Billing, WAF(글로벌 스코프) 같은 서비스는 내부적으로 <code>us-east-1</code>(버지니아)을 엔드포인트로 사용한다. 리전 제한 SCP에 이들을 <code>NotAction</code>으로 예외 처리하지 않으면 IAM 로그인조차 깨진다. 그래서 실무 SCP는 항상 '허용 리전 외 Deny + 글로벌 서비스 NotAction 예외' 형태다.</p><p><strong>SCP의 성질</strong>도 이해해야 한다. SCP는 권한을 <strong>주지 않고 상한만 정한다</strong>. 관리 계정(Management Account)에는 적용되지 않으며, 서비스 연결 역할(Service-Linked Role)의 동작도 일부 제외된다. 또 SCP는 <strong>루트 사용자에게도 적용</strong>되므로(관리 계정 제외) 매우 강력하다. 적용 범위는 OU 또는 개별 계정이며, 상위 OU의 SCP와 하위 SCP는 교집합으로 작동한다.</p><p><strong>감사 관점</strong>에서 이 통제는 '기술적으로 불가능하게 만들었다'는 가장 강한 형태의 예방통제다. 증빙은 SCP 문서, SCP가 붙은 OU/계정 목록, 그리고 비허용 리전에서의 실패 로그(CloudTrail <code>AccessDenied</code> with <code>errorMessage</code>에 SCP 언급)다. 함께 제시하면 설득력이 높다. 예외가 필요한 경우(글로벌 CDN, 재해복구 리전 추가) 예외 승인 기록도 반드시 보관한다.</p>",
+   "howItWorks": "<ol><li>보안 거버넌스팀이 허용 리전을 정의한다(예: ap-northeast-2 운영, us-east-1 글로벌 서비스용).</li><li>SCP 문서를 작성한다: Effect Deny, NotAction에 글로벌 서비스 나열, Condition <code>StringNotEquals aws:RequestedRegion [허용목록]</code>.</li><li>Organizations 관리 계정에서 SCP를 생성하고 워크로드 OU에 부착한다(관리 계정 자체에는 적용 안 됨).</li><li>개발자가 도쿄 리전(ap-northeast-1)에서 <code>ec2:RunInstances</code>를 호출한다.</li><li>AWS가 SCP를 먼저 평가해 명시적 Deny에 걸리고, IAM 정책이 Allow여도 최종 거부된다.</li><li>CloudTrail에 <code>errorCode: AccessDenied</code>와 SCP에 의한 거부임을 나타내는 메시지가 기록된다.</li><li>같은 개발자가 IAM 사용자를 만들면, IAM은 NotAction 예외이므로 정상 동작한다.</li><li>새 리전이 필요하면 변경관리 절차를 통해 SCP의 허용 목록을 수정하고 CloudTrail에 정책 변경 이력이 남는다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 개인신용정보를 다루므로 모든 데이터를 서울 리전에만 둔다는 내부 규정을 갖고 있다. 2025년 내부감사에서 '규정은 있지만 기술적 강제가 없다'는 지적을 받아, Organizations의 Workloads OU(운영·스테이징·개발 계정 11개)에 <code>DenyNonApprovedRegions</code> SCP를 적용했다. 적용 첫 주에 프랑크푸르트 리전에서 테스트 S3 버킷을 만들려던 시도 3건이 차단됐고, 이후 분기 감사에서는 SCP 문서와 차단 로그만으로 데이터 소재지 통제가 입증됐다. 글로벌 CDN용 CloudFront와 ACM 인증서(us-east-1 필수)는 NotAction 예외로 처리했다.</p><pre><code># SCP: 서울 + 버지니아 외 리전 차단\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"DenyNonApprovedRegions\",\n      \"Effect\": \"Deny\",\n      \"NotAction\": [\n        \"iam:*\", \"organizations:*\", \"sts:*\", \"route53:*\",\n        \"cloudfront:*\", \"waf:*\", \"wafv2:*\", \"shield:*\",\n        \"support:*\", \"budgets:*\", \"ce:*\", \"health:*\",\n        \"acm:*\", \"globalaccelerator:*\", \"artifact:*\"\n      ],\n      \"Resource\": \"*\",\n      \"Condition\": {\n        \"StringNotEquals\": {\n          \"aws:RequestedRegion\": [\"ap-northeast-2\", \"us-east-1\"]\n        }\n      }\n    }\n  ]\n}\n\n# 적용 및 확인\naws organizations attach-policy \\\n  --policy-id p-region01 --target-id ou-abcd-workloads\n\n# 비허용 리전에 자원이 남아있는지 점검\nfor r in ap-northeast-1 us-west-2 eu-central-1; do\n  echo \"== $r\"; aws ec2 describe-instances --region $r \\\n    --query 'Reservations[].Instances[].InstanceId' --output text\ndone</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='150' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='47' text-anchor='middle' fill='currentColor' font-size='12'>개발자 / 앱</text><text x='95' y='66' text-anchor='middle' fill='currentColor' font-size='11'>API 호출</text><line x1='170' y1='52' x2='240' y2='52' stroke='currentColor' marker-end='url(#ar)'/><rect x='240' y='20' width='160' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='45' text-anchor='middle' fill='currentColor' font-size='12'>SCP 평가</text><text x='320' y='65' text-anchor='middle' fill='currentColor' font-size='11'>aws:RequestedRegion</text><text x='320' y='81' text-anchor='middle' fill='currentColor' font-size='11'>허용목록에 있나?</text><line x1='400' y1='40' x2='470' y2='35' stroke='currentColor' marker-end='url(#ar)'/><text x='430' y='25' text-anchor='middle' fill='currentColor' font-size='11'>예</text><line x1='400' y1='75' x2='470' y2='115' stroke='currentColor' marker-end='url(#ar)'/><text x='425' y='108' text-anchor='middle' fill='currentColor' font-size='11'>아니오</text><rect x='470' y='15' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='33' text-anchor='middle' fill='currentColor' font-size='11'>ap-northeast-2</text><text x='545' y='50' text-anchor='middle' fill='currentColor' font-size='11'>정상 처리</text><rect x='470' y='95' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='113' text-anchor='middle' fill='currentColor' font-size='11'>ap-northeast-1 등</text><text x='545' y='130' text-anchor='middle' fill='currentColor' font-size='11'>AccessDenied</text><rect x='20' y='155' width='290' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='176' text-anchor='middle' fill='currentColor' font-size='12'>NotAction 예외 (글로벌)</text><text x='165' y='196' text-anchor='middle' fill='currentColor' font-size='11'>IAM · Route53 · CloudFront · ACM · Support</text><rect x='330' y='155' width='290' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='475' y='176' text-anchor='middle' fill='currentColor' font-size='12'>증적</text><text x='475' y='196' text-anchor='middle' fill='currentColor' font-size='11'>SCP 문서 · 부착 OU 목록 · 차단 CloudTrail</text><text x='20' y='235' fill='currentColor' font-size='11'>관리 계정(Management Account)에는 SCP가 적용되지 않는다 — 워크로드는 별도 계정으로 분리</text></svg>",
+   "keyTerms": [
+    {
+     "term": "aws:RequestedRegion",
+     "meaning": "API 요청이 향한 리전을 나타내는 전역 조건 키"
+    },
+    {
+     "term": "NotAction",
+     "meaning": "나열한 액션을 제외한 나머지에 Effect를 적용하는 요소. 글로벌 서비스 예외 처리에 사용"
+    },
+    {
+     "term": "데이터 소재지(Data Residency)",
+     "meaning": "데이터가 물리적으로 저장·처리되는 국가·지역에 대한 규제 요구"
+    },
+    {
+     "term": "글로벌 서비스",
+     "meaning": "IAM·Route 53·CloudFront 등 us-east-1 엔드포인트를 쓰는 리전 비종속 서비스"
+    },
+    {
+     "term": "관리 계정(Management Account)",
+     "meaning": "Organizations의 최상위 계정. SCP가 적용되지 않으므로 워크로드를 두면 안 된다"
+    },
+    {
+     "term": "크립토재킹(Cryptojacking)",
+     "meaning": "탈취한 자격증명으로 비감시 리전에 채굴 인스턴스를 대량 생성하는 공격"
+    },
+    {
+     "term": "예방통제(Preventive Control)",
+     "meaning": "위반 행위 자체가 발생하지 못하게 막는 통제. 탐지통제보다 감사 신뢰도가 높다"
+    }
+   ],
+   "pitfalls": [
+    "글로벌 서비스를 NotAction 예외로 빼지 않아 IAM·Route 53·CloudFront가 전부 깨진다. 특히 ACM은 CloudFront용 인증서를 us-east-1에서 발급해야 한다.",
+    "SCP를 관리 계정에 붙이면 적용될 것이라 기대. 관리 계정에는 SCP가 적용되지 않으므로 워크로드를 두면 통제 공백이 생긴다.",
+    "리전 제한을 걸기 전에 비허용 리전에 이미 존재하던 자원을 정리하지 않아, 차단은 됐지만 방치된 자원이 감사에서 발견된다.",
+    "SCP는 상한일 뿐이므로, 허용 리전 안에서의 최소권한은 여전히 IAM 정책으로 관리해야 한다는 점을 놓친다.",
+    "Deny 대신 Allow 리스트 방식 SCP를 쓰다가, 새 서비스가 나올 때마다 전면 차단되어 운영 사고가 난다.",
+    "재해복구(DR) 리전을 허용 목록에 넣지 않아 DR 훈련 자체가 실패한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 허용 리전 목록이 승인된 문서로 존재하고 SCP로 기술적으로 강제되는가",
+     "[변경] 허용 리전 추가·삭제가 변경관리 승인 절차를 거치며 CloudTrail에 정책 변경 이력이 남는가",
+     "[접근] SCP를 생성·수정·분리할 수 있는 Organizations 관리 계정 권한이 최소 인원으로 제한되는가",
+     "[운영] 비허용 리전에 잔존 자원이 없는지 정기적으로 전 리전 스캔을 수행하는가",
+     "[운영] SCP에 의한 차단 이벤트가 모니터링되어 비정상 시도(자격증명 탈취 징후)가 탐지되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 및 신용정보법 관점에서 개인신용정보의 국외 이전 제한이 기술적으로 강제되는지",
+     "전자금융감독규정 제14조의2 클라우드컴퓨팅서비스 이용 시 데이터 처리 위치가 명확히 식별·관리되는지",
+     "정보처리시스템의 물리적 소재지(리전·가용영역)가 신고·보고 자료와 일치하는지"
+    ],
+    "isms": [
+     "2.10.2 클라우드 보안: 클라우드 서비스 이용 범위(리전 포함)가 정의되고 통제되는가",
+     "3.4.1 국외 이전 보호조치: 개인정보의 국외 이전 여부가 식별되고 통제되는가",
+     "2.1.3 정보자산 관리: 전 리전 자산 현황이 주기적으로 파악되는가"
+    ],
+    "evidence": [
+     "SCP 정책 전문(aws organizations describe-policy --policy-id) 및 부착 대상 목록(list-targets-for-policy)",
+     "허용 리전 승인 문서(정보보호위원회/변경자문위 의사록)",
+     "전 리전 자원 스캔 결과(비허용 리전 자원 0건 증빙)",
+     "비허용 리전 API 시도 차단 CloudTrail 이벤트 샘플",
+     "SCP 변경 이력(CloudTrail UpdatePolicy/AttachPolicy 이벤트)"
+    ],
+    "auditorQuestions": [
+     "회사가 사용하는 AWS 리전은 어디이며 누가 승인했는가?",
+     "승인되지 않은 리전에 자원을 만들면 실제로 어떻게 되는가? 시연해 줄 수 있는가?",
+     "글로벌 서비스는 어떻게 예외 처리했고, 그 예외가 데이터 소재지 요건과 충돌하지 않음을 어떻게 설명하는가?",
+     "SCP를 변경할 수 있는 사람은 누구이고 변경은 어떤 절차를 거치는가?",
+     "비허용 리전에 남아 있는 자원이 없다는 것을 어떻게 확인했는가?"
+    ],
+    "controlExample": "모든 워크로드 계정이 속한 Workloads OU에는 ap-northeast-2와 us-east-1(글로벌 서비스 전용) 외 리전의 API 호출을 거부하는 SCP가 적용되며, 허용 리전 변경은 정보보호위원회 승인 후 Terraform PR로만 반영된다. 비허용 리전 자원 존재 여부는 분기별 전 리전 스캔으로 확인하고 결과를 보관한다."
+   },
+   "related": [
+    "awssec-scp",
+    "awssec-organizations",
+    "awssec-policy-evaluation",
+    "awssec-control-tower",
+    "awssec-multi-account",
+    "awssec-cloudtrail",
+    "comp-fss-egfs",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "AWS Organizations User Guide - Service control policies (SCPs)",
+    "AWS Organizations - Example SCPs for Regions",
+    "AWS Global Condition Context Keys - aws:RequestedRegion"
+   ]
+  },
+  {
+   "id": "awssec-ram",
+   "title": "Resource Access Manager",
+   "titleEn": "AWS Resource Access Manager (RAM)",
+   "aliases": [
+    "RAM",
+    "리소스 공유",
+    "서브넷 공유",
+    "Shared VPC",
+    "크로스 어카운트 공유"
+   ],
+   "tags": [
+    "governance",
+    "multi-account",
+    "networking"
+   ],
+   "level": "중급",
+   "oneLiner": "한 계정의 리소스를 다른 계정에 복제 없이 공유하는 서비스",
+   "analogy": "RAM은 본사 건물의 회의실을 계열사 직원도 예약해 쓸 수 있게 출입 권한을 열어주는 것과 같다. 회의실을 계열사마다 하나씩 새로 짓는 대신(리소스 복제), 이미 있는 회의실을 함께 쓰게 한다. 건물 소유권과 관리 책임은 여전히 본사에 있고, 계열사는 '쓸 수 있을 뿐' 없애거나 개조할 수는 없다.",
+   "explanation": "<p><strong>AWS RAM(Resource Access Manager)</strong>은 한 계정이 소유한 특정 리소스를 다른 AWS 계정·OU·조직 전체와 <strong>복제 없이 공유</strong>하게 해주는 서비스다. 공유 가능한 대표 리소스는 <strong>VPC 서브넷</strong>, Transit Gateway, Route 53 Resolver 규칙, License Manager 구성, Aurora DB 클러스터, Image Builder 컴포넌트, Private CA 등이다.</p><p><strong>왜 필요한가.</strong> 멀티 어카운트 전략을 쓰면 계정이 수십 개가 된다. 계정마다 VPC를 따로 만들면 CIDR 관리가 지옥이 되고(중복·고갈), VPC 피어링이 N×N으로 폭증하며, NAT 게이트웨이 비용이 계정 수만큼 곱해진다. RAM으로 <strong>공유 VPC(Shared VPC)</strong> 패턴을 쓰면 네트워크팀이 소유한 하나의 VPC 안 서브넷을 각 애플리케이션 계정에 나눠주고, 애플리케이션 계정은 자기 계정에서 그 서브넷에 EC2·RDS·ENI를 만든다.</p><p>쉽게 말하면, <strong>'네트워크는 한 곳에서 통제하고, 워크로드는 계정별로 분리'</strong>하는 것을 가능하게 하는 도구다. 보안팀 입장에서는 방화벽·라우팅·흐름로그를 한 계정에서만 관리하면 되니 통제점이 줄어든다.</p><p><strong>중요한 권한 모델</strong>: 공유받은 계정(참여자, Participant)은 리소스를 <strong>사용</strong>할 수는 있지만 <strong>수정·삭제할 수 없다</strong>. 공유 VPC의 경우 참여자는 자기 서브넷에 인스턴스를 만들 수 있지만 라우팅 테이블·NACL·VPC 엔드포인트를 바꿀 수 없다. 소유자(Owner) 계정만 가능하다. 이 비대칭이 바로 통제의 핵심이다.</p><p><strong>공유 범위</strong>는 세 가지다. (1) 조직(Organization) 전체, (2) 특정 OU, (3) 개별 계정 ID. 조직 내 공유를 쓰려면 Organizations에서 <code>RAM 신뢰 액세스(trusted access)</code>를 활성화해야 하며, 이 경우 참여자 계정이 <strong>초대 수락 없이 자동으로</strong> 공유를 받는다. 반대로 조직 외부 계정과 공유하면 초대-수락 절차가 필요하다. 감사에서는 <strong>조직 외부 공유가 있는지</strong>가 항상 점검 대상이다.</p><p><strong>감사 관점</strong>에서 RAM은 '계정 경계를 넘는 접근'이라는 고위험 행위를 만드는 서비스다. 어떤 리소스가, 누구에게, 왜 공유됐는지 목록화하고 승인 근거를 갖추는 것이 핵심이다. IAM Access Analyzer가 조직 외부로 공유된 리소스를 자동 탐지해 주므로 이를 상시 통제로 활용한다.</p>",
+   "howItWorks": "<ol><li>네트워크 계정(Network Account)이 VPC와 서브넷을 생성하고 CIDR·라우팅·NAT를 구성한다.</li><li>네트워크 계정에서 RAM 리소스 공유(Resource Share)를 만들고 공유할 서브넷 ARN을 등록한다.</li><li>공유 대상(Principal)으로 Workloads OU를 지정한다. Organizations RAM 신뢰 액세스가 켜져 있으면 자동 공유된다.</li><li>애플리케이션 계정의 콘솔에서 해당 서브넷이 '공유됨(shared)'으로 보이기 시작한다.</li><li>애플리케이션 계정 개발자가 그 서브넷 ID로 EC2를 시작한다. 인스턴스·ENI·보안그룹은 애플리케이션 계정 소유가 된다.</li><li>개발자가 라우팅 테이블을 수정하려 하면 소유자가 아니므로 거부된다.</li><li>VPC Flow Logs는 소유자 계정에 집중 수집되어 네트워크팀이 전체 트래픽을 한 곳에서 본다.</li><li>Access Analyzer가 공유 범위를 스캔해 조직 외부 공유가 생기면 Security Hub 탐지 결과(finding)로 올린다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 AWS 계정 34개를 운영한다. 초기에는 계정마다 VPC를 만들어 NAT 게이트웨이가 68개(AZ 2개×34)가 되었고 월 NAT 비용만 2,900만원이었다. 2025년 공유 VPC로 전환해 네트워크 계정 1개가 서울 리전 VPC 3개(운영/스테이징/개발)를 소유하고, RAM으로 각 OU에 서브넷을 공유했다. NAT는 6개로 줄어 비용이 88% 감소했고, 보안그룹 심사와 Flow Logs 분석이 한 계정으로 집중되어 감사 대응 공수도 크게 줄었다.</p><pre><code># 1) 네트워크 계정에서 서브넷 공유 생성\naws ram create-resource-share \\\n  --name shoplink-prod-subnets \\\n  --resource-arns \\\n    arn:aws:ec2:ap-northeast-2:111122223333:subnet/subnet-0a1b2c3d \\\n    arn:aws:ec2:ap-northeast-2:111122223333:subnet/subnet-0e4f5g6h \\\n  --principals ou-abcd-workloads \\\n  --no-allow-external-principals    # 조직 외부 공유 금지\n\n# 2) 애플리케이션 계정에서 확인\naws ec2 describe-subnets \\\n  --filters Name=owner-id,Values=111122223333 \\\n  --query 'Subnets[].{Id:SubnetId,Owner:OwnerId,Az:AvailabilityZone}'\n\n# 3) 조직 외부 공유 점검 (감사 증적)\naws ram get-resource-shares --resource-owner SELF \\\n  --query 'resourceShares[?allowExternalPrincipals==`true`].[name,status]'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='200' height='210' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='120' y='42' text-anchor='middle' fill='currentColor' font-size='12'>네트워크 계정 (소유자)</text><rect x='35' y='55' width='170' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='120' y='75' text-anchor='middle' fill='currentColor' font-size='11'>VPC 10.10.0.0/16</text><rect x='45' y='85' width='70' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='105' text-anchor='middle' fill='currentColor' font-size='11'>subnet-a</text><rect x='125' y='85' width='70' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='105' text-anchor='middle' fill='currentColor' font-size='11'>subnet-c</text><text x='120' y='137' text-anchor='middle' fill='currentColor' font-size='11'>라우팅·NACL·NAT·FlowLogs</text><rect x='35' y='165' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='120' y='184' text-anchor='middle' fill='currentColor' font-size='11'>RAM 리소스 공유</text><text x='120' y='201' text-anchor='middle' fill='currentColor' font-size='11'>대상: Workloads OU</text><line x1='220' y1='120' x2='300' y2='70' stroke='currentColor' marker-end='url(#ar)'/><line x1='220' y1='130' x2='300' y2='150' stroke='currentColor' marker-end='url(#ar)'/><text x='262' y='115' text-anchor='middle' fill='currentColor' font-size='11'>공유</text><rect x='300' y='35' width='150' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='375' y='58' text-anchor='middle' fill='currentColor' font-size='11'>결제 계정</text><text x='375' y='76' text-anchor='middle' fill='currentColor' font-size='11'>EC2/RDS 생성 가능</text><text x='375' y='94' text-anchor='middle' fill='currentColor' font-size='11'>라우팅 변경 불가</text><rect x='300' y='130' width='150' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='375' y='153' text-anchor='middle' fill='currentColor' font-size='11'>정산 계정</text><text x='375' y='171' text-anchor='middle' fill='currentColor' font-size='11'>ENI는 자기 소유</text><text x='375' y='189' text-anchor='middle' fill='currentColor' font-size='11'>VPC는 남의 소유</text><rect x='470' y='60' width='150' height='120' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='85' text-anchor='middle' fill='currentColor' font-size='12'>통제 포인트</text><text x='545' y='108' text-anchor='middle' fill='currentColor' font-size='11'>공유 대상 범위</text><text x='545' y='128' text-anchor='middle' fill='currentColor' font-size='11'>외부 공유 금지</text><text x='545' y='148' text-anchor='middle' fill='currentColor' font-size='11'>Access Analyzer</text><text x='545' y='168' text-anchor='middle' fill='currentColor' font-size='11'>공유 승인 대장</text></svg>",
+   "keyTerms": [
+    {
+     "term": "리소스 공유(Resource Share)",
+     "meaning": "공유할 리소스 ARN과 대상 주체를 묶은 RAM의 단위"
+    },
+    {
+     "term": "소유자(Owner) / 참여자(Participant)",
+     "meaning": "리소스를 소유·관리하는 계정과 사용만 가능한 계정"
+    },
+    {
+     "term": "공유 VPC(Shared VPC)",
+     "meaning": "서브넷을 RAM으로 공유해 여러 계정이 한 VPC를 함께 쓰는 패턴"
+    },
+    {
+     "term": "신뢰 액세스(Trusted Access)",
+     "meaning": "Organizations에서 RAM을 활성화해 조직 내 공유를 초대 없이 자동 수락하게 하는 설정"
+    },
+    {
+     "term": "allowExternalPrincipals",
+     "meaning": "조직 외부 계정과의 공유 허용 여부 플래그. 감사 핵심 점검 항목"
+    },
+    {
+     "term": "Transit Gateway",
+     "meaning": "여러 VPC·온프레미스를 허브 방식으로 연결하는 서비스. RAM 공유 대상 중 하나"
+    },
+    {
+     "term": "IAM Access Analyzer",
+     "meaning": "조직·계정 경계를 넘는 접근 경로를 자동 탐지하는 서비스"
+    }
+   ],
+   "pitfalls": [
+    "공유받은 계정도 VPC를 수정할 수 있다고 오해. 참여자는 서브넷 사용만 가능하며 라우팅·NACL·엔드포인트 변경은 소유자만 가능하다.",
+    "allowExternalPrincipals를 켜둔 채 방치해 조직 외부 계정과 공유 가능한 상태가 된다.",
+    "공유 VPC에서 보안그룹은 계정별로 만들어지므로, 계정 간 참조(SG referencing)가 기본적으로는 제한된다는 점을 놓쳐 통신 설계가 꼬인다.",
+    "비용 귀속이 헷갈린다. 서브넷은 네트워크 계정 소유지만 인스턴스·데이터 전송 비용은 참여자 계정에 청구된다.",
+    "소유자 계정에서 서브넷 공유를 해제하면 참여자 계정 자원이 즉시 통신 장애를 겪을 수 있는데, 해제 절차에 영향도 검토가 없다.",
+    "RAM 공유 현황을 자산 대장에 반영하지 않아 감사에서 '어떤 리소스가 누구에게 열려 있는지' 답하지 못한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 계정 간 공유된 리소스 목록과 공유 대상(계정·OU)이 최신으로 관리되며 각 공유에 승인 근거가 있는가",
+     "[접근] 조직 외부 주체와의 공유(allowExternalPrincipals)가 금지되거나 예외 승인 절차를 거치는가",
+     "[변경] 공유 생성·해제가 IaC 및 변경관리 절차를 통해 이루어지고 CloudTrail에 기록되는가",
+     "[운영] 공유 VPC 소유자 계정의 네트워크 변경 권한이 네트워크팀으로 제한되고 직무분리가 유지되는가",
+     "[운영] 공유 해제 시 참여자 워크로드 영향도 검토 및 사전 통지 절차가 있는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 접근통제 관점에서 계정(망) 경계를 넘는 접근 경로가 식별·승인·기록되는지",
+     "전자금융기반시설 네트워크 구성도에 공유 VPC 구조와 계정 간 연결이 정확히 반영되어 있는지",
+     "업무망·운영망 분리 원칙이 공유 VPC 환경에서도 서브넷·계정 단위로 유지되는지"
+    ],
+    "isms": [
+     "2.6.1 네트워크 접근: 계정 간 공유 네트워크 구간에 대한 접근통제와 분리가 적용되는가",
+     "2.1.3 정보자산 관리: 공유 리소스가 소유·사용 주체와 함께 자산 대장에 식별되는가",
+     "2.9.1 변경관리: 공유 설정 변경이 승인·기록되는가"
+    ],
+    "evidence": [
+     "aws ram get-resource-shares --resource-owner SELF 출력(공유명, 대상, 외부 허용 여부)",
+     "공유별 승인 티켓(변경관리 시스템) 및 사유 기재 문서",
+     "IAM Access Analyzer 외부 접근 탐지 결과 스크린샷(외부 공유 0건)",
+     "공유 VPC 네트워크 구성도 및 소유 계정·참여 계정 매핑표",
+     "네트워크 계정의 라우팅·보안그룹 변경 권한 보유자 목록"
+    ],
+    "auditorQuestions": [
+     "다른 계정과 공유 중인 리소스는 무엇이고 각각 누구에게 공유되어 있는가?",
+     "조직 외부 계정과 공유된 리소스가 있는가? 없다면 어떻게 확인했는가?",
+     "공유 VPC에서 라우팅이나 방화벽 규칙을 바꿀 수 있는 사람은 누구인가?",
+     "공유를 새로 만들거나 해제할 때 승인은 누가 하는가?",
+     "공유가 갑자기 해제되면 어떤 서비스가 영향을 받는지 파악하고 있는가?"
+    ],
+    "controlExample": "공유 VPC 서브넷은 네트워크 계정이 소유하며 RAM 공유 대상은 Workloads OU 내부로만 제한되고 외부 주체 공유는 비활성화되어 있다. 모든 RAM 공유 생성·해제는 Terraform PR과 변경관리 승인을 거치며, 조직 외부 공유 발생 여부는 IAM Access Analyzer로 상시 탐지한다."
+   },
+   "related": [
+    "awssec-organizations",
+    "awssec-multi-account",
+    "awssec-access-analyzer",
+    "awssec-scp",
+    "aws-vpc",
+    "net-dns",
+    "iac-terraform",
+    "comp-sox-itgc"
+   ],
+   "learnMore": [
+    "AWS RAM User Guide - What is AWS Resource Access Manager?",
+    "AWS VPC User Guide - Share your VPC with other accounts",
+    "AWS Prescriptive Guidance - Shared VPC patterns"
+   ]
+  },
+  {
+   "id": "awssec-kms",
+   "title": "KMS",
+   "titleEn": "AWS Key Management Service",
+   "aliases": [
+    "KMS",
+    "키관리",
+    "CMK",
+    "고객관리형키",
+    "암호화 키",
+    "봉투암호화"
+   ],
+   "tags": [
+    "encryption",
+    "key-management",
+    "compliance"
+   ],
+   "level": "중급",
+   "oneLiner": "암호화 키를 안전하게 만들고 사용 권한을 통제하는 관리형 서비스",
+   "analogy": "KMS는 은행 금고실의 마스터 키 관리소와 같다. 직원들은 마스터 키를 직접 손에 쥘 수 없고, '이 상자를 열어달라'고 관리소에 요청하면 관리소가 신원과 권한을 확인한 뒤 대신 열어준다. 누가 언제 어떤 상자를 열었는지는 관리소 장부(CloudTrail)에 전부 남는다. 열쇠를 바깥으로 절대 내보내지 않는 것이 핵심이다.",
+   "explanation": "<p><strong>AWS KMS(Key Management Service)</strong>는 암호화에 쓰이는 키를 생성·저장·회전·폐기하고, 그 키를 <strong>누가 쓸 수 있는지</strong>를 통제하는 관리형 서비스다. 핵심 개념은 <strong>KMS 키(KMS key, 구 명칭 CMK — Customer Master Key)</strong>다. 이 키는 FIPS 140-3 검증 하드웨어 보안 모듈(HSM) 안에 보관되며 <strong>평문 상태로 KMS 밖으로 절대 나오지 않는다</strong>.</p><p><strong>봉투 암호화(Envelope Encryption)</strong>가 KMS 사용의 기본 패턴이다. 100GB 파일을 KMS에 보내 암호화하는 것은 비효율적이고 실제로 KMS는 4KB까지만 직접 암호화한다. 대신 이렇게 동작한다. (1) 애플리케이션이 KMS에 <code>GenerateDataKey</code>를 요청한다. (2) KMS는 랜덤한 <strong>데이터 키(Data Key)</strong>를 만들어 <strong>평문본</strong>과 <strong>KMS 키로 암호화한 본</strong> 두 개를 돌려준다. (3) 앱은 평문 데이터 키로 대용량 파일을 로컬에서 빠르게 암호화하고, 평문 키를 메모리에서 지운다. (4) 암호화된 파일 옆에 암호화된 데이터 키를 함께 저장한다. 복호화할 때는 암호화된 데이터 키를 KMS에 보내 <code>Decrypt</code>로 풀어 쓴다. 쉽게 말하면 <strong>'큰 짐은 자물쇠로 잠그고, 그 자물쇠 열쇠는 금고에 넣는' 2단 구조</strong>다.</p><p><strong>키 종류는 세 가지</strong>다. <strong>AWS 관리형 키(aws/s3 같은 것)</strong>는 AWS가 자동 생성·관리하며 키 정책을 바꿀 수 없고 무료다. <strong>고객 관리형 키(Customer Managed Key, CMK)</strong>는 회사가 만들고 키 정책·별칭·회전 주기를 직접 제어하며 월 1달러 + 요청당 과금이다. <strong>AWS 소유 키</strong>는 AWS 내부용으로 고객에게 보이지 않는다. 감사 대응이 필요한 중요 데이터에는 반드시 <strong>고객 관리형 키</strong>를 쓴다. 키 정책을 통제할 수 있어야 '우리가 통제한다'고 말할 수 있기 때문이다.</p><p><strong>권한은 이중 구조</strong>다. KMS는 IAM 정책만으로 접근이 허용되지 않고, <strong>키 정책(Key Policy)</strong>이라는 리소스 기반 정책이 반드시 허용해야 한다. 키 정책이 <code>Principal: {AWS: 계정루트}</code>로 IAM에 위임하면 그때부터 IAM 정책이 의미를 갖는다. 여기에 임시·세밀한 위임을 위한 <strong>그랜트(Grant)</strong>가 추가로 있다. 이 구조 덕분에 '계정 관리자라도 키를 못 쓰게' 만들 수 있어 직무분리 구현이 가능하다.</p><p><strong>키 회전(Key Rotation)</strong>은 고객 관리형 대칭키에 대해 자동 회전을 켜면 기본 1년(설정으로 조정 가능) 주기로 새 백업 키(backing key)가 생성된다. 중요한 점은 키 ID와 ARN은 그대로이고 <strong>과거 데이터를 재암호화할 필요가 없다</strong>는 것이다. 예전 백업 키가 보존되어 옛 데이터는 계속 복호화된다. 비대칭 키와 외부 반입 키(BYOK)는 자동 회전이 지원되지 않아 수동 회전 절차가 필요하다.</p><p><strong>삭제는 즉시 불가능</strong>하다. <code>ScheduleKeyDeletion</code>으로 7~30일 대기 기간을 두며, 그 사이 취소할 수 있다. 키를 지우면 그 키로 암호화된 모든 데이터가 <strong>영구히 복구 불가</strong>가 되므로 대기 기간과 CloudWatch 경보가 최후의 안전장치다. 감사 관점에서 키 삭제 예약 이벤트는 최고 심각도 알람 대상이다.</p><p><strong>감사 관점에서 KMS는 '암호화했다'는 주장의 증거 그 자체</strong>다. 데이터가 암호화되었다는 사실보다 <strong>키를 누가 통제하는가</strong>가 핵심 질문이다. 키 정책, 키별 사용 주체, 회전 여부, 삭제 통제, 그리고 모든 <code>Decrypt</code> 호출이 CloudTrail에 남는다는 점이 증적의 뼈대가 된다.</p>",
+   "howItWorks": "<ol><li>보안팀이 고객 관리형 KMS 키를 생성하고 별칭 <code>alias/paynow-pii</code>를 붙인다.</li><li>키 정책에 '보안팀 역할은 키 관리(Administer), 결제 서비스 역할은 키 사용(Use)만' 이라고 분리해 기술한다.</li><li>결제 애플리케이션이 카드번호를 저장하기 전에 <code>kms:GenerateDataKey</code>를 호출한다.</li><li>KMS가 호출자의 IAM 정책 + 키 정책 + 그랜트를 모두 평가해 허용 여부를 결정한다.</li><li>허용되면 데이터 키의 평문본과 암호문본을 반환한다.</li><li>앱이 평문 데이터 키로 AES-256 암호화를 수행하고 평문 키를 메모리에서 폐기한다.</li><li>암호문과 암호화된 데이터 키를 DynamoDB/S3에 함께 저장한다.</li><li>조회 시 암호화된 데이터 키를 <code>kms:Decrypt</code>로 풀고, 그 키로 데이터를 복호화한다.</li><li>모든 GenerateDataKey/Decrypt 호출이 CloudTrail에 주체·시각·암호화 컨텍스트와 함께 기록된다.</li><li>1년마다 자동 회전이 발생해 새 백업 키가 생기고, 기존 데이터는 옛 백업 키로 계속 복호화된다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 고객 카드번호와 주민등록번호를 DynamoDB에 저장한다. 규제상 '암호화 키에 대한 접근이 데이터 접근과 분리'되어야 해서, 키는 보안 계정(Security Account)에 두고 결제 계정의 애플리케이션 역할에만 <code>kms:Decrypt</code>를 교차 계정으로 허용했다. 결제 계정의 관리자(AdministratorAccess 보유)라도 키 정책에 명시되지 않았으므로 데이터를 복호화할 수 없다. 2026년 3월 감사에서 이 구조가 '암호화 키 분리 보관' 요건 충족 근거로 채택됐다.</p><pre><code># 키 정책: 관리(Administer)와 사용(Use) 분리\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    { \"Sid\": \"KeyAdmins\", \"Effect\": \"Allow\",\n      \"Principal\": { \"AWS\": \"arn:aws:iam::999988887777:role/SecurityKeyAdmin\" },\n      \"Action\": [\"kms:Create*\",\"kms:Describe*\",\"kms:Enable*\",\"kms:List*\",\n                 \"kms:Put*\",\"kms:Update*\",\"kms:Revoke*\",\"kms:Disable*\",\n                 \"kms:ScheduleKeyDeletion\",\"kms:CancelKeyDeletion\"],\n      \"Resource\": \"*\" },\n    { \"Sid\": \"AppUseOnly\", \"Effect\": \"Allow\",\n      \"Principal\": { \"AWS\": \"arn:aws:iam::123456789012:role/payment-api\" },\n      \"Action\": [\"kms:Encrypt\",\"kms:Decrypt\",\"kms:GenerateDataKey*\",\"kms:DescribeKey\"],\n      \"Resource\": \"*\",\n      \"Condition\": { \"StringEquals\": {\n        \"kms:EncryptionContext:app\": \"payment\" } } }\n  ]\n}\n\n# 봉투 암호화 실습\naws kms generate-data-key --key-id alias/paynow-pii --key-spec AES_256 \\\n  --encryption-context app=payment\n\n# 자동 회전 상태 점검 (전체 고객관리형 키)\nfor k in $(aws kms list-keys --query 'Keys[].KeyId' --output text); do\n  mgr=$(aws kms describe-key --key-id $k --query 'KeyMetadata.KeyManager' --output text)\n  if [ \"$mgr\" = \"CUSTOMER\" ]; then\n    echo \"$k $(aws kms get-key-rotation-status --key-id $k --query KeyRotationEnabled --output text)\"\n  fi\ndone</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='130' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='55' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션</text><text x='85' y='74' text-anchor='middle' fill='currentColor' font-size='11'>payment-api</text><line x1='150' y1='50' x2='240' y2='50' stroke='currentColor' marker-end='url(#ar)'/><text x='195' y='42' text-anchor='middle' fill='currentColor' font-size='11'>GenerateDataKey</text><line x1='240' y1='80' x2='150' y2='80' stroke='currentColor' marker-end='url(#ar)'/><text x='195' y='96' text-anchor='middle' fill='currentColor' font-size='11'>평문키+암호화키</text><rect x='240' y='20' width='160' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='45' text-anchor='middle' fill='currentColor' font-size='12'>KMS (HSM)</text><text x='320' y='65' text-anchor='middle' fill='currentColor' font-size='11'>KMS 키는 밖으로</text><text x='320' y='82' text-anchor='middle' fill='currentColor' font-size='11'>나가지 않음</text><rect x='430' y='20' width='190' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='525' y='42' text-anchor='middle' fill='currentColor' font-size='12'>이중 인가</text><text x='525' y='62' text-anchor='middle' fill='currentColor' font-size='11'>키 정책(필수) + IAM 정책</text><text x='525' y='82' text-anchor='middle' fill='currentColor' font-size='11'>+ 그랜트(Grant)</text><line x1='400' y1='60' x2='430' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='130' width='250' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='145' y='152' text-anchor='middle' fill='currentColor' font-size='12'>봉투 암호화 저장 형태</text><rect x='35' y='165' width='105' height='45' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='87' y='184' text-anchor='middle' fill='currentColor' font-size='11'>암호화된</text><text x='87' y='201' text-anchor='middle' fill='currentColor' font-size='11'>데이터</text><rect x='150' y='165' width='105' height='45' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='202' y='184' text-anchor='middle' fill='currentColor' font-size='11'>암호화된</text><text x='202' y='201' text-anchor='middle' fill='currentColor' font-size='11'>데이터 키</text><rect x='300' y='130' width='320' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='460' y='152' text-anchor='middle' fill='currentColor' font-size='12'>감사 증적</text><text x='460' y='174' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail: Decrypt 호출자·시각·EncryptionContext</text><text x='460' y='194' text-anchor='middle' fill='currentColor' font-size='11'>회전 상태 · 키 정책 · 삭제 예약 알람</text><text x='460' y='214' text-anchor='middle' fill='currentColor' font-size='11'>삭제는 7~30일 대기 후 영구 소실</text></svg>",
+   "keyTerms": [
+    {
+     "term": "KMS 키(구 CMK)",
+     "meaning": "HSM 안에서만 존재하며 밖으로 반출되지 않는 최상위 암호화 키"
+    },
+    {
+     "term": "봉투 암호화(Envelope Encryption)",
+     "meaning": "데이터는 데이터 키로, 데이터 키는 KMS 키로 암호화하는 2단 구조"
+    },
+    {
+     "term": "데이터 키(Data Key)",
+     "meaning": "실제 데이터를 암호화하는 일회성 대칭키. 평문본은 사용 후 즉시 폐기"
+    },
+    {
+     "term": "키 정책(Key Policy)",
+     "meaning": "KMS 키의 리소스 기반 정책. 이것이 허용해야 IAM 정책이 의미를 갖는다"
+    },
+    {
+     "term": "그랜트(Grant)",
+     "meaning": "특정 주체에게 임시·세밀하게 키 사용을 위임하는 메커니즘. AWS 서비스가 주로 사용"
+    },
+    {
+     "term": "암호화 컨텍스트(Encryption Context)",
+     "meaning": "암복호화 시 함께 전달하는 키-값 쌍. 조건 키로 접근 제한과 로그 추적에 활용"
+    },
+    {
+     "term": "자동 키 회전(Automatic Rotation)",
+     "meaning": "백업 키를 주기적으로 교체. 키 ID는 유지되고 재암호화가 불필요"
+    },
+    {
+     "term": "ScheduleKeyDeletion",
+     "meaning": "7~30일 대기 후 키를 영구 삭제하는 예약. 최고 위험 이벤트"
+    },
+    {
+     "term": "BYOK(Bring Your Own Key)",
+     "meaning": "외부에서 생성한 키 재료를 KMS로 반입. 자동 회전 미지원"
+    }
+   ],
+   "pitfalls": [
+    "IAM에서 kms:* 를 허용했는데도 거부된다고 당황. KMS는 키 정책이 반드시 허용해야 하며 IAM 단독으로는 부족하다.",
+    "AWS 관리형 키(aws/s3 등)를 쓰면서 '우리가 키를 통제한다'고 감사에 답변. AWS 관리형 키는 키 정책 수정도 사용자 제한도 불가능하다.",
+    "키 회전을 켜면 기존 데이터를 다시 암호화해야 한다고 오해. 회전은 백업 키만 바뀌고 재암호화는 불필요하다.",
+    "키 정책에서 계정 루트(root) 위임 구문을 실수로 지워 아무도 키를 관리할 수 없게 되는 '키 잠김' 사고. 복구는 AWS Support 문의뿐이다.",
+    "멀티 리전 데이터 복제 시 KMS 키가 리전 종속임을 잊어 DR 리전에서 복호화가 불가능해진다(멀티 리전 키 또는 리전별 키 설계 필요).",
+    "Decrypt 호출량을 고려하지 않아 요청당 과금과 API 스로틀링(rate limit)에 걸린다. 데이터 키 캐싱 전략이 필요하다.",
+    "키 삭제 예약에 대한 경보가 없어 30일 뒤 데이터가 전부 복구 불가가 되는 사고를 놓친다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 중요정보 암호화에 고객 관리형 키가 사용되며, 키 사용(Use) 권한과 키 관리(Administer) 권한이 직무분리되어 있는가",
+     "[접근] 키 정책상 데이터를 복호화할 수 있는 주체가 최소화되어 있고 계정 관리자 권한만으로는 복호화가 불가능한가",
+     "[변경] 키 정책·별칭·회전 설정 변경이 승인 절차와 IaC를 통해 이루어지고 CloudTrail에 기록되는가",
+     "[운영] 고객 관리형 키의 자동 회전이 활성화되어 있고 회전 이력이 확인 가능한가",
+     "[운영] ScheduleKeyDeletion 이벤트에 대한 실시간 경보와 대응 절차가 존재하는가",
+     "[ITAC] 애플리케이션이 저장 전 암호화를 수행하는지, 평문 저장 경로가 없는지 검증되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조 정보처리시스템 보호 및 제31조 등에 따른 중요정보(개인신용정보·비밀번호)의 암호화 저장 요건 충족 여부",
+     "암호키의 생성·분배·보관·폐기 절차가 문서화되고 키 접근 권한이 분리되어 있는지",
+     "전자금융감독규정 제14조의2 클라우드 이용 시 암호키 통제 주체가 회사임을 입증할 수 있는지(고객 관리형 키 사용)"
+    ],
+    "isms": [
+     "2.7.1 암호정책 적용: 암호화 대상·알고리즘·키 길이가 정책으로 정의되고 적용되는가",
+     "2.7.2 암호키 관리: 키 생성·이용·보관·폐기 절차와 접근 권한 분리가 이행되는가",
+     "2.5.5 특수 계정 및 권한 관리: 키 관리 권한이 특수 권한으로 식별·최소화되는가"
+    ],
+    "evidence": [
+     "고객 관리형 키 목록과 용도(aws kms list-aliases, describe-key 출력)",
+     "핵심 키의 키 정책 전문(aws kms get-key-policy) — 관리/사용 권한 분리 확인",
+     "전체 고객 관리형 키의 자동 회전 활성화 현황(get-key-rotation-status 일괄 출력)",
+     "CloudTrail에서 추출한 최근 3개월 Decrypt 호출 주체 통계",
+     "ScheduleKeyDeletion 알람 설정 화면 및 최근 발생 이력",
+     "암호키 관리 절차서 및 키 소유 부서 지정 문서"
+    ],
+    "auditorQuestions": [
+     "고객 정보 암호화에 쓰는 키는 AWS 관리형인가 고객 관리형인가? 왜 그렇게 선택했는가?",
+     "이 키로 데이터를 복호화할 수 있는 사람과 시스템은 각각 누구인가?",
+     "계정 관리자 권한을 가진 사람이 암호화된 고객정보를 복호화할 수 있는가?",
+     "키 회전은 어떤 주기로 이루어지며 마지막 회전은 언제였는가?",
+     "누군가 키 삭제를 예약하면 어떻게 알아차리는가?",
+     "DR 리전으로 전환했을 때 데이터 복호화가 가능함을 검증한 적이 있는가?"
+    ],
+    "controlExample": "고객 개인신용정보는 보안 계정에 보관된 고객 관리형 KMS 키(alias/paynow-pii)로 봉투 암호화되며, 키 정책상 관리 권한은 보안팀 역할, 사용 권한은 결제 애플리케이션 역할로 분리되어 운영 계정 관리자는 복호화할 수 없다. 키는 연 1회 자동 회전되고 키 삭제 예약 이벤트는 즉시 보안관제로 경보된다."
+   },
+   "related": [
+    "awssec-cloudhsm",
+    "awssec-secrets-manager",
+    "awssec-parameter-store",
+    "awssec-acm",
+    "awssec-cloudtrail",
+    "awssec-config",
+    "aws-s3",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "AWS KMS Developer Guide - Concepts",
+    "AWS KMS Developer Guide - Key policies",
+    "AWS KMS - Rotating AWS KMS keys",
+    "AWS Cryptographic Details (KMS)"
+   ]
+  },
+  {
+   "id": "awssec-cloudhsm",
+   "title": "CloudHSM",
+   "titleEn": "AWS CloudHSM",
+   "aliases": [
+    "CloudHSM",
+    "전용 HSM",
+    "하드웨어보안모듈",
+    "FIPS 140-3 Level 3",
+    "단독 키관리"
+   ],
+   "tags": [
+    "encryption",
+    "key-management",
+    "hsm",
+    "compliance"
+   ],
+   "level": "심화",
+   "oneLiner": "고객 전용 하드웨어 보안모듈을 임대해 키를 직접 통제하는 서비스",
+   "analogy": "KMS가 은행이 운영하는 공용 대여금고라면, CloudHSM은 은행 건물 안에 놓인 '우리 회사 전용 금고'를 통째로 임대하는 것이다. 금고의 열쇠는 오직 우리만 갖고 있어서, 은행 직원조차 열 수 없다. 대신 열쇠를 잃어버리면 은행도 도와줄 수 없고, 금고 관리·백업·이중화도 우리가 직접 해야 한다.",
+   "explanation": "<p><strong>AWS CloudHSM</strong>은 고객 전용으로 할당되는 <strong>하드웨어 보안 모듈(HSM, Hardware Security Module)</strong>을 VPC 안에 배치해 주는 서비스다. KMS와 가장 큰 차이는 <strong>AWS가 키에 전혀 접근할 수 없다</strong>는 점이다. KMS는 AWS가 운영하는 멀티테넌트 HSM 위에서 동작하며 키 자체는 AWS 소프트웨어가 관리하지만, CloudHSM은 HSM의 <strong>암호 사용자(Crypto User, CU)</strong> 자격증명을 고객만 보유한다.</p><p><strong>왜 필요한가.</strong> 규제나 계약상 <strong>'키에 대한 단독 통제(sole control)'</strong>와 <strong>FIPS 140-3 Level 3</strong> 수준을 요구받는 경우가 있다. 국내에서는 전자서명·공인인증, 카드사의 PIN 블록 처리, PCI DSS의 PIN 관리(PCI PIN), 일부 금융권 CA 운영 등이 해당한다. 또 <strong>PKCS#11, JCE(Java), CNG/KSP(Windows)</strong> 같은 표준 암호 인터페이스를 요구하는 레거시 애플리케이션(예: SAP, Oracle TDE, 자체 HSM 연동 결제 모듈)을 클라우드로 옮길 때도 필요하다. 쉽게 말하면, <strong>KMS로는 충족되지 않는 '키 독점'과 '표준 인터페이스' 요구</strong>를 채우는 서비스다.</p><p><strong>구성</strong>은 <strong>클러스터(Cluster)</strong> 단위다. 하나의 클러스터에 HSM 인스턴스를 2개 이상(권장 3개, 서로 다른 AZ) 두어 고가용성을 확보한다. 클러스터 안 HSM들은 키를 자동 동기화한다. 클러스터를 처음 만들면 <strong>초기화(Initialize)</strong> 과정에서 고객이 발급한 인증서로 클러스터 신뢰를 설정하고(Customer CA), 이후 <strong>암호 책임자(Crypto Officer, CO)</strong>와 <strong>암호 사용자(CU)</strong> 계정을 만든다. 이 자격증명을 분실하면 <strong>AWS도 복구해 줄 수 없다</strong>.</p><p><strong>KMS와 연계</strong>도 가능하다. <strong>KMS 사용자 지정 키 저장소(Custom Key Store)</strong>를 만들면, KMS 키의 실제 키 재료를 CloudHSM 클러스터에 두면서 S3·EBS·RDS 같은 AWS 서비스는 평소처럼 KMS API로 쓸 수 있다. '규제는 HSM을 요구하는데 서비스 통합은 KMS가 편하다'는 딜레마를 푸는 패턴이다.</p><p><strong>운영 부담</strong>이 KMS와 결정적으로 다르다. HSM 인스턴스는 시간당 과금이라 3대 운영 시 월 수백만원 수준이고, 백업(클러스터 백업은 AWS가 암호화해 보관), 펌웨어 업그레이드 영향도 검토, 클라이언트 SDK 버전 관리, CO/CU 자격증명 보관(분할 보관·봉인 봉투) 등 온프레미스 HSM과 유사한 운영 체계가 필요하다.</p><p><strong>감사 관점</strong>에서 CloudHSM은 매우 강한 통제 근거지만, 동시에 <strong>사람이 관리해야 하는 지점이 많아 통제 실패 위험도 크다</strong>. 감사인은 CO/CU 자격증명 보관 방식, 이중화 구성, 백업·복구 훈련 기록, HSM 감사 로그(CloudWatch Logs로 전송되는 HSM audit log)의 보존을 집중적으로 본다.</p>",
+   "howItWorks": "<ol><li>VPC의 프라이빗 서브넷에 CloudHSM 클러스터를 생성하고 HSM 인스턴스를 AZ별로 배치한다.</li><li>클러스터의 CSR을 내려받아 회사 CA(또는 오프라인 자체 CA)로 서명한 인증서를 업로드해 클러스터를 초기화한다.</li><li>첫 접속 시 Crypto Officer(CO) 비밀번호를 설정하고, 애플리케이션용 Crypto User(CU)를 생성한다.</li><li>애플리케이션 서버에 CloudHSM 클라이언트 SDK(PKCS#11 또는 JCE)를 설치하고 CU 자격증명을 주입한다.</li><li>애플리케이션이 PKCS#11 인터페이스로 서명·복호화를 요청하면 요청이 HSM 내부에서 처리되고 키는 절대 밖으로 나오지 않는다.</li><li>모든 암호 연산과 관리 명령이 HSM 감사 로그로 남아 CloudWatch Logs로 전송된다.</li><li>클러스터는 자동으로 백업을 생성하고, 필요 시 백업에서 새 클러스터를 복원한다.</li><li>KMS 사용자 지정 키 저장소를 연결하면 S3·EBS 등이 KMS API를 통해 이 HSM의 키를 간접 사용한다.</li></ol>",
+   "example": "<p>가상의 카드사 '페이나우카드'는 PIN 검증 모듈을 온프레미스 HSM 2대로 운영하다가 AWS로 이전했다. 규제상 PIN 관련 키는 FIPS 140-3 Level 3 장비에서만 처리해야 하고 AWS가 키에 접근할 수 없음을 증명해야 해서 CloudHSM을 선택했다. ap-northeast-2a/2b/2c에 HSM 3대로 클러스터를 구성하고, PIN 검증 애플리케이션은 PKCS#11로 연동했다. CO 비밀번호는 보안팀장과 감사팀장이 각각 절반씩 보관하고 분기별로 복구 훈련을 수행한다. 일반 데이터(로그·이미지) 암호화는 여전히 KMS를 쓰고, HSM은 PIN 키에만 국한해 비용을 통제했다.</p><pre><code># 클러스터 생성 및 HSM 3대 배치\naws cloudhsmv2 create-cluster --hsm-type hsm2m.medium \\\n  --subnet-ids subnet-0aaa subnet-0bbb subnet-0ccc\naws cloudhsmv2 create-hsm --cluster-id cluster-abc123 \\\n  --availability-zone ap-northeast-2a\n\n# 클라이언트에서 CU로 접속하고 키 생성 (예시)\n/opt/cloudhsm/bin/cloudhsm-cli interactive\n  login --username pin_app --role crypto-user\n  key generate-symmetric aes --key-length-bytes 32 --label pin-dek\n  key list\n\n# 감사 로그 확인 (CloudWatch Logs)\naws logs filter-log-events \\\n  --log-group-name /aws/cloudhsm/cluster-abc123 \\\n  --filter-pattern 'CO_LOGIN' --limit 20</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='260' height='120' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='150' y='47' text-anchor='middle' fill='currentColor' font-size='12'>고객 VPC (프라이빗 서브넷)</text><rect x='35' y='60' width='72' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='71' y='88' text-anchor='middle' fill='currentColor' font-size='11'>HSM</text><text x='71' y='106' text-anchor='middle' fill='currentColor' font-size='11'>AZ-a</text><rect x='114' y='60' width='72' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='150' y='88' text-anchor='middle' fill='currentColor' font-size='11'>HSM</text><text x='150' y='106' text-anchor='middle' fill='currentColor' font-size='11'>AZ-b</text><rect x='193' y='60' width='72' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='229' y='88' text-anchor='middle' fill='currentColor' font-size='11'>HSM</text><text x='229' y='106' text-anchor='middle' fill='currentColor' font-size='11'>AZ-c</text><text x='150' y='142' text-anchor='middle' fill='currentColor' font-size='11'>클러스터 내 키 자동 동기화</text><rect x='20' y='170' width='260' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='150' y='191' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션 (PKCS#11 / JCE)</text><text x='150' y='212' text-anchor='middle' fill='currentColor' font-size='11'>CU 자격증명으로 서명·복호화 요청</text><line x1='150' y1='170' x2='150' y2='148' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='25' width='300' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='470' y='48' text-anchor='middle' fill='currentColor' font-size='12'>KMS와 비교</text><text x='470' y='70' text-anchor='middle' fill='currentColor' font-size='11'>KMS: AWS 운영 · 서비스 통합 쉬움 · 저비용</text><text x='470' y='90' text-anchor='middle' fill='currentColor' font-size='11'>CloudHSM: 고객 단독 통제 · FIPS L3 · 고비용</text><text x='470' y='110' text-anchor='middle' fill='currentColor' font-size='11'>연결: KMS 사용자 지정 키 저장소</text><rect x='320' y='140' width='300' height='90' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='470' y='163' text-anchor='middle' fill='currentColor' font-size='12'>통제 포인트</text><text x='470' y='184' text-anchor='middle' fill='currentColor' font-size='11'>CO/CU 자격증명 분할 보관</text><text x='470' y='203' text-anchor='middle' fill='currentColor' font-size='11'>백업·복구 훈련 기록</text><text x='470' y='222' text-anchor='middle' fill='currentColor' font-size='11'>HSM 감사로그 → CloudWatch 보존</text></svg>",
+   "keyTerms": [
+    {
+     "term": "HSM",
+     "meaning": "암호 키를 물리적으로 보호하고 내부에서만 연산하는 전용 하드웨어"
+    },
+    {
+     "term": "FIPS 140-3 Level 3",
+     "meaning": "물리적 침입 탐지·대응까지 요구하는 미국 암호모듈 검증 등급"
+    },
+    {
+     "term": "클러스터(Cluster)",
+     "meaning": "키를 동기화하는 HSM 인스턴스 묶음. AZ 분산으로 고가용성 확보"
+    },
+    {
+     "term": "Crypto Officer(CO)",
+     "meaning": "HSM 사용자·정책을 관리하는 최상위 계정. 분실 시 복구 불가"
+    },
+    {
+     "term": "Crypto User(CU)",
+     "meaning": "실제 암호 연산과 키 사용을 수행하는 애플리케이션용 계정"
+    },
+    {
+     "term": "PKCS#11 / JCE / CNG",
+     "meaning": "애플리케이션이 HSM을 표준 방식으로 호출하는 암호 인터페이스"
+    },
+    {
+     "term": "사용자 지정 키 저장소(Custom Key Store)",
+     "meaning": "KMS 키의 키 재료를 CloudHSM에 두어 두 서비스를 결합하는 구성"
+    },
+    {
+     "term": "단독 통제(Sole Control)",
+     "meaning": "클라우드 사업자조차 키에 접근할 수 없는 상태. 일부 규제의 요구사항"
+    }
+   ],
+   "pitfalls": [
+    "KMS로 충분한데 '더 안전해 보여서' CloudHSM을 도입해 비용과 운영 부담만 늘린다. 규제 요구가 명확할 때만 선택한다.",
+    "CO 비밀번호나 클러스터 인증서를 분실하면 AWS도 복구할 수 없다는 사실을 간과하고 보관 절차를 소홀히 한다.",
+    "HSM 1대만 운영해 단일 장애점을 만든다. AZ 분산 2~3대가 사실상 필수다.",
+    "S3·RDS 등 AWS 서비스가 CloudHSM을 직접 지원한다고 오해. 서비스 통합은 KMS 사용자 지정 키 저장소를 거쳐야 한다.",
+    "클라이언트 SDK 버전과 HSM 펌웨어 호환성을 관리하지 않아 업그레이드 시 장애가 발생한다.",
+    "HSM 감사 로그를 CloudWatch로 내보내지 않거나 보존기간을 짧게 설정해 규제상 요구되는 기간의 증적이 사라진다.",
+    "온프레미스 HSM에서 키를 옮길 때 키 반출(export) 가능 여부를 사전 검토하지 않아 이관 자체가 불가능해진다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] CO/CU 자격증명의 보관·사용 절차가 문서화되어 있고 분할 보관 등 무단 사용 방지 장치가 있는가",
+     "[접근] HSM에 접근 가능한 인원과 애플리케이션이 최소화되고 주기적으로 검토되는가",
+     "[운영] HSM 클러스터가 복수 AZ로 이중화되어 있고 백업·복구 절차가 정기적으로 검증되는가",
+     "[변경] 클러스터 구성·펌웨어·클라이언트 SDK 변경이 변경관리 절차를 통해 승인·기록되는가",
+     "[운영] HSM 감사 로그가 CloudWatch Logs로 수집되고 규제 요구 기간 동안 변조 불가능하게 보존되는가"
+    ],
+    "fss": [
+     "전자금융감독규정상 중요 암호키(PIN·전자서명 키 등)의 안전한 생성·보관 요건 충족 여부 및 장비 검증 등급 근거",
+     "암호키 관리 책임자 지정, 키 접근 권한 분리, 키 생성·폐기 시 입회·기록 절차 운영 여부",
+     "전자금융감독규정 제14조의2 클라우드 이용 시 암호키에 대한 고객 단독 통제 입증 자료 보유 여부"
+    ],
+    "isms": [
+     "2.7.2 암호키 관리: 키 생성·보관·복구·폐기 절차와 접근 통제가 이행되는가",
+     "2.9.3 백업 및 복구관리: HSM 클러스터 백업과 복구 시험이 주기적으로 수행되는가",
+     "2.5.5 특수 계정 및 권한 관리: CO 계정이 특수 권한으로 관리되는가"
+    ],
+    "evidence": [
+     "CloudHSM 클러스터·HSM 구성 현황(aws cloudhsmv2 describe-clusters 출력, AZ 분산 확인)",
+     "CO/CU 계정 목록과 자격증명 보관 절차서, 봉인 보관 확인서",
+     "HSM 감사 로그 샘플(CloudWatch Logs) 및 보존기간 설정 화면",
+     "최근 백업·복구 훈련 결과 보고서",
+     "CloudHSM 도입 사유(규제 요구) 및 KMS 대비 선택 근거 문서",
+     "FIPS 검증 등급 및 AWS 규정 준수 문서(AWS Artifact)"
+    ],
+    "auditorQuestions": [
+     "CloudHSM을 쓰는 이유는 무엇이며 어떤 키가 여기에 보관되는가?",
+     "CO 비밀번호는 누가 어떻게 보관하고 있으며 사용 시 승인 절차는 어떻게 되는가?",
+     "HSM이 모두 장애가 나면 어떻게 복구하는가? 마지막 복구 훈련은 언제였는가?",
+     "AWS 직원이 이 키에 접근할 수 없음을 무엇으로 증명할 수 있는가?",
+     "HSM에서 수행된 암호 연산 기록은 어디에 얼마나 보관되는가?"
+    ],
+    "controlExample": "PIN 및 전자서명 관련 키는 ap-northeast-2 3개 AZ에 분산된 CloudHSM 클러스터에서만 생성·사용되며, Crypto Officer 자격증명은 보안팀장과 감사팀장이 분할 보관하고 사용 시 2인 입회 하에 기록을 남긴다. HSM 감사 로그는 CloudWatch Logs로 전송되어 5년간 보존되며, 백업 복구 훈련은 반기 1회 수행하고 결과를 보고한다."
+   },
+   "related": [
+    "awssec-kms",
+    "awssec-secrets-manager",
+    "awssec-acm",
+    "awssec-artifact",
+    "awssec-cloudtrail",
+    "sec-vault",
+    "comp-fss-egfs",
+    "comp-isms-p"
+   ],
+   "learnMore": [
+    "AWS CloudHSM User Guide - What is AWS CloudHSM?",
+    "AWS KMS Developer Guide - Custom key stores",
+    "AWS CloudHSM - Managing HSM users and keys"
+   ]
+  },
+  {
+   "id": "awssec-secrets-manager",
+   "title": "Secrets Manager",
+   "titleEn": "AWS Secrets Manager",
+   "aliases": [
+    "시크릿 매니저",
+    "비밀번호 관리",
+    "DB 패스워드 저장소",
+    "자동 로테이션",
+    "secret"
+   ],
+   "tags": [
+    "secrets",
+    "encryption",
+    "rotation"
+   ],
+   "level": "중급",
+   "oneLiner": "DB 비밀번호·API 키를 안전하게 보관하고 자동 교체하는 서비스",
+   "analogy": "Secrets Manager는 회사 공용 비밀번호 금고와 자동 교체 담당자가 한 몸이 된 것과 같다. 직원은 금고에 '오늘의 DB 비밀번호 주세요'라고 요청할 뿐 비밀번호를 외우거나 메모지에 적지 않는다. 게다가 담당자가 30일마다 알아서 자물쇠 번호를 바꾸고, 관련 부서에도 동시에 알려주기 때문에 아무도 불편해지지 않는다.",
+   "explanation": "<p><strong>AWS Secrets Manager</strong>는 데이터베이스 비밀번호, 외부 API 키, OAuth 토큰 같은 <strong>비밀정보(secret)</strong>를 암호화해 저장하고, 애플리케이션이 필요할 때 API로 가져다 쓰게 하며, 나아가 <strong>주기적으로 자동 교체(rotation)</strong>까지 해주는 서비스다. 저장 시 KMS로 암호화되며, 모든 조회 요청은 CloudTrail에 기록된다.</p><p><strong>왜 필요한가.</strong> 가장 흔한 보안 사고는 정교한 해킹이 아니라 <strong>소스코드나 설정파일에 남은 비밀번호</strong>다. GitHub에 <code>application.yml</code>이 올라가고 그 안에 운영 DB 비밀번호가 있는 식이다. 환경변수로 빼도 컨테이너 정의(Task Definition)나 Helm values에 평문으로 남는다. Secrets Manager는 비밀번호를 '코드가 아닌 런타임에 권한으로 가져오는 것'으로 바꾼다. 쉽게 말하면, <strong>비밀을 '아는 것'에서 '권한으로 요청하는 것'으로 바꾸는 도구</strong>다.</p><p><strong>자동 교체가 차별점</strong>이다. Parameter Store 등 다른 저장소와 달리, Secrets Manager는 Lambda 함수를 이용해 비밀번호를 실제로 바꾼다. RDS·Aurora·Redshift·DocumentDB는 AWS가 제공하는 교체 함수를 그대로 쓸 수 있고, 그 외에는 커스텀 Lambda를 작성한다. 교체는 4단계(<code>createSecret</code> → <code>setSecret</code> → <code>testSecret</code> → <code>finishSecret</code>)로 진행되며, 버전 스테이지 라벨 <code>AWSCURRENT</code>/<code>AWSPENDING</code>/<code>AWSPREVIOUS</code>로 무중단 전환을 보장한다. 두 개의 사용자 계정을 번갈아 쓰는 <strong>교대(alternating users)</strong> 전략이 무중단 관점에서 가장 안전하다.</p><p><strong>권한 구조</strong>는 IAM 정책 + <strong>리소스 기반 정책(Resource Policy)</strong> + KMS 키 정책의 조합이다. 특히 교차 계정 접근은 리소스 정책과 KMS 키 정책 양쪽이 모두 허용해야 한다. 비밀 단위로 접근 권한을 나눌 수 있으므로 '결제팀은 결제 DB 비밀만, 정산팀은 정산 DB 비밀만' 식의 최소권한 설계가 가능하다.</p><p><strong>삭제도 즉시 되지 않는다.</strong> 기본 7~30일의 복구 대기 기간이 있으며 <code>--force-delete-without-recovery</code>로만 즉시 삭제된다. 실수 방지 장치이자 감사 관점의 안전망이다.</p><p><strong>Parameter Store와의 선택 기준</strong>은 명확하다. 자동 교체·교차계정 공유·비밀 단위 리소스 정책이 필요하면 Secrets Manager, 단순 설정값이나 비용 최소화가 중요하면 Parameter Store(SecureString)다. Secrets Manager는 비밀 하나당 월 0.4달러 + API 호출 과금이 있어, 수천 개 설정값을 넣으면 비용이 커진다.</p><p><strong>감사 관점</strong>에서 핵심 질문은 세 가지다. (1) 운영 DB 비밀번호가 코드·이미지·CI 변수에 평문으로 존재하지 않는가, (2) 비밀번호가 정해진 주기로 실제 교체되는가(마지막 교체일 증적), (3) 누가 그 비밀을 꺼내 갔는가를 로그로 추적할 수 있는가. 특히 (3)은 <code>GetSecretValue</code> CloudTrail 이벤트로 사람이 직접 조회한 이력을 잡아낼 수 있어 강력한 탐지통제가 된다.</p>",
+   "howItWorks": "<ol><li>DBA가 운영 DB 계정 정보를 Secrets Manager에 <code>prod/payment/aurora</code> 이름으로 저장한다. 저장 시 지정한 KMS 키로 암호화된다.</li><li>비밀에 리소스 정책을 붙여 결제 애플리케이션 역할만 <code>GetSecretValue</code>가 가능하도록 제한한다.</li><li>애플리케이션이 기동하거나 커넥션 풀을 갱신할 때 AWS SDK로 <code>GetSecretValue</code>를 호출한다.</li><li>Secrets Manager가 IAM 정책·리소스 정책·KMS 키 정책을 모두 평가한 뒤 복호화된 값을 반환한다.</li><li>애플리케이션은 값을 메모리에만 유지하고 디스크·로그에 쓰지 않는다.</li><li>30일 주기가 되면 교체 Lambda가 트리거된다. 새 비밀번호를 생성해 AWSPENDING 버전으로 저장한다.</li><li>Lambda가 DB에 접속해 실제 비밀번호를 변경하고, 새 값으로 접속 테스트를 수행한다.</li><li>테스트 성공 시 AWSPENDING 라벨을 AWSCURRENT로 승격하고 이전 값은 AWSPREVIOUS가 된다.</li><li>애플리케이션은 다음 조회부터 자동으로 새 값을 받게 되어 무중단으로 전환된다.</li><li>모든 저장·조회·교체 이벤트가 CloudTrail에 남고, 보안팀은 사람 주체의 GetSecretValue를 별도 탐지 규칙으로 감시한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2025년 내부감사에서 '운영 Aurora 비밀번호가 2년간 한 번도 바뀌지 않았고, CI 서버 환경변수에 평문으로 존재한다'는 지적을 받았다. 개선으로 비밀 34개를 Secrets Manager로 이관하고, RDS·Aurora 계열 12개는 30일 자동 교체를, 외부 PG사 API 키 등 나머지는 90일 수동 교체 + 만료 알림으로 설정했다. ECS 태스크 정의에서는 <code>valueFrom</code>으로 비밀을 참조해 평문이 사라졌다. 이후 감사 증적은 'aws secretsmanager list-secrets의 LastRotatedDate 컬럼' 한 장으로 끝난다.</p><pre><code># 비밀 생성 + 자동 교체 설정\naws secretsmanager create-secret --name prod/payment/aurora \\\n  --kms-key-id alias/paynow-secrets \\\n  --secret-string '{\"username\":\"payapp\",\"password\":\"Init!2026\",\"host\":\"aurora.internal\"}'\n\naws secretsmanager rotate-secret --secret-id prod/payment/aurora \\\n  --rotation-lambda-arn arn:aws:lambda:ap-northeast-2:123456789012:function:SecretsRotateAurora \\\n  --rotation-rules AutomaticallyAfterDays=30\n\n# ECS 태스크 정의에서 평문 없이 주입\n\"secrets\": [\n  { \"name\": \"DB_PASSWORD\",\n    \"valueFrom\": \"arn:aws:secretsmanager:ap-northeast-2:123456789012:secret:prod/payment/aurora:password::\" }\n]\n\n# 감사 증적: 교체일 일괄 확인\naws secretsmanager list-secrets \\\n  --query 'SecretList[].{Name:Name,Rotated:LastRotatedDate,Auto:RotationEnabled}' \\\n  --output table\n\n# 사람이 직접 꺼내 간 이력 탐지\naws cloudtrail lookup-events \\\n  --lookup-attributes AttributeKey=EventName,AttributeValue=GetSecretValue \\\n  --max-results 50</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='130' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='52' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션</text><text x='85' y='71' text-anchor='middle' fill='currentColor' font-size='11'>IAM 역할 보유</text><line x1='150' y1='55' x2='230' y2='55' stroke='currentColor' marker-end='url(#ar)'/><text x='190' y='46' text-anchor='middle' fill='currentColor' font-size='11'>GetSecretValue</text><rect x='230' y='25' width='170' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='315' y='48' text-anchor='middle' fill='currentColor' font-size='12'>Secrets Manager</text><text x='315' y='68' text-anchor='middle' fill='currentColor' font-size='11'>IAM + 리소스정책</text><text x='315' y='85' text-anchor='middle' fill='currentColor' font-size='11'>+ KMS 키정책 평가</text><line x1='400' y1='45' x2='470' y2='45' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='25' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='43' text-anchor='middle' fill='currentColor' font-size='11'>KMS 복호화</text><text x='545' y='60' text-anchor='middle' fill='currentColor' font-size='11'>alias/paynow-secrets</text><line x1='315' y1='95' x2='315' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='170' y='130' width='290' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='315' y='151' text-anchor='middle' fill='currentColor' font-size='12'>교체 Lambda (30일 주기)</text><text x='315' y='172' text-anchor='middle' fill='currentColor' font-size='11'>create → set → test → finish</text><line x1='460' y1='157' x2='530' y2='157' stroke='currentColor' marker-end='url(#ar)'/><rect x='530' y='132' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='575' y='152' text-anchor='middle' fill='currentColor' font-size='11'>Aurora</text><text x='575' y='170' text-anchor='middle' fill='currentColor' font-size='11'>PW 변경</text><rect x='20' y='200' width='600' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='221' text-anchor='middle' fill='currentColor' font-size='12'>증적: CloudTrail GetSecretValue(주체·시각) · LastRotatedDate · 리소스 정책</text><text x='320' y='239' text-anchor='middle' fill='currentColor' font-size='11'>AWSCURRENT / AWSPENDING / AWSPREVIOUS 라벨로 무중단 전환</text></svg>",
+   "keyTerms": [
+    {
+     "term": "비밀(Secret)",
+     "meaning": "DB 자격증명·API 키 등 노출 시 즉시 위험한 값. 이름(경로) 단위로 관리"
+    },
+    {
+     "term": "자동 교체(Rotation)",
+     "meaning": "Lambda가 실제 시스템의 비밀번호를 주기적으로 변경하고 저장소를 갱신하는 기능"
+    },
+    {
+     "term": "버전 스테이지 라벨",
+     "meaning": "AWSCURRENT/AWSPENDING/AWSPREVIOUS. 무중단 교체와 롤백의 기준"
+    },
+    {
+     "term": "교대 사용자(Alternating Users)",
+     "meaning": "두 계정을 번갈아 교체해 다운타임을 없애는 로테이션 전략"
+    },
+    {
+     "term": "리소스 정책(Resource Policy)",
+     "meaning": "비밀 자체에 붙는 정책. 교차 계정 접근 제어에 필수"
+    },
+    {
+     "term": "valueFrom",
+     "meaning": "ECS 태스크 정의·Lambda 환경에서 평문 대신 비밀 ARN을 참조하는 방식"
+    },
+    {
+     "term": "복구 대기 기간",
+     "meaning": "삭제 요청 후 7~30일간 복구 가능한 유예. 실수 삭제 방지 장치"
+    },
+    {
+     "term": "GetSecretValue",
+     "meaning": "비밀 값을 조회하는 API. 사람 주체 호출은 감사 탐지 대상"
+    }
+   ],
+   "pitfalls": [
+    "Secrets Manager에 넣었지만 애플리케이션이 기동 시 한 번만 읽고 캐싱해, 교체 후 옛 비밀번호로 접속 실패가 발생한다. 재조회 또는 교대 사용자 전략이 필요하다.",
+    "자동 교체를 켜놓고 Lambda가 VPC·보안그룹 문제로 DB에 접속하지 못해 교체가 계속 실패하는데, 실패 알림이 없어 몇 달간 방치된다.",
+    "비밀을 조회한 뒤 애플리케이션 로그나 디버그 출력에 그대로 찍어 평문이 로그 저장소로 흘러간다.",
+    "모든 설정값을 Secrets Manager에 넣어 비용이 급증. 민감하지 않은 설정은 Parameter Store가 적합하다.",
+    "교차 계정 접근에서 리소스 정책만 열고 KMS 키 정책을 열지 않아 AccessDenied가 나는데 원인을 못 찾는다.",
+    "CI/CD 파이프라인 변수에 여전히 평문 비밀이 남아 있어, 저장소만 바꾸고 실제 노출 경로는 그대로인 경우.",
+    "GetSecretValue 권한을 개발자 역할에 폭넓게 부여해, 결국 사람이 운영 DB 비밀번호를 언제든 볼 수 있는 구조가 남는다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 운영 시스템 자격증명이 소스코드·컨테이너 이미지·CI 변수에 평문으로 존재하지 않음을 검증하는 절차가 있는가",
+     "[접근] 비밀별 조회 권한이 필요한 애플리케이션 역할로 최소화되어 있고, 사람 주체의 조회 권한이 통제·모니터링되는가",
+     "[운영] 비밀번호 교체 주기가 정책으로 정의되고 실제 교체 이력(LastRotatedDate)으로 이행이 확인되는가",
+     "[운영] 자동 교체 실패에 대한 경보와 대응 절차가 있는가",
+     "[변경] 비밀 생성·삭제·정책 변경이 승인 절차를 거치고 CloudTrail에 기록되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 접근통제 관점에서 시스템 계정 비밀번호의 주기적 변경 요건 이행 여부",
+     "중요정보(자격증명)의 암호화 저장 및 전송 구간 보호 조치 이행 여부",
+     "운영자가 운영 DB 계정 비밀번호를 직접 알지 못하도록 하는 통제(비밀 은닉) 적용 여부"
+    ],
+    "isms": [
+     "2.5.3 사용자 인증 / 2.5.4 비밀번호 관리: 시스템·응용 계정 비밀번호 생성·변경 규칙이 적용되는가",
+     "2.7.1 암호정책 적용: 자격증명의 암호화 저장이 이루어지는가",
+     "2.9.4 로그 및 접속기록 관리: 비밀 조회 이력이 기록·보존되는가"
+    ],
+    "evidence": [
+     "aws secretsmanager list-secrets 출력(비밀 목록, RotationEnabled, LastRotatedDate)",
+     "핵심 비밀의 리소스 정책 및 KMS 키 지정 현황",
+     "ECS 태스크 정의·Kubernetes 매니페스트에서 평문 자격증명이 없음을 보여주는 샘플",
+     "최근 3개월 GetSecretValue CloudTrail 이벤트 중 사람(IAM 사용자/SSO) 주체 조회 목록",
+     "교체 실패 알람 설정 및 발생·조치 이력",
+     "소스코드 시크릿 스캐닝(예: git-secrets, GitHub secret scanning) 결과 리포트"
+    ],
+    "auditorQuestions": [
+     "운영 DB 비밀번호는 어디에 저장되어 있고 누가 볼 수 있는가?",
+     "마지막으로 비밀번호가 바뀐 것은 언제인가? 자동인가 수동인가?",
+     "개발자가 운영 비밀을 조회하면 기록이 남는가? 누군가 검토하는가?",
+     "자동 교체가 실패하면 어떻게 알게 되는가? 실패 사례가 있었는가?",
+     "소스코드나 CI 변수에 평문 비밀이 없다는 것을 어떻게 확인했는가?"
+    ],
+    "controlExample": "운영 데이터베이스 및 외부 연동 자격증명은 전량 AWS Secrets Manager에 KMS 암호화하여 보관하며, RDS 계열은 30일 주기로 자동 교체된다. 비밀 조회 권한은 해당 애플리케이션 IAM 역할로 한정되고, 사람 주체의 GetSecretValue 호출은 CloudTrail 기반 탐지 규칙으로 주간 검토한다."
+   },
+   "related": [
+    "awssec-kms",
+    "awssec-parameter-store",
+    "awssec-iam-role-sts",
+    "awssec-cloudtrail",
+    "awssec-irsa-pod-identity",
+    "sec-vault",
+    "cicd-github-actions",
+    "db-postgresql"
+   ],
+   "learnMore": [
+    "AWS Secrets Manager User Guide - What is AWS Secrets Manager?",
+    "AWS Secrets Manager - Rotate secrets",
+    "AWS Secrets Manager - Permissions policy examples"
+   ]
+  },
+  {
+   "id": "awssec-parameter-store",
+   "title": "Parameter Store",
+   "titleEn": "AWS Systems Manager Parameter Store",
+   "aliases": [
+    "파라미터 스토어",
+    "SSM 파라미터",
+    "SecureString",
+    "설정 저장소",
+    "SSM Parameter"
+   ],
+   "tags": [
+    "configuration",
+    "secrets",
+    "ssm"
+   ],
+   "level": "기초",
+   "oneLiner": "설정값과 비밀을 계층 경로로 저장하는 저렴한 중앙 저장소",
+   "analogy": "Parameter Store는 회사 공용 문서함의 폴더 구조와 같다. /운영/결제/DB주소처럼 폴더를 나눠 설정값을 넣어두고, 필요한 사람이 자기 권한 범위의 폴더만 열어본다. 어떤 서랍은 그냥 열리고(String), 어떤 서랍은 금고 열쇠가 있어야 열린다(SecureString). 값이 바뀌면 이전 버전도 함께 남아 있어 언제 무엇이 바뀌었는지 되짚을 수 있다.",
+   "explanation": "<p><strong>Parameter Store</strong>는 AWS Systems Manager(SSM)의 기능으로, 애플리케이션 설정값과 비밀정보를 <strong>계층적 경로(hierarchical path)</strong>로 저장하는 중앙 저장소다. <code>/paynow/prod/payment/db-endpoint</code>처럼 슬래시로 구분된 이름을 쓰며, 경로 단위로 IAM 권한을 줄 수 있다는 점이 실무에서 가장 유용하다.</p><p><strong>파라미터 유형은 세 가지</strong>다. <strong>String</strong>은 평문 문자열, <strong>StringList</strong>는 콤마 구분 목록, <strong>SecureString</strong>은 KMS로 암호화되어 저장되는 값이다. SecureString을 읽으려면 <code>ssm:GetParameter</code> 권한뿐 아니라 해당 KMS 키에 대한 <code>kms:Decrypt</code> 권한도 필요하고, API 호출 시 <code>--with-decryption</code>을 명시해야 한다. 이 이중 구조가 감사에서 중요한 통제 지점이다.</p><p><strong>티어(Tier)</strong>는 Standard와 Advanced로 나뉜다. Standard는 파라미터 10,000개까지, 값 4KB까지 <strong>무료</strong>다. Advanced는 100,000개, 8KB까지 지원하며 파라미터당 월 과금이 있고 <strong>파라미터 정책(만료, 만료 알림, 미변경 알림)</strong>을 쓸 수 있다. 'X일 동안 값이 바뀌지 않으면 알림'이라는 <code>NoChangeNotification</code> 정책은 비밀번호 미교체 탐지에 그대로 쓸 수 있어 감사 대응에 유용하다.</p><p><strong>버전 관리</strong>가 기본 제공된다. 값을 덮어쓰면 버전 번호가 올라가고 이전 값이 보존된다(기본 100개). 여기에 <strong>라벨(Label)</strong>을 붙여 <code>stable</code>, <code>rollback</code> 같은 이름으로 특정 버전을 가리킬 수 있다. 이 덕분에 설정 변경으로 인한 장애 시 즉시 되돌릴 수 있고, '언제 누가 어떤 값으로 바꿨는가'를 CloudTrail(<code>PutParameter</code>)과 버전 이력으로 함께 설명할 수 있다.</p><p><strong>Secrets Manager와의 차이</strong>를 정확히 알아야 한다. Parameter Store는 <strong>자동 교체가 없고</strong>(로테이션 기능 미제공), <strong>리소스 기반 정책이 없어</strong> 교차 계정 공유가 제한적이며, 대신 <strong>훨씬 저렴</strong>하고 Systems Manager·CloudFormation·ECS·Lambda와의 통합이 폭넓다. 실무 권장 기준은 간단하다. <strong>사람이 바꿔야 하는 '비밀'은 Secrets Manager, 기계가 읽는 '설정'은 Parameter Store</strong>. 단 Parameter Store에서도 Secrets Manager 비밀을 <code>/aws/reference/secretsmanager/이름</code> 경로로 읽을 수 있어 조회 인터페이스를 통일할 수 있다.</p><p><strong>감사 관점</strong>의 핵심은 두 가지다. 첫째, <strong>SecureString을 써야 할 값이 String으로 평문 저장</strong>되어 있지 않은가. 실무에서 매우 흔한 결함이며 AWS Config 규칙이나 간단한 스크립트로 상시 점검할 수 있다. 둘째, <strong>경로 기반 권한이 실제로 최소권한인가</strong>. <code>/paynow/*</code>처럼 넓게 열어두면 개발 계정 역할이 운영 설정까지 읽게 된다. 경로를 환경별로 나누고 IAM Resource ARN에 경로를 반영하는 것이 정석이다.</p>",
+   "howItWorks": "<ol><li>플랫폼팀이 파라미터 경로 표준을 정한다: <code>/{회사}/{환경}/{서비스}/{키}</code>.</li><li>DB 엔드포인트 같은 일반 설정은 String, 토큰·비밀번호는 SecureString으로 KMS 키를 지정해 저장한다.</li><li>애플리케이션 IAM 역할에 <code>ssm:GetParametersByPath</code> 권한을 <code>/paynow/prod/payment/*</code> 범위로만 부여한다.</li><li>SecureString을 쓰는 경우 같은 역할에 해당 KMS 키의 <code>kms:Decrypt</code>도 함께 부여한다.</li><li>애플리케이션이 기동 시 <code>GetParametersByPath --with-decryption</code>으로 자기 경로의 값을 한 번에 읽는다.</li><li>운영자가 값을 변경하면 새 버전이 생성되고 이전 버전은 보존되며 CloudTrail에 PutParameter가 기록된다.</li><li>Advanced 티어 파라미터 정책이 설정되어 있으면 만료 임박·장기 미변경 시 EventBridge 이벤트가 발생한다.</li><li>EventBridge 규칙이 이 이벤트를 받아 Slack·티켓 시스템으로 알림을 보내고 담당자가 조치한다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 서비스 60개의 설정을 예전에는 각 리포지토리의 <code>config/prod.yml</code>에 두었다. 설정 변경 때마다 재배포가 필요했고, 일부 파일에 결제 PG 테스트 키가 평문으로 커밋된 것이 발견됐다. 2025년 Parameter Store로 이관하면서 경로 표준 <code>/shoplink/{env}/{service}/{key}</code>를 정하고, 운영 경로는 운영 계정 역할만 읽도록 분리했다. 민감값 118개는 SecureString + 전용 KMS 키로 전환했다. 분기 점검 스크립트가 '민감 키워드(password, token, secret)를 이름에 포함하면서 타입이 String인 파라미터'를 찾아 0건임을 증적으로 제출한다.</p><pre><code># 일반 설정과 민감값 저장\naws ssm put-parameter --name /shoplink/prod/order/db-endpoint \\\n  --type String --value order-db.internal:5432\n\naws ssm put-parameter --name /shoplink/prod/order/pg-api-key \\\n  --type SecureString --key-id alias/shoplink-params \\\n  --value 'live_sk_xxxxx' --overwrite\n\n# 애플리케이션이 자기 경로만 일괄 조회\naws ssm get-parameters-by-path --path /shoplink/prod/order/ \\\n  --recursive --with-decryption\n\n# IAM 정책: 경로 단위 최소권한\n{\n  \"Effect\": \"Allow\",\n  \"Action\": [\"ssm:GetParameter\", \"ssm:GetParameters\", \"ssm:GetParametersByPath\"],\n  \"Resource\": \"arn:aws:ssm:ap-northeast-2:123456789012:parameter/shoplink/prod/order/*\"\n}\n\n# 감사 점검: 민감해 보이는데 평문(String)인 파라미터 찾기\naws ssm describe-parameters \\\n  --query \"Parameters[?Type=='String'].Name\" --output text \\\n  | tr '\\t' '\\n' | grep -Ei 'password|secret|token|key'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='250' height='130' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='145' y='46' text-anchor='middle' fill='currentColor' font-size='12'>계층 경로 구조</text><text x='40' y='70' fill='currentColor' font-size='11'>/shoplink/prod/order/db-endpoint  (String)</text><text x='40' y='92' fill='currentColor' font-size='11'>/shoplink/prod/order/pg-api-key  (SecureString)</text><text x='40' y='114' fill='currentColor' font-size='11'>/shoplink/dev/order/db-endpoint  (String)</text><text x='40' y='136' fill='currentColor' font-size='11'>경로 = 권한 경계</text><rect x='300' y='25' width='150' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='375' y='48' text-anchor='middle' fill='currentColor' font-size='12'>운영 앱 역할</text><text x='375' y='68' text-anchor='middle' fill='currentColor' font-size='11'>/prod/order/* 만</text><rect x='300' y='100' width='150' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='375' y='122' text-anchor='middle' fill='currentColor' font-size='12'>개발 앱 역할</text><text x='375' y='142' text-anchor='middle' fill='currentColor' font-size='11'>/dev/order/* 만</text><line x1='270' y1='75' x2='300' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='270' y1='110' x2='300' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='480' y='25' width='140' height='130' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='48' text-anchor='middle' fill='currentColor' font-size='12'>SecureString</text><text x='550' y='72' text-anchor='middle' fill='currentColor' font-size='11'>ssm:GetParameter</text><text x='550' y='92' text-anchor='middle' fill='currentColor' font-size='11'>+</text><text x='550' y='112' text-anchor='middle' fill='currentColor' font-size='11'>kms:Decrypt</text><text x='550' y='136' text-anchor='middle' fill='currentColor' font-size='11'>둘 다 필요</text><line x1='450' y1='55' x2='480' y2='70' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='175' width='600' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='197' text-anchor='middle' fill='currentColor' font-size='12'>버전·라벨·정책</text><text x='320' y='218' text-anchor='middle' fill='currentColor' font-size='11'>값 변경 시 버전 증가(이전 값 보존) · 라벨로 롤백 지점 지정</text><text x='320' y='236' text-anchor='middle' fill='currentColor' font-size='11'>Advanced 티어: 만료 / 장기 미변경 알림 → EventBridge</text></svg>",
+   "keyTerms": [
+    {
+     "term": "파라미터 경로(Path)",
+     "meaning": "슬래시로 구분된 계층 이름. IAM ARN에 그대로 반영되어 권한 경계가 된다"
+    },
+    {
+     "term": "SecureString",
+     "meaning": "KMS로 암호화되어 저장되는 파라미터 타입. 조회 시 kms:Decrypt 권한 필요"
+    },
+    {
+     "term": "--with-decryption",
+     "meaning": "SecureString을 평문으로 받기 위해 명시해야 하는 옵션"
+    },
+    {
+     "term": "티어(Standard/Advanced)",
+     "meaning": "저장 한도·값 크기·파라미터 정책 사용 가능 여부가 다른 등급"
+    },
+    {
+     "term": "파라미터 정책",
+     "meaning": "만료(Expiration), 만료 알림, 장기 미변경 알림(NoChangeNotification)을 설정하는 기능"
+    },
+    {
+     "term": "버전/라벨",
+     "meaning": "값 변경 이력과 특정 버전을 가리키는 별칭. 롤백과 변경추적에 사용"
+    },
+    {
+     "term": "GetParametersByPath",
+     "meaning": "한 경로 아래 값을 한 번에 가져오는 API. 앱 기동 시 주로 사용"
+    },
+    {
+     "term": "/aws/reference/secretsmanager/",
+     "meaning": "Parameter Store 인터페이스로 Secrets Manager 비밀을 읽는 특수 경로"
+    }
+   ],
+   "pitfalls": [
+    "민감값을 String 타입으로 저장해 콘솔·API·CloudTrail 응답에 평문으로 노출된다. 이름에 password가 들어가는 String 파라미터는 대표적 감사 지적 사항이다.",
+    "Parameter Store에 자동 교체 기능이 있다고 오해. 로테이션은 Secrets Manager의 기능이며 여기서는 수동 또는 별도 자동화가 필요하다.",
+    "IAM Resource를 parameter/* 로 넓게 열어 개발 역할이 운영 설정까지 읽는다. 경로 단위로 제한해야 한다.",
+    "SecureString을 만들 때 AWS 관리형 키(aws/ssm)를 그대로 써서, 같은 계정 내 다른 역할이 쉽게 복호화할 수 있는 상태가 된다.",
+    "Standard 티어의 4KB 값 제한과 처리량 제한을 모르고 대용량 설정이나 인증서 전문을 넣으려다 실패한다.",
+    "설정 변경이 배포 파이프라인 밖에서 일어나 변경관리 기록이 남지 않는다. PutParameter 이벤트를 변경관리와 대사해야 한다.",
+    "파라미터를 삭제하면 버전 이력도 함께 사라진다는 점을 간과해 사후 추적이 불가능해진다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 환경(운영/개발)별 파라미터 경로가 분리되고 IAM 권한이 경로 단위로 최소화되어 있는가",
+     "[접근] 민감 파라미터가 SecureString으로 저장되며 복호화 권한이 필요한 주체로 제한되는가",
+     "[변경] 운영 설정값 변경이 승인된 절차(IaC/변경관리 티켓)를 통해 이루어지고 PutParameter 이벤트와 대사되는가",
+     "[운영] 설정 변경 이력(버전)이 보존되고 장애 시 롤백 가능한 체계가 있는가",
+     "[운영] 평문(String)으로 저장된 민감값 존재 여부를 주기적으로 점검하는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 접근통제 관점에서 운영 환경 설정정보에 대한 접근 권한이 업무상 필요한 자로 제한되는지",
+     "중요정보(자격증명·키)의 암호화 저장 요건 충족 여부 및 암호키 관리 주체 확인",
+     "운영 환경 설정 변경이 변경관리 절차와 기록을 통해 통제되는지"
+    ],
+    "isms": [
+     "2.7.1 암호정책 적용: 민감 설정값의 암호화 저장이 이루어지는가",
+     "2.5.1 사용자 계정 관리 / 2.6.2 정보시스템 접근: 설정 저장소 접근 권한이 최소화·검토되는가",
+     "2.9.1 변경관리: 운영 설정 변경이 승인·기록되는가"
+    ],
+    "evidence": [
+     "aws ssm describe-parameters 출력(이름·타입·티어·최종 수정일·수정자)",
+     "민감 키워드 포함 String 파라미터 점검 스크립트 결과(0건 증빙)",
+     "운영 경로에 대한 IAM 정책 전문(Resource ARN에 경로 제한 확인)",
+     "SecureString에 사용된 KMS 키 정보 및 키 정책",
+     "최근 3개월 PutParameter CloudTrail 이벤트와 변경관리 티켓 대사표",
+     "파라미터 버전 이력 샘플(aws ssm get-parameter-history)"
+    ],
+    "auditorQuestions": [
+     "애플리케이션 설정값은 어디에 저장되며 개발과 운영은 어떻게 분리되어 있는가?",
+     "비밀번호나 API 키가 평문으로 저장된 파라미터가 없다는 것을 어떻게 확인하는가?",
+     "운영 설정값을 바꿀 수 있는 사람은 누구이고, 변경은 어떤 절차를 거치는가?",
+     "잘못된 설정으로 장애가 났을 때 이전 값으로 되돌리는 방법은 무엇인가?",
+     "SecureString 복호화 권한을 가진 주체는 누구인가?"
+    ],
+    "controlExample": "애플리케이션 설정은 /shoplink/{env}/{service}/ 경로 표준으로 Parameter Store에 보관하며, 운영 경로 조회 권한은 운영 워크로드 IAM 역할로 한정된다. 민감 파라미터는 전용 KMS 키를 사용하는 SecureString으로만 저장하고, 평문 저장 여부는 분기별 스크립트 점검으로 확인하며 운영 값 변경은 Terraform PR 승인 후 반영된다."
+   },
+   "related": [
+    "awssec-secrets-manager",
+    "awssec-kms",
+    "awssec-iam-policy-syntax",
+    "awssec-cloudtrail",
+    "awssec-config",
+    "iac-terraform",
+    "cicd-github-actions",
+    "aws-systems-manager"
+   ],
+   "learnMore": [
+    "AWS Systems Manager User Guide - Parameter Store",
+    "AWS Systems Manager - Parameter policies",
+    "AWS Systems Manager - Restricting access to Parameter Store parameters"
+   ]
+  },
+  {
+   "id": "awssec-acm",
+   "title": "ACM (인증서 관리자)",
+   "titleEn": "AWS Certificate Manager",
+   "aliases": [
+    "ACM",
+    "SSL 인증서",
+    "TLS 인증서",
+    "인증서 자동갱신",
+    "Private CA"
+   ],
+   "tags": [
+    "tls",
+    "certificate",
+    "encryption"
+   ],
+   "level": "기초",
+   "oneLiner": "TLS 인증서를 무료로 발급하고 자동 갱신해주는 관리형 서비스",
+   "analogy": "ACM은 건물 출입증을 자동으로 재발급해 주는 관리사무소와 같다. 예전에는 1년마다 직원이 직접 관공서에 가서 증명서를 떼어 와 문마다 갈아 끼웠고, 깜빡하면 다음 날 아무도 건물에 못 들어가는 사고가 났다. ACM은 만료 전에 알아서 새 증명서를 받아 문에 끼워 넣어 준다. 다만 관리사무소가 끼워줄 수 있는 문(ALB·CloudFront 등)이 정해져 있다.",
+   "explanation": "<p><strong>AWS Certificate Manager(ACM)</strong>는 HTTPS 통신에 필요한 <strong>TLS/SSL 인증서</strong>를 발급·저장·자동 갱신해 주는 서비스다. AWS 리소스(ALB, NLB, CloudFront, API Gateway, AppSync 등)에 붙이는 <strong>공인 인증서는 발급·갱신이 무료</strong>이며, 갱신이 자동이라 '인증서 만료로 서비스 중단'이라는 고전적 장애를 구조적으로 없앨 수 있다.</p><p><strong>왜 필요한가.</strong> 인증서 만료 장애는 경험 많은 조직에서도 반복된다. 담당자가 퇴사하면서 갱신 일정을 아무도 모르거나, 인증서가 서버 10대에 흩어져 있어 한 대를 빠뜨리는 식이다. ACM은 인증서를 <strong>중앙에서 관리하고 개인키를 아예 사람이 만질 수 없게</strong> 한다. 쉽게 말하면, <strong>인증서를 '파일'이 아니라 '서비스'로 바꾸는 것</strong>이다.</p><p><strong>검증 방식은 두 가지</strong>다. <strong>DNS 검증</strong>은 Route 53 등 DNS에 CNAME 레코드를 하나 추가해 도메인 소유를 증명하며, 레코드를 지우지 않는 한 <strong>자동 갱신이 무기한 동작</strong>한다. <strong>이메일 검증</strong>은 도메인 관리자 메일로 승인 링크를 받는 방식인데 갱신 때마다 사람이 클릭해야 해서 실무에서는 거의 쓰지 않는다. 실무 원칙은 <strong>무조건 DNS 검증</strong>이다.</p><p><strong>중요한 제약</strong>이 두 개 있다. 첫째, ACM 공인 인증서의 <strong>개인키는 내보낼 수 없다</strong>(export 불가). 그래서 EC2 위의 Nginx나 온프레미스 장비에는 직접 쓸 수 없고, 반드시 ALB/CloudFront 같은 통합 서비스 앞단에서 종단(termination)해야 한다. 개인키 반출이 필요하면 유료 기능인 <strong>내보내기 가능 공인 인증서(Exportable public certificate)</strong>나 <strong>AWS Private CA</strong>를 쓴다. 둘째, <strong>CloudFront에 붙일 인증서는 반드시 us-east-1(버지니아) 리전에서 발급</strong>해야 한다. 리전 제한 SCP를 걸 때 ACM을 예외로 빼는 이유가 이것이다.</p><p><strong>AWS Private CA(구 ACM PCA)</strong>는 사내 전용 루트/하위 CA를 운영하는 유료 서비스다. 서비스 간 mTLS(상호 TLS), EKS 내부 통신, IoT 기기 인증에 쓰인다. 월 CA 운영비와 인증서 발급 건당 과금이 있어 필요 범위를 명확히 하고 도입해야 한다. 사내 CA를 운영하면 <strong>CA 개인키 보호와 인증서 폐기(CRL/OCSP) 운영</strong>이라는 새로운 감사 대상이 생긴다.</p><p><strong>감사 관점</strong>에서 인증서는 '전송구간 암호화'를 입증하는 핵심 증적이다. 점검 포인트는 (1) 외부 공개 엔드포인트가 전부 HTTPS이고 TLS 1.2 이상인가, (2) 만료 임박 인증서가 모니터링되는가, (3) 자동 갱신이 실제로 동작하는가(DNS 검증 레코드 존재), (4) ACM 외 수동 업로드 인증서가 방치되어 있지 않은가다. ACM은 만료 45일 전부터 EventBridge 이벤트와 AWS Config 규칙(<code>acm-certificate-expiration-check</code>)으로 상시 감시할 수 있다.</p>",
+   "howItWorks": "<ol><li>운영자가 ACM에서 <code>*.paynow.co.kr</code> 와일드카드 인증서를 요청한다(리전 선택 주의).</li><li>ACM이 도메인 소유 확인용 CNAME 레코드 값을 제시한다.</li><li>Route 53을 쓰는 경우 콘솔의 'Route 53에 레코드 생성' 버튼 또는 API로 CNAME을 자동 등록한다.</li><li>ACM이 DNS를 조회해 레코드를 확인하면 수 분 내 인증서가 <code>ISSUED</code> 상태가 된다.</li><li>ALB 리스너(443)나 CloudFront 배포에 인증서 ARN을 연결한다. 개인키는 AWS 내부에만 존재한다.</li><li>클라이언트가 HTTPS로 접속하면 ALB가 TLS를 종단하고 백엔드로는 내부 통신이 이어진다.</li><li>만료 60일 전쯤 ACM이 자동 갱신을 시도하고, CNAME 레코드가 그대로 있으면 사람 개입 없이 갱신된다.</li><li>갱신 실패나 만료 임박 시 EventBridge 이벤트가 발생하고 AWS Config 규칙이 비준수로 표시한다.</li><li>보안팀은 분기별로 전 리전 인증서 목록과 만료일, 미사용 인증서를 점검한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2024년 말 인증서 만료로 고객 앱이 3시간 중단되는 사고를 겪었다. 원인은 담당자 퇴사 후 갱신 캘린더가 승계되지 않은 것이었다. 이후 모든 외부 도메인 인증서를 ACM DNS 검증으로 전환하고, CloudFront용 인증서는 us-east-1, ALB용은 ap-northeast-2에 각각 발급했다. 내부 서비스 간 mTLS에는 AWS Private CA를 도입해 EKS 서비스 메시가 90일짜리 단기 인증서를 자동 발급받도록 했다. AWS Config 규칙으로 만료 30일 이내 인증서를 상시 탐지하며, 2026년 현재 수동 업로드 인증서는 0건이다.</p><pre><code># DNS 검증 방식으로 인증서 요청\naws acm request-certificate \\\n  --domain-name '*.paynow.co.kr' \\\n  --subject-alternative-names paynow.co.kr \\\n  --validation-method DNS --region ap-northeast-2\n\n# 검증용 CNAME 값 확인\naws acm describe-certificate --certificate-arn arn:aws:acm:...:certificate/abcd \\\n  --query 'Certificate.DomainValidationOptions[].ResourceRecord'\n\n# ALB 리스너에 연결\naws elbv2 create-listener --load-balancer-arn arn:aws:elasticloadbalancing:... \\\n  --protocol HTTPS --port 443 \\\n  --certificates CertificateArn=arn:aws:acm:...:certificate/abcd \\\n  --ssl-policy ELBSecurityPolicy-TLS13-1-2-2021-06 \\\n  --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:...\n\n# 감사 증적: 만료일과 갱신 자격 일괄 조회\naws acm list-certificates --region ap-northeast-2 \\\n  --query 'CertificateSummaryList[].[DomainName,NotAfter,RenewalEligibility,InUse]' \\\n  --output table</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='52' text-anchor='middle' fill='currentColor' font-size='12'>사용자</text><text x='80' y='71' text-anchor='middle' fill='currentColor' font-size='11'>HTTPS 요청</text><line x1='140' y1='57' x2='210' y2='57' stroke='currentColor' marker-end='url(#ar)'/><rect x='210' y='25' width='150' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='285' y='48' text-anchor='middle' fill='currentColor' font-size='12'>ALB / CloudFront</text><text x='285' y='68' text-anchor='middle' fill='currentColor' font-size='11'>TLS 종단</text><text x='285' y='85' text-anchor='middle' fill='currentColor' font-size='11'>인증서 ARN 연결</text><line x1='360' y1='57' x2='430' y2='57' stroke='currentColor' marker-end='url(#ar)'/><rect x='430' y='30' width='120' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='490' y='52' text-anchor='middle' fill='currentColor' font-size='12'>백엔드</text><text x='490' y='71' text-anchor='middle' fill='currentColor' font-size='11'>EC2 / EKS</text><line x1='285' y1='90' x2='285' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='180' y='125' width='210' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='147' text-anchor='middle' fill='currentColor' font-size='12'>ACM</text><text x='285' y='167' text-anchor='middle' fill='currentColor' font-size='11'>개인키 반출 불가 · 자동 갱신</text><line x1='180' y1='155' x2='120' y2='155' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='130' width='100' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='150' text-anchor='middle' fill='currentColor' font-size='11'>Route 53</text><text x='70' y='168' text-anchor='middle' fill='currentColor' font-size='11'>CNAME 검증</text><rect x='410' y='125' width='210' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515' y='147' text-anchor='middle' fill='currentColor' font-size='12'>AWS Private CA</text><text x='515' y='167' text-anchor='middle' fill='currentColor' font-size='11'>내부 mTLS · 단기 인증서</text><rect x='20' y='200' width='600' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='221' text-anchor='middle' fill='currentColor' font-size='12'>감사 포인트: TLS 1.2+ 정책 · 만료 임박 탐지(Config) · 수동 업로드 인증서 0건</text><text x='320' y='239' text-anchor='middle' fill='currentColor' font-size='11'>CloudFront용 인증서는 반드시 us-east-1에서 발급</text></svg>",
+   "keyTerms": [
+    {
+     "term": "TLS/SSL 인증서",
+     "meaning": "서버 신원을 증명하고 전송 구간을 암호화하기 위한 전자 증명서"
+    },
+    {
+     "term": "DNS 검증",
+     "meaning": "CNAME 레코드로 도메인 소유를 증명하는 방식. 자동 갱신의 전제 조건"
+    },
+    {
+     "term": "TLS 종단(Termination)",
+     "meaning": "ALB·CloudFront가 암호화를 풀고 백엔드로 전달하는 지점"
+    },
+    {
+     "term": "개인키 반출 불가",
+     "meaning": "ACM 공인 인증서의 키는 내보낼 수 없어 EC2 직접 설치가 불가능"
+    },
+    {
+     "term": "AWS Private CA",
+     "meaning": "사내 전용 CA를 운영해 내부 mTLS·기기 인증서를 발급하는 유료 서비스"
+    },
+    {
+     "term": "보안 정책(SSL Policy)",
+     "meaning": "ALB가 허용하는 TLS 버전·암호 스위트 조합. TLS 1.2 이상 권장"
+    },
+    {
+     "term": "RenewalEligibility",
+     "meaning": "자동 갱신 가능 여부 상태값. INELIGIBLE이면 수동 조치 필요"
+    },
+    {
+     "term": "와일드카드 인증서",
+     "meaning": "*.example.com 형태로 하위 도메인을 한 장으로 처리하는 인증서"
+    }
+   ],
+   "pitfalls": [
+    "CloudFront용 인증서를 서울 리전에서 발급해 연결 목록에 나타나지 않아 헤맨다. 반드시 us-east-1이어야 한다.",
+    "ACM 인증서를 EC2의 Nginx에 설치하려다 실패. 공인 인증서의 개인키는 반출되지 않는다.",
+    "이메일 검증으로 발급받아 갱신 때마다 사람이 클릭해야 하고, 담당자 부재 시 만료 장애로 이어진다.",
+    "검증용 CNAME 레코드를 '이제 발급됐으니 필요 없다'며 삭제해 다음 자동 갱신이 실패한다.",
+    "인증서만 신경 쓰고 SSL 정책(TLS 버전)을 방치해 TLS 1.0/1.1이 여전히 허용된다.",
+    "ACM 외 수동 업로드(IAM 서버 인증서, 서드파티) 인증서가 남아 있어 만료 모니터링 사각지대가 생긴다.",
+    "Private CA를 도입하고 CRL 배포와 CA 키 보호 절차를 만들지 않아 새로운 감사 결함이 생긴다.",
+    "리전별로 인증서 목록을 따로 봐야 한다는 점을 놓쳐 다른 리전의 만료 임박 인증서를 발견하지 못한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 외부 공개 서비스 전 구간이 TLS로 보호되고 허용 TLS 버전·암호 스위트가 정책 기준을 충족하는가",
+     "[운영] 인증서 만료 임박 및 자동 갱신 실패에 대한 탐지·알림 체계가 운영되는가",
+     "[접근] 인증서 발급·삭제·연결 변경 권한이 제한되고 CloudTrail에 기록되는가",
+     "[변경] 인증서 교체·SSL 정책 변경이 변경관리 절차를 통해 승인·기록되는가",
+     "[운영] 사내 Private CA 운영 시 CA 개인키 보호와 인증서 폐기(CRL/OCSP) 절차가 정의되어 있는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 및 제31조 관점에서 이용자 정보 전송 구간의 암호화 적용 여부 확인",
+     "전자금융거래 채널의 서버 인증서 유효성·발급기관 신뢰성 관리 여부",
+     "인증서 만료로 인한 서비스 중단 방지를 위한 사전 점검 및 비상 대응 절차 운영 여부"
+    ],
+    "isms": [
+     "2.7.1 암호정책 적용: 전송구간 암호화 대상과 알고리즘·프로토콜 버전 기준이 정의·적용되는가",
+     "2.6.1 네트워크 접근 / 2.10.x 서비스 보안관리: 공개 서비스의 안전한 통신 설정이 유지되는가",
+     "2.9.2 성능 및 장애관리: 인증서 만료 등 예측 가능한 장애 요인이 사전 관리되는가"
+    ],
+    "evidence": [
+     "전 리전 ACM 인증서 목록(도메인, 만료일, RenewalEligibility, 사용 중 여부)",
+     "ALB/CloudFront에 적용된 SSL 정책 설정 캡처(TLS 1.2 이상 확인)",
+     "AWS Config 규칙 acm-certificate-expiration-check 준수 현황",
+     "만료 임박 알림 설정(EventBridge/CloudWatch) 및 최근 알림·조치 이력",
+     "수동 업로드 인증서(IAM 서버 인증서) 조회 결과",
+     "외부 진단 도구로 측정한 주요 도메인 TLS 설정 리포트"
+    ],
+    "auditorQuestions": [
+     "외부에 공개된 도메인은 몇 개이며 각각 인증서 만료일은 언제인가?",
+     "인증서 갱신은 자동인가 수동인가? 자동이라면 실패 시 어떻게 알게 되는가?",
+     "TLS 1.0/1.1 접속이 차단되어 있음을 어떻게 확인했는가?",
+     "ACM을 쓰지 않고 서버에 직접 설치한 인증서가 있는가? 있다면 어떻게 관리하는가?",
+     "인증서를 발급하거나 삭제할 수 있는 사람은 누구인가?"
+    ],
+    "controlExample": "모든 외부 공개 엔드포인트의 TLS 인증서는 ACM에서 DNS 검증 방식으로 발급·자동 갱신되며, ALB·CloudFront에는 TLS 1.2 이상만 허용하는 보안 정책이 적용된다. 만료 30일 이내 인증서와 갱신 실패는 AWS Config 및 EventBridge로 탐지되어 즉시 담당 팀에 티켓이 발행된다."
+   },
+   "related": [
+    "awssec-kms",
+    "awssec-config",
+    "awssec-waf",
+    "awssec-cloudtrail",
+    "net-tls",
+    "net-dns",
+    "aws-cloudfront",
+    "aws-elb"
+   ],
+   "learnMore": [
+    "AWS Certificate Manager User Guide - What is ACM?",
+    "ACM - DNS validation",
+    "AWS Private CA User Guide",
+    "ELB - Security policies for HTTPS listeners"
+   ]
+  },
+  {
+   "id": "awssec-access-analyzer",
+   "title": "IAM Access Analyzer",
+   "titleEn": "AWS IAM Access Analyzer",
+   "aliases": [
+    "액세스 애널라이저",
+    "외부 공유 탐지",
+    "미사용 권한 분석",
+    "정책 검증",
+    "Access Analyzer"
+   ],
+   "tags": [
+    "iam",
+    "detection",
+    "least-privilege"
+   ],
+   "level": "중급",
+   "oneLiner": "외부에 열린 리소스와 과도·미사용 권한을 자동으로 찾아주는 분석 도구",
+   "analogy": "Access Analyzer는 퇴근 전 건물을 돌며 '밖에서 열리는 문'과 '아무도 안 쓰는 출입증'을 찾아 목록으로 붙여놓는 야간 경비원과 같다. 경비원은 문을 잠그지는 않지만, 열린 문이 어디이며 누가 들어올 수 있는지를 매일 정확히 알려준다. 덕분에 관리자는 수백 개 문을 일일이 확인하지 않아도 된다.",
+   "explanation": "<p><strong>IAM Access Analyzer</strong>는 계정이나 조직을 신뢰 영역(zone of trust)으로 설정한 뒤, 그 경계를 <strong>넘어서는 접근 경로</strong>를 자동으로 찾아내는 서비스다. 추측이 아니라 <strong>자동 추론(automated reasoning)</strong>이라는 수학적 증명 기법으로 정책을 분석하기 때문에, '이론적으로 접근 가능한 모든 경로'를 빠짐없이 계산한다는 점이 일반 스크립트 점검과 다르다.</p><p><strong>기능은 크게 네 가지</strong>다. 첫째 <strong>외부 액세스 분석기(External Access)</strong>는 S3 버킷 정책, KMS 키 정책, IAM 역할 신뢰 정책, Lambda 권한, SQS·Secrets Manager 리소스 정책, RDS 스냅샷 공유, ECR 리포지토리 등에서 조직 밖 주체에게 열린 것을 찾아낸다. 둘째 <strong>미사용 액세스 분석기(Unused Access)</strong>는 지정 기간(예: 90일) 동안 쓰이지 않은 IAM 역할, 미사용 액세스 키, 사용되지 않은 권한(서비스·액션 단위)을 찾아 최소권한 정리를 돕는다.</p><p>셋째 <strong>정책 검증(Policy Validation)</strong>은 정책을 저장하기 전에 문법 오류, 보안 경고(예: <code>Resource: *</code>와 위험 액션 조합), 권장사항을 100가지 이상 점검한다. CI 파이프라인에 <code>accessanalyzer:ValidatePolicy</code>를 걸어두면 위험한 정책이 머지되기 전에 차단할 수 있다. 넷째 <strong>정책 생성(Policy Generation)</strong>은 CloudTrail 이력을 근거로 '이 역할이 지난 90일간 실제로 쓴 액션'만 담은 최소권한 정책 초안을 만들어 준다.</p><p>쉽게 말하면, <strong>'우리 계정 밖에서 누가 뭘 만질 수 있는가'와 '안 쓰는 권한은 무엇인가'를 사람 대신 계산해 주는 도구</strong>다. 감사에서 가장 답하기 어려운 질문 두 개를 데이터로 바꿔준다.</p><p><strong>중요한 성질</strong>: Access Analyzer는 <strong>탐지만 하고 차단하지 않는다</strong>. 발견 결과(finding)를 <code>Active</code>, <code>Archived</code>, <code>Resolved</code> 상태로 관리하며, 의도된 외부 공유(예: 파트너사 데이터 제공 버킷)는 <strong>보관 규칙(Archive Rule)</strong>로 자동 보관 처리해 노이즈를 줄인다. 여기서 감사 포인트가 생긴다. <strong>보관 규칙 자체가 '허용된 예외 목록'</strong>이므로, 그 규칙이 승인된 예외와 일치하는지 점검해야 한다.</p><p><strong>조직 수준 설정</strong>이 실무 권장 구성이다. Organizations 위임 관리자(delegated administrator)를 보안 계정으로 지정하고 조직 전체를 신뢰 영역으로 하는 분석기를 만들면, 계정 간 공유는 정상으로 보고 <strong>조직 외부로의 노출만</strong> 골라낼 수 있다. 결과는 Security Hub로 자동 전송되어 단일 대시보드에서 관리된다. 요금은 외부 액세스 분석기가 무료, 미사용 액세스 분석기는 분석 대상 IAM 역할·사용자 수 기준 유료다.</p>",
+   "howItWorks": "<ol><li>보안 계정을 Access Analyzer 위임 관리자로 지정한다.</li><li>신뢰 영역을 '조직(Organization)'으로 하는 외부 액세스 분석기를 생성한다.</li><li>Analyzer가 조직 내 모든 계정의 리소스 기반 정책과 신뢰 정책을 수집해 자동 추론으로 분석한다.</li><li>조직 외부 주체(다른 AWS 계정, 익명 사용자, 특정 조건이 없는 서비스 주체)가 접근 가능한 리소스를 finding으로 생성한다.</li><li>보안팀이 각 finding을 검토해 '의도된 공유'는 보관 규칙에 등록하고, 의도치 않은 것은 정책을 수정한다.</li><li>정책을 수정하면 Analyzer가 재스캔해 finding을 Resolved로 전환한다.</li><li>별도로 90일 기준 미사용 액세스 분석기를 만들어 장기 미사용 역할·키·권한 목록을 받는다.</li><li>개발자가 새 정책을 PR로 올리면 CI가 ValidatePolicy를 호출해 보안 경고가 있으면 빌드를 실패시킨다.</li><li>모든 finding이 Security Hub로 전송되어 다른 보안 탐지 결과와 함께 관리되고, 주간 리포트로 경영진에 보고된다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 계정 34개를 운영하며, 2025년 3분기에 조직 단위 Access Analyzer를 켰다. 첫 스캔에서 finding 47건이 나왔다. 이 중 18건은 과거 데이터 분석 PoC 때 외부 벤더 계정에 열어둔 S3 버킷 정책이었고, 6건은 퇴사한 직원이 개인 AWS 계정으로 AssumeRole할 수 있게 만든 신뢰 정책이었다. 파트너 정산 파일 전송용 버킷 3건만 정당한 공유로 인정해 보관 규칙에 등록했고 나머지는 모두 제거했다. 또 미사용 액세스 분석기로 180일 이상 미사용 IAM 역할 211개를 찾아 1차로 비활성화 후 2주 유예를 두고 삭제했다.</p><pre><code># 조직 단위 외부 액세스 분석기 생성 (보안 계정)\naws accessanalyzer create-analyzer \\\n  --analyzer-name org-external --type ORGANIZATION\n\n# 미사용 액세스 분석기 (90일 기준)\naws accessanalyzer create-analyzer \\\n  --analyzer-name org-unused --type ORGANIZATION_UNUSED_ACCESS \\\n  --configuration 'unusedAccess={unusedAccessAge=90}'\n\n# 활성 finding 조회 (감사 증적)\naws accessanalyzer list-findings \\\n  --analyzer-arn arn:aws:access-analyzer:ap-northeast-2:999988887777:analyzer/org-external \\\n  --filter '{\"status\":{\"eq\":[\"ACTIVE\"]}}' \\\n  --query 'findings[].[resourceType,resource,principal,isPublic]' --output table\n\n# CI에서 정책 사전 검증\naws accessanalyzer validate-policy \\\n  --policy-document file://policy.json --policy-type IDENTITY_POLICY \\\n  --query 'findings[?findingType!=`SUGGESTION`]'</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='230' height='140' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='135' y='47' text-anchor='middle' fill='currentColor' font-size='12'>신뢰 영역 = 조직</text><rect x='35' y='60' width='95' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='82' y='85' text-anchor='middle' fill='currentColor' font-size='11'>운영 계정</text><rect x='140' y='60' width='95' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='187' y='85' text-anchor='middle' fill='currentColor' font-size='11'>데이터 계정</text><rect x='35' y='110' width='200' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='135' y='136' text-anchor='middle' fill='currentColor' font-size='11'>S3 · KMS · Role · Lambda 정책</text><line x1='250' y1='95' x2='320' y2='95' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='60' width='150' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='395' y='85' text-anchor='middle' fill='currentColor' font-size='12'>자동 추론 분석</text><text x='395' y='105' text-anchor='middle' fill='currentColor' font-size='11'>경계를 넘는</text><text x='395' y='122' text-anchor='middle' fill='currentColor' font-size='11'>접근 경로 계산</text><line x1='470' y1='80' x2='540' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='470' y1='115' x2='540' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='540' y='30' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='585' y='50' text-anchor='middle' fill='currentColor' font-size='11'>Finding</text><text x='585' y='68' text-anchor='middle' fill='currentColor' font-size='11'>ACTIVE</text><rect x='540' y='115' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='585' y='135' text-anchor='middle' fill='currentColor' font-size='11'>보관 규칙</text><text x='585' y='153' text-anchor='middle' fill='currentColor' font-size='11'>= 승인 예외</text><rect x='20' y='185' width='300' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='170' y='206' text-anchor='middle' fill='currentColor' font-size='12'>미사용 액세스 분석</text><text x='170' y='227' text-anchor='middle' fill='currentColor' font-size='11'>90일 미사용 역할·키·권한 → 최소권한 정리</text><rect x='340' y='185' width='290' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='485' y='206' text-anchor='middle' fill='currentColor' font-size='12'>정책 검증·생성</text><text x='485' y='227' text-anchor='middle' fill='currentColor' font-size='11'>CI에서 위험 정책 차단 · CloudTrail 기반 초안 생성</text></svg>",
+   "keyTerms": [
+    {
+     "term": "신뢰 영역(Zone of Trust)",
+     "meaning": "계정 또는 조직. 이 경계 밖으로의 접근만 finding으로 보고된다"
+    },
+    {
+     "term": "자동 추론(Automated Reasoning)",
+     "meaning": "정책을 수학적으로 증명·분석해 가능한 접근 경로를 빠짐없이 계산하는 기법"
+    },
+    {
+     "term": "Finding",
+     "meaning": "발견된 외부 접근 경로 또는 미사용 권한. ACTIVE/ARCHIVED/RESOLVED 상태를 가진다"
+    },
+    {
+     "term": "보관 규칙(Archive Rule)",
+     "meaning": "의도된 공유를 자동 보관 처리하는 규칙. 사실상 승인된 예외 목록"
+    },
+    {
+     "term": "미사용 액세스 분석기",
+     "meaning": "지정 기간 미사용 역할·액세스 키·권한을 찾는 유료 분석기"
+    },
+    {
+     "term": "정책 검증(ValidatePolicy)",
+     "meaning": "저장 전에 문법·보안 경고를 점검하는 API. CI 게이트로 활용"
+    },
+    {
+     "term": "정책 생성(Policy Generation)",
+     "meaning": "CloudTrail 실제 사용 이력으로 최소권한 정책 초안을 만드는 기능"
+    },
+    {
+     "term": "위임 관리자(Delegated Administrator)",
+     "meaning": "조직 단위 분석을 수행하도록 지정된 보안 계정"
+    }
+   ],
+   "pitfalls": [
+    "Access Analyzer가 외부 공유를 차단해 준다고 오해. 탐지만 하며 차단은 SCP·정책 수정으로 별도 수행해야 한다.",
+    "계정 단위 분석기만 만들어 계정 간 정상 공유까지 finding으로 쏟아져 노이즈에 묻힌다. 조직 단위 분석기를 써야 한다.",
+    "분석기가 리전 단위 리소스라는 점을 놓쳐, 사용하는 모든 리전에 만들지 않아 사각지대가 생긴다.",
+    "보관 규칙을 노이즈 제거 용도로 남발해 실제 위험까지 자동 보관된다. 보관 규칙은 승인 기록과 함께 관리해야 한다.",
+    "미사용 역할을 확인 없이 즉시 삭제해, 분기·연 단위로만 도는 배치 작업의 역할이 사라져 장애가 난다.",
+    "정책 검증을 개발자 개인 판단에 맡겨 CI 게이트로 강제하지 않으면 위험 정책이 그대로 머지된다.",
+    "finding이 0건인 것을 '안전'으로 해석. 분석 대상이 아닌 리소스 유형과 IAM 정책 기반 접근은 별도 점검이 필요하다."
+   ],
+   "audit": {
+    "itgc": [
+     "[접근] 조직 외부 주체에게 열린 리소스가 주기적으로 탐지되고 각 건이 승인 또는 제거로 종결되는가",
+     "[접근] 보관 규칙(예외)이 승인된 외부 공유 목록과 일치하며 정기적으로 재검토되는가",
+     "[접근] 장기 미사용 IAM 역할·액세스 키가 식별되어 비활성화·삭제되는 절차가 운영되는가",
+     "[변경] 신규·변경 IAM 정책이 배포 전 정책 검증을 거치는 파이프라인 통제가 존재하는가",
+     "[운영] Access Analyzer finding이 Security Hub 등으로 집계되어 미조치 건이 추적 관리되는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제15조 접근통제 관점에서 외부(제3자)에 대한 접근 허용 여부가 식별·승인·기록되는지",
+     "미사용·불필요 계정 및 권한의 주기적 정리 요건 이행 여부",
+     "클라우드 이용 시 데이터가 외부 주체에 노출되지 않음을 입증할 상시 점검 수단 보유 여부"
+    ],
+    "isms": [
+     "2.5.6 접근권한 검토: 권한 사용 현황에 기반한 정기 검토가 수행되는가",
+     "2.6.2 정보시스템 접근 / 2.6.4 데이터베이스 접근: 외부 공개 경로가 통제되는가",
+     "2.9.4 로그 및 접속기록 점검: 탐지 결과에 대한 검토와 조치가 기록되는가"
+    ],
+    "evidence": [
+     "조직 단위 분석기 설정 화면 및 위임 관리자 지정 내역",
+     "활성 finding 목록과 각 건의 조치 결과(수정/보관 승인) 이력",
+     "보관 규칙 목록과 각 예외에 대한 승인 근거 문서",
+     "미사용 액세스 분석 결과(90일 미사용 역할·키 목록)와 정리 조치 기록",
+     "CI 파이프라인의 ValidatePolicy 게이트 설정 및 차단 사례",
+     "분기별 외부 공유 점검 보고서(검토자·검토일 포함)"
+    ],
+    "auditorQuestions": [
+     "조직 외부에서 접근 가능한 S3 버킷이나 IAM 역할이 현재 몇 건인가?",
+     "그중 의도된 공유는 무엇이며 누가 승인했는가?",
+     "6개월 이상 사용되지 않은 IAM 역할은 어떻게 처리하는가?",
+     "위험한 IAM 정책이 배포되기 전에 걸러지는 장치가 있는가?",
+     "탐지된 항목이 조치되지 않고 남아 있는 경우 어떻게 추적하는가?"
+    ],
+    "controlExample": "보안 계정의 조직 단위 IAM Access Analyzer가 전 계정·전 사용 리전의 외부 접근 경로를 상시 분석하며, 활성 finding은 주간 보안회의에서 검토되어 5영업일 내 정책 수정 또는 예외 승인으로 종결된다. 90일 이상 미사용 IAM 역할·액세스 키는 분기별로 식별해 비활성화 후 삭제하고 결과를 보관한다."
+   },
+   "related": [
+    "awssec-iam",
+    "awssec-iam-policy-syntax",
+    "awssec-policy-evaluation",
+    "awssec-ram",
+    "awssec-security-hub",
+    "awssec-organizations",
+    "awssec-access-key",
+    "comp-sox-itgc"
+   ],
+   "learnMore": [
+    "IAM User Guide - What is IAM Access Analyzer?",
+    "IAM Access Analyzer - Unused access findings",
+    "IAM Access Analyzer - Policy validation checks"
+   ]
+  },
+  {
+   "id": "awssec-trusted-advisor",
+   "title": "Trusted Advisor",
+   "titleEn": "AWS Trusted Advisor",
+   "aliases": [
+    "트러스티드 어드바이저",
+    "TA",
+    "모범사례 점검",
+    "비용최적화 체크",
+    "베스트프랙티스"
+   ],
+   "tags": [
+    "governance",
+    "cost",
+    "best-practice"
+   ],
+   "level": "기초",
+   "oneLiner": "AWS 모범사례 대비 계정 상태를 자동 점검해 개선점을 알려주는 도구",
+   "analogy": "Trusted Advisor는 자동차 정비소의 무료 종합 점검표와 같다. 타이어 공기압, 오일 상태, 브레이크 마모를 항목별로 보고 '양호/주의/위험' 신호등을 켜준다. 점검표 자체가 차를 고쳐주지는 않지만, 어디를 먼저 손봐야 하는지 우선순위를 알려준다. 단, 정밀 진단(전문 보안 점검)은 별도 서비스의 몫이다.",
+   "explanation": "<p><strong>AWS Trusted Advisor</strong>는 계정의 구성 상태를 AWS 모범사례(best practice)와 비교해 개선점을 알려주는 점검 도구다. 점검 항목은 다섯 가지 <strong>카테고리</strong>로 나뉜다. <strong>비용 최적화(Cost Optimization)</strong>, <strong>성능(Performance)</strong>, <strong>보안(Security)</strong>, <strong>내결함성(Fault Tolerance)</strong>, <strong>서비스 한도(Service Limits/Quotas)</strong>, 그리고 최근에는 <strong>운영 우수성(Operational Excellence)</strong>이 추가되었다.</p><p><strong>지원 플랜에 따라 사용 범위가 다르다.</strong> Basic·Developer 플랜은 핵심 보안 항목과 서비스 한도 등 일부만 제공되고, <strong>Business·Enterprise 플랜부터 전체 항목</strong>과 API, 알림, Organizations 통합 뷰가 열린다. 감사 대응에 활용하려면 Business 이상이 사실상 전제다. 이 점은 '왜 전체 점검 결과를 못 보여주느냐'는 질문에 대한 답이 되므로 알아둘 필요가 있다.</p><p><strong>보안 카테고리의 대표 항목</strong>은 실무에서 그대로 감사 체크리스트가 된다. 루트 계정 MFA 미설정, 90일 이상 미교체 IAM 액세스 키, 공개된 S3 버킷 권한, 0.0.0.0/0으로 열린 보안그룹의 위험 포트(22, 3389, 3306 등), CloudTrail 미활성 리전, RDS 퍼블릭 스냅샷, 만료 임박 ACM 인증서, MFA 없는 IAM 사용자 등이다. 쉽게 말하면, <strong>초심자가 흔히 저지르는 실수를 AWS가 대신 찾아주는 목록</strong>이다.</p><p><strong>서비스 한도 점검</strong>은 의외로 장애 예방에 중요하다. EC2 인스턴스 수, EIP 개수, VPC당 보안그룹 수 등이 한도의 80%에 다다르면 경고를 준다. 트래픽 급증 시 오토스케일링이 한도에 막혀 확장되지 않는 사고를 미리 막을 수 있다.</p><p><strong>다른 서비스와의 역할 구분</strong>을 명확히 해야 한다. Trusted Advisor는 <strong>넓고 얕은 모범사례 점검</strong>이고, <strong>AWS Config</strong>는 회사 고유 규칙을 정의해 <strong>준수 이력</strong>을 남기는 도구, <strong>Security Hub</strong>는 CIS·PCI 등 <strong>표준 프레임워크 기준으로 점수화</strong>하는 도구, <strong>Inspector</strong>는 <strong>취약점(CVE)</strong> 스캐너다. 감사인이 'CIS 벤치마크 준수율'을 물으면 Security Hub를, '변경 이력'을 물으면 Config를, '빠른 위생 점검'이면 Trusted Advisor를 제시한다.</p><p><strong>감사 관점</strong>에서 Trusted Advisor는 <strong>저비용 상시 점검 증적</strong>으로 쓰기 좋다. Organizations 뷰로 전 계정 결과를 한 번에 뽑고, EventBridge로 신규 위험 항목 발생 시 티켓을 자동 생성하면 '탐지-조치-종결' 흐름을 만들 수 있다. 다만 점검 항목이 AWS가 정한 고정 목록이라 회사 정책(예: 특정 태그 필수)은 커버하지 못하므로, Config 규칙과 병행하는 것이 정석이다.</p>",
+   "howItWorks": "<ol><li>Business 이상 지원 플랜을 활성화하고 Organizations에서 Trusted Advisor 조직 뷰를 켠다.</li><li>Trusted Advisor가 계정의 리소스 구성(IAM, S3, EC2, RDS, ELB 등)을 주기적으로 스캔한다.</li><li>각 점검 항목을 초록(정상)/노랑(조사 권장)/빨강(조치 권장)으로 분류하고 대상 리소스 목록을 제시한다.</li><li>보안팀이 API 또는 콘솔로 결과를 내려받아 심각도별로 정렬한다.</li><li>EventBridge 규칙이 '보안 카테고리에서 빨강 상태 신규 발생' 이벤트를 받아 ITSM 티켓을 생성한다.</li><li>담당 팀이 조치(예: 보안그룹 0.0.0.0/0 제거)를 수행한다.</li><li>다음 스캔에서 항목이 초록으로 바뀌고, 티켓은 근거와 함께 종결된다.</li><li>월간 리포트로 카테고리별 위험 건수 추이를 경영진에 보고한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2026년 1분기에 Organizations 조직 뷰로 계정 18개의 Trusted Advisor 결과를 처음 통합 조회했다. 보안 카테고리에서 빨강 23건이 나왔는데, 19건이 개발 계정의 0.0.0.0/0 SSH 허용 보안그룹이었고 2건은 90일 넘게 교체되지 않은 IAM 액세스 키, 2건은 퍼블릭 읽기가 가능한 S3 버킷이었다. 보안그룹은 SCP와 Config 자동 교정으로 원천 차단했고, 액세스 키는 IAM Identity Center 전환으로 제거했다. 서비스 한도 항목에서는 운영 계정의 EIP 사용률이 84%임을 발견해 사전에 한도 증설을 신청, 이벤트 기간 확장 실패 위험을 예방했다.</p><pre><code># 조직 내 전체 점검 결과 조회 (Business 이상)\naws support describe-trusted-advisor-checks --language ko \\\n  --query 'checks[?category==`security`].[id,name]' --output table\n\n# 특정 점검의 위험 리소스 목록 (예: 보안그룹 무제한 접근)\naws support describe-trusted-advisor-check-result \\\n  --check-id HCP4007jGY --language ko \\\n  --query 'result.flaggedResources[].metadata'\n\n# EventBridge 규칙: 보안 카테고리 ERROR 발생 시 티켓 생성\n{\n  \"source\": [\"aws.trustedadvisor\"],\n  \"detail-type\": [\"Trusted Advisor Check Item Refresh Notification\"],\n  \"detail\": {\n    \"check-name\": [\"Security Groups - Unrestricted Access\"],\n    \"status\": [\"ERROR\"]\n  }\n}</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='180' height='150' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='110' y='47' text-anchor='middle' fill='currentColor' font-size='12'>점검 카테고리</text><text x='40' y='72' fill='currentColor' font-size='11'>· 비용 최적화</text><text x='40' y='94' fill='currentColor' font-size='11'>· 성능</text><text x='40' y='116' fill='currentColor' font-size='11'>· 보안</text><text x='40' y='138' fill='currentColor' font-size='11'>· 내결함성</text><text x='40' y='160' fill='currentColor' font-size='11'>· 서비스 한도</text><line x1='200' y1='100' x2='265' y2='100' stroke='currentColor' marker-end='url(#ar)'/><rect x='265' y='60' width='150' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='340' y='85' text-anchor='middle' fill='currentColor' font-size='12'>신호등 결과</text><text x='340' y='106' text-anchor='middle' fill='currentColor' font-size='11'>정상 / 조사 / 조치</text><text x='340' y='126' text-anchor='middle' fill='currentColor' font-size='11'>+ 대상 리소스 목록</text><line x1='415' y1='100' x2='480' y2='100' stroke='currentColor' marker-end='url(#ar)'/><rect x='480' y='60' width='140' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='85' text-anchor='middle' fill='currentColor' font-size='12'>EventBridge</text><text x='550' y='106' text-anchor='middle' fill='currentColor' font-size='11'>→ ITSM 티켓</text><text x='550' y='126' text-anchor='middle' fill='currentColor' font-size='11'>→ 조치·종결</text><rect x='20' y='195' width='600' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='216' text-anchor='middle' fill='currentColor' font-size='12'>역할 구분: TA(모범사례 위생) · Config(회사 규칙+이력) · Security Hub(표준 점수) · Inspector(CVE)</text><text x='320' y='236' text-anchor='middle' fill='currentColor' font-size='11'>Business 이상 플랜에서 전체 항목·API·조직 뷰 사용 가능</text></svg>",
+   "keyTerms": [
+    {
+     "term": "점검 항목(Check)",
+     "meaning": "AWS가 정의한 개별 모범사례 기준. 카테고리별로 수십 개가 있다"
+    },
+    {
+     "term": "플래그된 리소스(Flagged Resource)",
+     "meaning": "해당 점검에서 문제로 표시된 실제 리소스 목록"
+    },
+    {
+     "term": "서비스 한도(Service Quota)",
+     "meaning": "계정·리전별 리소스 생성 상한. 80% 초과 시 경고"
+    },
+    {
+     "term": "조직 뷰(Organizational View)",
+     "meaning": "Organizations 전 계정의 점검 결과를 한 번에 보는 기능"
+    },
+    {
+     "term": "지원 플랜(Support Plan)",
+     "meaning": "Basic/Developer/Business/Enterprise. 사용 가능한 점검 범위를 결정"
+    },
+    {
+     "term": "Trusted Advisor Priority",
+     "meaning": "Enterprise Support에서 AWS TAM이 우선순위를 큐레이션해 주는 기능"
+    },
+    {
+     "term": "무제한 접근(Unrestricted Access)",
+     "meaning": "0.0.0.0/0으로 열린 보안그룹을 지적하는 대표 보안 점검 항목"
+    }
+   ],
+   "pitfalls": [
+    "Basic 플랜에서 전체 항목이 보이지 않는데 '문제가 없다'고 해석한다. 플랜별 제공 범위를 먼저 확인해야 한다.",
+    "Trusted Advisor를 Security Hub·Config의 대체재로 여긴다. 항목이 고정이라 회사 고유 정책은 점검하지 못한다.",
+    "결과를 사람이 가끔 눈으로만 보고 조치 이력을 남기지 않아 감사 증적으로 쓸 수 없게 된다.",
+    "점검 결과가 실시간이 아니라 주기적 갱신임을 모르고, 조치 직후 초록으로 안 바뀐다고 혼란스러워한다(수동 새로고침 필요).",
+    "비용 최적화 권고를 무비판적으로 수용해 예약 인스턴스·미사용 판정 리소스를 지웠다가 DR·배치 자원을 잃는다.",
+    "서비스 한도 경고를 무시해 트래픽 급증 시 오토스케일링이 실패한다.",
+    "조직 뷰를 켜지 않아 계정별로 따로 확인하다가 일부 계정이 점검에서 누락된다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 전 계정 대상 모범사례 점검이 주기적으로 수행되고 결과가 기록·보고되는가",
+     "[운영] 보안 카테고리의 위험 항목이 티켓으로 전환되어 기한 내 조치·종결되는가",
+     "[접근] 루트 계정 MFA, 액세스 키 미교체, 공개 S3 등 접근 관련 지적 항목이 즉시 시정되는가",
+     "[운영] 서비스 한도 임계 도달이 사전에 탐지되어 용량 계획에 반영되는가",
+     "[변경] 점검 결과에 따른 구성 변경이 변경관리 절차를 통해 이루어지는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조 정보처리시스템 보호 관점의 취약 구성(공개 포트·공개 스토리지) 주기 점검 여부",
+     "정보처리시스템 용량·한도 관리 및 증설 계획 수립 여부",
+     "클라우드 이용 시 제공되는 점검 도구 활용 및 결과에 대한 내부 보고체계 운영 여부"
+    ],
+    "isms": [
+     "2.11.2 취약점 점검 및 조치: 정기 점검 수행과 발견 사항의 조치·재점검이 이루어지는가",
+     "2.9.2 성능 및 장애관리: 용량·한도 모니터링이 수행되는가",
+     "2.6.1 네트워크 접근: 무제한 개방된 접근 경로가 식별·차단되는가"
+    ],
+    "evidence": [
+     "Trusted Advisor 조직 뷰 전체 점검 결과 export(카테고리별 상태, 대상 리소스)",
+     "보안 카테고리 위험 항목 목록과 각 건의 조치 티켓·종결 근거",
+     "EventBridge 알림 규칙 설정 화면 및 최근 알림 발송 이력",
+     "서비스 한도 경고 이력과 한도 증설 신청·승인 기록",
+     "월간/분기 점검 결과 보고 문서(보고 대상·일자 포함)"
+    ],
+    "auditorQuestions": [
+     "AWS 계정 구성의 위생 상태를 정기적으로 어떻게 점검하는가?",
+     "가장 최근 점검에서 보안 위험으로 지적된 항목은 무엇이었고 어떻게 조치했는가?",
+     "지적 사항이 기한 내 조치되지 않으면 어떤 절차로 에스컬레이션되는가?",
+     "서비스 한도에 근접한 항목이 있는가? 어떻게 관리하는가?",
+     "이 도구로 점검되지 않는 회사 고유 정책은 무엇으로 점검하는가?"
+    ],
+    "controlExample": "전 AWS 계정은 Trusted Advisor 조직 뷰로 월 1회 모범사례 점검을 수행하며, 보안 카테고리의 조치 권장(빨강) 항목은 EventBridge를 통해 ITSM 티켓으로 자동 생성되어 10영업일 내 조치·종결된다. 점검 결과와 조치 현황은 월간 정보보호 보고에 포함하여 보고한다."
+   },
+   "related": [
+    "awssec-config",
+    "awssec-security-hub",
+    "awssec-inspector",
+    "awssec-cis-benchmark",
+    "awssec-access-key",
+    "awssec-root-account",
+    "obs-prometheus",
+    "plat-change-management"
+   ],
+   "learnMore": [
+    "AWS Trusted Advisor User Guide",
+    "AWS Support - Trusted Advisor check reference",
+    "AWS Trusted Advisor - Organizational view"
+   ]
+  },
+  {
+   "id": "awssec-audit-manager",
+   "title": "Audit Manager",
+   "titleEn": "AWS Audit Manager",
+   "aliases": [
+    "오딧 매니저",
+    "감사 증적 자동수집",
+    "Assessment",
+    "감사 프레임워크",
+    "증거 수집"
+   ],
+   "tags": [
+    "compliance",
+    "audit",
+    "evidence"
+   ],
+   "level": "중급",
+   "oneLiner": "규제 프레임워크별 감사 증거를 자동 수집·정리해 주는 서비스",
+   "analogy": "Audit Manager는 세무 신고를 위해 1년 내내 영수증을 자동으로 모아 항목별 봉투에 넣어주는 비서와 같다. 신고 시즌이 되면 서랍을 뒤질 필요 없이 '접대비 봉투'를 꺼내면 된다. 다만 그 영수증이 적절한지 판단하고 서명하는 것은 여전히 사람의 몫이다.",
+   "explanation": "<p><strong>AWS Audit Manager</strong>는 감사 대응에 필요한 <strong>증거(evidence)를 상시 자동 수집</strong>하고 규제 프레임워크의 통제 항목별로 분류해 주는 서비스다. 감사 시즌마다 담당자가 콘솔 스크린샷을 찍고 CLI 출력을 복사하던 수작업을 자동화하는 것이 목적이다.</p><p><strong>핵심 개념은 세 가지</strong>다. <strong>프레임워크(Framework)</strong>는 통제 항목의 묶음이다. AWS가 제공하는 표준 프레임워크로 CIS AWS Foundations Benchmark, PCI DSS, ISO/IEC 27001, SOC 2, GDPR, HIPAA, NIST 800-53, AWS Well-Architected 등이 있고, 회사 고유 통제를 담은 <strong>커스텀 프레임워크</strong>도 만들 수 있다. 국내 ITGC나 전자금융감독규정 대응용 커스텀 프레임워크를 직접 정의하는 사례가 늘고 있다.</p><p><strong>평가(Assessment)</strong>는 '어떤 프레임워크를, 어느 계정·서비스 범위로, 언제부터 언제까지 수집할지'를 정한 실행 단위다. 평가를 만들면 그 시점부터 증거가 쌓이기 시작한다. 중요한 점은 <strong>과거를 소급 수집하지 않는다</strong>는 것이다. 감사 기간 시작 전에 평가를 만들어 두어야 한다.</p><p><strong>증거(Evidence)</strong>는 네 종류에서 온다. (1) <strong>AWS Config</strong> 규칙 평가 결과(구성 준수 여부), (2) <strong>Security Hub</strong> 탐지 결과(표준 대비 점수), (3) <strong>CloudTrail</strong> 이벤트(누가 무엇을 했는지), (4) <strong>AWS API 호출 스냅샷</strong>(예: <code>ListUsers</code> 결과). 여기에 사람이 올리는 <strong>수동 증거(Manual Evidence)</strong>가 더해진다. 인터뷰 기록, 승인 결재 화면, 온프레미스 시스템 증적처럼 AWS 밖의 것은 수동 업로드로 채운다. 쉽게 말하면, <strong>자동으로 모을 수 있는 것은 기계가, 나머지는 사람이 채워 하나의 평가 폴더로 합치는 구조</strong>다.</p><p><strong>증거의 무결성</strong>이 이 서비스의 감사 가치다. 수집된 증거는 변경 불가(immutable) 형태로 보관되고, 평가 리포트를 생성하면 <strong>SHA-256 체크섬이 포함된 PDF와 증거 파일 묶음</strong>이 지정 S3 버킷에 저장된다. 외부 감사인에게 '이 증적이 사후 조작되지 않았다'를 설명할 근거가 된다.</p><p><strong>역할(Role) 개념</strong>도 있다. 각 통제에 <strong>증거 검토자(Audit Owner)</strong>와 <strong>소유자(Delegate)</strong>를 지정해, 특정 통제의 증거 검토를 현업 담당자에게 위임하고 검토 의견을 남기게 할 수 있다. 이 위임-검토-승인 흐름 자체가 SOX의 '통제 운영 증거'가 된다.</p><p><strong>한계도 분명히 알아야 한다.</strong> Audit Manager는 <strong>준수 여부를 판단해 주지 않는다</strong>. 증거를 모아줄 뿐, '이 통제가 효과적으로 운영되었다'는 결론은 감사인과 회사가 내린다. 또 AWS 리소스 밖(SAP, 온프레미스 DB, 사내 결재 시스템)은 자동 수집 대상이 아니다. 비용은 수집된 리소스 평가 건수 기준으로 과금되므로 범위 설계가 필요하다.</p>",
+   "howItWorks": "<ol><li>보안·감사팀이 대응할 프레임워크를 선택한다(예: CIS AWS Foundations Benchmark + 자체 ITGC 커스텀 프레임워크).</li><li>Organizations 위임 관리자를 감사 계정으로 지정하고, 평가 범위에 대상 계정과 서비스를 지정한다.</li><li>평가(Assessment)를 생성한다. 이 시점부터 증거 수집이 시작된다.</li><li>Audit Manager가 매일 Config 규칙 결과, Security Hub finding, CloudTrail 이벤트, API 스냅샷을 자동 수집해 통제별 폴더에 넣는다.</li><li>AWS 밖 증적(결재 화면, 인터뷰 기록)은 담당자가 수동 증거로 업로드한다.</li><li>각 통제의 위임 검토자가 증거를 확인하고 의견·상태(검토 완료 등)를 남긴다.</li><li>감사 기간이 끝나면 평가 리포트를 생성한다. 체크섬이 포함된 PDF와 증거 묶음이 S3에 저장된다.</li><li>외부 감사인에게 리포트와 증거 폴더를 제공하고, 필요 시 개별 증거의 원본(CloudTrail 이벤트 등)을 추적해 보여준다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 SOX ITGC 대응에 매년 3개월간 담당자 2명이 스크린샷을 수집했다. 2026년부터 Audit Manager를 도입해 감사 계정에서 평가 2개를 운영한다. 하나는 CIS AWS Foundations Benchmark 표준 프레임워크, 다른 하나는 ITGC 통제 34개(접근 12, 변경 11, 운영 11)를 담은 커스텀 프레임워크다. 접근통제 항목 중 'IAM 사용자 MFA 적용'은 Config 규칙 <code>iam-user-mfa-enabled</code> 결과가 자동으로 붙고, '분기 접근권한 리뷰 승인'은 결재 시스템 캡처를 수동 증거로 올린다. 연간 증적 수집 공수가 약 70% 감소했다.</p><pre><code># 평가 생성 (감사 계정)\naws auditmanager create-assessment \\\n  --name \"FY2026-ITGC\" \\\n  --framework-id 1a2b3c4d-0000-1111-2222-333344445555 \\\n  --assessment-reports-destination \\\n    destinationType=S3,destination=s3://paynow-audit-evidence/fy2026/ \\\n  --scope '{\"awsAccounts\":[{\"id\":\"123456789012\"},{\"id\":\"210987654321\"}],\n             \"awsServices\":[{\"serviceName\":\"IAM\"},{\"serviceName\":\"S3\"},\n                            {\"serviceName\":\"CloudTrail\"},{\"serviceName\":\"KMS\"}]}' \\\n  --roles 'roleType=PROCESS_OWNER,roleArn=arn:aws:iam::999988887777:role/AuditOwner'\n\n# 특정 통제의 수집된 증거 확인\naws auditmanager get-evidence-folders-by-assessment \\\n  --assessment-id 9f8e7d6c --max-results 20\n\n# 평가 리포트(체크섬 포함) 생성\naws auditmanager create-assessment-report \\\n  --assessment-id 9f8e7d6c --name \"FY2026-ITGC-Q1\" \\\n  --description \"1분기 ITGC 증적 묶음\"</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='150' height='170' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='47' text-anchor='middle' fill='currentColor' font-size='12'>증거 소스</text><rect x='32' y='60' width='126' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='79' text-anchor='middle' fill='currentColor' font-size='11'>AWS Config</text><rect x='32' y='94' width='126' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='113' text-anchor='middle' fill='currentColor' font-size='11'>Security Hub</text><rect x='32' y='128' width='126' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='147' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail</text><rect x='32' y='162' width='126' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='181' text-anchor='middle' fill='currentColor' font-size='11'>API 스냅샷</text><line x1='170' y1='110' x2='235' y2='110' stroke='currentColor' marker-end='url(#ar)'/><rect x='235' y='55' width='170' height='110' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='80' text-anchor='middle' fill='currentColor' font-size='12'>평가(Assessment)</text><text x='320' y='102' text-anchor='middle' fill='currentColor' font-size='11'>프레임워크 = 통제 묶음</text><text x='320' y='122' text-anchor='middle' fill='currentColor' font-size='11'>통제별 증거 폴더</text><text x='320' y='144' text-anchor='middle' fill='currentColor' font-size='11'>검토자 지정·의견</text><rect x='20' y='205' width='385' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='212' y='230' text-anchor='middle' fill='currentColor' font-size='11'>수동 증거 업로드: 결재 화면 · 인터뷰 기록 · 온프레미스 증적</text><line x1='212' y1='205' x2='250' y2='168' stroke='currentColor' marker-end='url(#ar)'/><line x1='405' y1='110' x2='465' y2='110' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='60' width='155' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='84' text-anchor='middle' fill='currentColor' font-size='12'>평가 리포트</text><text x='542' y='106' text-anchor='middle' fill='currentColor' font-size='11'>PDF + 증거 묶음</text><text x='542' y='126' text-anchor='middle' fill='currentColor' font-size='11'>SHA-256 체크섬</text><text x='542' y='146' text-anchor='middle' fill='currentColor' font-size='11'>S3에 저장</text><text x='430' y='225' fill='currentColor' font-size='11'>※ 준수 판정은 사람의 몫</text></svg>",
+   "keyTerms": [
+    {
+     "term": "프레임워크(Framework)",
+     "meaning": "CIS·PCI DSS·ISO 27001 등 통제 항목의 묶음. 커스텀 정의도 가능"
+    },
+    {
+     "term": "평가(Assessment)",
+     "meaning": "특정 프레임워크를 지정 범위·기간으로 실행하는 단위. 생성 시점부터 수집 시작"
+    },
+    {
+     "term": "증거(Evidence)",
+     "meaning": "Config·Security Hub·CloudTrail·API 스냅샷에서 자동 수집되는 통제 이행 자료"
+    },
+    {
+     "term": "수동 증거(Manual Evidence)",
+     "meaning": "AWS 밖의 결재·인터뷰 기록 등 사람이 업로드하는 증적"
+    },
+    {
+     "term": "증거 폴더",
+     "meaning": "통제·날짜별로 증거가 자동 분류되는 단위"
+    },
+    {
+     "term": "평가 리포트",
+     "meaning": "체크섬이 포함된 PDF와 증거 묶음. 무결성 입증에 사용"
+    },
+    {
+     "term": "위임 검토자(Delegate)",
+     "meaning": "특정 통제의 증거 검토를 맡는 현업 담당자"
+    },
+    {
+     "term": "위임 관리자(Delegated Administrator)",
+     "meaning": "조직 전체 평가를 수행하는 감사·보안 계정"
+    }
+   ],
+   "pitfalls": [
+    "감사 기간이 시작된 뒤에 평가를 생성해, 소급 수집이 안 되어 초반 증적이 비어 있게 된다.",
+    "Audit Manager가 준수 여부를 판정해 준다고 오해. 증거 수집·정리 도구이며 결론은 사람이 내린다.",
+    "AWS Config와 Security Hub를 켜지 않은 상태로 평가를 만들어, 자동 증거가 거의 수집되지 않는다.",
+    "온프레미스·SaaS 영역의 증적까지 자동으로 모일 것으로 기대. 수동 증거 업로드 담당과 주기를 정해야 한다.",
+    "범위를 전 계정·전 서비스로 넓게 잡아 비용이 예상보다 크게 발생한다.",
+    "수집된 증거를 검토하지 않고 리포트만 생성해, 감사인이 '검토 흔적이 없다'고 지적한다.",
+    "평가 리포트 저장 S3 버킷의 접근·보존 정책을 설정하지 않아 증적 자체의 무결성이 의심받는다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 감사 대상 통제별 증거가 정의된 주기로 수집·보관되며 수집 누락이 모니터링되는가",
+     "[운영] 수집된 증거에 대해 지정된 검토자가 검토하고 검토 기록이 남는가",
+     "[접근] 증거 저장 S3 버킷과 Audit Manager 평가에 대한 접근 권한이 감사·보안팀으로 제한되는가",
+     "[변경] 커스텀 프레임워크의 통제 정의 변경이 승인 절차를 거치는가",
+     "[운영] 평가 리포트의 무결성(체크섬)과 보존 기간이 규정 요구를 충족하는가"
+    ],
+    "fss": [
+     "전자금융감독규정상 내부통제 이행 증적의 생성·보관 요건 충족 여부 및 보존기간 관리",
+     "정보처리시스템 관련 감사 증적의 위·변조 방지 조치(체크섬·버전관리·접근제한) 적용 여부",
+     "감독당국 제출 자료의 근거 데이터가 추적 가능한 형태로 보관되는지"
+    ],
+    "isms": [
+     "1.4.1 법적 요구사항 준수 검토 / 1.4.2 관리체계 점검: 준수 여부 점검 근거자료가 관리되는가",
+     "2.9.4 로그 및 접속기록 관리: 증적 자료의 보존과 접근 통제가 이루어지는가",
+     "1.4.3 관리체계 개선: 점검 결과에 따른 개선 이력이 관리되는가"
+    ],
+    "evidence": [
+     "Audit Manager 평가 목록과 각 평가의 프레임워크·범위·기간 설정 화면",
+     "통제별 증거 폴더 목록과 자동/수동 증거 건수",
+     "생성된 평가 리포트 PDF 및 체크섬 정보",
+     "증거 저장 S3 버킷의 버킷 정책·객체 잠금(Object Lock)·수명주기 설정",
+     "검토자 지정 내역과 통제별 검토 완료 기록",
+     "커스텀 프레임워크 통제 정의 문서와 승인 근거"
+    ],
+    "auditorQuestions": [
+     "통제 이행 증적은 어떻게 수집되며 사람이 개입하는 부분은 어디인가?",
+     "수집된 증적이 사후에 수정되지 않았음을 어떻게 보장하는가?",
+     "AWS 외부 시스템의 증적은 어떻게 이 체계에 포함되는가?",
+     "증적을 검토하는 사람은 누구이며 검토 기록은 어디에 남는가?",
+     "감사 기간 전체에 대해 증적이 빠짐없이 수집되었음을 어떻게 확인했는가?"
+    ],
+    "controlExample": "감사 계정의 AWS Audit Manager가 CIS 벤치마크 및 자체 ITGC 커스텀 프레임워크 기준으로 전 계정의 통제 증거를 일 단위로 자동 수집하며, 통제별 지정 검토자가 분기마다 증거를 검토하고 의견을 기록한다. 분기 종료 시 체크섬이 포함된 평가 리포트를 생성해 객체 잠금이 적용된 S3 버킷에 5년간 보관한다."
+   },
+   "related": [
+    "awssec-config",
+    "awssec-security-hub",
+    "awssec-cloudtrail",
+    "awssec-cis-benchmark",
+    "awssec-artifact",
+    "comp-sox-itgc",
+    "comp-isms-p",
+    "comp-fss-egfs"
+   ],
+   "learnMore": [
+    "AWS Audit Manager User Guide",
+    "AWS Audit Manager - Supported frameworks",
+    "AWS Audit Manager - Assessment reports"
+   ]
+  },
+  {
+   "id": "awssec-artifact",
+   "title": "AWS Artifact",
+   "titleEn": "AWS Artifact",
+   "aliases": [
+    "아티팩트",
+    "SOC 보고서",
+    "규정준수 보고서",
+    "ISO 인증서",
+    "제3자 감사보고서"
+   ],
+   "tags": [
+    "compliance",
+    "audit",
+    "third-party"
+   ],
+   "level": "기초",
+   "oneLiner": "AWS의 제3자 감사 보고서와 규정준수 문서를 내려받는 포털",
+   "analogy": "AWS Artifact는 거래처가 '우리 회사는 이렇게 관리되고 있습니다'라며 회계법인 감사보고서 사본을 보관해 둔 서류함과 같다. 우리 회사 감사인이 '당신들이 쓰는 클라우드는 믿을 만한가'라고 물으면, 이 서류함에서 최신 보고서를 꺼내 제출하면 된다. 다만 그 보고서는 AWS가 책임지는 범위만 다루며, 우리가 그 위에 올린 것은 별개다.",
+   "explanation": "<p><strong>AWS Artifact</strong>는 AWS가 받은 <strong>제3자 감사 보고서와 인증서</strong>를 고객이 직접 내려받을 수 있게 한 셀프서비스 포털이다. 대표 문서로 <strong>SOC 1/2/3 보고서</strong>, <strong>ISO 27001·27017·27018·9001 인증서</strong>, <strong>PCI DSS AOC(준수확인서)</strong>, <strong>클라우드 보안 협의체(CSA) CAIQ</strong>, 국내 관련으로는 <strong>ISMS 인증서</strong>와 <strong>금융보안원 CSP 안전성 평가 결과</strong> 관련 자료 등이 있다.</p><p><strong>왜 필요한가.</strong> 외부 감사인이나 규제기관이 '클라우드 사업자의 물리보안·인력통제·데이터센터 운영을 어떻게 확인했느냐'고 물을 때, 고객사가 AWS 데이터센터를 직접 방문 실사할 수는 없다. 대신 <strong>AWS가 독립된 감사인에게 받은 보고서를 근거로 신뢰를 이전(trust transfer)</strong>하는 것이 표준 관행이다. 쉽게 말하면, <strong>'우리 대신 회계법인이 AWS를 감사했고 그 결과가 여기 있다'를 보여주는 창구</strong>다.</p><p><strong>SOC 보고서의 구분</strong>을 알아두면 유용하다. <strong>SOC 1</strong>은 재무보고 관련 내부통제를 다뤄 <strong>SOX ITGC 대응에 직접 쓰인다</strong>. <strong>SOC 2</strong>는 보안·가용성·기밀성 등 신뢰서비스 기준(Trust Services Criteria)을 다루며 보안팀·고객사 실사 대응에 쓰인다. <strong>SOC 3</strong>은 SOC 2의 공개 요약본으로 NDA 없이 배포 가능하다. SOC 1/2는 <strong>기밀 문서</strong>라 다운로드 시 NDA에 동의해야 하고, 외부 공유가 제한된다는 점을 반드시 인지해야 한다.</p><p><strong>보완통제 고려사항(CUEC, Complementary User Entity Controls)</strong>이 실무에서 가장 중요한 부분이다. SOC 보고서 뒷부분에는 'AWS의 통제가 효과적이려면 고객이 이런 통제를 수행해야 한다'는 목록이 있다. 예를 들어 '고객은 자격증명을 안전하게 관리해야 한다', '고객은 암호화 옵션을 활성화해야 한다' 같은 항목이다. 감사인은 <strong>이 CUEC 목록에 대해 회사가 실제로 통제를 갖고 있는지</strong>를 본다. Artifact 보고서를 받아만 두고 CUEC를 매핑하지 않으면 반쪽짜리 대응이다.</p><p><strong>Artifact 협정(Agreements)</strong> 기능도 있다. 고객이 AWS와 체결하는 <strong>BAA(HIPAA용 사업제휴협약)</strong>, <strong>GDPR 데이터 처리 부속서(DPA)</strong> 등을 조직 단위로 수락·관리할 수 있다. Organizations 관리 계정에서 조직 전체에 일괄 적용하는 것이 일반적이다.</p><p><strong>감사 관점</strong>에서 Artifact는 '외주·제3자 관리(Vendor Management)' 통제의 증적원이다. 점검 포인트는 (1) 최신 보고서를 <strong>주기적으로(보통 연 1회 이상)</strong> 입수하는 프로세스가 있는가, (2) 보고서의 <strong>감사 기간(coverage period)</strong>이 회사 감사 기간을 포함하는가, (3) 보고서에 기재된 <strong>예외사항(exceptions)</strong>을 검토했는가, (4) CUEC가 회사 내부통제와 매핑되어 있는가다. 단순 다운로드만으로는 통제로 인정받기 어렵다.</p>",
+   "howItWorks": "<ol><li>규정준수 담당자가 AWS 콘솔에서 Artifact에 접속한다(<code>artifact:Get*</code> 권한 필요).</li><li>필요한 보고서(예: SOC 1 Type II, 최신 기간)를 검색한다.</li><li>기밀 보고서의 경우 NDA 조건에 동의하면 PDF 다운로드가 시작된다.</li><li>보고서의 감사 기간(예: 2025-04-01 ~ 2026-03-31)이 회사 회계연도를 포함하는지 확인한다. 공백 기간이 있으면 브리지 레터(bridge letter)를 함께 확보한다.</li><li>보고서 내 감사인 의견(적정/한정)과 예외사항 목록을 검토해 회사 위험에 영향이 있는지 평가한다.</li><li>CUEC 목록을 추출해 회사 내부통제(IAM MFA, 암호화, 로깅 등)와 1:1 매핑표를 만든다.</li><li>매핑 결과와 보고서를 벤더관리 문서함에 등록하고, 다음 갱신 주기를 캘린더에 설정한다.</li><li>외부 감사 시 이 매핑표와 보고서를 함께 제출하며, 보고서는 NDA 범위 내에서만 공유한다.</li></ol>",
+   "example": "<p>가상의 핀테크 '페이나우'는 2026년 SOX 감사에서 외부감사인이 'AWS 데이터센터의 물리적 접근통제와 변경관리는 어떻게 확인했는가'를 질의했다. 담당자는 AWS Artifact에서 SOC 1 Type II 보고서(2025.04~2026.03)를 내려받아 제출하고, 동시에 CUEC 27개 항목을 회사 통제와 매핑한 표를 제시했다. 예를 들어 CUEC의 '고객은 루트 계정 자격증명을 보호해야 한다'는 사내 통제 'ACC-01 루트 계정 MFA 및 분기 점검'과 연결했다. 또 회계연도가 보고서 기간보다 1개월 더 길어 AWS 브리지 레터를 추가로 확보했다. 벤더관리 대장에는 차기 입수 예정일(2027년 5월)이 등록되어 있다.</p><pre><code># Artifact 접근 권한 (규정준수 담당자 역할)\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    { \"Effect\": \"Allow\",\n      \"Action\": [\n        \"artifact:Get\", \"artifact:GetReport\",\n        \"artifact:GetReportMetadata\", \"artifact:ListReports\",\n        \"artifact:GetTermForReport\"\n      ],\n      \"Resource\": \"*\" }\n  ]\n}\n\n# 보고서 목록 조회\naws artifact list-reports \\\n  --query 'reports[?contains(name, `SOC`)].[name,series,periodStart,periodEnd,version]' \\\n  --output table\n\n# 보고서 다운로드용 URL 획득 (약관 수락 후)\naws artifact get-report --report-id report-abc123 --term-token &lt;token&gt;</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='180' height='120' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='110' y='47' text-anchor='middle' fill='currentColor' font-size='12'>AWS Artifact</text><text x='38' y='72' fill='currentColor' font-size='11'>· SOC 1 / 2 / 3</text><text x='38' y='94' fill='currentColor' font-size='11'>· ISO 27001/27017/27018</text><text x='38' y='116' fill='currentColor' font-size='11'>· PCI DSS AOC</text><text x='38' y='138' fill='currentColor' font-size='11'>· 협정(BAA/DPA)</text><line x1='200' y1='85' x2='265' y2='85' stroke='currentColor' marker-end='url(#ar)'/><text x='232' y='76' text-anchor='middle' fill='currentColor' font-size='11'>다운로드</text><rect x='265' y='40' width='170' height='95' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='350' y='65' text-anchor='middle' fill='currentColor' font-size='12'>보고서 검토</text><text x='350' y='87' text-anchor='middle' fill='currentColor' font-size='11'>감사 기간 · 의견</text><text x='350' y='107' text-anchor='middle' fill='currentColor' font-size='11'>예외사항 확인</text><text x='350' y='127' text-anchor='middle' fill='currentColor' font-size='11'>CUEC 목록 추출</text><line x1='435' y1='85' x2='500' y2='85' stroke='currentColor' marker-end='url(#ar)'/><rect x='500' y='40' width='120' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='64' text-anchor='middle' fill='currentColor' font-size='12'>사내 통제</text><text x='560' y='86' text-anchor='middle' fill='currentColor' font-size='11'>매핑표 작성</text><text x='560' y='106' text-anchor='middle' fill='currentColor' font-size='11'>ACC-01 MFA</text><text x='560' y='126' text-anchor='middle' fill='currentColor' font-size='11'>ENC-03 암호화</text><rect x='20' y='165' width='600' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='188' text-anchor='middle' fill='currentColor' font-size='12'>책임 공유 모델</text><text x='320' y='211' text-anchor='middle' fill='currentColor' font-size='11'>AWS: 데이터센터·하드웨어·하이퍼바이저 → SOC 보고서로 입증</text><text x='320' y='232' text-anchor='middle' fill='currentColor' font-size='11'>고객: IAM·암호화·로깅·패치 → 회사 내부통제로 입증 (CUEC)</text></svg>",
+   "keyTerms": [
+    {
+     "term": "SOC 1",
+     "meaning": "재무보고 관련 내부통제 보고서. SOX ITGC 대응에 직접 활용"
+    },
+    {
+     "term": "SOC 2",
+     "meaning": "보안·가용성·기밀성 등 신뢰서비스 기준 보고서. 기밀 문서"
+    },
+    {
+     "term": "SOC 3",
+     "meaning": "SOC 2의 공개 요약본. NDA 없이 배포 가능"
+    },
+    {
+     "term": "Type I / Type II",
+     "meaning": "설계 적정성만 본 것(I)과 일정 기간 운영 효과성까지 본 것(II)의 구분"
+    },
+    {
+     "term": "CUEC",
+     "meaning": "보완통제 고려사항. AWS 통제가 유효하려면 고객이 수행해야 할 통제 목록"
+    },
+    {
+     "term": "브리지 레터(Bridge Letter)",
+     "meaning": "보고서 기간과 회사 감사기간 사이 공백을 메우는 AWS의 확인서"
+    },
+    {
+     "term": "책임 공유 모델",
+     "meaning": "AWS는 클라우드 '의' 보안, 고객은 클라우드 '안에서의' 보안을 책임지는 구분"
+    },
+    {
+     "term": "협정(Agreement)",
+     "meaning": "BAA·DPA 등 고객이 AWS와 체결·관리하는 계약 문서"
+    }
+   ],
+   "pitfalls": [
+    "보고서를 내려받아 보관만 하고 CUEC를 회사 통제와 매핑하지 않아, 감사에서 '검토 증거 없음'으로 평가된다.",
+    "SOC 보고서의 감사 기간이 회사 회계연도를 커버하지 않는데 확인하지 않는다. 공백은 브리지 레터로 메워야 한다.",
+    "SOC 1/2는 NDA 대상 기밀 문서인데 고객사나 외부에 그대로 공유해 계약 위반 소지를 만든다. 공개용은 SOC 3다.",
+    "AWS가 인증을 받았으니 우리 서비스도 자동으로 준수된다고 해석. 책임 공유 모델상 고객 영역은 별도 입증이 필요하다.",
+    "Artifact 접근 권한을 넓게 부여해 누구나 기밀 보고서를 받을 수 있게 둔다.",
+    "보고서 갱신 주기를 관리하지 않아 2~3년 지난 보고서를 제출한다.",
+    "보고서 내 예외사항(exceptions) 섹션을 읽지 않아 AWS 측 통제 미비가 회사 위험에 미치는 영향을 평가하지 못한다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 클라우드 사업자의 제3자 감사보고서를 정기적으로 입수·검토하는 절차가 문서화되어 있는가",
+     "[운영] 보고서의 감사 기간이 회사 감사 기간을 포함하며, 공백 시 브리지 레터를 확보하는가",
+     "[운영] CUEC(보완통제 고려사항)가 회사 내부통제와 매핑되고 그 이행이 검증되는가",
+     "[접근] Artifact 기밀 보고서에 대한 접근 권한이 규정준수·감사 담당자로 제한되는가",
+     "[운영] 보고서 내 예외사항이 검토되고 필요 시 위험평가·대응이 이루어지는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조의2 클라우드컴퓨팅서비스 이용 시 제공자에 대한 안전성 평가 및 건전성·안전성 확인 자료 확보 여부",
+     "제3자(수탁자) 관리 관점에서 클라우드 사업자의 통제 수준을 주기적으로 확인·평가하는지",
+     "감독당국 제출용 클라우드 이용 관련 근거자료(인증서·평가결과)의 최신성 관리 여부"
+    ],
+    "isms": [
+     "1.3.3 운영현황 관리 / 2.3.1 외부자 현황관리: 외부 서비스 제공자 현황과 보안 수준이 관리되는가",
+     "2.3.2 외부자 계약 시 보안 / 2.3.3 외부자 보안 이행 관리: 계약·협정과 이행 점검이 이루어지는가",
+     "2.10.2 클라우드 보안: 클라우드 서비스 제공자와의 책임 범위가 명확히 정의되어 있는가"
+    ],
+    "evidence": [
+     "최신 SOC 1/SOC 2 Type II 보고서 사본과 입수 일자 기록",
+     "브리지 레터(감사기간 공백이 있는 경우)",
+     "CUEC 항목과 사내 통제 ID 매핑표",
+     "ISO 27001·PCI DSS AOC 등 인증서 사본",
+     "Artifact 접근 권한 보유자 목록 및 다운로드 이력(CloudTrail)",
+     "벤더관리 대장 내 클라우드 사업자 평가 기록과 차기 입수 예정일"
+    ],
+    "auditorQuestions": [
+     "AWS의 통제 수준을 어떻게 확인했는가? 최근 입수한 보고서는 무엇이며 언제 것인가?",
+     "보고서에 명시된 고객 책임(CUEC) 항목은 무엇이며 회사는 각각 어떤 통제로 대응하는가?",
+     "보고서 기간이 회사 감사 기간을 모두 포함하는가?",
+     "보고서에 기재된 예외사항을 검토했는가? 회사에 미치는 영향은 무엇인가?",
+     "이 보고서를 받아볼 수 있는 사람은 누구인가? 외부 공유는 어떻게 통제하는가?"
+    ],
+    "controlExample": "규정준수팀은 AWS Artifact에서 SOC 1 Type II 및 ISO 27001 인증서를 연 1회 이상 입수하여 감사 기간 적절성과 예외사항을 검토하고, 보고서 내 CUEC 항목을 사내 통제 ID와 매핑한 표를 갱신한다. 기밀 보고서 접근 권한은 규정준수·내부감사 담당자로 제한되며 다운로드 이력은 CloudTrail로 확인한다."
+   },
+   "related": [
+    "awssec-audit-manager",
+    "awssec-cis-benchmark",
+    "awssec-cloudtrail",
+    "awssec-organizations",
+    "comp-sox-itgc",
+    "comp-fss-egfs",
+    "comp-isms-p",
+    "plat-change-management"
+   ],
+   "learnMore": [
+    "AWS Artifact User Guide",
+    "AWS Compliance Programs",
+    "AWS Shared Responsibility Model"
+   ]
+  },
+  {
+   "id": "awssec-cis-benchmark",
+   "title": "CIS AWS Foundations Benchmark",
+   "titleEn": "CIS Amazon Web Services Foundations Benchmark",
+   "aliases": [
+    "CIS 벤치마크",
+    "CIS Foundations",
+    "보안 기준선",
+    "하드닝 기준",
+    "CIS 준수율"
+   ],
+   "tags": [
+    "compliance",
+    "baseline",
+    "hardening"
+   ],
+   "level": "중급",
+   "oneLiner": "AWS 계정 보안 설정의 업계 표준 점검 기준선",
+   "analogy": "CIS 벤치마크는 자동차 안전검사 기준표와 같다. 전조등 밝기, 제동거리, 배기가스처럼 항목마다 '이 수치를 넘어야 한다'가 정해져 있어 누가 검사해도 결과가 같다. 회사마다 '우리는 안전하다'고 주장하는 대신, 모두가 인정하는 공통 기준표로 몇 점인지 말할 수 있게 해준다.",
+   "explanation": "<p><strong>CIS AWS Foundations Benchmark</strong>는 비영리 단체 CIS(Center for Internet Security)가 발행하는 AWS 계정 보안 설정 기준서다. 전 세계 보안 전문가들의 합의로 만들어지며, <strong>AWS 계정을 처음 안전하게 세팅할 때 무엇을 켜고 잠가야 하는지</strong>를 항목별로 규정한다. 2026년 현재 v4.x 계열이 널리 쓰이며, 크게 <strong>IAM, 스토리지(S3·EBS·RDS 암호화), 로깅, 모니터링, 네트워킹</strong> 섹션으로 구성된다.</p><p><strong>프로파일 구분</strong>이 있다. <strong>Level 1</strong>은 '대부분의 조직이 서비스 영향 없이 적용 가능한' 기본 항목, <strong>Level 2</strong>는 '보안을 더 강화하되 운영 제약이 생길 수 있는' 심화 항목이다. 또 각 항목은 <strong>자동 점검 가능(Automated)</strong>과 <strong>수동 확인(Manual)</strong>으로 나뉜다. 실무에서는 Level 1 자동 항목부터 100% 달성하고, Level 2와 수동 항목은 위험 기반으로 선별 적용하는 것이 현실적이다.</p><p><strong>대표 항목</strong>을 보면 감사 체크리스트와 거의 동일하다. 루트 계정 액세스 키 제거, 루트 계정 MFA(가능하면 하드웨어 MFA) 활성화, 콘솔 사용자 MFA 강제, 90일 이상 미사용 자격증명 제거, 액세스 키 90일 이내 교체, 비밀번호 정책 강도, 전 리전 CloudTrail 활성화 및 로그 파일 검증 켜기, CloudTrail 로그 KMS 암호화, AWS Config 전 리전 활성화, S3 퍼블릭 액세스 차단, EBS 기본 암호화, 보안그룹의 0.0.0.0/0 22·3389 포트 차단, 기본 보안그룹의 모든 트래픽 제한, VPC Flow Logs 활성화, 루트 로그인·IAM 정책 변경 등에 대한 CloudWatch 경보 설정 등이다.</p><p>쉽게 말하면, <strong>'AWS 계정 위생 점검 100문항'</strong>이다. 자체 기준을 만들 필요 없이 이것부터 맞추면 대부분의 기초 결함이 사라진다.</p><p><strong>어떻게 측정하는가.</strong> 직접 스크립트를 짤 필요 없이 <strong>AWS Security Hub의 CIS AWS Foundations Benchmark 표준</strong>을 활성화하면 항목별 통과/실패와 <strong>보안 점수(%)</strong>가 자동 산출된다. AWS Config 규칙 기반으로 동작하므로 Config가 켜져 있어야 한다. Audit Manager의 CIS 프레임워크와 연결하면 증거 수집까지 자동화된다. 조직 단위로 켜면 전 계정 준수율을 한 화면에서 본다.</p><p><strong>감사에서 CIS 준수율이 갖는 의미</strong>는 크다. '우리는 보안을 잘하고 있다'는 정성적 주장 대신 <strong>'CIS Level 1 기준 96.4% 준수, 미준수 7건은 예외 승인 완료'</strong>라고 수치로 답할 수 있다. 다만 주의할 점은 CIS가 <strong>계정 기초 설정 중심</strong>이라는 것이다. 애플리케이션 취약점, 데이터 분류, 직무분리, 변경관리 승인 같은 ITGC 핵심 영역은 CIS로 커버되지 않는다. CIS 100%가 ITGC 무결함을 의미하지 않는다는 점을 감사인에게도 명확히 해야 한다.</p><p><strong>미준수 항목의 관리</strong>가 실제 통제의 질을 좌우한다. 모든 항목을 100% 맞출 수는 없으므로, 미준수 각각에 대해 <strong>사유·보상통제·승인자·재검토일</strong>을 기록한 예외 대장을 운영한다. 예를 들어 '기본 보안그룹 제한' 항목이 레거시 시스템 때문에 미준수라면, 대체 통제(WAF·NACL)와 마이그레이션 일정이 함께 기록되어야 한다.</p>",
+   "howItWorks": "<ol><li>전 계정·전 사용 리전에 AWS Config를 활성화한다(CIS 점검의 전제 조건).</li><li>보안 계정을 Security Hub 위임 관리자로 지정하고 조직 전체에 Security Hub를 켠다.</li><li>Security Hub에서 CIS AWS Foundations Benchmark 표준을 활성화한다.</li><li>Security Hub가 Config 규칙을 배포하고 항목별로 계정·리소스를 평가한다.</li><li>각 항목이 PASSED/FAILED/NOT_AVAILABLE로 판정되고 전체 준수율(보안 점수)이 계산된다.</li><li>보안팀이 FAILED 항목을 심각도순으로 정리해 담당 팀에 티켓을 배정한다.</li><li>조치가 완료되면 다음 평가 주기(설정에 따라 수 시간~24시간)에 PASSED로 전환된다.</li><li>즉시 조치가 불가능한 항목은 예외 대장에 사유·보상통제·승인자·재검토일을 기록하고 Security Hub에서 워크플로 상태를 SUPPRESSED로 표시한다.</li><li>Audit Manager의 CIS 프레임워크가 이 결과를 증거로 자동 수집하고, 분기별로 준수율 추이를 경영진에 보고한다.</li></ol>",
+   "example": "<p>가상의 커머스 '샵링크'는 2025년 하반기에 계정 34개에 Security Hub CIS 표준을 켰다. 첫 측정 준수율은 71.2%였다. 주요 실패 항목은 개발 계정의 CloudTrail 로그 파일 검증 미설정(18계정), EBS 기본 암호화 미적용(22계정), 기본 보안그룹 트래픽 미제한(31계정), IAM 액세스 키 90일 초과(41개)였다. 3개월 개선 프로젝트로 Config 자동 교정과 SCP를 적용해 2026년 1분기 준수율 96.8%를 달성했다. 남은 미준수 9건은 레거시 배치 서버 관련으로, 각각 보상통제(전용 서브넷 격리 + 접근 로그 상시 감시)와 2026년 3분기 폐기 일정이 예외 대장에 기록되어 있다.</p><pre><code># 조직 단위 Security Hub 활성화 후 CIS 표준 켜기\naws securityhub batch-enable-standards \\\n  --standards-subscription-requests \\\n    StandardsArn='arn:aws:securityhub:ap-northeast-2::standards/cis-aws-foundations-benchmark/v/3.0.0'\n\n# 현재 준수 점수 확인\naws securityhub get-security-control-definition --security-control-id CloudTrail.2\naws securityhub describe-standards-controls \\\n  --standards-subscription-arn arn:aws:securityhub:ap-northeast-2:123456789012:subscription/cis-aws-foundations-benchmark/v/3.0.0 \\\n  --query 'Controls[?ControlStatus==`ENABLED`].[ControlId,Title,SeverityRating]' --output table\n\n# 실패 항목만 추출 (감사 증적)\naws securityhub get-findings \\\n  --filters '{\"ComplianceStatus\":[{\"Value\":\"FAILED\",\"Comparison\":\"EQUALS\"}],\n              \"RecordState\":[{\"Value\":\"ACTIVE\",\"Comparison\":\"EQUALS\"}]}' \\\n  --query 'Findings[].[Title,Severity.Label,Resources[0].Id]' --output table</code></pre>",
+   "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='170' height='170' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='105' y='47' text-anchor='middle' fill='currentColor' font-size='12'>CIS 섹션</text><text x='36' y='72' fill='currentColor' font-size='11'>· IAM (MFA·키 교체)</text><text x='36' y='96' fill='currentColor' font-size='11'>· 스토리지 (암호화)</text><text x='36' y='120' fill='currentColor' font-size='11'>· 로깅 (CloudTrail)</text><text x='36' y='144' fill='currentColor' font-size='11'>· 모니터링 (경보)</text><text x='36' y='168' fill='currentColor' font-size='11'>· 네트워킹 (SG·VPC)</text><text x='105' y='190' text-anchor='middle' fill='currentColor' font-size='11'>Level 1 / Level 2</text><line x1='190' y1='105' x2='255' y2='105' stroke='currentColor' marker-end='url(#ar)'/><rect x='255' y='50' width='160' height='110' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='335' y='75' text-anchor='middle' fill='currentColor' font-size='12'>Security Hub</text><text x='335' y='97' text-anchor='middle' fill='currentColor' font-size='11'>Config 규칙으로 평가</text><text x='335' y='118' text-anchor='middle' fill='currentColor' font-size='11'>PASSED / FAILED</text><text x='335' y='140' text-anchor='middle' fill='currentColor' font-size='11'>준수율 96.8%</text><line x1='415' y1='80' x2='480' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='415' y1='135' x2='480' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='480' y='35' width='140' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='56' text-anchor='middle' fill='currentColor' font-size='11'>조치 티켓</text><text x='550' y='76' text-anchor='middle' fill='currentColor' font-size='11'>기한 내 시정</text><rect x='480' y='130' width='140' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='152' text-anchor='middle' fill='currentColor' font-size='11'>예외 대장</text><text x='550' y='172' text-anchor='middle' fill='currentColor' font-size='11'>사유·보상통제·승인</text><rect x='20' y='210' width='600' height='38' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='234' text-anchor='middle' fill='currentColor' font-size='11'>CIS는 계정 기초 설정 기준 — 변경관리·직무분리·앱 취약점은 별도 통제로 커버해야 한다</text></svg>",
+   "keyTerms": [
+    {
+     "term": "CIS Benchmark",
+     "meaning": "CIS가 합의 기반으로 발행하는 시스템별 보안 설정 기준서"
+    },
+    {
+     "term": "Level 1 / Level 2",
+     "meaning": "운영 영향이 적은 기본 항목과 제약이 있을 수 있는 강화 항목의 구분"
+    },
+    {
+     "term": "Automated / Manual",
+     "meaning": "도구로 자동 점검 가능한 항목과 사람이 확인해야 하는 항목"
+    },
+    {
+     "term": "보안 점수(Security Score)",
+     "meaning": "Security Hub가 산출하는 통과 항목 비율. 준수율 보고에 사용"
+    },
+    {
+     "term": "SUPPRESSED",
+     "meaning": "승인된 예외를 표시하는 Security Hub 워크플로 상태"
+    },
+    {
+     "term": "보상통제(Compensating Control)",
+     "meaning": "기준을 직접 충족하지 못할 때 위험을 낮추는 대체 통제"
+    },
+    {
+     "term": "기준선(Baseline)",
+     "meaning": "모든 계정이 최소한 충족해야 하는 보안 설정의 출발점"
+    },
+    {
+     "term": "자동 교정(Auto-remediation)",
+     "meaning": "Config·EventBridge로 미준수 상태를 자동 시정하는 구성"
+    }
+   ],
+   "pitfalls": [
+    "AWS Config를 켜지 않고 Security Hub의 CIS 표준만 켜서 대부분 항목이 평가되지 않는 상태로 점수가 왜곡된다.",
+    "CIS 100%를 달성하면 감사 결함이 없다고 오해. 변경관리 승인, 직무분리, 데이터 분류 등은 CIS 범위 밖이다.",
+    "일부 리전에서만 활성화해 다른 리전의 실패 항목이 집계에서 빠진다. 전 리전·전 계정 활성화가 원칙이다.",
+    "미준수 항목을 근거 없이 SUPPRESSED 처리해 점수만 올린다. 예외는 사유·승인·재검토일 기록이 필수다.",
+    "CIS 버전 업그레이드(v1.x → v3/v4)를 하지 않아 과거 기준으로 보고한다. 항목 번호와 내용이 바뀐다.",
+    "자동 교정을 무분별하게 적용해 운영 중 보안그룹 규칙이 갑자기 제거되며 장애가 발생한다.",
+    "점수만 보고하고 실패 항목의 위험도를 구분하지 않아, 심각한 1건과 사소한 20건이 같은 무게로 다뤄진다."
+   ],
+   "audit": {
+    "itgc": [
+     "[운영] 전 계정·전 사용 리전에 대해 CIS 기준 준수 여부가 상시 측정되고 준수율이 주기적으로 보고되는가",
+     "[운영] 미준수 항목이 심각도별로 티켓화되어 정해진 기한 내 조치·재검증되는가",
+     "[운영] 즉시 조치 불가 항목에 대해 사유·보상통제·승인자·재검토일이 기록된 예외 대장이 운영되는가",
+     "[접근] IAM 관련 CIS 항목(루트 MFA, 키 교체, 미사용 자격증명 제거)이 지속적으로 충족되는가",
+     "[변경] 기준선 변경(CIS 버전 업그레이드, 항목 비활성화)이 승인 절차를 거치는가"
+    ],
+    "fss": [
+     "전자금융감독규정 제14조·제15조 관점에서 정보처리시스템 보안 설정 기준이 수립·적용·점검되는지",
+     "취약점 점검 및 보안 기준 미준수 사항의 조치 이행 여부와 이력 관리",
+     "클라우드 이용 환경의 보안 기준선이 내부규정으로 정의되고 주기적으로 검증되는지"
+    ],
+    "isms": [
+     "2.11.2 취약점 점검 및 조치: 보안 기준 대비 점검과 조치·재점검이 이루어지는가",
+     "2.10.1 보안시스템 운영 / 2.10.2 클라우드 보안: 보안 설정 기준이 정의·적용되는가",
+     "1.4.2 관리체계 점검: 준수 현황이 정기적으로 점검·보고되는가"
+    ],
+    "evidence": [
+     "Security Hub CIS 표준 준수율 대시보드 캡처(계정별·전체)",
+     "FAILED 항목 전체 목록(항목 ID, 심각도, 대상 리소스, 계정)",
+     "미준수 항목 조치 티켓과 조치 후 PASSED 전환 증빙",
+     "예외 대장(사유·보상통제·승인자·승인일·재검토일)",
+     "AWS Config 전 리전 활성화 현황",
+     "분기별 준수율 추이 보고 문서 및 보고 대상 기록"
+    ],
+    "auditorQuestions": [
+     "회사의 AWS 보안 기준선은 무엇이며 어떤 표준을 채택했는가?",
+     "현재 CIS 준수율은 몇 %이고 지난 분기 대비 어떻게 변했는가?",
+     "미준수 항목 중 가장 위험도가 높은 것은 무엇이며 언제까지 조치할 계획인가?",
+     "예외로 처리한 항목은 무엇이고 누가 승인했으며 대체 통제는 무엇인가?",
+     "CIS로 점검되지 않는 통제 영역은 무엇으로 보완하는가?"
+    ],
+    "controlExample": "전 AWS 계정과 사용 리전에 대해 Security Hub의 CIS AWS Foundations Benchmark 표준으로 보안 기준 준수 여부를 상시 측정하며, 실패 항목은 심각도에 따라 CRITICAL 5영업일·HIGH 10영업일 내 조치한다. 조치 불가 항목은 보상통제와 재검토일을 명시하여 정보보호책임자 승인 후 예외 처리하고, 분기별 준수율을 경영진에 보고한다."
+   },
+   "related": [
+    "awssec-security-hub",
+    "awssec-config",
+    "awssec-audit-manager",
+    "awssec-trusted-advisor",
+    "awssec-cloudtrail",
+    "awssec-root-account",
+    "awssec-access-key",
+    "comp-sox-itgc"
+   ],
+   "learnMore": [
+    "CIS Amazon Web Services Foundations Benchmark",
+    "AWS Security Hub User Guide - CIS AWS Foundations Benchmark",
+    "AWS Security Hub - Security standards controls reference"
+   ]
+  }
+ ]
+}

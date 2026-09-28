@@ -1,0 +1,796 @@
+{
+  "category": "aws-core",
+  "categoryLabel": "AWS 핵심 서비스 (컴퓨팅·네트워크·스토리지)",
+  "entries": [
+    {
+      "id": "aws-outposts-local-zones",
+      "title": "Outposts / Local Zones",
+      "titleEn": "AWS Outposts & AWS Local Zones / Wavelength",
+      "aliases": [
+        "아웃포스트",
+        "로컬존",
+        "하이브리드 클라우드",
+        "온프레미스 AWS",
+        "엣지 인프라"
+      ],
+      "tags": [
+        "hybrid",
+        "edge",
+        "infrastructure"
+      ],
+      "level": "심화",
+      "oneLiner": "AWS를 우리 전산실이나 도심 가까이 끌어오는 확장 인프라",
+      "analogy": "Outposts는 '우리 건물 안에 들어온 AWS 지점'이고, Local Zones는 '집 근처에 생긴 동네 지점'과 같다. 본점(리전)이 멀어 오가는 데 시간이 걸린다면, 자주 쓰는 창구만 가까운 곳에 두는 것이다. 다만 우리 건물에 들어온 지점이라도 운영은 본사(AWS) 직원이 하고, 건물의 전기·보안·출입은 여전히 우리 책임이다.",
+      "explanation": "<p><strong>AWS Outposts</strong>는 AWS가 만든 <strong>물리 랙(또는 1U/2U 서버)</strong>을 고객의 데이터센터나 코로케이션 전산실에 직접 설치해 주는 서비스다. 그 위에서 EC2, EBS, S3 on Outposts, RDS, EKS 등을 리전과 <strong>동일한 API·동일한 콘솔</strong>로 사용한다. 쉽게 말하면 '우리 전산실 안에 AWS 한 조각을 가져다 놓는 것'이다. 랙 자체는 AWS 소유이며 설치·유지보수·부품 교체·소프트웨어 패치는 AWS가 수행하고, 고객은 전원·냉방·물리 보안·네트워크 회선을 제공한다.</p><p><strong>왜 쓰는가.</strong> 세 가지 이유다. (1) <strong>초저지연</strong> — 공장 제어 시스템이나 증권 매매 엔진처럼 1~2밀리초 지연도 문제가 되는 경우. (2) <strong>데이터 현지 보관 요건</strong> — 법규나 계약상 특정 물리 위치를 벗어날 수 없는 데이터. (3) <strong>레거시 연동</strong> — 메인프레임이나 온프레미스 코어뱅킹과 붙어 있어 옮기기 어려운 시스템 옆에 두어야 할 때. 금융권에서는 특히 (2)와 (3)이 중요하다.</p><p><strong>Local Zones</strong>는 결이 다르다. 이건 <strong>AWS가 대도시 인근에 두는 소형 인프라 거점</strong>으로, 고객 건물에 설치하는 것이 아니라 AWS가 운영하는 시설이다. 상위 리전(parent region)의 확장으로 동작하며, 제공되는 서비스는 리전보다 적다(주로 EC2, EBS, VPC 서브넷, 일부 ELB·RDS). 목적은 <strong>최종 사용자와 물리적으로 더 가까운 곳에 컴퓨팅을 두어 지연을 줄이는 것</strong>이다. 실시간 게임, 미디어 렌더링, 원격 데스크톱(VDI)에서 주로 쓴다. <strong>Wavelength Zones</strong>는 이동통신사 5G 네트워크 안에 놓인 변형으로, 모바일 단말 초저지연이 필요할 때 쓴다.</p><p><strong>중요한 구분 — 가용 영역이 아니다.</strong> Local Zone과 Outposts는 리전의 정식 AZ가 아니다. <strong>대부분 단일 시설이라 자체적인 이중화가 없다.</strong> 그래서 '우리는 Local Zone 두 개에 배포했으니 고가용성'이라는 설명은 위험하다. 올바른 설계는 <strong>핵심 상태(state)와 백업은 상위 리전의 여러 AZ에 두고, 엣지에는 지연에 민감한 계산만 두는</strong> 것이다. Outposts도 마찬가지로 랙 한 대는 단일 장애점이며, 상위 리전으로의 회선이 끊기면 컨트롤 플레인 조작(인스턴스 생성 등)이 불가능해진다. 이미 떠 있는 인스턴스는 계속 돌지만 관리가 안 되는 상태가 되므로, <strong>회선 이중화가 필수 설계 요건</strong>이다.</p><p><strong>감사 관점이 특이하다.</strong> 일반 AWS 리전은 물리 보안·전원·출입통제가 전부 AWS 책임이라 SOC 2 보고서로 갈음한다. 그런데 <strong>Outposts는 물리 계층이 다시 고객 책임으로 돌아온다.</strong> 즉 우리 전산실의 출입통제, CCTV, UPS, 항온항습, 소방 설비가 감사 범위에 다시 들어온다. 온프레미스 경험이 있는 ITGC 담당자에게는 익숙한 영역이지만, '클라우드로 갔으니 물리 통제는 끝났다'고 정리해 둔 조직이 Outposts를 도입하면 <strong>통제 범위 재정의가 필요</strong>하다. 반대로 Local Zones는 AWS 시설이므로 물리 통제는 여전히 AWS 책임이다. 이 둘을 뭉뚱그리면 감사 결론이 틀린다.</p><p><strong>운영상 제약.</strong> Outposts에서는 리전의 모든 서비스가 다 되지 않는다(지원 서비스 목록이 정해져 있다). 용량이 랙 단위로 고정되어 있어 <strong>탄력성이 없다</strong> — 갑자기 인스턴스를 100대 늘릴 수 없고, 용량 계획이 온프레미스처럼 필요하다. 또한 AWS 직원이 유지보수를 위해 고객 전산실에 방문해야 하므로, <strong>외부인 출입 절차와 입회 통제</strong>가 필요하다. 이것도 감사 인터뷰에서 자주 나오는 질문이다.</p>",
+      "howItWorks": "<ol><li>고객이 Outposts를 주문하면 AWS가 설치 요건(바닥 하중, 전력 용량, 냉방, 네트워크 회선)을 점검하는 사이트 서베이를 수행한다.</li><li>AWS가 랙을 배송·설치하고 고객 네트워크에 연결한다. 이때 <strong>서비스 링크(Service Link)</strong>라는 암호화된 터널이 상위 리전과 연결되어 컨트롤 플레인 통신이 이 경로로 흐른다.</li><li>고객은 VPC의 서브넷을 Outpost에 확장 생성한다. 즉 같은 VPC 안에 '리전 서브넷'과 'Outpost 서브넷'이 공존하며, 사설 IP 대역과 라우팅이 이어진다.</li><li>운영자가 평소와 똑같이 <code>aws ec2 run-instances</code>를 호출하되 Outpost 서브넷을 지정하면, 요청이 리전 컨트롤 플레인을 거쳐 서비스 링크를 타고 내려와 <strong>고객 전산실의 랙에서 인스턴스가 뜬다</strong>.</li><li>데이터 플레인 트래픽(애플리케이션 간 통신)은 랙 안에서 로컬로 처리되어 지연이 매우 낮다. <strong>로컬 게이트웨이(LGW)</strong>를 통해 고객 온프레미스 네트워크와 직접 통신할 수도 있다.</li><li>서비스 링크가 끊기면 이미 실행 중인 인스턴스와 로컬 통신은 계속되지만, 새 인스턴스 생성·API 조작·CloudWatch 지표 전송이 중단된다. 회선 복구 후 밀린 지표가 전송된다.</li><li>Local Zones의 경우는 훨씬 단순하다. VPC에 Local Zone 서브넷을 만들고 인스턴스를 띄우면, 상위 리전과는 AWS 백본으로 연결되고 최종 사용자와는 해당 도시의 인터넷 접속점으로 가까이 연결된다.</li><li>모든 API 호출은 상위 리전의 CloudTrail에 기록되므로, 감사 증적 수집 방식은 일반 리전과 동일하다.</li></ol>",
+      "example": "<p><strong>시나리오.</strong> 증권사 '가상증권'이 주문 체결 엔진을 코로케이션 전산실(한국거래소 인접)에 두어야 한다. 거래소와의 왕복 지연이 0.5밀리초를 넘으면 안 되기 때문이다. 회사는 해당 전산실에 <strong>Outposts 랙 2대</strong>를 설치해 체결 엔진 EC2를 올리고, 시세 분석·리포팅·백업은 ap-northeast-2 리전의 3개 AZ에서 처리한다. Outposts와 리전 사이는 Direct Connect 이중 회선으로 연결했다. ITGC 관점에서 이 회사는 <strong>'클라우드 전환 후에도 유지되는 물리 통제 목록'</strong>을 별도로 관리한다 — 코로케이션 출입기록, AWS 엔지니어 방문 시 입회 기록, UPS·항온항습 점검 기록이 그것이다.</p><pre><code># 계정에 설치된 Outpost 목록과 용량 확인\naws outposts list-outposts \\\n  --query 'Outposts[].{id:OutpostId,name:Name,site:SiteId,\n            az:AvailabilityZone,lifecycle:LifeCycleStatus}' --output table\n\n# 해당 Outpost에서 사용 가능한 인스턴스 용량 (탄력성이 없으므로 용량계획 필수)\naws outposts get-outpost-instance-types --outpost-id op-0abc123def456789\n\n# Outpost 서브넷에 체결 엔진 인스턴스 생성 (평소와 동일한 API)\naws ec2 run-instances \\\n  --image-id ami-0abc1234def567890 --instance-type c6i.4xlarge --count 1 \\\n  --subnet-id subnet-0outpost1234 \\\n  --tag-specifications 'ResourceType=instance,Tags=[\n      {Key=Name,Value=match-engine-01},{Key=Location,Value=colo-outpost},\n      {Key=PhysicalControlScope,Value=customer}]'</code></pre><p>Local Zone을 쓰는 경우는 다음과 같이 조회·활성화한다. 기본적으로 비활성 상태라 계정에서 옵트인해야 한다.</p><pre><code># 사용 가능한 Local Zone / Wavelength Zone 조회 (기본은 not-opted-in)\naws ec2 describe-availability-zones --all-availability-zones \\\n  --query 'AvailabilityZones[?ZoneType!=`availability-zone`].\n           [ZoneName,ZoneType,ParentZoneName,OptInStatus]' --output table\n\n# 특정 존 옵트인\naws ec2 modify-availability-zone-group \\\n  --group-name ap-northeast-2-XXX-1 --opt-in-status opted-in</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 290' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='10' y='18' fill='currentColor' font-weight='bold'>리전 · Local Zone · Outposts — 위치와 책임 경계</text><rect x='10' y='36' width='190' height='150' rx='8' fill='none' stroke='currentColor'/><text x='24' y='56' fill='currentColor' font-weight='bold'>리전 (AWS 시설)</text><rect x='26' y='66' width='75' height='36' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='40' y='89' fill='currentColor' font-size='11'>AZ-2a</text><rect x='110' y='66' width='75' height='36' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='124' y='89' fill='currentColor' font-size='11'>AZ-2c</text><rect x='26' y='110' width='159' height='34' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='40' y='132' fill='currentColor' font-size='11'>컨트롤 플레인 · 백업</text><text x='26' y='164' fill='currentColor' font-size='11'>물리통제 = AWS 책임</text><text x='26' y='180' fill='currentColor' font-size='11'>증빙 = SOC 2 보고서</text><rect x='225' y='36' width='170' height='150' rx='8' fill='none' stroke='currentColor'/><text x='239' y='56' fill='currentColor' font-weight='bold'>Local Zone</text><text x='239' y='74' fill='currentColor' font-size='11'>AWS 시설 · 도심 인근</text><rect x='241' y='84' width='138' height='36' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='255' y='107' fill='currentColor' font-size='11'>EC2 · EBS 일부</text><text x='239' y='140' fill='currentColor' font-size='11'>단일 시설 = 이중화 없음</text><text x='239' y='158' fill='currentColor' font-size='11'>물리통제 = AWS 책임</text><text x='239' y='176' fill='currentColor' font-size='11'>용도: 저지연 사용자 대응</text><rect x='420' y='36' width='210' height='150' rx='8' fill='none' stroke='currentColor'/><text x='434' y='56' fill='currentColor' font-weight='bold'>Outposts</text><text x='434' y='74' fill='currentColor' font-size='11'>고객 전산실 내 AWS 랙</text><rect x='436' y='84' width='178' height='36' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='450' y='107' fill='currentColor' font-size='11'>EC2 · EBS · S3 · EKS</text><text x='434' y='140' fill='currentColor' font-size='11'>물리통제 = 고객 책임 복귀</text><text x='434' y='158' fill='currentColor' font-size='11'>출입 · UPS · 항온항습 · CCTV</text><text x='434' y='176' fill='currentColor' font-size='11'>AWS 엔지니어 방문 입회 필요</text><line x1='201' y1='110' x2='223' y2='110' stroke='currentColor' marker-end='url(#ar)'/><line x1='396' y1='110' x2='418' y2='110' stroke='currentColor' marker-end='url(#ar)'/><rect x='150' y='218' width='340' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='166' y='240' fill='currentColor' font-size='11'>서비스 링크(암호화 터널) — 끊기면 신규 생성·관리 불가</text><text x='166' y='258' fill='currentColor' font-size='11'>→ 회선 이중화가 필수 설계 요건</text><line x1='320' y1='188' x2='320' y2='216' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "Outposts",
+          "meaning": "고객 전산실에 설치되는 AWS 소유 물리 랙. 리전과 동일한 API로 운영하지만 물리 환경은 고객이 제공한다."
+        },
+        {
+          "term": "Local Zone",
+          "meaning": "AWS가 대도시 인근에 운영하는 소형 확장 거점. 상위 리전의 연장으로 동작하며 제공 서비스가 제한적이다."
+        },
+        {
+          "term": "Wavelength Zone",
+          "meaning": "통신사 5G 네트워크 내부에 배치된 AWS 인프라. 모바일 단말 초저지연 용도."
+        },
+        {
+          "term": "서비스 링크(Service Link)",
+          "meaning": "Outpost와 상위 리전을 잇는 암호화 터널. 컨트롤 플레인 통신 경로이며 단절 시 관리 기능이 멈춘다."
+        },
+        {
+          "term": "로컬 게이트웨이(LGW)",
+          "meaning": "Outpost가 고객 온프레미스 네트워크와 직접 통신하기 위한 게이트웨이."
+        },
+        {
+          "term": "상위 리전(Parent Region)",
+          "meaning": "Local Zone·Outpost가 소속된 리전. API 엔드포인트와 CloudTrail 기록이 여기에 있다."
+        },
+        {
+          "term": "옵트인(Opt-in)",
+          "meaning": "Local Zone·Wavelength Zone은 기본 비활성이며 계정에서 명시적으로 활성화해야 사용할 수 있다."
+        },
+        {
+          "term": "용량 고정",
+          "meaning": "Outpost는 설치된 랙 용량을 넘어 확장할 수 없어 온프레미스처럼 용량 계획이 필요하다."
+        }
+      ],
+      "pitfalls": [
+        "'클라우드로 갔으니 물리 보안 통제는 더 이상 감사 범위가 아니다'라는 정리를 Outposts 도입 후에도 유지하는 오류. 물리 통제가 고객 책임으로 돌아온다.",
+        "Local Zone이나 Outpost를 가용 영역처럼 취급해 고가용성 근거로 제시하는 설계. 대부분 단일 시설이라 자체 이중화가 없다.",
+        "서비스 링크 회선을 단일 경로로 구성해, 회선 장애 시 신규 인스턴스 생성과 모니터링이 모두 멈추는 구성.",
+        "Outposts에서 지원되지 않는 서비스를 전제로 아키텍처를 설계했다가 이관 단계에서 재설계하는 경우.",
+        "용량 계획 없이 Outpost를 도입해 오토스케일링이 용량 부족으로 실패하는 상황. 엣지는 탄력적이지 않다.",
+        "AWS 유지보수 엔지니어의 고객 전산실 출입 절차(사전 승인, 입회, 출입기록)를 정의하지 않아 외부인 출입통제 결함으로 지적되는 경우.",
+        "Local Zone에 상태(데이터)를 저장하고 백업을 상위 리전에 두지 않아, 시설 장애 시 데이터를 잃는 설계.",
+        "엣지 자원에 태그·인벤토리를 별도로 관리하지 않아 자산 목록에서 누락되는 문제."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] Outposts 설치 장소의 물리적 접근통제(출입카드, 생체인증, CCTV, 방문자 기록)가 운영되고 정기적으로 검토되는지 확인한다. 클라우드 전환 후에도 유지되어야 하는 통제임을 명확히 한다.",
+          "[접근] AWS 유지보수 엔지니어 등 외부인의 전산실 출입에 대한 사전 승인·입회·출입기록 절차가 존재하고 실제 방문 건과 대사되는지 확인한다.",
+          "[운영] 엣지 인프라(Outposts, Local Zone)에 배치된 시스템 목록이 자산 인벤토리에 반영되고 중요도 등급이 부여되어 있는지 확인한다.",
+          "[운영] 서비스 링크 회선의 이중화 여부와 단절 시 대응 절차(이미 실행 중인 워크로드의 지속성, 모니터링 공백 대응)를 확인한다.",
+          "[운영] 엣지에 저장되는 데이터의 백업이 상위 리전으로 이루어지고 복구 테스트가 수행되었는지 확인한다.",
+          "[접근] Outpost 자원에 대한 IAM 권한이 리전 자원과 동일한 기준으로 통제되는지, 별도 예외가 없는지 확인한다.",
+          "[변경] Outpost 상의 인스턴스 생성·변경도 동일한 변경관리 절차를 따르는지 CloudTrail 기록으로 검증한다."
+        ],
+        "fss": [
+          "전자금융감독규정의 전산실 물리적 보호 요건(출입통제, 항온항습, 무정전 전원, 소방설비)이 Outposts 설치 장소에 적용되는지 확인한다. 코로케이션 이용 시 해당 사업자와의 계약·점검 결과도 포함한다.",
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차)에 따른 이용 현황에 하이브리드 구성(Outposts, Local Zone)의 위치와 처리 업무가 기재되어 있는지 확인한다.",
+          "중요 정보의 국내 보관 요건이 있는 경우, 엣지 인프라의 물리적 위치와 데이터 저장 범위가 요건을 충족하는지 확인한다.",
+          "정보처리시스템 이중화 요건과 관련하여 단일 시설인 엣지 인프라에 중요 업무를 배치한 경우의 위험평가 및 대응 방안을 확인한다.",
+          "외부 인력(CSP 엔지니어)의 전산실 접근에 대한 통제와 비밀유지 계약 체결 여부를 확인한다."
+        ],
+        "isms": [
+          "2.4.1 보호구역 지정 / 2.4.2 출입통제 / 2.4.3 정보시스템 보호 — Outposts 설치 구역의 물리 보안 통제.",
+          "2.4.4 보호설비 운영 / 2.4.5 보호구역 내 작업 — 전원·공조 설비와 작업 기록 관리.",
+          "2.3.1 외부자 현황 관리 / 2.3.2 외부자 계약 시 보안 — CSP 유지보수 인력 출입 및 계약 통제.",
+          "2.12.1 재해복구체계 구축 — 단일 시설 장애에 대비한 복구 전략.",
+          "2.10.2 클라우드 보안 — 하이브리드 구성에서의 책임 경계 정의.",
+          "1.2.1 정보자산 식별 — 엣지 자산의 인벤토리 등록과 위치 관리."
+        ],
+        "evidence": [
+          "aws outposts list-outposts / list-sites 출력과 설치 위치 정보.",
+          "Outposts 설치 전산실의 출입기록(감사기간 전체), CCTV 운영 현황, 출입권한자 목록.",
+          "AWS 유지보수 방문 이력과 각 방문 건의 사전 승인·입회자 서명 기록.",
+          "서비스 링크 회선 구성도(이중화 여부)와 회선 장애 이력·대응 기록.",
+          "엣지 배치 시스템 목록과 자산 인벤토리 대사표, 중요도 등급 문서.",
+          "엣지 데이터의 상위 리전 백업 설정 및 복구 테스트 결과 보고서.",
+          "UPS·항온항습·소방설비 정기 점검 기록(코로케이션 사업자 제공 자료 포함)."
+        ],
+        "auditorQuestions": [
+          "Outposts 랙이 설치된 물리적 장소는 어디이며, 그곳의 출입 권한은 누가 가지고 있습니까?",
+          "AWS 엔지니어가 장비 점검을 위해 방문할 때 어떤 승인과 입회 절차를 거칩니까? 최근 방문 기록을 보여 주실 수 있습니까?",
+          "리전과 Outposts를 연결하는 회선이 끊기면 어떤 기능이 멈추며, 회선은 이중화되어 있습니까?",
+          "엣지에 배치된 시스템이 처리하는 데이터는 무엇이며, 백업은 어디에 어떤 주기로 보관됩니까?",
+          "Local Zone을 쓰는 시스템이 있다면, 그 존에 장애가 발생했을 때의 대응 계획은 무엇입니까?",
+          "Outposts의 가용 용량은 얼마이며, 용량 부족에 대비한 계획이 있습니까?",
+          "이 엣지 자원들은 일반 리전 자원과 동일한 변경관리·접근통제 절차를 따릅니까?"
+        ],
+        "controlExample": "AWS Outposts가 설치된 전산실은 정보보호 보호구역으로 지정되어 출입이 승인된 인원으로 제한되며, CSP 유지보수 인력의 방문은 사전 승인과 담당자 입회하에만 허용되고 출입기록을 보관한다. Outposts와 상위 리전을 연결하는 서비스 링크 회선은 이중화하여 구성하고, 엣지에서 처리되는 데이터는 일 1회 상위 리전으로 백업하여 반기별 복구 테스트를 수행한다."
+      },
+      "related": [
+        "aws-global-infra",
+        "aws-direct-connect",
+        "aws-vpc",
+        "aws-ec2",
+        "aws-shared-responsibility",
+        "aws-storage-gateway",
+        "onprem-datacenter",
+        "comp-bcp-drp"
+      ],
+      "learnMore": [
+        "AWS Outposts User Guide",
+        "AWS Local Zones 사용 설명서",
+        "AWS Outposts 물리 설치 요건 문서",
+        "금융분야 클라우드컴퓨팅서비스 이용 가이드"
+      ]
+    },
+    {
+      "id": "aws-storage-gateway",
+      "title": "Storage Gateway",
+      "titleEn": "AWS Storage Gateway",
+      "aliases": [
+        "스토리지 게이트웨이",
+        "파일 게이트웨이",
+        "테이프 게이트웨이",
+        "VTL",
+        "하이브리드 스토리지"
+      ],
+      "tags": [
+        "storage",
+        "hybrid",
+        "backup"
+      ],
+      "level": "중급",
+      "oneLiner": "온프레미스 서버가 AWS 스토리지를 로컬 디스크처럼 쓰게 해 주는 중계 장치",
+      "analogy": "Storage Gateway는 '창고 대행업체의 접수 창구'와 같다. 우리 사무실(온프레미스)은 평소처럼 서류를 캐비닛(파일 서버)에 넣지만, 실은 그 캐비닛이 접수 창구라서 서류가 자동으로 대형 외부 창고(S3)로 옮겨진다. 자주 꺼내는 서류는 창구 옆 임시 선반(로컬 캐시)에 남아 있어 빠르게 찾을 수 있고, 오래된 서류는 창고 깊숙한 곳(Glacier)으로 들어간다.",
+      "explanation": "<p><strong>Storage Gateway</strong>는 온프레미스 환경과 AWS 스토리지를 잇는 <strong>하이브리드 스토리지 중계 장치</strong>다. 회사 전산실에 가상머신(VMware, Hyper-V, KVM) 또는 전용 하드웨어 어플라이언스로 설치하거나 EC2에 띄우고, 온프레미스 서버는 이 게이트웨이를 <strong>평범한 NFS/SMB 파일 서버, iSCSI 디스크, 또는 테이프 라이브러리</strong>로 인식한다. 실제 데이터는 뒤에서 S3·S3 Glacier·EBS 스냅샷으로 넘어간다.</p><p><strong>왜 필요한가.</strong> 기존 시스템을 고치지 않고 클라우드 스토리지로 가기 위해서다. 20년 된 백업 소프트웨어가 테이프 라이브러리에만 쓸 줄 안다거나, 레거시 애플리케이션이 SMB 공유 폴더에만 파일을 떨어뜨린다면, 그 소프트웨어를 다시 만드는 대신 <strong>게이트웨이가 그 인터페이스를 흉내 내 주면</strong> 된다. ITGC 담당자에게 익숙한 맥락으로 말하면, <strong>'테이프 백업을 없애고 클라우드 백업으로 전환'하는 프로젝트에서 거의 항상 등장하는 물건</strong>이다.</p><p><strong>네 가지 유형.</strong></p><ul><li><strong>S3 File Gateway</strong> — NFS/SMB 공유를 제공하고, 저장된 파일이 <strong>S3 객체로 1:1 매핑</strong>된다. 파일 하나가 객체 하나가 되므로 S3 콘솔에서 그대로 보인다. 로그 아카이빙, 문서 저장소, 미디어 파일 보관에 쓴다.</li><li><strong>FSx File Gateway</strong> — 온프레미스에서 Amazon FSx for Windows File Server에 저지연으로 접근하게 해 준다. 파일 서버 자체를 클라우드로 옮기되 지점 사무실은 로컬처럼 쓰게 할 때 사용한다.</li><li><strong>Volume Gateway</strong> — iSCSI 블록 볼륨을 제공한다. <code>캐시 모드</code>는 주 데이터를 S3에 두고 자주 쓰는 것만 로컬에 캐시하며, <code>저장 모드</code>는 주 데이터를 로컬에 두고 비동기로 S3에 백업한다. 볼륨은 EBS 스냅샷으로 백업되어 AWS에서 바로 복원할 수 있다.</li><li><strong>Tape Gateway(VTL)</strong> — <strong>가상 테이프 라이브러리</strong>를 흉내 낸다. 기존 백업 소프트웨어(NetBackup, Veeam, Commvault 등)는 진짜 테이프 장비로 인식하고, 실제 데이터는 S3와 Glacier Deep Archive에 저장된다. <strong>물리 테이프 운반·보관·폐기 통제를 통째로 없앨 수 있어</strong> 금융권 백업 현대화에서 가장 자주 쓰인다.</li></ul><p><strong>감사 관점에서 특히 Tape Gateway가 중요하다.</strong> 전통적인 ITGC에서 백업 통제는 '테이프를 언제 어디로 반출했고, 외부 보관소 목록과 일치하는가, 폐기는 어떻게 했는가'를 본다. Tape Gateway로 전환하면 이 통제가 <strong>'S3 버킷의 접근권한, 암호화, 객체 잠금, 수명주기, 복원 테스트'</strong>로 바뀐다. 즉 <strong>통제의 내용이 바뀌는 것이지 없어지는 것이 아니다.</strong> 전환 프로젝트를 하는 회사에서 ITGC 문서를 갱신하지 않아 '기존 테이프 통제는 N/A인데 새 통제는 정의 안 됨'인 공백이 생기는 일이 흔하다.</p><p><strong>데이터 보호 관점.</strong> 게이트웨이와 AWS 사이는 TLS로 암호화되고, S3에 저장될 때는 SSE-S3 또는 KMS로 암호화된다. 랜섬웨어 대응으로는 <strong>Tape Gateway의 WORM(Write Once Read Many) 테이프</strong>나 S3 Object Lock을 조합해 '백업본을 지울 수 없게' 만드는 구성이 권장된다. 반대로 게이트웨이 어플라이언스 자체가 탈취되면 위험하므로, 게이트웨이 VM에 대한 접근통제와 <strong>활성화 키(activation key) 관리</strong>도 통제 대상이다.</p><p><strong>주의할 운영 특성.</strong> 로컬 캐시 디스크 용량이 부족하면 쓰기 성능이 급격히 떨어지고, 업로드 버퍼가 가득 차면 게이트웨이가 쓰기를 거부한다. 또한 <strong>온프레미스 회선 대역폭이 실질적 병목</strong>이라, 야간 백업 윈도 안에 업로드가 끝나는지 반드시 검증해야 한다. 회선이 끊기면 File Gateway는 로컬 캐시로 잠시 버티지만 결국 쓰기가 막힌다.</p>",
+      "howItWorks": "<ol><li>온프레미스 가상화 환경(또는 EC2)에 게이트웨이 어플라이언스 이미지를 배포하고, 로컬 캐시용 디스크와 업로드 버퍼용 디스크를 할당한다.</li><li>게이트웨이를 AWS 계정에 <strong>활성화(activate)</strong>한다. 이때 발급되는 활성화 키로 게이트웨이가 특정 AWS 계정·리전에 귀속된다. 이 키는 민감 정보로 관리해야 한다.</li><li>유형에 맞는 리소스를 만든다. File Gateway면 S3 버킷을 연결한 파일 공유를, Tape Gateway면 가상 테이프와 미디어 체인저를, Volume Gateway면 iSCSI 볼륨을 생성한다.</li><li>온프레미스 서버가 이를 마운트하거나 연결한다. 백업 소프트웨어는 <strong>진짜 테이프 장비로 인식</strong>해 기존 백업 작업(job)을 그대로 쓴다.</li><li>애플리케이션이 데이터를 쓰면 먼저 <strong>로컬 캐시/업로드 버퍼</strong>에 기록되어 즉시 완료 응답을 받는다. 온프레미스 성능을 유지하는 핵심이다.</li><li>게이트웨이가 백그라운드에서 데이터를 압축·암호화해 TLS로 AWS에 업로드한다. File Gateway는 S3 객체로, Tape Gateway는 가상 테이프 데이터로, Volume Gateway는 볼륨 블록으로 저장된다.</li><li>Tape Gateway에서 백업 소프트웨어가 테이프를 '반출(eject)'하면 해당 가상 테이프가 <strong>S3 Glacier / Deep Archive 아카이브 계층으로 이동</strong>한다. 물리 테이프를 외부 보관소로 보내는 동작을 그대로 흉내 낸 것이다.</li><li>복원 시에는 반대로 아카이브에서 테이프를 '반입(retrieve)'하면 데이터가 복구 계층으로 올라오고(수분~수시간 소요), 백업 소프트웨어가 평소처럼 복원한다.</li><li>CloudWatch로 캐시 적중률, 업로드 버퍼 사용률, 업로드 지연을 모니터링하고, 모든 게이트웨이 API 조작은 CloudTrail에 기록된다.</li></ol>",
+      "example": "<p><strong>시나리오.</strong> 보험사 '가상생명'이 20년간 써 온 물리 테이프 백업을 정리했다. 기존에는 매주 테이프 12본을 외부 보관소로 차량 운반했고, ITGC 감사 때마다 <strong>운반 기록·보관소 재고 대사·폐기 증명서</strong>를 제출해야 했다. Tape Gateway 도입 후 백업 소프트웨어(NetBackup) 설정은 거의 그대로 두고 장치만 가상 테이프 라이브러리로 바꿨다. 이제 백업본은 S3 Glacier Deep Archive에 저장되고, 규정상 7년 보존이 필요한 결산 백업은 <strong>WORM 가상 테이프 + S3 Object Lock</strong>으로 삭제가 불가능하게 설정했다. 물리 테이프 관련 통제 6개는 폐지되고, S3 접근권한·암호화·보존잠금·연 1회 복원 테스트라는 4개 통제로 대체하며 <strong>ITGC 통제 목록을 개정</strong>했다.</p><pre><code># 등록된 게이트웨이 목록과 상태 확인\naws storagegateway list-gateways \\\n  --query 'Gateways[].{id:GatewayId,name:GatewayName,\n            type:GatewayType,state:GatewayOperationalState}' --output table\n\n# 가상 테이프 현황 — 보존 대상이 아카이브로 잘 넘어갔는지, WORM인지\naws storagegateway describe-tapes --gateway-arn arn:aws:storagegateway:ap-northeast-2:111122223333:gateway/sgw-1A2B3C4D \\\n  --query 'Tapes[].{barcode:TapeBarcode,size:TapeSizeInBytes,\n            status:TapeStatus,worm:Worm,used:TapeUsedInBytes}' --output table\n\n# 아카이브(가상 금고)에 보관 중인 테이프 = 외부 보관소 재고에 해당\naws storagegateway describe-tape-archives \\\n  --query 'TapeArchives[].{barcode:TapeBarcode,status:TapeStatus,\n            archived:CompletionTime,worm:Worm,retentionUntil:RetentionStartDate}' \\\n  --output table</code></pre><p>File Gateway를 쓰는 경우, 온프레미스에서 쓴 파일이 S3에 어떻게 저장되는지와 암호화·수명주기 설정이 감사 확인 대상이다.</p><pre><code># 파일 공유 설정 확인 (연결된 버킷 · KMS 암호화 · 읽기전용 여부 · 접근 허용 IP)\naws storagegateway describe-nfs-file-shares \\\n  --file-share-arn-list arn:aws:storagegateway:ap-northeast-2:111122223333:share/share-0A1B2C3D \\\n  --query 'NFSFileShareInfoList[].{bucket:LocationARN,kms:KMSEncrypted,kmsKey:KMSKey,\n            readOnly:ReadOnly,clients:ClientList,\n            defaultStorageClass:DefaultStorageClass}'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='10' y='18' fill='currentColor' font-weight='bold'>Storage Gateway — 물리 테이프 통제가 S3 통제로 바뀐다</text><rect x='10' y='40' width='170' height='190' rx='8' fill='none' stroke='currentColor' stroke-dasharray='5 3'/><text x='24' y='60' fill='currentColor' font-weight='bold'>온프레미스</text><rect x='26' y='72' width='138' height='42' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='40' y='92' fill='currentColor' font-size='11'>백업 소프트웨어</text><text x='40' y='108' fill='currentColor' font-size='11'>기존 작업 그대로</text><rect x='26' y='124' width='138' height='42' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='40' y='144' fill='currentColor' font-size='11'>레거시 앱</text><text x='40' y='160' fill='currentColor' font-size='11'>SMB/NFS 공유</text><rect x='26' y='176' width='138' height='42' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='40' y='196' fill='currentColor' font-size='11'>iSCSI 이용 서버</text><text x='40' y='212' fill='currentColor' font-size='11'>블록 볼륨</text><rect x='215' y='70' width='165' height='130' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='231' y='92' fill='currentColor' font-weight='bold'>Storage Gateway</text><text x='231' y='112' fill='currentColor' font-size='11'>가상 테이프 라이브러리</text><text x='231' y='130' fill='currentColor' font-size='11'>NFS/SMB 공유 제공</text><text x='231' y='148' fill='currentColor' font-size='11'>iSCSI 볼륨 제공</text><text x='231' y='170' fill='currentColor' font-size='11'>로컬 캐시 + 업로드 버퍼</text><text x='231' y='188' fill='currentColor' font-size='11'>TLS 암호화 전송</text><rect x='425' y='44' width='205' height='52' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='441' y='64' fill='currentColor'>S3 버킷</text><text x='441' y='82' fill='currentColor' font-size='11'>KMS 암호화 · 버저닝</text><rect x='425' y='106' width='205' height='52' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='441' y='126' fill='currentColor'>Glacier Deep Archive</text><text x='441' y='144' fill='currentColor' font-size='11'>= 외부 보관소 역할</text><rect x='425' y='168' width='205' height='58' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='441' y='188' fill='currentColor'>Object Lock / WORM</text><text x='441' y='206' fill='currentColor' font-size='11'>삭제 불가 = 랜섬웨어 대응</text><text x='441' y='221' fill='currentColor' font-size='11'>보존기간 증빙</text><line x1='165' y1='93' x2='213' y2='110' stroke='currentColor' marker-end='url(#ar)'/><line x1='165' y1='145' x2='213' y2='140' stroke='currentColor' marker-end='url(#ar)'/><line x1='165' y1='197' x2='213' y2='165' stroke='currentColor' marker-end='url(#ar)'/><line x1='381' y1='105' x2='423' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='381' y1='135' x2='423' y2='130' stroke='currentColor' marker-end='url(#ar)'/><line x1='381' y1='165' x2='423' y2='190' stroke='currentColor' marker-end='url(#ar)'/><text x='210' y='250' fill='currentColor' font-size='11'>운반·보관 통제 → 접근권한·암호화·보존잠금·복원테스트 통제로 전환</text></svg>",
+      "keyTerms": [
+        {
+          "term": "S3 File Gateway",
+          "meaning": "NFS/SMB 공유를 제공하고 파일을 S3 객체로 1:1 저장하는 유형."
+        },
+        {
+          "term": "Tape Gateway(VTL)",
+          "meaning": "가상 테이프 라이브러리를 흉내 내어 기존 백업 소프트웨어를 그대로 쓰게 해 주는 유형."
+        },
+        {
+          "term": "Volume Gateway",
+          "meaning": "iSCSI 블록 볼륨을 제공. 캐시 모드(주데이터 S3)와 저장 모드(주데이터 로컬)가 있다."
+        },
+        {
+          "term": "로컬 캐시(Cache)",
+          "meaning": "자주 읽는 데이터를 온프레미스에 보관해 지연을 줄이는 디스크. 부족하면 성능이 급락한다."
+        },
+        {
+          "term": "업로드 버퍼(Upload Buffer)",
+          "meaning": "AWS로 보내기 전 데이터를 임시 저장하는 영역. 가득 차면 쓰기가 막힌다."
+        },
+        {
+          "term": "활성화 키(Activation Key)",
+          "meaning": "게이트웨이를 특정 AWS 계정에 귀속시키는 키. 유출 시 무단 연결 위험이 있어 민감 정보로 관리한다."
+        },
+        {
+          "term": "WORM 테이프",
+          "meaning": "한 번 쓰면 수정·삭제할 수 없는 가상 테이프. 법정 보존과 랜섬웨어 대응에 사용한다."
+        },
+        {
+          "term": "테이프 반출/반입(Eject/Retrieve)",
+          "meaning": "가상 테이프를 아카이브 계층으로 보내거나 되돌리는 동작. 물리 테이프 외부 반출을 대체한다."
+        },
+        {
+          "term": "복원 소요시간",
+          "meaning": "Deep Archive에서 되살리는 데 수 시간이 걸릴 수 있어 RTO 산정에 반영해야 한다."
+        }
+      ],
+      "pitfalls": [
+        "테이프 백업을 Storage Gateway로 전환하면서 기존 물리 테이프 관련 ITGC 통제만 폐지하고 새로운 S3 기반 통제를 정의하지 않아 통제 공백이 생기는 경우.",
+        "로컬 캐시와 업로드 버퍼 용량을 과소 산정해 백업 윈도 안에 작업이 끝나지 않거나 쓰기가 거부되는 문제.",
+        "온프레미스 회선 대역폭 검증 없이 도입해, 야간 백업이 아침까지 이어져 업무에 영향을 주는 상황.",
+        "Deep Archive의 복원 소요시간(수 시간)을 RTO 계산에 반영하지 않아, 실제 장애 시 복구 목표를 지키지 못하는 경우.",
+        "복원 테스트를 하지 않아 몇 년 치 백업이 실은 복원 불가 상태였음을 사고 시점에 발견하는 사례.",
+        "게이트웨이 VM 자체의 접근통제와 백업(어플라이언스 설정 보호)을 소홀히 해 단일 장애점이 되는 구성.",
+        "활성화 키나 게이트웨이 자격증명을 문서에 평문으로 남겨 두는 관행.",
+        "File Gateway에서 S3 버킷을 직접 수정하면 게이트웨이 캐시와 불일치가 발생할 수 있다는 점을 모르고 양쪽에서 쓰기를 수행하는 경우."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 백업 매체가 물리 테이프에서 클라우드로 전환된 경우, 기존 통제(운반·보관·폐기)를 대체하는 신규 통제(접근권한, 암호화, 보존잠금, 복원 테스트)가 통제 목록에 정식으로 반영되었는지 확인한다.",
+          "[운영] 백업 데이터가 저장되는 S3 버킷의 퍼블릭 액세스 차단, 버킷 정책, 버저닝, Object Lock 설정을 확인한다.",
+          "[운영] 법정 보존 대상 백업에 WORM 테이프 또는 Object Lock이 적용되어 보존기간 내 삭제가 기술적으로 불가능한지 검증한다.",
+          "[운영] 정기 복원 테스트(최소 연 1회) 수행 여부와 결과 기록, 복원 소요시간이 RTO 목표를 충족하는지 확인한다.",
+          "[접근] 게이트웨이 어플라이언스(VM 콘솔·관리 인터페이스)에 접근 가능한 인원과 storagegateway:* IAM 권한 보유자를 확인한다.",
+          "[접근] 백업 데이터 삭제 권한(테이프 삭제, S3 객체 삭제)이 분리되고 MFA Delete 등 추가 통제가 적용되는지 확인한다.",
+          "[변경] 게이트웨이 구성 변경(파일 공유 생성·삭제, 테이프 삭제)이 CloudTrail에 기록되고 승인 절차를 거치는지 확인한다."
+        ],
+        "fss": [
+          "전자금융감독규정의 백업 및 복구 요건에 따라 중요 정보의 백업 주기·보존기간·소산 보관이 충족되는지 확인한다. 클라우드 저장은 소산 보관의 대체 수단으로 인정될 수 있으나 물리적 분리(리전·계정 분리) 근거가 필요하다.",
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차) 및 금융분야 클라우드 이용 가이드에 따라 백업 데이터의 저장 위치(리전)와 처리 범위가 문서화되어 있는지 확인한다.",
+          "중요 정보의 암호화 저장 요건 충족 여부(전송 구간 TLS, 저장 시 KMS 암호화)를 확인한다.",
+          "재해복구 계획상 백업 복원 절차가 문서화되고 훈련으로 검증되었는지, 복원 소요시간이 목표 복구시간 내인지 확인한다.",
+          "백업 데이터에 대한 접근 및 삭제 권한이 최소한의 인원으로 제한되고 로그가 보존되는지 확인한다."
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리 — 백업 대상·주기·보존기간 정의와 복구 테스트 수행.",
+          "2.4.6 반출입 기기 통제 / 2.4.7 업무환경 보안 — 물리 매체 통제에서 전자적 통제로의 전환 적정성.",
+          "2.7.1 암호정책 적용 — 백업 데이터의 전송·저장 암호화.",
+          "2.5.6 접근권한 검토 — 백업 저장소 및 게이트웨이 관리 권한의 정기 검토.",
+          "2.12.1 재해복구체계 구축 / 2.12.2 재해복구 시험 및 개선 — 복원 절차의 실효성 검증.",
+          "2.10.2 클라우드 보안 — 하이브리드 스토리지 구성의 보안 설정 기준."
+        ],
+        "evidence": [
+          "aws storagegateway list-gateways / describe-tapes / describe-tape-archives 출력 — 게이트웨이 현황과 테이프 재고(WORM 여부 포함).",
+          "백업 대상 S3 버킷의 퍼블릭 액세스 차단·버킷 정책·버저닝·Object Lock 설정 화면 export.",
+          "연간 복원 테스트 계획서와 수행 결과 보고서(복원 소요시간, 검증 데이터, 담당자 서명).",
+          "백업 스케줄과 실제 백업 성공/실패 이력(백업 소프트웨어 리포트 + CloudWatch 지표).",
+          "storagegateway 및 백업 버킷에 대한 IAM 권한 보유자 목록과 삭제 권한 분리 증빙.",
+          "CloudTrail에서 추출한 DeleteTape·DeleteFileShare·DeleteObject(백업 버킷) 이벤트.",
+          "물리 테이프 통제 폐지 및 신규 클라우드 백업 통제 도입을 반영한 ITGC 통제 매트릭스 개정본."
+        ],
+        "auditorQuestions": [
+          "백업본은 현재 어디에 저장되며, 물리 테이프는 완전히 폐지되었습니까? 폐지 시점과 기존 테이프 처리 방법은 무엇입니까?",
+          "법정 보존이 필요한 백업은 보존기간 동안 삭제할 수 없도록 기술적으로 보장됩니까? 어떤 설정입니까?",
+          "가장 최근에 실제로 백업을 복원해 본 것은 언제이며, 복원에 얼마나 걸렸습니까?",
+          "백업 데이터를 삭제할 수 있는 사람은 누구이며, 삭제 시 어떤 승인과 기록이 남습니까?",
+          "게이트웨이 장비 자체에 장애가 나면 백업과 복원은 어떻게 됩니까?",
+          "야간 백업이 정해진 시간 안에 완료되는지 어떻게 모니터링합니까? 실패 시 누가 알림을 받습니까?",
+          "랜섬웨어로 온프레미스가 암호화되었을 때, 클라우드 백업본이 함께 손상되지 않도록 하는 장치는 무엇입니까?"
+        ],
+        "controlExample": "온프레미스 백업은 Tape Gateway를 통해 S3 Glacier Deep Archive에 저장되며, 법정 보존 대상 백업은 WORM 가상 테이프와 S3 Object Lock을 적용하여 보존기간 내 삭제가 불가능하도록 구성한다. 백업 성공 여부는 일 단위로 모니터링되어 실패 시 운영팀에 자동 통보되며, 연 1회 복원 테스트를 수행하여 복구 소요시간이 목표 복구시간 이내임을 검증하고 결과를 보관한다."
+      },
+      "related": [
+        "aws-s3",
+        "aws-s3-glacier",
+        "aws-fsx",
+        "aws-ebs",
+        "aws-direct-connect",
+        "aws-outposts-local-zones",
+        "awssec-kms",
+        "comp-bcp-drp"
+      ],
+      "learnMore": [
+        "AWS Storage Gateway User Guide",
+        "AWS Tape Gateway 백업 소프트웨어 호환성 목록",
+        "Amazon S3 Object Lock 문서"
+      ]
+    },
+    {
+      "id": "aws-fsx",
+      "title": "FSx",
+      "titleEn": "Amazon FSx",
+      "aliases": [
+        "에프에스엑스",
+        "관리형 파일서버",
+        "FSx for Windows",
+        "FSx for NetApp ONTAP",
+        "FSx for Lustre",
+        "SMB 공유"
+      ],
+      "tags": [
+        "storage",
+        "file-system",
+        "windows"
+      ],
+      "level": "중급",
+      "oneLiner": "윈도우·NetApp·Lustre 같은 기업용 파일시스템의 관리형 버전",
+      "analogy": "FSx는 '브랜드 정수기 렌탈'과 같다. 회사에서 이미 쓰던 특정 브랜드의 정수기(윈도우 파일서버, NetApp 스토리지)를 그대로 쓰고 싶은데, 필터 교체·고장 수리·정기 점검은 하고 싶지 않다. FSx는 같은 브랜드·같은 사용감을 유지하면서 유지보수만 대행해 주는 서비스다. 직원들은 정수기가 바뀐 줄도 모른다.",
+      "explanation": "<p><strong>Amazon FSx</strong>는 기업들이 온프레미스에서 쓰던 <strong>상용 파일시스템을 그대로 관리형으로 제공</strong>하는 서비스 묶음이다. EFS(별도 항목)가 리눅스용 NFS에 특화된 AWS 자체 파일시스템이라면, FSx는 <strong>'기존에 쓰던 그 제품'</strong>을 옮겨 오기 위한 선택지다. 네 가지가 있다.</p><ul><li><strong>FSx for Windows File Server</strong> — 진짜 윈도우 서버 기반 SMB 파일 공유다. <strong>Active Directory 통합, NTFS 권한(ACL), 섀도 복사본(이전 버전 복원), DFS 네임스페이스</strong>를 그대로 지원한다. 온프레미스 파일 서버를 클라우드로 옮길 때 가장 흔한 선택이며, 사용자 입장에서는 <code>\\\\fileserver\\share</code> 경로만 바뀐다.</li><li><strong>FSx for NetApp ONTAP</strong> — NetApp의 ONTAP 운영체제를 그대로 제공한다. NFS·SMB·iSCSI를 동시에 지원하고, NetApp 고유의 <strong>스냅샷, SnapMirror 복제, FlexClone, 중복제거·압축</strong>을 쓸 수 있다. 온프레미스 NetApp을 쓰던 조직이 <strong>SnapMirror로 클라우드에 복제해 DR 사이트를 만드는</strong> 패턴이 특히 많다.</li><li><strong>FSx for OpenZFS</strong> — ZFS 기반 NFS 파일시스템. 스냅샷과 클론이 빠르고 지연이 매우 낮아 개발 환경 복제나 고성능 NFS 워크로드에 쓴다.</li><li><strong>FSx for Lustre</strong> — HPC·머신러닝용 초고성능 병렬 파일시스템. S3와 연결해 S3 데이터를 파일처럼 읽고 결과를 다시 S3로 내보낼 수 있다. 대규모 학습·시뮬레이션에 쓴다.</li></ul><p><strong>왜 ITGC 담당자에게 중요한가.</strong> FSx for Windows는 <strong>사내 공유 폴더</strong>를 담는 경우가 많다. 인사 자료, 재무 결산 파일, 계약서 스캔본 같은 것들이다. 즉 <strong>재무보고에 직접 쓰이는 스프레드시트(EUC, End User Computing)가 여기에 산다.</strong> SOX 관점에서 EUC 파일의 접근통제와 변경 추적은 중요한 주제이고, 그 통제 지점이 바로 이 파일시스템의 <strong>AD 그룹 기반 NTFS 권한과 파일 액세스 감사 로그</strong>다. 온프레미스 파일 서버 시절 하던 '공유 폴더 권한 검토'가 그대로 클라우드로 넘어온 것이다.</p><p><strong>Active Directory 통합이 핵심이다.</strong> FSx for Windows는 AWS Managed Microsoft AD에 조인하거나, Direct Connect/VPN을 통해 <strong>온프레미스 AD에 직접 조인</strong>할 수 있다. 후자를 쓰면 기존 사용자 계정과 그룹 정책이 그대로 적용되어, 계정 관리 통제가 이원화되지 않는다. 반대로 <strong>AD 연동 없이 로컬 계정으로 운영하면 계정 관리 사각지대</strong>가 생기므로 감사에서 확인할 지점이다.</p><p><strong>감사 로깅이 별도 설정이다.</strong> FSx for Windows는 <strong>파일 액세스 감사(File Access Auditing)</strong>를 켜면 파일·폴더 접근 시도를 CloudWatch Logs나 Kinesis Data Firehose로 보낼 수 있다. 기본은 꺼져 있다. 중요 자료가 있는 공유에 이것이 꺼져 있으면 '누가 그 파일을 열었는지'를 사후에 확인할 방법이 없다. 반대로 전부 켜면 로그량이 폭발하므로, <strong>중요 폴더에 한정해 감사 정책을 거는 것</strong>이 실무적 절충이다.</p><p><strong>백업과 복구.</strong> FSx는 자동 일일 백업을 제공하고(보존기간 설정 가능), 사용자 스스로 <strong>섀도 복사본(이전 버전)</strong>으로 실수 삭제한 파일을 복구할 수 있다. 이 기능은 랜섬웨어 대응에도 쓰이지만, 섀도 복사본은 같은 파일시스템 안에 있으므로 <strong>파일시스템 자체가 손상되면 소용없다</strong>. 따라서 AWS Backup을 통한 별도 백업(가급적 다른 계정 볼트로)이 함께 있어야 한다. 다중 AZ 배포를 선택하면 대기 파일 서버가 다른 AZ에 자동 이중화된다.</p>",
+      "howItWorks": "<ol><li>관리자가 FSx 파일시스템을 생성하면서 유형(Windows/ONTAP/OpenZFS/Lustre), 배포 방식(단일 AZ / 다중 AZ), 용량, 처리량, 그리고 <strong>연결할 Active Directory</strong>를 지정한다.</li><li>FSx가 지정한 서브넷에 <strong>ENI를 만들어</strong> 파일 서버를 배치한다. 다중 AZ면 활성 파일 서버와 대기 파일 서버가 서로 다른 AZ에 뜨고, 그 앞에 단일 DNS 이름이 부여된다.</li><li>파일시스템이 AD 도메인에 컴퓨터 계정으로 조인한다. 이 시점부터 AD의 사용자·그룹이 그대로 권한 주체가 된다.</li><li>클라이언트(EC2 윈도우 서버, 사내 PC)가 DNS 이름으로 SMB 공유를 마운트한다. 사용자는 <strong>케르베로스(Kerberos)로 인증</strong>되고, 전송 구간은 SMB 암호화로 보호된다.</li><li>파일 접근 시 <strong>공유 권한 → NTFS ACL</strong> 순으로 검사한다. 권한은 AD 그룹 단위로 부여하는 것이 원칙이며, 개인 계정 직접 부여는 권한 검토를 어렵게 만든다.</li><li>파일 액세스 감사가 켜져 있으면 접근 성공·실패 이벤트가 생성되어 CloudWatch Logs 또는 Firehose를 거쳐 SIEM으로 전달된다.</li><li>저장 데이터는 KMS 키로 자동 암호화되고, 매일 정해진 백업 창에 자동 백업이 생성된다. 사용자는 파일 속성의 '이전 버전' 탭에서 섀도 복사본으로 스스로 복구할 수 있다.</li><li>다중 AZ 구성에서 활성 파일 서버에 장애가 나면 자동으로 대기 서버로 장애 조치되고, DNS 이름은 그대로라 클라이언트는 수십 초 내에 재연결된다.</li><li>ONTAP의 경우 온프레미스 NetApp에서 SnapMirror 관계를 맺어 주기적으로 스냅샷을 복제하면, 클라우드 측이 DR 사본 역할을 한다.</li></ol>",
+      "example": "<p><strong>시나리오.</strong> 제조·유통 회사 '가상상사'가 온프레미스 윈도우 파일 서버 2대(총 8TB)를 FSx for Windows로 옮겼다. 여기에는 회계팀의 결산 워크시트, 구매팀의 계약서 스캔본, 인사팀 자료가 들어 있다. ITGC 관점에서 이 회사는 다음을 통제한다. (1) 공유 폴더 권한은 <strong>AD 그룹으로만</strong> 부여하고 개인 계정 직접 부여를 금지, (2) 회계 결산 폴더(<code>\\finance\\closing</code>)에는 <strong>파일 액세스 감사를 켜서</strong> 읽기·쓰기·삭제 이벤트를 SIEM으로 전송, (3) 반기 1회 폴더별 접근권한 검토를 수행하고 부서장 승인, (4) AWS Backup으로 별도 계정의 볼트에 35일 보존 백업.</p><pre><code># 파일시스템 현황 — AD 연동 · 다중AZ · 암호화 · 백업 보존기간 확인\naws fsx describe-file-systems \\\n  --query 'FileSystems[?FileSystemType==`WINDOWS`].{\n      id:FileSystemId,\n      dns:DNSName,\n      deployment:WindowsConfiguration.DeploymentType,\n      ad:WindowsConfiguration.SelfManagedActiveDirectoryConfiguration.DomainName,\n      kms:KmsKeyId,\n      backupRetention:WindowsConfiguration.AutomaticBackupRetentionDays,\n      audit:WindowsConfiguration.AuditLogConfiguration}' --output json\n\n# 감사 로그 설정을 켜기 (중요 공유에 대한 접근 기록 확보)\naws fsx update-file-system --file-system-id fs-0abc1234def567890 \\\n  --windows-configuration 'AuditLogConfiguration={\n      FileAccessAuditLogLevel=SUCCESS_AND_FAILURE,\n      FileShareAccessAuditLogLevel=SUCCESS_AND_FAILURE,\n      AuditLogDestination=arn:aws:logs:ap-northeast-2:111122223333:log-group:/aws/fsx/finance-audit}'</code></pre><p>권한 검토 증빙은 윈도우 쪽에서 뽑는다. 공유 폴더의 실제 ACL을 그룹 단위로 추출해 인사 시스템의 재직자·부서 정보와 대사하는 것이 일반적인 SOX 절차다.</p><pre><code># 파일 공유 목록과 공유 수준 권한 (FSx에 원격 PowerShell 세션)\n$s = New-PSSession -ComputerName amznfsxabcd1234.corp.example.com -ConfigurationName FsxRemoteAdmin\nInvoke-Command -Session $s -ScriptBlock { Get-FSxSmbShare | Select Name, Path, Description }\nInvoke-Command -Session $s -ScriptBlock { Get-FSxSmbShareAccess -Name \"finance\" }\n\n# NTFS 폴더 권한 전수 추출 (권한 검토 대사용 CSV)\nGet-ChildItem \"\\\\amznfsxabcd1234.corp.example.com\\finance\\closing\" -Directory |\n  ForEach-Object {\n    $p = $_.FullName\n    (Get-Acl $p).Access | Select-Object @{n='Folder';e={$p}},\n        IdentityReference, FileSystemRights, AccessControlType, IsInherited\n  } | Export-Csv -NoTypeInformation -Encoding UTF8 fsx_finance_acl_2026Q3.csv</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 290' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='10' y='18' fill='currentColor' font-weight='bold'>FSx for Windows — AD 권한과 감사 로그 흐름</text><rect x='10' y='40' width='130' height='54' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='26' y='62' fill='currentColor'>사내 PC / EC2</text><text x='26' y='80' fill='currentColor' font-size='11'>SMB 마운트</text><rect x='10' y='116' width='130' height='64' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='26' y='138' fill='currentColor'>Active Directory</text><text x='26' y='156' fill='currentColor' font-size='11'>사용자 · 그룹</text><text x='26' y='172' fill='currentColor' font-size='11'>Kerberos 인증</text><rect x='190' y='36' width='230' height='146' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='206' y='58' fill='currentColor' font-weight='bold'>FSx for Windows</text><text x='206' y='80' fill='currentColor' font-size='11'>활성 파일서버 (AZ-2a)</text><text x='206' y='98' fill='currentColor' font-size='11'>대기 파일서버 (AZ-2c)</text><text x='206' y='118' fill='currentColor' font-size='11'>공유권한 → NTFS ACL 검사</text><text x='206' y='136' fill='currentColor' font-size='11'>섀도 복사본(이전 버전)</text><text x='206' y='156' fill='currentColor' font-size='11'>KMS 저장 암호화</text><text x='206' y='174' fill='currentColor' font-size='11'>단일 DNS · 자동 장애조치</text><rect x='460' y='36' width='170' height='56' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='476' y='58' fill='currentColor'>CloudWatch Logs</text><text x='476' y='78' fill='currentColor' font-size='11'>파일 액세스 감사</text><rect x='460' y='106' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='476' y='126' fill='currentColor'>SIEM</text><text x='476' y='145' fill='currentColor' font-size='11'>이상 접근 탐지</text><rect x='460' y='170' width='170' height='52' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='476' y='190' fill='currentColor'>AWS Backup</text><text x='476' y='209' fill='currentColor' font-size='11'>별도 계정 볼트</text><rect x='150' y='214' width='270' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='166' y='236' fill='currentColor' font-size='11'>ITGC 통제 지점</text><text x='166' y='254' fill='currentColor' font-size='11'>AD 그룹 단위 권한 · 반기 권한검토 · EUC 파일 보호</text><line x1='141' y1='62' x2='188' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='141' y1='146' x2='188' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='421' y1='64' x2='458' y2='64' stroke='currentColor' marker-end='url(#ar)'/><line x1='421' y1='120' x2='458' y2='128' stroke='currentColor' marker-end='url(#ar)'/><line x1='421' y1='165' x2='458' y2='190' stroke='currentColor' marker-end='url(#ar)'/><line x1='285' y1='184' x2='285' y2='212' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "FSx for Windows File Server",
+          "meaning": "AD 통합·NTFS ACL·섀도 복사본을 지원하는 관리형 SMB 파일 서버."
+        },
+        {
+          "term": "FSx for NetApp ONTAP",
+          "meaning": "NetApp ONTAP 관리형 버전. NFS·SMB·iSCSI 동시 지원과 SnapMirror 복제가 가능하다."
+        },
+        {
+          "term": "FSx for Lustre",
+          "meaning": "HPC·ML용 초고성능 병렬 파일시스템. S3와 연동해 데이터를 파일처럼 다룬다."
+        },
+        {
+          "term": "NTFS ACL",
+          "meaning": "폴더·파일 단위 윈도우 접근권한. 공유 권한과 함께 이중으로 평가되며 권한 검토의 대상이다."
+        },
+        {
+          "term": "섀도 복사본(Shadow Copy)",
+          "meaning": "사용자가 스스로 이전 버전 파일을 복구하는 기능. 같은 파일시스템 내부에 있어 별도 백업을 대체하지 못한다."
+        },
+        {
+          "term": "파일 액세스 감사(File Access Auditing)",
+          "meaning": "파일·공유 접근 성공·실패를 로그로 남기는 기능. 기본 비활성이므로 중요 공유에 명시적으로 켜야 한다."
+        },
+        {
+          "term": "다중 AZ 배포",
+          "meaning": "활성·대기 파일 서버를 다른 AZ에 두어 자동 장애 조치하는 구성."
+        },
+        {
+          "term": "SnapMirror",
+          "meaning": "NetApp의 복제 기술. 온프레미스 ONTAP에서 FSx로 복제해 DR 사본을 만든다."
+        },
+        {
+          "term": "EUC(End User Computing) 파일",
+          "meaning": "재무보고에 쓰이는 스프레드시트 등. 공유 폴더에 보관되므로 접근통제·변경추적 대상이 된다."
+        }
+      ],
+      "pitfalls": [
+        "공유 폴더 권한을 AD 그룹이 아닌 개인 계정에 직접 부여해, 인사이동·퇴직 시 권한이 남고 권한 검토가 사실상 불가능해지는 상황.",
+        "파일 액세스 감사가 기본 비활성이라는 점을 모르고 운영하다, 중요 자료 유출 사고 조사 시 접근 기록이 없는 경우.",
+        "섀도 복사본을 백업으로 오해하는 것. 파일시스템 자체가 손상되거나 삭제되면 함께 사라진다.",
+        "단일 AZ 배포를 선택해 놓고 고가용성 구성이라고 문서화하는 오류. 다중 AZ는 명시적으로 선택해야 한다.",
+        "온프레미스 AD 연동 시 Direct Connect/VPN 경로와 필요한 포트(Kerberos, LDAP, DNS)를 열지 않아 도메인 조인이 실패하는 문제.",
+        "용량과 처리량을 과소 설정해 결산기에 성능 문제가 발생하는 경우. FSx는 용량과 별개로 처리량 용량을 설정한다.",
+        "백업을 같은 계정에만 두어, 계정 침해 시 원본과 백업이 함께 삭제될 수 있는 구조.",
+        "FSx for Lustre를 영구 저장소로 오해하는 것. 스크래치 유형은 내구성이 낮아 S3를 원본으로 두어야 한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 중요 공유 폴더(재무·인사·계약)의 NTFS ACL을 전수 추출해 AD 그룹 단위로 부여되었는지, 개인 계정 직접 부여나 Everyone 권한이 없는지 확인한다.",
+          "[접근] 공유 폴더 접근권한에 대한 정기 검토(최소 반기)가 수행되고 부서장 승인 기록이 보관되는지 확인한다.",
+          "[접근] 퇴직자·부서이동자의 AD 그룹 제거가 적시에 이루어졌는지 인사 데이터와 대사한다.",
+          "[ITAC] 재무보고에 사용되는 EUC 파일(결산 워크시트 등)의 보관 위치가 통제된 공유 폴더이고, 접근·변경 이력이 확보되는지 확인한다.",
+          "[운영] 파일 액세스 감사 활성화 여부와 로그 전송 대상, 보존기간을 확인한다. 비활성 시 중요 자료 접근 추적 불가 위험을 제기한다.",
+          "[운영] 자동 백업 보존기간, AWS Backup을 통한 교차 계정·교차 리전 백업 여부, 복원 테스트 수행 기록을 확인한다.",
+          "[운영] 다중 AZ 배포 여부와 장애 조치 테스트 결과를 확인한다.",
+          "[변경] 파일시스템 설정 변경(감사 설정, 백업 보존, 용량 변경)이 CloudTrail에 기록되고 승인 절차를 따르는지 확인한다."
+        ],
+        "fss": [
+          "전자금융감독규정의 정보처리시스템 접근통제 요건에 따라 중요 정보가 저장된 공유 폴더의 접근권한이 업무상 필요 최소한으로 부여·관리되는지 확인한다.",
+          "중요 정보의 암호화 저장 요건 충족 여부(KMS 저장 암호화, SMB 전송 암호화)를 확인한다.",
+          "백업 및 복구 요건에 따라 백업 주기·보존기간·복구 테스트가 수행되는지 확인한다.",
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차)에 따른 이용 현황에 파일 스토리지 서비스와 저장 정보 유형이 반영되어 있는지 확인한다.",
+          "개인정보가 포함된 파일이 저장되는 경우 접근기록 보존 및 정기 점검 요건 충족 여부를 확인한다."
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.5 특수 계정 및 권한 관리 / 2.5.6 접근권한 검토 — AD 그룹 기반 권한 부여와 정기 검토.",
+          "2.6.3 응용프로그램 접근 / 2.6.2 정보시스템 접근 — 공유 폴더 접근 제한.",
+          "2.9.4 로그 및 접속기록 관리 / 2.9.5 로그 및 접속기록 점검 — 파일 액세스 감사 로그 수집과 주기적 점검.",
+          "2.7.1 암호정책 적용 — 저장·전송 암호화 적용.",
+          "2.9.3 백업 및 복구관리 — 백업 정책과 복구 검증.",
+          "3.x 개인정보 처리 단계별 요구사항 — 개인정보가 포함된 파일의 보관·접근 통제."
+        ],
+        "evidence": [
+          "aws fsx describe-file-systems 출력 — 배포 유형(다중 AZ), AD 도메인, KMS 키, 백업 보존기간, 감사 로그 설정.",
+          "중요 공유 폴더별 NTFS ACL 전수 추출 CSV(Get-Acl 결과)와 AD 그룹 구성원 목록.",
+          "반기 접근권한 검토 결과서(검토 대상, 부적정 권한, 조치 내역, 승인 서명).",
+          "퇴직자·인사이동자 목록과 AD 그룹 제거 이력 대사표.",
+          "파일 액세스 감사 로그 샘플(CloudWatch Logs)과 로그 보존기간 설정 화면.",
+          "AWS Backup 백업 계획·볼트 구성(교차 계정 여부)과 복원 테스트 결과 보고서.",
+          "다중 AZ 장애 조치 테스트 기록 또는 AWS 유지보수 이벤트 시 서비스 영향 기록."
+        ],
+        "auditorQuestions": [
+          "재무 결산 파일이 저장된 공유 폴더에 접근할 수 있는 사람은 누구이며, 그 목록을 어떻게 뽑습니까?",
+          "그 권한은 개인 계정에 직접 부여되어 있습니까, AD 그룹으로 관리됩니까?",
+          "최근 권한 검토는 언제 했고, 그 결과 제거된 권한이 있습니까?",
+          "특정 파일을 누가 언제 열었는지 확인할 수 있습니까? 접근 감사 로그는 켜져 있습니까?",
+          "직원이 실수로 폴더를 삭제했을 때 어떻게 복구합니까? 파일시스템 전체가 손상되면 어떻게 됩니까?",
+          "백업본은 어느 계정에 저장되며, 운영 계정이 침해되어도 백업이 안전합니까?",
+          "이 파일 서버가 있는 가용 영역에 장애가 나면 어떻게 됩니까?",
+          "퇴직자의 공유 폴더 접근권한은 언제 제거됩니까? 그 시점을 어떻게 확인합니까?"
+        ],
+        "controlExample": "재무·인사 등 중요 자료가 저장된 FSx 공유 폴더의 접근권한은 AD 보안그룹을 통해서만 부여되며, 반기 1회 부서장이 구성원 목록을 검토·승인하고 그 결과를 보관한다. 해당 공유에는 파일 액세스 감사를 활성화하여 접근 성공·실패 이벤트를 SIEM으로 전송하고, 백업은 AWS Backup을 통해 별도 계정의 볼트에 35일간 보존하여 연 1회 복원 테스트를 수행한다."
+      },
+      "related": [
+        "aws-efs",
+        "aws-s3",
+        "aws-storage-gateway",
+        "aws-ebs",
+        "aws-vpc",
+        "sec-ad-ldap",
+        "comp-sox-itgc",
+        "awssec-kms"
+      ],
+      "learnMore": [
+        "Amazon FSx for Windows File Server User Guide",
+        "Amazon FSx for NetApp ONTAP User Guide",
+        "AWS Backup Developer Guide"
+      ]
+    },
+    {
+      "id": "aws-global-accelerator",
+      "title": "Global Accelerator",
+      "titleEn": "AWS Global Accelerator",
+      "aliases": [
+        "글로벌 액셀러레이터",
+        "GA",
+        "애니캐스트 IP",
+        "고정 IP 로드밸런싱",
+        "글로벌 트래픽 가속"
+      ],
+      "tags": [
+        "network",
+        "global",
+        "availability"
+      ],
+      "level": "중급",
+      "oneLiner": "고정 IP 2개로 전 세계 트래픽을 AWS 백본으로 태워 보내는 서비스",
+      "analogy": "Global Accelerator는 '전국 어디서 걸어도 연결되는 대표번호'와 같다. 고객은 항상 같은 대표번호(고정 애니캐스트 IP)로 전화하고, 통신사가 가장 가까운 지사로 알아서 연결해 준다. 지사가 문을 닫으면 통화 중에도 다른 지사로 즉시 돌려 주고, 연결된 뒤에는 일반 도로가 아니라 전용 고속도로(AWS 백본)로 목소리가 오간다.",
+      "explanation": "<p><strong>Global Accelerator(GA)</strong>는 전 세계 사용자의 트래픽을 <strong>가까운 AWS 엣지 로케이션에서 받아 AWS 전용 백본망을 타고</strong> 실제 애플리케이션이 있는 리전까지 전달하는 네트워크 서비스다. 인터넷은 여러 통신사를 거치며 경로가 그때그때 달라지고 혼잡하지만, AWS 백본은 통제된 고속 경로라 지연과 패킷 손실이 줄어든다.</p><p><strong>CloudFront와 뭐가 다른가.</strong> 자주 혼동되는데 결정적 차이가 있다. <strong>CloudFront는 콘텐츠를 엣지에 캐시하는 CDN</strong>으로 HTTP/HTTPS 정적·동적 콘텐츠 전달에 쓴다. 반면 <strong>GA는 캐시하지 않는다.</strong> TCP/UDP 레벨에서 트래픽을 그대로 전달할 뿐이다. 그래서 <strong>게임 서버(UDP), MQTT/IoT, VoIP, 금융 거래용 TCP 세션, 그리고 HTTP가 아닌 프로토콜</strong>에 GA를 쓴다. 웹사이트라면 대개 CloudFront가 맞고, 둘을 함께 쓰기도 한다.</p><p><strong>핵심 가치 1 — 고정 IP.</strong> GA를 만들면 <strong>두 개의 애니캐스트(anycast) 고정 IP</strong>가 발급된다. 이 IP는 전 세계 여러 엣지에서 동시에 광고되며, 뒤에 있는 리전·로드밸런서가 바뀌어도 <strong>IP는 그대로</strong>다. 이게 왜 중요하냐면, 기업 고객이나 금융기관은 <strong>자사 방화벽에 상대방 IP를 화이트리스트로 등록</strong>해야 하는데 ALB는 IP가 바뀌기 때문이다. GA를 앞에 두면 '우리 서비스 IP는 이 두 개'라고 고정해 알려 줄 수 있다. 대외 연동이 많은 금융권에서 GA를 채택하는 가장 흔한 이유가 이것이다.</p><p><strong>핵심 가치 2 — 빠른 장애 조치.</strong> GA는 엔드포인트(ALB·NLB·EC2·EIP)의 상태를 지속적으로 확인하고, 문제가 생기면 <strong>DNS 변경 없이 즉시 다른 리전으로 트래픽을 돌린다.</strong> DNS 기반 장애 조치(Route 53)는 클라이언트와 중간 리졸버의 캐시(TTL) 때문에 실제 전환까지 수 분이 걸릴 수 있지만, GA는 네트워크 계층에서 처리하므로 <strong>보통 30초 이내</strong>다. 재해복구 목표시간(RTO)이 빡빡한 시스템에서 이 차이는 크다.</p><p><strong>구성 요소.</strong> <strong>액셀러레이터(Accelerator)</strong> 아래에 <strong>리스너(Listener)</strong>가 포트·프로토콜(TCP/UDP)을 정의하고, 그 아래 <strong>엔드포인트 그룹(Endpoint Group)</strong>이 리전별로 존재하며, 각 그룹 안에 실제 <strong>엔드포인트</strong>(ALB, NLB, EC2, EIP)가 들어간다. 엔드포인트 그룹에는 <strong>트래픽 다이얼(traffic dial)</strong>로 리전별 트래픽 비율을 조절할 수 있어, 블루/그린 리전 전환이나 카나리 배포에 쓸 수 있다. 엔드포인트에는 가중치도 줄 수 있다.</p><p><strong>클라이언트 IP 보존.</strong> ALB를 엔드포인트로 쓸 때 <strong>클라이언트 IP 보존(client IP preservation)</strong>을 켜면 원래 접속자의 IP가 그대로 전달되어, 보안그룹에서 출발지 IP 기반 제어와 접근 로그 기록이 정상 동작한다. 이걸 끄면 GA의 IP만 보여 <strong>'누가 접속했는지' 추적이 어려워지므로 감사 관점에서 중요한 설정</strong>이다. 다만 이 기능은 엔드포인트 유형과 구성에 따라 지원 여부가 다르므로 설계 시 확인해야 한다.</p><p><strong>보안 관점.</strong> GA를 앞에 두면 AWS Shield Standard의 보호를 받으며, 애니캐스트 특성상 분산 서비스 거부(DDoS) 트래픽이 여러 엣지로 분산되어 흡수력이 커진다. 다만 <strong>GA 자체는 웹 방화벽(WAF)이 아니다.</strong> L7 필터링이 필요하면 뒤에 ALB + WAF를 두거나 CloudFront를 조합해야 한다. 또한 GA의 고정 IP는 인터넷에 완전히 노출되므로, 뒤쪽 ALB의 보안그룹을 <strong>GA 관리 접두사 목록(managed prefix list)</strong>으로 제한해 GA를 우회한 직접 접근을 차단하는 것이 좋은 설계다.</p>",
+      "howItWorks": "<ol><li>액셀러레이터를 생성하면 AWS가 <strong>애니캐스트 고정 IP 2개</strong>를 발급한다(원한다면 자체 보유 IP 대역을 가져올 수도 있다). 이 IP는 전 세계 엣지에서 동시에 광고된다.</li><li>사용자가 이 IP(또는 연결된 도메인)로 접속하면, 인터넷 라우팅이 <strong>물리적으로 가장 가까운 AWS 엣지 로케이션</strong>으로 패킷을 보낸다. 서울 사용자는 서울 엣지, 런던 사용자는 런던 엣지로 들어간다.</li><li>엣지에서부터는 공용 인터넷을 벗어나 <strong>AWS 글로벌 백본</strong>을 타고 목적지 리전으로 이동한다. 경로가 안정적이라 지연 변동(jitter)과 패킷 손실이 줄어든다.</li><li>리스너가 포트·프로토콜을 매칭하고, 라우팅 정책에 따라 <strong>엔드포인트 그룹</strong>을 선택한다. 기본은 사용자와 가장 가까운 리전이며, 트래픽 다이얼 설정이 있으면 그 비율을 따른다.</li><li>선택된 엔드포인트 그룹 안에서 가중치와 <strong>헬스체크 결과</strong>를 반영해 실제 엔드포인트(ALB/NLB/EC2)로 전달한다.</li><li>GA는 엔드포인트 상태를 지속 점검한다. ALB·NLB를 엔드포인트로 쓰면 해당 로드밸런서 자체의 헬스체크 결과를 그대로 활용한다.</li><li>한 리전의 엔드포인트가 비정상으로 판정되면 <strong>DNS를 건드리지 않고 즉시</strong> 정상 리전으로 트래픽을 돌린다. 클라이언트는 같은 IP를 계속 쓰므로 캐시 문제가 없다.</li><li>클라이언트 IP 보존이 켜져 있으면 애플리케이션과 ALB 액세스 로그에 원래 사용자 IP가 기록되어, 접근 추적과 IP 기반 차단이 정상 동작한다.</li><li>운영자가 리전 전환을 계획적으로 수행하려면 트래픽 다이얼을 100 → 0으로 낮추어 점진적으로 트래픽을 빼면 된다. 이 변경은 CloudTrail에 기록된다.</li></ol>",
+      "example": "<p><strong>시나리오.</strong> 핀테크 회사 '가상페이'가 동남아 가맹점용 결제 API를 운영한다. 요구사항이 두 가지였다. (1) 가맹점 시스템들이 자사 방화벽에 <strong>고정 IP 2개만 등록</strong>하고 싶어 한다. (2) 서울 리전 장애 시 싱가포르 리전으로 <strong>1분 안에</strong> 전환되어야 한다. 이 회사는 GA를 앞에 두고 ap-northeast-2(서울, 트래픽 다이얼 100)와 ap-southeast-1(싱가포르, 대기)을 엔드포인트 그룹으로 구성했다. 가맹점에는 GA의 고정 IP 2개만 통보했고, 실제 ALB는 몇 번을 교체해도 가맹점 설정을 바꿀 필요가 없다. 뒤쪽 ALB의 보안그룹은 <strong>GA 관리 접두사 목록만 허용</strong>해 우회 접근을 막았다.</p><pre><code># 액셀러레이터의 고정 IP 확인 — 대외 통보용 (변하지 않는 값)\naws globalaccelerator describe-accelerator \\\n  --accelerator-arn arn:aws:globalaccelerator::111122223333:accelerator/abcd1234-ef56 \\\n  --region us-west-2 \\\n  --query 'Accelerator.{name:Name,enabled:Enabled,dns:DnsName,\n            ips:IpSets[0].IpAddresses,status:Status}'\n\n# 리전별 엔드포인트 그룹 구성 — 트래픽 배분과 클라이언트 IP 보존 설정 확인\naws globalaccelerator list-endpoint-groups \\\n  --listener-arn arn:aws:globalaccelerator::111122223333:accelerator/abcd1234-ef56/listener/9a8b7c \\\n  --region us-west-2 \\\n  --query 'EndpointGroups[].{region:EndpointGroupRegion,\n            dial:TrafficDialPercentage,\n            healthPath:HealthCheckPath,\n            endpoints:EndpointDescriptions[].{id:EndpointId,\n                weight:Weight,\n                clientIpPreserved:ClientIPPreservationEnabled,\n                health:HealthState}}'</code></pre><p>계획된 리전 전환(DR 훈련 포함)은 트래픽 다이얼로 수행한다. 이 작업은 변경관리 대상이며 CloudTrail에 기록된다.</p><pre><code># DR 훈련: 서울 트래픽을 0%로 낮춰 싱가포르로 전량 이관\naws globalaccelerator update-endpoint-group \\\n  --endpoint-group-arn arn:aws:globalaccelerator::111122223333:accelerator/abcd1234-ef56/listener/9a8b7c/endpoint-group/apne2 \\\n  --traffic-dial-percentage 0 --region us-west-2\n\n# 뒤쪽 ALB 보안그룹은 GA 관리 접두사 목록만 허용 (우회 직접접근 차단)\naws ec2 authorize-security-group-ingress \\\n  --group-id sg-0alb1234 --ip-permissions '[{\n     \"IpProtocol\":\"tcp\",\"FromPort\":443,\"ToPort\":443,\n     \"PrefixListIds\":[{\"PrefixListId\":\"pl-0globalaccelerator\",\n                       \"Description\":\"Allow only Global Accelerator\"}]}]'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='10' y='18' fill='currentColor' font-weight='bold'>Global Accelerator — 고정 IP + 백본 경로 + 즉시 장애조치</text><rect x='10' y='44' width='110' height='44' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='26' y='72' fill='currentColor' font-size='11'>가맹점 (싱가포르)</text><rect x='10' y='104' width='110' height='44' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='26' y='132' fill='currentColor' font-size='11'>가맹점 (서울)</text><rect x='10' y='164' width='110' height='52' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='24' y='184' fill='currentColor' font-size='11'>방화벽 허용목록</text><text x='24' y='202' fill='currentColor' font-size='11'>고정 IP 2개만 등록</text><rect x='160' y='60' width='150' height='130' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='176' y='82' fill='currentColor' font-weight='bold'>애니캐스트 IP x2</text><text x='176' y='104' fill='currentColor' font-size='11'>가까운 엣지로 진입</text><text x='176' y='124' fill='currentColor' font-size='11'>리스너 TCP/UDP</text><text x='176' y='146' fill='currentColor' font-size='11'>헬스체크 상시</text><text x='176' y='168' fill='currentColor' font-size='11'>클라이언트IP 보존</text><rect x='360' y='40' width='125' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='374' y='62' fill='currentColor' font-size='11'>엔드포인트그룹</text><text x='374' y='80' fill='currentColor' font-size='11'>서울 · dial 100%</text><text x='374' y='100' fill='currentColor' font-size='11'>ALB → 결제 API</text><rect x='360' y='140' width='125' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor' stroke-dasharray='4 3'/><text x='374' y='162' fill='currentColor' font-size='11'>엔드포인트그룹</text><text x='374' y='180' fill='currentColor' font-size='11'>싱가포르 · 대기</text><text x='374' y='200' fill='currentColor' font-size='11'>ALB → 결제 API</text><rect x='515' y='60' width='115' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='529' y='82' fill='currentColor' font-size='11'>보안그룹</text><text x='529' y='100' fill='currentColor' font-size='11'>GA 접두사만 허용</text><rect x='515' y='150' width='115' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='529' y='172' fill='currentColor' font-size='11'>DNS 미변경</text><text x='529' y='190' fill='currentColor' font-size='11'>30초 내 전환</text><line x1='121' y1='66' x2='158' y2='95' stroke='currentColor' marker-end='url(#ar)'/><line x1='121' y1='126' x2='158' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='311' y1='100' x2='358' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='311' y1='150' x2='358' y2='180' stroke='currentColor' stroke-dasharray='4 3' marker-end='url(#ar)'/><line x1='486' y1='80' x2='513' y2='85' stroke='currentColor' marker-end='url(#ar)'/><line x1='486' y1='180' x2='513' y2='180' stroke='currentColor' marker-end='url(#ar)'/><text x='150' y='250' fill='currentColor' font-size='11'>엣지 진입 후 AWS 백본 전용 경로 이용 — 캐시는 하지 않음(CDN 아님)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "애니캐스트 IP(Anycast IP)",
+          "meaning": "여러 위치에서 동시에 광고되는 하나의 IP. 사용자는 가장 가까운 엣지로 자동 연결된다."
+        },
+        {
+          "term": "액셀러레이터(Accelerator)",
+          "meaning": "GA의 최상위 객체. 고정 IP 2개와 DNS 이름을 가진다."
+        },
+        {
+          "term": "리스너(Listener)",
+          "meaning": "받을 포트와 프로토콜(TCP/UDP)을 정의하는 설정."
+        },
+        {
+          "term": "엔드포인트 그룹(Endpoint Group)",
+          "meaning": "리전 단위 묶음. 트래픽 다이얼로 리전별 비율을 조절한다."
+        },
+        {
+          "term": "트래픽 다이얼(Traffic Dial)",
+          "meaning": "해당 리전으로 보낼 트래픽 비율(0~100). 계획된 리전 전환·DR 훈련에 사용한다."
+        },
+        {
+          "term": "클라이언트 IP 보존",
+          "meaning": "원래 접속자 IP를 뒤쪽 애플리케이션에 전달하는 설정. 접근 추적과 IP 기반 통제에 필수적이다."
+        },
+        {
+          "term": "GA 관리 접두사 목록",
+          "meaning": "GA의 출발지 IP 대역 목록. 뒤쪽 ALB 보안그룹을 이것으로 제한해 우회 접근을 차단한다."
+        },
+        {
+          "term": "CloudFront와의 차이",
+          "meaning": "GA는 캐시하지 않고 TCP/UDP를 그대로 전달한다. 비HTTP 프로토콜과 고정 IP 요구에 적합하다."
+        },
+        {
+          "term": "표준/사용자 지정 라우팅",
+          "meaning": "표준은 최적 엔드포인트로 라우팅, 사용자 지정 라우팅은 포트별로 특정 인스턴스에 결정적으로 매핑한다."
+        }
+      ],
+      "pitfalls": [
+        "CloudFront와 혼동해 웹 콘텐츠 가속 목적으로 도입하는 경우. GA는 캐시하지 않아 정적 콘텐츠 성능 개선 효과가 제한적이다.",
+        "클라이언트 IP 보존을 끄거나 지원되지 않는 구성으로 두어, 접근 로그에 GA IP만 남고 실제 접속자 추적이 불가능해지는 문제.",
+        "GA를 앞에 두고도 뒤쪽 ALB를 0.0.0.0/0으로 열어 두어 GA를 우회한 직접 접근이 가능한 구성.",
+        "고정 IP를 대외기관에 통보한 뒤 액셀러레이터를 삭제·재생성하면 IP가 바뀐다는 점을 간과하는 사고. 삭제는 사실상 불가역적 변경으로 다뤄야 한다.",
+        "GA가 DDoS·WAF를 모두 해결해 준다는 오해. L7 공격 방어에는 별도 WAF가 필요하다.",
+        "DR 리전 엔드포인트를 등록만 해 두고 실제 애플리케이션·데이터가 준비되지 않아, 장애 조치가 발생해도 서비스가 되지 않는 상태.",
+        "트래픽 다이얼 변경을 변경관리 절차 없이 수행해, 의도치 않은 리전 전환으로 데이터 정합성 문제가 생기는 경우.",
+        "액셀러레이터는 us-west-2 엔드포인트로 관리되는 글로벌 리소스라는 점을 몰라 CLI 호출이 실패하거나 CloudTrail 조회 리전을 잘못 잡는 실수."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] Global Accelerator의 고정 IP가 대외기관에 통보된 값과 일치하는지 확인하고, IP 변경 통제(액셀러레이터 삭제 금지, 변경 시 사전 통보 절차)가 정의되어 있는지 확인한다.",
+          "[접근] 클라이언트 IP 보존 설정 여부를 확인한다. 비활성 시 접근 주체 추적이 불가능해지므로 로그 관리 통제상 미비점으로 검토한다.",
+          "[접근] 뒤쪽 ALB/NLB의 보안그룹이 GA 관리 접두사 목록 또는 지정된 출발지로 제한되어 GA 우회 직접 접근이 차단되는지 검증한다.",
+          "[변경] 트래픽 다이얼·가중치·엔드포인트 추가/삭제가 변경요청 승인을 거쳐 수행되었는지 CloudTrail 이벤트와 대사한다.",
+          "[운영] 다중 리전 장애 조치 구성이 실제로 동작하는지 DR 훈련 결과로 확인하고, 대기 리전의 애플리케이션·데이터 준비 상태를 점검한다.",
+          "[접근] globalaccelerator:* 권한 보유 IAM 주체가 네트워크 담당자로 제한되는지 확인한다.",
+          "[운영] 헬스체크 설정(경로, 임계값)이 실제 서비스 상태를 반영하는지, 알람과 연계되어 있는지 확인한다."
+        ],
+        "fss": [
+          "전자금융감독규정의 정보처리시스템 이중화 및 재해복구 요건과 관련하여, 다중 리전 전환 구조와 목표 복구시간(RTO) 달성 가능성을 훈련 결과로 증빙한다.",
+          "대외기관·가맹점과의 연동에 사용하는 접속 IP가 문서화되고, 변경 시 사전 통보 및 상호 확인 절차가 운영되는지 확인한다.",
+          "외부 접속 통제 요건에 따라 인터넷에 노출되는 진입점(고정 IP)의 보호 대책(DDoS 대응, WAF, 보안그룹 제한)이 마련되어 있는지 확인한다.",
+          "접속기록 보존 요건 충족을 위해 실제 접속자 IP가 로그에 기록되는지 확인한다.",
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차)에 따른 이용 현황에 다중 리전 구성이 반영되어 있는지 확인한다."
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 / 2.6.7 인터넷 접속 통제 — 인터넷 진입점 식별과 접근 제한.",
+          "2.9.4 로그 및 접속기록 관리 — 실제 클라이언트 IP 기록 확보.",
+          "2.9.1 변경관리 — 트래픽 라우팅 구성 변경 절차.",
+          "2.12.1 재해복구체계 구축 / 2.12.2 재해복구 시험 및 개선 — 리전 간 전환 절차와 시험.",
+          "2.11.1 사고 예방 및 대응체계 — DDoS 등 가용성 공격 대응 체계.",
+          "2.1.3 정보자산 관리 — 고정 IP 자산의 등록과 대외 통보 이력 관리."
+        ],
+        "evidence": [
+          "aws globalaccelerator describe-accelerator 출력 — 고정 IP 목록, DNS 이름, 활성 상태.",
+          "list-endpoint-groups 출력 — 리전별 트래픽 다이얼, 엔드포인트 가중치, 클라이언트 IP 보존 설정, 헬스 상태.",
+          "대외기관·가맹점에 통보한 접속 IP 문서(연동규격서, 공문)와 실제 GA IP 일치 확인 자료.",
+          "뒤쪽 ALB/NLB 보안그룹 규칙 export — GA 접두사 목록 제한 적용 증빙.",
+          "CloudTrail에서 추출한 UpdateEndpointGroup·CreateEndpointGroup·DeleteAccelerator 이벤트 및 변경요청 대사표.",
+          "DR 훈련 계획서와 결과 보고서(전환 소요시간, 서비스 영향, 개선사항).",
+          "ALB 액세스 로그 샘플 — 실제 클라이언트 IP가 기록되는지 확인."
+        ],
+        "auditorQuestions": [
+          "가맹점이나 제휴사에 통보한 우리 서비스의 접속 IP는 무엇이며, 현재 설정과 일치합니까?",
+          "그 IP가 바뀔 수 있는 상황은 무엇이며, 바뀌면 어떤 통보 절차를 거칩니까?",
+          "서비스 로그에 실제 접속자 IP가 남습니까, 아니면 가속 서비스의 IP만 남습니까?",
+          "가속 서비스를 우회해 뒤쪽 로드밸런서로 직접 접속하는 것이 가능합니까? 어떻게 차단합니까?",
+          "주 리전에 장애가 나면 몇 초 안에 다른 리전으로 전환됩니까? 실제로 시험해 본 적이 있습니까?",
+          "대기 리전에는 애플리케이션과 데이터가 실제로 준비되어 있습니까? 데이터 동기화는 어떻게 합니까?",
+          "트래픽 배분 비율을 바꿀 수 있는 사람은 누구이며, 변경 시 어떤 승인을 받습니까?"
+        ],
+        "controlExample": "대외 연동 서비스의 진입점은 Global Accelerator의 고정 애니캐스트 IP로 단일화하여 관리대장에 등록하고, 해당 IP 변경을 초래하는 액셀러레이터 삭제·재생성은 금지한다. 후단 로드밸런서의 보안그룹은 Global Accelerator 관리 접두사 목록으로 제한하여 우회 접근을 차단하며, 리전 간 장애 조치 절차는 연 1회 재해복구 훈련으로 검증하고 결과를 보고한다."
+      },
+      "related": [
+        "aws-cloudfront",
+        "aws-route53",
+        "aws-elb",
+        "aws-eip-eni",
+        "aws-vpc",
+        "aws-security-group",
+        "awssec-shield-waf",
+        "comp-bcp-drp"
+      ],
+      "learnMore": [
+        "AWS Global Accelerator Developer Guide",
+        "AWS Global Accelerator와 CloudFront 비교 문서",
+        "AWS Shield 및 DDoS 복원력 모범 사례 백서"
+      ]
+    },
+    {
+      "id": "aws-well-architected",
+      "title": "Well-Architected Framework",
+      "titleEn": "AWS Well-Architected Framework",
+      "aliases": [
+        "웰아키텍티드",
+        "WAF(프레임워크)",
+        "6개 기둥",
+        "아키텍처 검토",
+        "WA Tool",
+        "아키텍처 성숙도"
+      ],
+      "tags": [
+        "architecture",
+        "governance",
+        "best-practice"
+      ],
+      "level": "기초",
+      "oneLiner": "AWS가 정리한 클라우드 아키텍처 점검 기준 6가지 관점",
+      "analogy": "Well-Architected Framework는 '건축물 안전진단 체크리스트'와 같다. 집을 다 지은 뒤에도 구조 안전, 소방, 단열, 배관, 비용, 환경 항목을 정기적으로 점검하듯이, 클라우드 시스템도 여섯 가지 관점에서 주기적으로 점검한다. 체크리스트가 법은 아니지만, 점검을 안 한 건물과 한 건물의 사고율은 다르다.",
+      "explanation": "<p><strong>Well-Architected Framework(WA)</strong>는 AWS가 수많은 고객 아키텍처를 검토하며 정리한 <strong>모범사례 체계</strong>다. 여섯 개의 기둥(pillar)으로 구성되며, 각 기둥마다 설계 원칙과 구체적 질문 목록이 있다. AWS 콘솔의 <strong>Well-Architected Tool</strong>에서 워크로드를 등록하고 질문에 답하면 미흡 항목(HRI, High Risk Issue)이 자동 도출되고 개선 계획을 추적할 수 있다.</p><p><strong>여섯 기둥.</strong></p><ul><li><strong>운영 우수성(Operational Excellence)</strong> — 변경을 작고 되돌릴 수 있게, 운영을 코드로, 실패에서 배우기. 변경관리·모니터링·런북이 여기 속한다.</li><li><strong>보안(Security)</strong> — 강력한 자격증명 기반, 모든 계층에 보안 적용, 추적성 확보, 저장·전송 데이터 보호, 최소권한. <strong>ITGC 접근통제와 가장 직접적으로 맞닿는 기둥</strong>이다.</li><li><strong>안정성(Reliability)</strong> — 장애를 자동 복구, 복구 절차 시험, 수평 확장, 용량 추정 배제. 재해복구·이중화가 여기다.</li><li><strong>성능 효율성(Performance Efficiency)</strong> — 적절한 자원 선택, 실험 기반 의사결정, 관리형 서비스 활용.</li><li><strong>비용 최적화(Cost Optimization)</strong> — 사용량 기반 지출, 비용 가시성 확보, 관리형 서비스로 운영비 절감.</li><li><strong>지속 가능성(Sustainability)</strong> — 자원 효율을 높여 환경 영향을 줄이기. 2021년 추가된 여섯 번째 기둥.</li></ul><p><strong>ITGC 담당자에게 왜 유용한가.</strong> 세 가지다. 첫째, <strong>공통 언어</strong>가 된다. 감사인이 '이 시스템의 복구 절차를 시험했습니까?'라고 묻는 것과 WA 안정성 기둥의 질문(REL 12: 어떻게 안정성을 시험하는가)은 같은 이야기다. 엔지니어와 감사인이 서로 다른 용어로 겉도는 상황을 줄여 준다. 둘째, <strong>증빙이 이미 만들어져 있다.</strong> 회사가 WA 검토를 수행했다면 그 리뷰 보고서와 개선 이행 현황이 그대로 IT 거버넌스 증빙이 된다. 셋째, <strong>ITGC의 사각지대를 보완</strong>한다. 전통적 ITGC는 접근·변경·운영에 집중하는데, WA는 가용성·복구·비용까지 폭넓게 훑어 주므로 리스크 평가의 입력값으로 쓸 만하다.</p><p><strong>다만 한계를 정확히 알아야 한다.</strong> WA는 <strong>인증이나 규제 요건이 아니다.</strong> AWS가 제공하는 권고이며, 이를 충족했다고 SOX·전자금융감독규정·ISMS-P를 만족하는 것이 전혀 아니다. 자체 평가(self-assessment)라 <strong>답변의 객관성이 담보되지 않는다</strong>는 점도 중요하다. 담당 엔지니어가 '예'라고 체크했다고 실제로 그런 것은 아니므로, 감사인은 WA 리뷰 결과를 <strong>참고 자료로 쓰되 그 답변의 근거 증빙을 따로 요구</strong>해야 한다. 실무에서 흔한 함정이 '우리는 WA 리뷰를 했습니다'로 통제 검증을 대신하려는 것이다.</p><p><strong>렌즈(Lens)라는 확장 개념.</strong> 여섯 기둥은 공통 기준이고, 산업·기술별로 추가 질문을 담은 <strong>렌즈</strong>가 있다. <code>Financial Services Industry Lens</code>(금융), <code>Serverless Lens</code>, <code>Container Build Lens</code>, <code>SaaS Lens</code>, <code>Machine Learning Lens</code> 등이다. 금융권이라면 FSI 렌즈가 규제 대응·데이터 상주·감사 추적 관련 질문을 담고 있어 특히 참고할 만하다.</p><p><strong>실무 운영 방식.</strong> 보통 중요 워크로드를 WA Tool에 등록하고 <strong>연 1회 또는 대규모 아키텍처 변경 시</strong> 검토한다. 도출된 HRI에 담당자와 목표일을 붙여 개선 백로그로 관리하고, 다음 검토에서 개선 여부를 확인한다. 여기에 <strong>AWS Trusted Advisor</strong>(자동 점검 도구)나 Security Hub 결과를 함께 보면 '사람이 답한 것'과 '기계가 본 것'을 교차 검증할 수 있어 신뢰도가 올라간다. 감사 관점에서는 <strong>이 교차 검증 여부가 성숙도의 지표</strong>다.</p>",
+      "howItWorks": "<ol><li>아키텍처 담당자가 Well-Architected Tool에 <strong>워크로드를 등록</strong>한다. 이름, 환경(운영/사전운영), 리전, 관련 계정, 업무 중요도를 기재한다.</li><li>적용할 렌즈를 선택한다. 기본 AWS 렌즈에 더해 금융권이면 FSI 렌즈, 서버리스 구조면 Serverless 렌즈를 추가한다.</li><li>기둥별 질문에 답한다. 각 질문에는 여러 모범사례 항목이 있고, 해당 사항을 체크하거나 '해당 없음'을 선택하며 근거를 메모로 남긴다.</li><li>Tool이 미선택 항목을 기반으로 <strong>위험(HRI/MRI)</strong>을 산출하고 개선 계획 문서와 함께 리포트를 생성한다.</li><li>도출된 위험 항목에 담당자·목표일·조치 방안을 붙여 개선 백로그(지라 등)로 이관한다. 이 단계가 없으면 리뷰가 형식적 문서로 끝난다.</li><li>병행해서 <strong>Trusted Advisor</strong>와 <strong>Security Hub</strong>의 자동 점검 결과를 확인해, 사람이 '되어 있다'고 답한 항목이 실제 설정으로도 확인되는지 교차 검증한다.</li><li>개선 작업을 수행하고, 아키텍처가 크게 바뀌거나 연 1회 주기가 도래하면 <strong>새 마일스톤(milestone)</strong>을 찍어 재검토한다. 마일스톤 간 비교로 개선 추이를 볼 수 있다.</li><li>경영진·리스크 위원회에 워크로드별 위험 현황과 개선율을 보고한다. 이것이 IT 거버넌스 증빙으로 활용된다.</li></ol>",
+      "example": "<p><strong>시나리오.</strong> 핀테크 회사가 ISMS-P 인증 준비와 SOX 대응을 동시에 하면서, 아키텍처 리스크를 체계적으로 관리할 틀이 필요했다. 회사는 중요도 상 등급 워크로드 8개(결제 승인, 정산, 인증, 이상거래탐지 등)를 WA Tool에 등록하고 <strong>AWS 렌즈 + Financial Services Industry 렌즈</strong>로 연 1회 검토하기로 했다. 첫 검토에서 결제 승인 워크로드에 HRI 11건이 나왔는데, 그중 '복구 절차를 시험하지 않음', '운영 계정에 IAM 사용자 액세스 키 상존', '멀티 리전 백업 부재' 세 건은 <strong>그대로 ITGC 결함 후보</strong>였다. 회사는 이를 내부통제 개선과제와 통합해 관리했고, 다음 해 마일스톤에서 HRI가 3건으로 줄어든 것을 경영진에 보고했다.</p><pre><code># 등록된 워크로드와 위험 현황 조회\naws wellarchitected list-workloads \\\n  --query 'WorkloadSummaries[].{name:WorkloadName,env:Environment,\n            owner:Owner,updated:UpdatedAt,\n            risks:RiskCounts}' --output table\n\n# 특정 워크로드의 기둥별 고위험 항목(HRI) 상세\naws wellarchitected list-lens-review-improvements \\\n  --workload-id 1a2b3c4d5e6f7g8h9i0j \\\n  --lens-alias wellarchitected \\\n  --query 'ImprovementSummaries[?Risk==`HIGH`].{\n            pillar:PillarId,question:QuestionTitle,risk:Risk}' --output table\n\n# 검토 시점 스냅샷(마일스톤) 생성 — 연도별 개선 추이 증빙\naws wellarchitected create-milestone \\\n  --workload-id 1a2b3c4d5e6f7g8h9i0j \\\n  --milestone-name \"2026-Q3 annual review\"</code></pre><p>사람이 답한 내용을 기계로 교차 검증하는 것이 핵심이다. 아래처럼 Security Hub의 기준 준수 점수와 대조하면 자체 평가의 신뢰도를 높일 수 있다.</p><pre><code># Security Hub 자동 점검 결과 — WA 보안 기둥 답변과 교차 검증\naws securityhub get-findings \\\n  --filters '{\"SeverityLabel\":[{\"Value\":\"CRITICAL\",\"Comparison\":\"EQUALS\"}],\n              \"RecordState\":[{\"Value\":\"ACTIVE\",\"Comparison\":\"EQUALS\"}],\n              \"WorkflowStatus\":[{\"Value\":\"NEW\",\"Comparison\":\"EQUALS\"}]}' \\\n  --query 'Findings[].{title:Title,resource:Resources[0].Id,\n            standard:ProductFields.\"StandardsArn\"}' --output table\n\n# Trusted Advisor 점검 요약 (내결함성 · 보안 카테고리)\naws support describe-trusted-advisor-checks --language ko \\\n  --query 'checks[?category==`fault_tolerance` || category==`security`].[id,name]' \\\n  --output text --region us-east-1</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 290' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='10' y='18' fill='currentColor' font-weight='bold'>6개 기둥과 ITGC 접점</text><rect x='12' y='36' width='98' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='22' y='58' fill='currentColor' font-size='11'>운영 우수성</text><text x='22' y='76' fill='currentColor' font-size='11'>변경관리</text><text x='22' y='93' fill='currentColor' font-size='11'>런북 · 모니터링</text><rect x='120' y='36' width='98' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='130' y='58' fill='currentColor' font-size='11'>보안</text><text x='130' y='76' fill='currentColor' font-size='11'>최소권한</text><text x='130' y='93' fill='currentColor' font-size='11'>추적성 · 암호화</text><rect x='228' y='36' width='98' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='238' y='58' fill='currentColor' font-size='11'>안정성</text><text x='238' y='76' fill='currentColor' font-size='11'>복구 시험</text><text x='238' y='93' fill='currentColor' font-size='11'>이중화</text><rect x='336' y='36' width='98' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='346' y='58' fill='currentColor' font-size='11'>성능 효율성</text><text x='346' y='76' fill='currentColor' font-size='11'>적정 자원</text><rect x='444' y='36' width='90' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='454' y='58' fill='currentColor' font-size='11'>비용 최적화</text><text x='454' y='76' fill='currentColor' font-size='11'>지출 가시성</text><rect x='542' y='36' width='88' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='552' y='58' fill='currentColor' font-size='11'>지속가능성</text><text x='552' y='76' fill='currentColor' font-size='11'>자원 효율</text><rect x='60' y='138' width='150' height='56' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='74' y='160' fill='currentColor' font-size='11'>WA Tool 자체평가</text><text x='74' y='178' fill='currentColor' font-size='11'>질문 응답 · 렌즈 선택</text><rect x='245' y='138' width='150' height='56' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='259' y='160' fill='currentColor' font-size='11'>HRI 도출</text><text x='259' y='178' fill='currentColor' font-size='11'>담당자 · 목표일 부여</text><rect x='430' y='138' width='170' height='56' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='444' y='160' fill='currentColor' font-size='11'>Security Hub</text><text x='444' y='178' fill='currentColor' font-size='11'>Trusted Advisor 교차검증</text><rect x='150' y='222' width='340' height='54' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='164' y='244' fill='currentColor' font-size='11'>주의: 인증이 아니며 자체평가다</text><text x='164' y='262' fill='currentColor' font-size='11'>→ 답변의 근거 증빙을 별도로 요구해야 통제 검증이 된다</text><line x1='135' y1='108' x2='135' y2='136' stroke='currentColor' marker-end='url(#ar)'/><line x1='211' y1='166' x2='243' y2='166' stroke='currentColor' marker-end='url(#ar)'/><line x1='428' y1='166' x2='396' y2='166' stroke='currentColor' marker-end='url(#ar)'/><line x1='320' y1='196' x2='320' y2='220' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "기둥(Pillar)",
+          "meaning": "운영 우수성·보안·안정성·성능 효율성·비용 최적화·지속 가능성 여섯 가지 관점."
+        },
+        {
+          "term": "Well-Architected Tool",
+          "meaning": "워크로드를 등록해 질문에 답하고 위험을 도출·추적하는 AWS 콘솔 도구."
+        },
+        {
+          "term": "HRI(High Risk Issue)",
+          "meaning": "검토 결과 도출되는 고위험 미흡 항목. 개선 백로그의 입력값이 된다."
+        },
+        {
+          "term": "렌즈(Lens)",
+          "meaning": "산업·기술별 추가 질문 세트. 금융권은 Financial Services Industry Lens를 함께 적용한다."
+        },
+        {
+          "term": "마일스톤(Milestone)",
+          "meaning": "검토 시점의 스냅샷. 연도별 비교로 개선 추이를 증빙한다."
+        },
+        {
+          "term": "Trusted Advisor",
+          "meaning": "계정 설정을 자동 점검해 비용·보안·내결함성 권고를 주는 도구. 자체 평가의 교차 검증에 쓴다."
+        },
+        {
+          "term": "자체 평가의 한계",
+          "meaning": "답변자가 스스로 체크하므로 객관성이 담보되지 않는다. 근거 증빙 확인이 필요하다."
+        },
+        {
+          "term": "설계 원칙(Design Principles)",
+          "meaning": "각 기둥의 상위 지침. 예: 안정성의 '복구 절차를 시험하라'."
+        }
+      ],
+      "pitfalls": [
+        "'Well-Architected 검토를 했다'는 사실 자체를 통제 이행 증빙으로 제시하는 오류. 자체 평가이므로 답변의 근거를 따로 확보해야 한다.",
+        "WA를 인증이나 규제 요건으로 오해하는 것. AWS의 권고 체계일 뿐 SOX·전자금융감독규정·ISMS-P를 대체하지 않는다.",
+        "검토만 하고 도출된 HRI에 담당자와 기한을 붙이지 않아 개선이 이뤄지지 않는 형식적 운영.",
+        "한 번 검토하고 수년간 재검토하지 않아, 아키텍처가 크게 바뀐 뒤에도 옛 리뷰 결과가 남아 있는 상태.",
+        "중요도가 낮은 워크로드까지 전부 등록해 리소스를 소진하고 정작 핵심 시스템 검토가 얕아지는 경우.",
+        "금융권임에도 FSI 렌즈를 적용하지 않아 규제 관련 질문이 검토 범위에서 빠지는 상황.",
+        "Trusted Advisor·Security Hub 같은 자동 점검 결과와 대조하지 않아, 답변과 실제 설정이 어긋난 것을 발견하지 못하는 경우.",
+        "비용 최적화 기둥만 집중해 안정성·보안 항목의 미흡을 방치하는 편향된 운영."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 중요도 상 등급 워크로드에 대해 아키텍처 검토(WA 리뷰 등)가 정기적으로 수행되고 결과가 문서화되는지 확인한다.",
+          "[운영] 도출된 고위험 항목(HRI)에 담당자·목표일이 부여되고 개선 이행이 추적·완료되는지 백로그 및 후속 마일스톤으로 검증한다.",
+          "[운영] WA 리뷰에서 '수행하고 있다'고 답한 항목 중 ITGC 관련 항목(권한 검토, 복구 시험, 로그 보존 등)을 표본 추출해 실제 증빙을 요구·검증한다.",
+          "[변경] 대규모 아키텍처 변경 시 재검토가 이루어지는지, 변경관리 절차에 아키텍처 리뷰 단계가 포함되어 있는지 확인한다.",
+          "[운영] Trusted Advisor·Security Hub 등 자동 점검 결과가 정기적으로 검토되고 자체 평가와 교차 확인되는지 확인한다.",
+          "[접근] wellarchitected:* 및 Security Hub 관련 권한과 리뷰 결과 열람 범위가 적절히 관리되는지 확인한다.",
+          "[운영] 리뷰 결과와 개선 현황이 경영진 또는 정보보호위원회에 보고되는지 확인한다."
+        ],
+        "fss": [
+          "전자금융감독규정의 정보기술부문 계획 수립 및 안전성 확보 요건과 관련하여, 클라우드 아키텍처에 대한 정기적 적정성 검토 체계가 운영되는지 확인한다.",
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차)에 따른 중요도 평가 및 안전성 확보조치 이행 점검에 아키텍처 검토 결과를 활용할 수 있다.",
+          "금융분야 클라우드 이용 가이드에서 요구하는 가용성·복구·보안 요건이 검토 항목에 반영되었는지(FSI 렌즈 적용 여부 포함) 확인한다.",
+          "검토에서 식별된 위험이 정보기술부문 위험관리 체계에 통합되어 보고·관리되는지 확인한다."
+        ],
+        "isms": [
+          "1.1.1 경영진의 참여 / 1.1.5 정책 수립 — 아키텍처 검토 결과의 경영진 보고 체계.",
+          "1.2.2 현황 및 흐름분석 / 1.2.3 위험 평가 — 아키텍처 검토를 위험식별 절차의 입력으로 활용.",
+          "1.3.1 보호대책 구현 / 1.4.2 관리체계 점검 — 도출된 미흡사항의 개선 이행과 점검.",
+          "2.10.2 클라우드 보안 — 클라우드 아키텍처 보안 기준 수립과 준수 점검.",
+          "2.12.1 재해복구체계 구축 — 안정성 기둥의 복구 시험 요구와 연계."
+        ],
+        "evidence": [
+          "Well-Architected Tool의 워크로드 목록과 각 워크로드의 위험 집계(RiskCounts) 화면.",
+          "최근 검토 리포트(기둥별 질문·답변·근거 메모)와 도출된 HRI 목록.",
+          "HRI 개선 백로그(담당자, 목표일, 진행 상태)와 완료 증빙.",
+          "연도별 마일스톤 비교 자료(위험 감소 추이).",
+          "Trusted Advisor·Security Hub 점검 결과와 자체 평가 답변 간 교차 검증 기록.",
+          "아키텍처 검토 결과의 경영진·정보보호위원회 보고 자료.",
+          "WA 답변 중 표본 항목에 대한 실제 설정 증빙(예: 복구 시험 보고서, 권한 검토 결과서)."
+        ],
+        "auditorQuestions": [
+          "중요 시스템의 아키텍처 적정성을 주기적으로 점검하는 절차가 있습니까? 마지막 점검은 언제였습니까?",
+          "점검에서 도출된 고위험 항목은 몇 건이었고, 현재 몇 건이 조치되었습니까?",
+          "'복구 절차를 시험한다'고 답하셨는데, 가장 최근 시험 보고서를 보여 주실 수 있습니까?",
+          "점검 답변은 누가 작성하며, 그 내용이 실제 설정과 일치하는지 어떻게 확인합니까?",
+          "금융업 특성을 반영한 추가 검토 항목(FSI 렌즈 등)을 적용하고 있습니까?",
+          "아키텍처가 크게 바뀔 때 재점검을 하는 기준이 있습니까?",
+          "점검 결과는 누구에게 보고되며, 개선이 지연될 경우 어떤 에스컬레이션이 있습니까?"
+        ],
+        "controlExample": "중요도 상 등급으로 분류된 클라우드 워크로드는 연 1회 및 중대한 아키텍처 변경 시 Well-Architected 검토를 수행하며, 도출된 고위험 항목은 담당자와 목표일을 지정하여 개선과제로 등록·추적한다. 검토 결과와 개선 이행 현황은 반기별로 정보보호위원회에 보고하고, 자체 평가 답변은 Security Hub 및 Trusted Advisor 자동 점검 결과와 대조하여 타당성을 확인한다."
+      },
+      "related": [
+        "aws-shared-responsibility",
+        "aws-global-infra",
+        "aws-purchase-options",
+        "aws-placement-group",
+        "awssec-security-hub",
+        "comp-sox-itgc",
+        "comp-isms-p",
+        "comp-bcp-drp"
+      ],
+      "learnMore": [
+        "AWS Well-Architected Framework 백서",
+        "AWS Well-Architected Tool 사용 설명서",
+        "Financial Services Industry Lens",
+        "AWS Trusted Advisor 점검 항목 문서"
+      ]
+    },
+    {
+      "id": "aws-shared-responsibility",
+      "title": "공동 책임 모델",
+      "titleEn": "AWS Shared Responsibility Model",
+      "aliases": [
+        "공동책임모델",
+        "책임 공유 모델",
+        "Shared Responsibility",
+        "책임 경계",
+        "CSP 책임 범위"
+      ],
+      "tags": [
+        "governance",
+        "compliance",
+        "security"
+      ],
+      "level": "기초",
+      "oneLiner": "클라우드의 무엇은 AWS가, 무엇은 고객이 책임지는지 나누는 기준",
+      "analogy": "공동 책임 모델은 '임대 아파트의 책임 분담'과 같다. 건물 구조·엘리베이터·소방설비·외부 출입문은 집주인(AWS)이 책임지고, 현관문을 잠그는 것·누구에게 열쇠를 복사해 주는지·집 안에 무엇을 보관하는지는 세입자(고객)가 책임진다. 도둑이 들었을 때 '현관문을 열어 두었다'면 그건 집주인 잘못이 아니다.",
+      "explanation": "<p><strong>공동 책임 모델(Shared Responsibility Model)</strong>은 클라우드 보안과 규정 준수의 책임을 <strong>AWS와 고객이 나눠 진다</strong>는 원칙이다. 한 문장으로 외우면 이렇다. <strong>AWS는 '클라우드 자체의 보안(security OF the cloud)'을, 고객은 '클라우드 안에서의 보안(security IN the cloud)'을 책임진다.</strong></p><p><strong>AWS의 책임 영역.</strong> 데이터센터 물리 보안(출입통제, CCTV, 경비), 전원·냉방·화재 설비, 서버·스토리지·네트워크 장비 하드웨어, 하이퍼바이저, AWS 글로벌 인프라(리전·AZ·엣지), 관리형 서비스의 기반 소프트웨어 패치가 여기 속한다. 고객은 이 영역을 <strong>직접 점검할 수 없고</strong>, 대신 <strong>AWS Artifact에서 SOC 1/2/3, ISO 27001, PCI DSS 등 제3자 감사 보고서를 받아 검토</strong>하는 방식으로 확인한다. 이것이 감사 대응의 표준 방식이다.</p><p><strong>고객의 책임 영역.</strong> IAM 계정·권한 설계, 데이터 분류와 암호화, 보안그룹·NACL 설정, 게스트 OS 패치(EC2를 쓴다면), 애플리케이션 코드의 취약점, 네트워크 구성, 로그 활성화와 보존, 백업, 그리고 <strong>'누가 무엇을 할 수 있는가'에 대한 모든 결정</strong>이다. 실무에서 발생하는 클라우드 사고는 압도적으로 이 영역에서 나온다 — 공개된 S3 버킷, 과도한 IAM 권한, 열린 보안그룹, 유출된 액세스 키.</p><p><strong>가장 중요한 개념 — 경계선은 고정된 것이 아니라 서비스마다 움직인다.</strong> 이걸 이해하는 것이 핵심이다.</p><ul><li><strong>EC2 같은 IaaS</strong> — AWS는 하이퍼바이저까지, 고객은 <strong>게스트 OS 패치부터</strong> 전부. OS 패치 관리 통제가 반드시 필요하다.</li><li><strong>RDS·ECS(Fargate)·EKS 같은 관리형</strong> — AWS가 OS와 엔진 패치까지 책임진다. 고객은 <strong>DB 계정·권한·암호화·백업 설정·네트워크</strong>를 책임진다. OS 패치 통제는 'AWS 책임(N/A)'으로 문서화하고 SOC 2로 갈음한다.</li><li><strong>S3·Lambda 같은 서버리스</strong> — 인프라 책임이 거의 전부 AWS에 있다. 고객 책임은 <strong>접근정책, 데이터 암호화, 코드, 로그</strong>로 압축된다.</li></ul><p>그래서 <strong>같은 회사 안에서도 워크로드마다 통제 범위가 다르다.</strong> 'EC2로 도는 레거시 시스템은 패치 통제 적용, Fargate로 도는 신규 시스템은 N/A + SOC 2 대체'처럼 명확히 구분해 문서화해야 하며, 이 구분이 없으면 감사에서 <strong>'패치 관리 통제가 일부 시스템에 적용되지 않았다'</strong>는 결함으로 오해받기 쉽다.</p><p><strong>'규정 준수의 상속(inheritance)'이라는 표현도 알아 두면 좋다.</strong> AWS가 물리 보안 통제를 이행하고 인증받으면, 그 위에서 돌아가는 고객 시스템은 그 통제를 <strong>상속</strong>한다. 즉 '우리 서버실 출입통제는 어떻게 하나요?'라는 질문에 '해당 시스템은 AWS 서울 리전에서 운영되며, 물리 보안 통제는 AWS SOC 2 Type II 보고서 CC6.4 항목으로 확인한다'고 답하는 것이 정답이다. 다만 <strong>Outposts를 쓰면 물리 책임이 다시 고객에게 돌아온다</strong>는 예외를 기억해야 한다.</p><p><strong>계약·규제 관점.</strong> 전자금융감독규정과 금융분야 클라우드 이용 가이드는 <strong>업무 위탁</strong>의 관점에서 CSP를 다룬다. 즉 AWS에 맡겼다고 해서 금융회사의 책임이 면제되지 않으며, <strong>최종 책임은 여전히 금융회사에 있다.</strong> 따라서 (1) 이용 전 중요도 평가와 안전성 확보조치, (2) CSP와의 계약에 감독기관 접근권·자료제출 의무 반영, (3) CSP 인증보고서 정기 입수·검토, (4) 이용 현황 관리대장 유지가 요구된다. 공동 책임 모델은 이 요구사항들의 <strong>이론적 근거</strong>다.</p>",
+      "howItWorks": "<ol><li>조직이 워크로드별로 사용하는 AWS 서비스를 <strong>인벤토리로 정리</strong>한다. EC2인지 Fargate인지 RDS인지에 따라 책임 경계가 달라지기 때문이다.</li><li>각 서비스 유형별로 <strong>책임 경계 매트릭스</strong>를 작성한다. 행은 통제 영역(물리 보안, 하이퍼바이저, OS 패치, 네트워크 설정, 데이터 암호화, 계정 관리, 애플리케이션 보안), 열은 'AWS 책임 / 고객 책임 / 공동'으로 표시한다.</li><li>고객 책임 영역에 대해 실제 통제를 설계하고 이행한다 — IAM 권한 검토, 패치 관리 절차, 보안그룹 변경 승인, 암호화 표준, 로그 보존 정책 등.</li><li>AWS 책임 영역에 대해서는 <strong>AWS Artifact</strong>에서 SOC 1/SOC 2 Type II, ISO 27001, PCI DSS AOC 등 인증보고서를 다운로드하고, 정보보호 담당자가 <strong>검토 기록을 남긴다</strong>. 단순 다운로드가 아니라 검토 결과(예외사항 여부, 우리 통제에 미치는 영향)를 문서화해야 증빙이 된다.</li><li>SOC 보고서의 <strong>상호 보완 통제(CUEC, Complementary User Entity Controls)</strong> 섹션을 확인한다. 여기에는 'AWS의 통제가 효과를 내려면 고객이 반드시 해야 하는 일'이 적혀 있다. 이 항목들이 곧 고객 통제 설계의 체크리스트다.</li><li>감사 시에는 통제 항목마다 책임 주체를 명시해 답한다. 고객 책임이면 자체 증빙을, AWS 책임이면 인증보고서의 해당 통제 번호를 인용한다.</li><li>서비스 구성이 바뀌면(예: EC2에서 Fargate로 전환) <strong>책임 경계 매트릭스와 통제 목록을 개정</strong>한다. 이 갱신이 누락되면 통제 공백이나 불필요한 N/A가 생긴다.</li><li>금융권이라면 이용 현황을 감독당국 보고 체계에 반영하고, CSP 계약서에 감독기관 접근권 조항이 포함되어 있는지 정기적으로 확인한다.</li></ol>",
+      "example": "<p><strong>시나리오.</strong> 핀테크 회사 '가상페이'가 첫 SOX ITGC 감사를 받는다. 감사인이 '서버 패치 관리 통제를 보여 달라'고 요청했다. 이 회사의 시스템은 세 종류다. (1) 레거시 정산 배치 — EC2 6대, (2) 결제 API — ECS Fargate, (3) 고객 데이터 저장 — Aurora(RDS). 담당자는 다음과 같이 <strong>책임 경계에 따라 나눠서</strong> 답변하고 증빙을 제출했다.</p><ul><li>EC2 6대 → <strong>고객 책임.</strong> SSM Patch Manager 패치 준수 리포트, 월별 패치 적용 내역, 예외 승인 건 제출.</li><li>Fargate 결제 API → <strong>호스트는 AWS 책임.</strong> 관리 대상 서버가 없음을 <code>list-container-instances</code> 빈 결과로 증빙하고, AWS SOC 2 Type II 보고서를 제시. 대신 <strong>컨테이너 이미지 취약점 스캔 리포트</strong>를 고객 책임 증빙으로 제출.</li><li>Aurora → <strong>엔진 패치는 AWS 책임</strong>이나 <strong>적용 시점 결정은 고객 책임</strong>(유지관리 기간 설정). 자동 마이너 버전 업그레이드 설정값과 최근 패치 적용 이력 제출.</li></ul><pre><code># 계정 내 서비스 사용 현황 파악 — 책임 경계 매트릭스 작성의 출발점\naws resourcegroupstaggingapi get-resources \\\n  --query 'ResourceTagMappingList[].ResourceARN' --output text \\\n  | awk -F: '{print $3}' | sort | uniq -c | sort -rn\n\n# 패치 통제가 적용되어야 하는 대상(EC2)의 실제 준수 현황\naws ssm describe-instance-patch-states \\\n  --instance-ids $(aws ec2 describe-instances \\\n      --filters Name=instance-state-name,Values=running \\\n      --query 'Reservations[].Instances[].InstanceId' --output text) \\\n  --query 'InstancePatchStates[].{id:InstanceId,\n            missing:MissingCount,failed:FailedCount,\n            installed:InstalledCount,\n            lastScan:OperationEndTime,\n            compliance:PatchGroup}' --output table</code></pre><p>AWS 책임 영역 증빙은 Artifact에서 받는다. 다운로드만 하지 말고 <strong>검토 기록</strong>을 남기는 것이 핵심이다.</p><pre><code># AWS Artifact 보고서 목록 조회 (SOC 2 Type II 등)\naws artifact list-reports \\\n  --query 'reports[?contains(name,`SOC`)].{name:name,series:series,\n            period:periodEnd,version:version}' --output table\n\n# 특정 보고서 다운로드 URL 발급 (NDA 동의 필요)\naws artifact get-report --report-id report-abcdef123456 --report-version 1 \\\n  --term-token &lt;token&gt;</code></pre><p>실무 팁: 감사 대응 문서에는 아래 형태의 표를 반드시 넣어 둔다. 이 표 하나가 수많은 질문을 예방한다.</p><pre><code>통제영역        | EC2 워크로드   | Fargate/RDS 워크로드 | 증빙\n---------------|---------------|---------------------|------------------------\n물리 보안       | AWS           | AWS                 | SOC 2 Type II (CC6.4)\n하이퍼바이저     | AWS           | AWS                 | SOC 2 Type II\nOS 패치         | 고객           | AWS                 | SSM 준수리포트 / SOC 2\n네트워크 설정    | 고객           | 고객                 | 보안그룹 변경이력\nIAM 권한        | 고객           | 고객                 | 분기 권한검토 결과서\n데이터 암호화    | 고객(설정)     | 고객(설정)           | KMS 키 정책 · 설정 export\n애플리케이션 보안 | 고객          | 고객                 | 코드리뷰 · 취약점 스캔</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='10' y='18' fill='currentColor' font-weight='bold'>서비스 유형에 따라 움직이는 책임 경계선</text><text x='14' y='40' fill='currentColor' font-size='11'>EC2 (IaaS)</text><text x='226' y='40' fill='currentColor' font-size='11'>RDS · Fargate (관리형)</text><text x='444' y='40' fill='currentColor' font-size='11'>S3 · Lambda (서버리스)</text><rect x='14' y='48' width='195' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='28' y='70' fill='currentColor' font-size='11'>데이터 · IAM · 앱 (고객)</text><rect x='14' y='86' width='195' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='28' y='108' fill='currentColor' font-size='11'>네트워크 설정 (고객)</text><rect x='14' y='124' width='195' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='28' y='146' fill='currentColor' font-size='11'>게스트 OS 패치 (고객)</text><rect x='14' y='162' width='195' height='34' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='28' y='184' fill='currentColor' font-size='11'>하이퍼바이저 (AWS)</text><rect x='14' y='200' width='195' height='34' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='28' y='222' fill='currentColor' font-size='11'>물리 · 전원 · 출입 (AWS)</text><rect x='226' y='48' width='195' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='70' fill='currentColor' font-size='11'>데이터 · IAM · 앱 (고객)</text><rect x='226' y='86' width='195' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='108' fill='currentColor' font-size='11'>네트워크 설정 (고객)</text><rect x='226' y='124' width='195' height='34' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='146' fill='currentColor' font-size='11'>OS · 엔진 패치 (AWS)</text><rect x='226' y='162' width='195' height='72' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='196' fill='currentColor' font-size='11'>가상화 · 물리 (AWS)</text><text x='240' y='216' fill='currentColor' font-size='11'>증빙 = SOC 2 Type II</text><rect x='438' y='48' width='192' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='452' y='70' fill='currentColor' font-size='11'>데이터 · 접근정책 (고객)</text><rect x='438' y='86' width='192' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='452' y='108' fill='currentColor' font-size='11'>코드 · 로그 설정 (고객)</text><rect x='438' y='124' width='192' height='110' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='452' y='166' fill='currentColor' font-size='11'>런타임 · 인프라 전체</text><text x='452' y='186' fill='currentColor' font-size='11'>(AWS)</text><text x='452' y='210' fill='currentColor' font-size='11'>고객 통제 범위 최소</text><line x1='16' y1='162' x2='630' y2='162' stroke='currentColor' stroke-dasharray='3 3'/><text x='14' y='258' fill='currentColor' font-size='11'>주의: Outposts를 쓰면 물리 보안 책임이 다시 고객으로 돌아온다</text><text x='14' y='278' fill='currentColor' font-size='11'>규제 관점: 위탁해도 금융회사의 최종 책임은 면제되지 않는다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Security OF the cloud",
+          "meaning": "클라우드 인프라 자체의 보안. 물리 시설·하드웨어·하이퍼바이저로 AWS 책임이다."
+        },
+        {
+          "term": "Security IN the cloud",
+          "meaning": "클라우드 안에 올린 것의 보안. 데이터·계정·권한·설정·코드로 고객 책임이다."
+        },
+        {
+          "term": "AWS Artifact",
+          "meaning": "SOC·ISO·PCI 등 AWS의 제3자 인증보고서를 내려받는 포털. AWS 책임 영역 증빙의 출처다."
+        },
+        {
+          "term": "SOC 2 Type II",
+          "meaning": "일정 기간 통제 운영 효과성까지 검증한 보고서. 클라우드 감사 대응의 표준 증빙이다."
+        },
+        {
+          "term": "CUEC(상호 보완 통제)",
+          "meaning": "SOC 보고서에 적힌 '고객이 반드시 해야 하는 통제' 목록. 고객 통제 설계의 체크리스트가 된다."
+        },
+        {
+          "term": "규정 준수 상속(Inheritance)",
+          "meaning": "AWS가 이행·인증받은 통제를 고객 시스템이 승계해 설명하는 방식."
+        },
+        {
+          "term": "책임 경계 매트릭스",
+          "meaning": "통제 영역별로 AWS/고객/공동 책임을 표로 정리한 문서. 감사 대응의 기본 산출물이다."
+        },
+        {
+          "term": "업무 위탁",
+          "meaning": "규제 관점에서 CSP 이용을 보는 틀. 위탁해도 금융회사의 최종 책임은 남는다."
+        },
+        {
+          "term": "이용 현황 관리",
+          "meaning": "어떤 업무를 어떤 클라우드 서비스로 처리하는지 등록·유지하는 관리대장."
+        }
+      ],
+      "pitfalls": [
+        "'클라우드로 갔으니 보안은 AWS가 책임진다'는 근본적 오해. 실제 사고의 대부분은 고객 책임 영역인 설정·권한·데이터 노출에서 발생한다.",
+        "서비스 유형별로 경계선이 다르다는 점을 무시하고 조직 전체에 하나의 통제를 획일 적용해, EC2 워크로드의 패치 통제가 누락되거나 Fargate에 불필요한 통제를 억지로 적용하는 경우.",
+        "AWS Artifact에서 SOC 보고서를 다운로드만 하고 검토 기록을 남기지 않아, 감사에서 '입수는 했으나 검토 증빙이 없다'는 지적을 받는 사례.",
+        "SOC 보고서의 CUEC(고객이 해야 할 통제) 섹션을 읽지 않아, AWS가 전제한 고객 측 통제가 실제로는 없는 상태.",
+        "Outposts 도입 후에도 물리 보안 통제를 'AWS 책임, N/A'로 유지하는 오류.",
+        "관리형 서비스라도 계정·권한·암호화·백업 설정은 고객 책임인데 이를 AWS 책임으로 분류하는 잘못된 매트릭스.",
+        "서비스 구성 변경(EC2 → 컨테이너 전환 등) 후 책임 경계 매트릭스와 통제 목록을 개정하지 않아 통제 공백이 생기는 경우.",
+        "규제 관점에서 '위탁했으니 우리 책임이 아니다'라고 해석하는 것. 감독당국은 금융회사에 최종 책임을 묻는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 조직이 사용하는 AWS 서비스별 책임 경계 매트릭스가 문서화되어 있고, 통제 목록에 각 통제의 책임 주체(AWS/고객)가 명시되어 있는지 확인한다.",
+          "[운영] AWS 책임으로 분류된 통제 영역에 대해 SOC 2 Type II 등 인증보고서를 정기적으로 입수하고 검토 기록을 남기는지 확인한다. 다운로드 이력만으로는 불충분하다.",
+          "[운영] SOC 보고서의 CUEC(상호 보완 통제) 항목이 자체 통제 설계에 반영되었는지 매핑 자료로 확인한다.",
+          "[운영] 서비스 구성 변경(IaaS→관리형 전환 등) 시 책임 경계 문서와 통제 목록이 갱신되는 절차가 있는지 확인한다.",
+          "[접근] 고객 책임 영역의 핵심 통제(IAM 권한 검토, 루트 계정 관리, 키 관리)가 실제로 설계·운영되는지 검증한다.",
+          "[운영] 패치 관리 통제가 적용 대상(EC2 등)과 비적용 대상(Fargate, 관리형)으로 명확히 구분되어 모집단이 정의되는지 확인한다.",
+          "[운영] Outposts 등 물리 책임이 고객에게 있는 구성 요소가 별도로 식별·관리되는지 확인한다."
+        ],
+        "fss": [
+          "전자금융감독규정 제14조의2(클라우드컴퓨팅서비스 이용절차)에 따라 이용 전 중요도 평가, 안전성 확보조치 마련, 이용 현황 관리가 이루어지는지 확인한다.",
+          "전자금융거래법 및 금융기관 업무위탁 규정 관점에서, CSP 이용이 업무 위탁에 해당함을 인식하고 위탁 관리 절차(계약, 점검, 보고)를 적용하는지 확인한다.",
+          "CSP 계약에 감독기관의 접근권·자료제출 협조 의무, 정보 보호 및 비밀유지, 계약 종료 시 데이터 반환·파기 조항이 포함되어 있는지 확인한다.",
+          "CSP의 보안 인증보고서(SOC, ISO 등)를 연 1회 이상 입수·평가하고 그 결과를 경영진에 보고하는지 확인한다.",
+          "클라우드 이용에 따른 위험평가 결과와 잔여위험 수용 근거가 문서화되어 있는지 확인한다."
+        ],
+        "isms": [
+          "2.3.1 외부자 현황 관리 / 2.3.2 외부자 계약 시 보안 / 2.3.3 외부자 보안 이행 관리 — CSP를 외부자로 식별하고 계약·점검 체계 운영.",
+          "2.10.2 클라우드 보안 — 클라우드 서비스 유형별 책임 범위 정의와 보안 설정 기준 수립.",
+          "1.1.2 최고책임자의 지정 / 1.1.5 정책 수립 — 클라우드 이용 정책과 책임 체계 정의.",
+          "1.2.3 위험 평가 / 1.2.4 보호대책 선정 — 책임 경계에 따른 위험 식별과 대책 수립.",
+          "1.4.2 관리체계 점검 — CSP 인증보고서 검토를 포함한 정기 점검."
+        ],
+        "evidence": [
+          "서비스 유형별 책임 경계 매트릭스 문서(통제영역 × AWS/고객 구분 × 증빙 출처).",
+          "AWS Artifact에서 입수한 SOC 2 Type II, ISO 27001 인증서 및 입수·검토 기록(검토자, 검토일, 검토 의견).",
+          "SOC 보고서 CUEC 항목과 자체 통제 간 매핑표.",
+          "클라우드 서비스 이용 현황 관리대장(업무명, 중요도, 사용 서비스, 저장 정보 유형, 리전).",
+          "AWS 계약서 및 부속 문서 중 감독기관 접근권·데이터 반환·비밀유지 조항 발췌.",
+          "패치 관리 통제의 모집단 정의 문서(적용 대상 EC2 목록과 비적용 사유).",
+          "클라우드 위험평가 결과서와 경영진 보고 자료."
+        ],
+        "auditorQuestions": [
+          "이 시스템에서 서버 OS 패치는 누가 책임집니까? 그 근거는 무엇입니까?",
+          "AWS가 책임지는 영역은 어떻게 확인하고 계십니까? 인증보고서를 받아 보셨다면 누가 언제 검토했습니까?",
+          "SOC 보고서에 '고객이 해야 한다'고 적힌 통제 항목들을 우리 통제 목록에 반영하셨습니까?",
+          "데이터센터 출입통제에 대한 질문에는 어떻게 답변하십니까?",
+          "EC2에서 컨테이너로 전환한 시스템이 있다면, 그때 통제 목록은 어떻게 바뀌었습니까?",
+          "AWS와의 계약에 감독기관이 자료를 요구할 수 있는 조항이 들어 있습니까?",
+          "클라우드로 옮겼어도 최종 책임은 우리 회사에 있다는 점이 내부 정책에 반영되어 있습니까?",
+          "사용 중인 AWS 서비스 목록과 각각의 책임 구분을 정리한 문서를 보여 주실 수 있습니까?"
+        ],
+        "controlExample": "당사는 이용 중인 AWS 서비스별로 책임 경계 매트릭스를 유지하며, 통제 목록의 각 항목에 책임 주체(AWS/당사)를 명시하고 서비스 구성 변경 시 이를 갱신한다. AWS 책임 영역에 대해서는 연 1회 AWS Artifact에서 SOC 2 Type II 보고서를 입수하여 정보보호팀이 예외사항 및 상호 보완 통제(CUEC) 반영 여부를 검토하고, 검토 결과를 정보보호위원회에 보고한다."
+      },
+      "related": [
+        "aws-global-infra",
+        "aws-account-arn-tags",
+        "aws-fargate",
+        "aws-outposts-local-zones",
+        "aws-well-architected",
+        "awssec-iam",
+        "comp-sox-itgc",
+        "comp-fss-egfs",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "AWS 공동 책임 모델 문서",
+        "AWS Artifact 사용 설명서",
+        "AWS Compliance Programs 페이지",
+        "금융분야 클라우드컴퓨팅서비스 이용 가이드"
+      ]
+    }
+  ]
+}

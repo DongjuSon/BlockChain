@@ -1,0 +1,1739 @@
+{
+  "category": "security",
+  "categoryLabel": "보안·계정/권한(IAM)·비밀관리·보안운영",
+  "entries": [
+    {
+      "id": "sec-vuln-management",
+      "title": "취약점 관리 프로세스",
+      "titleEn": "Vulnerability Management",
+      "aliases": [
+        "취약점 관리",
+        "취약점 진단",
+        "CVE",
+        "CVSS",
+        "스캐닝",
+        "취약점 점검",
+        "SCA"
+      ],
+      "tags": [
+        "vulnerability",
+        "process",
+        "devsecops",
+        "risk"
+      ],
+      "level": "중급",
+      "oneLiner": "자산의 취약점을 발견·평가·우선순위화·조치·검증하는 반복 주기 체계",
+      "analogy": "건물 안전점검과 같다. 정기적으로 전 층을 돌며 금 간 벽, 헐거운 난간, 낡은 배선을 찾아 목록을 만들고(발견), 각각이 얼마나 위험한지 판단하고(평가), 붕괴 위험이 큰 것부터 고치고(우선순위), 고친 뒤 다시 확인한다(검증). 중요한 것은 '목록을 만드는 일'이 아니라 '끝까지 고쳤는지 확인하는 일'이다. 점검 보고서만 쌓이고 수리가 안 되면 아무 의미가 없다.",
+      "explanation": "<p><strong>취약점 관리</strong>는 시스템·애플리케이션·인프라에 존재하는 보안 약점을 지속적으로 찾아내고 위험도에 따라 조치하는 <strong>반복되는 주기(cycle)</strong>다. 일회성 진단이 아니라 프로세스라는 점이 핵심이며, ITGC에서는 '운영' 도메인, ISMS-P에서는 취약점 점검 항목으로 직접 다뤄진다.</p><p><strong>취약점의 출처는 여러 갈래</strong>다. <strong>CVE</strong>(공개된 알려진 취약점)가 가장 대표적이고, 그 외에 설정 미흡(configuration), 기본 계정·비밀번호, 불필요한 서비스 노출, 안전하지 않은 코드, 과다 권한이 있다. 따라서 도구도 여러 종류를 쓴다. <strong>인프라 스캐너</strong>(Nessus, OpenVAS), <strong>컨테이너 이미지 스캐너</strong>(Trivy, Grype), <strong>SCA</strong>(오픈소스 의존성 취약점), <strong>SAST/DAST</strong>(코드·실행 중 앱), <strong>클라우드 설정 진단</strong>(CSPM)이다.</p><p><strong>우선순위 판단이 가장 중요하다.</strong> 대형 조직은 수만 건의 취약점을 안고 있으므로 전부 고칠 수 없다. <strong>CVSS 점수만으로 정렬하는 것은 한계</strong>가 있다. CVSS는 '이론적 심각도'일 뿐 우리 환경의 실제 위험을 반영하지 않기 때문이다. 2026년 실무는 세 가지를 함께 본다. <strong>CVSS</strong>(심각도), <strong>KEV</strong>(CISA의 실제 악용 확인 목록), <strong>EPSS</strong>(향후 악용 가능성 확률). 여기에 <strong>자산 중요도와 노출도</strong>(인터넷에 노출됐는가, 개인정보를 다루는가)를 곱해 순위를 정한다. 인터넷에 노출된 결제 서버의 KEV 등재 취약점이 내부 개발 서버의 CVSS 9.8보다 훨씬 급하다.</p><p><strong>SLA(조치 기한)</strong>를 정하는 것이 프로세스의 뼈대다. 예를 들어 'Critical 7일, High 30일, Medium 90일, Low 다음 정기 릴리즈'처럼 정하고, 기한 내 조치가 어려우면 <strong>위험 수용(risk acceptance)</strong>을 정식 승인 절차로 처리한다. 감사인은 정확히 이 <strong>'기한 초과 건과 그 승인 여부'</strong>를 본다.</p><p><strong>조치는 패치만이 아니다.</strong> 패치가 불가능할 때는 <strong>완화(mitigation)</strong>를 쓴다. 해당 기능 비활성화, 네트워크 접근 차단, WAF 가상패치, 권한 축소 등이다. 이 경우 완화 조치를 문서화하고 잔여 위험을 기록해야 한다.</p><p><strong>가장 흔한 실패는 '재검증 없음'</strong>이다. 취약점을 조치했다고 표시만 하고 실제로 재스캔하지 않으면, 다음 분기에 같은 건이 또 나온다. 폐쇄 루프(발견→조치→재검증→종결)를 시스템으로 강제해야 한다. 또 <strong>스캔 범위의 완전성</strong>도 중요하다. 자산 대장에 없는 서버는 스캔되지 않고, 스캔되지 않으면 취약점도 없는 것처럼 보인다. 그래서 취약점 관리는 <strong>자산관리의 품질에 종속</strong>된다.</p>",
+      "howItWorks": "<ol><li>자산 인벤토리(서버, 컨테이너 이미지, 애플리케이션, 클라우드 리소스)를 기준으로 스캔 대상을 정의한다.</li><li>정기 스캔(주간·월간)과 이벤트 기반 스캔(배포 시 CI에서 이미지·의존성 스캔)을 수행한다.</li><li>발견된 취약점을 중앙 취약점 관리 시스템에 모으고 중복을 제거한다.</li><li>CVSS·KEV·EPSS와 자산 중요도·노출도를 결합해 위험 점수를 산정하고 우선순위를 매긴다.</li><li>담당 팀에 티켓을 자동 배정하고 심각도별 SLA 기한을 부여한다.</li><li>담당 팀이 패치·설정 변경·코드 수정으로 조치하거나, 불가한 경우 완화 조치를 적용한다.</li><li>재스캔으로 조치 여부를 검증하고 통과한 건만 종결 처리한다.</li><li>기한 초과 건은 에스컬레이션하고, 수용이 필요한 경우 사유·잔여위험·재검토일과 함께 정식 승인받아 예외 대장에 등록한다.</li><li>월간·분기 지표(신규 발견, 조치 완료, 평균 조치 소요일, 기한 초과 건수)를 경영진에 보고한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'의 취약점 관리는 이렇게 돈다. 매주 화요일 Nessus가 서버 240대를, CI는 배포 때마다 Trivy로 컨테이너 이미지를, Dependabot이 오픈소스 의존성을 스캔한다. 결과는 자체 대시보드로 모여 자산 중요도(결제=최상)와 인터넷 노출 여부로 가중치를 매긴다. SLA는 Critical 7일·High 30일·Medium 90일이다. 2026년 2분기 신규 4,180건 중 조치 3,905건, 기한 초과 47건이었고, 초과 건 중 31건은 레거시 정산 서버의 OS 미지원 문제로 <strong>'2027년 교체 완료까지 네트워크 접근 제한 + WAF 가상패치'</strong>를 조건으로 CISO가 위험 수용을 승인했다. 감사 시에는 이 예외 대장과 재검토 기록이 핵심 증빙이 된다.</p><pre><code># 컨테이너 이미지 스캔 (CI 단계)\ntrivy image --severity HIGH,CRITICAL --exit-code 1 \\\n  --ignore-unfixed 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/payment-api:v2.3.1\n\n# 우선순위 산정 (CVSS만으로는 부족)\n위험점수 = CVSS기본점수\n         × (KEV 등재 ? 3.0 : 1.0)          # 실제 악용 확인 여부\n         × (EPSS &gt; 0.5 ? 2.0 : 1.0)         # 악용 가능성 확률\n         × 자산중요도(결제 3 / 내부 1)\n         × (인터넷 노출 ? 2.0 : 1.0)\n\n# SLA 초과 건 추출 (감사 증적)\nSELECT v.cve_id, v.severity, a.hostname, a.criticality,\n       v.found_date, v.due_date, current_date - v.due_date AS overdue_days,\n       v.status, v.exception_approval_no\nFROM vulnerabilities v JOIN assets a ON v.asset_id = a.id\nWHERE v.status &lt;&gt; 'CLOSED' AND v.due_date &lt; current_date\nORDER BY a.criticality DESC, overdue_days DESC;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='55' width='105' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='76' text-anchor='middle' fill='currentColor' font-size='11'>1 발견</text><text x='72' y='93' text-anchor='middle' fill='currentColor' font-size='10'>스캔·CI·제보</text><line x1='125' y1='79' x2='160' y2='79' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='55' width='115' height='48' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='217' y='76' text-anchor='middle' fill='currentColor' font-size='11'>2 우선순위</text><text x='217' y='93' text-anchor='middle' fill='currentColor' font-size='10'>CVSS+KEV+EPSS</text><line x1='275' y1='79' x2='310' y2='79' stroke='currentColor' marker-end='url(#ar)'/><rect x='310' y='55' width='110' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='365' y='76' text-anchor='middle' fill='currentColor' font-size='11'>3 조치</text><text x='365' y='93' text-anchor='middle' fill='currentColor' font-size='10'>패치 또는 완화</text><line x1='420' y1='79' x2='455' y2='79' stroke='currentColor' marker-end='url(#ar)'/><rect x='455' y='55' width='115' height='48' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='512' y='76' text-anchor='middle' fill='currentColor' font-size='11'>4 재검증</text><text x='512' y='93' text-anchor='middle' fill='currentColor' font-size='10'>재스캔 후 종결</text><path d='M512,103 Q512,130 300,130 Q72,130 72,105' stroke='currentColor' fill='none' marker-end='url(#ar)'/><text x='300' y='145' text-anchor='middle' fill='currentColor' font-size='11'>폐쇄 루프 - 재검증 없이 종결하면 다음 분기에 또 나온다</text><rect x='20' y='158' width='290' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='179' text-anchor='middle' fill='currentColor' font-size='12'>SLA 예시</text><text x='32' y='200' fill='currentColor' font-size='11'>Critical 7일 / High 30일 / Medium 90일</text><text x='32' y='219' fill='currentColor' font-size='11'>기한 초과 → 에스컬레이션</text><text x='32' y='237' fill='currentColor' font-size='11'>수용 시 사유·잔여위험·재검토일 승인</text><rect x='325' y='158' width='295' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='472' y='179' text-anchor='middle' fill='currentColor' font-size='12'>전제 조건</text><text x='337' y='200' fill='currentColor' font-size='11'>자산 대장에 없으면 스캔되지 않는다</text><text x='337' y='219' fill='currentColor' font-size='11'>= 취약점도 없는 것처럼 보인다</text><text x='337' y='237' fill='currentColor' font-size='11'>취약점 관리는 자산관리 품질에 종속</text><text x='20' y='40' fill='currentColor' font-size='12'>일회성 진단이 아니라 끊임없이 도는 주기</text></svg>",
+      "keyTerms": [
+        {
+          "term": "CVE",
+          "meaning": "공개된 알려진 취약점에 부여되는 고유 식별번호"
+        },
+        {
+          "term": "CVSS",
+          "meaning": "취약점의 이론적 심각도 점수(0~10). 실제 위험과는 다름"
+        },
+        {
+          "term": "KEV",
+          "meaning": "실제 악용이 확인된 취약점 목록(CISA). 최우선 조치 대상"
+        },
+        {
+          "term": "EPSS",
+          "meaning": "향후 악용될 확률을 예측한 지표. 우선순위 산정에 활용"
+        },
+        {
+          "term": "SCA",
+          "meaning": "오픈소스 의존성의 취약점을 찾는 소프트웨어 구성 분석"
+        },
+        {
+          "term": "가상 패치",
+          "meaning": "WAF·IPS 규칙으로 취약점 악용을 막는 임시 완화 수단"
+        },
+        {
+          "term": "위험 수용",
+          "meaning": "조치가 불가능할 때 잔여 위험을 승인·기록하고 감수하는 절차"
+        },
+        {
+          "term": "폐쇄 루프",
+          "meaning": "발견→조치→재검증→종결까지 확인하는 관리 구조"
+        }
+      ],
+      "pitfalls": [
+        "CVSS 점수만으로 우선순위를 정해, 실제 악용 중인 중간 점수 취약점을 뒤로 미룬다.",
+        "조치했다고 표시만 하고 재스캔 검증을 하지 않아 같은 건이 반복 발견된다.",
+        "자산 대장에 없는 섀도 IT 서버가 스캔에서 빠져 통제 밖에 놓인다.",
+        "기한 초과 건을 그냥 방치한다. 예외 승인 절차가 없으면 통제 실패로 본다.",
+        "컨테이너 이미지의 베이스 이미지 취약점을 무시하고 애플리케이션 코드만 본다.",
+        "스캔 결과를 보안팀만 갖고 있고 조치 책임이 있는 개발·인프라 팀에 전달되지 않는다.",
+        "운영 서버 스캔이 성능에 영향을 준다는 이유로 범위에서 제외한다.",
+        "오픈소스 의존성(SCA) 점검을 하지 않아 라이브러리 취약점이 그대로 남는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 취약점 점검 대상·주기·도구가 정의되고 자산 대장과 대사되어 완전성이 확보되는가",
+          "[운영] 심각도별 조치 기한(SLA)이 정의되고 기한 내 조치 여부가 측정되는가",
+          "[운영] 조치 후 재검증이 수행되고 폐쇄 루프가 관리되는가",
+          "[운영] 기한 초과·위험 수용 건이 승인·문서화되고 정기 재검토되는가",
+          "[변경] 취약점 조치를 위한 변경이 변경관리 절차를 통해 수행되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 정보처리시스템의 취약점 분석·평가를 정기적으로 수행하고 결과를 조치하는가",
+          "전자금융기반시설 취약점 분석·평가를 연 1회 이상 실시하고 결과를 보고·보완하는가",
+          "취약점 조치 결과가 기록·보존되는가"
+        ],
+        "isms": [
+          "2.11.2 취약점 점검 및 조치: 정기 점검과 조치, 재점검이 이루어지는가",
+          "2.10.8 패치관리: 취약점 조치를 위한 패치가 적시에 적용되는가",
+          "2.1.3 정보자산 관리: 점검 대상 자산이 누락 없이 식별되는가"
+        ],
+        "evidence": [
+          "취약점 관리 절차서(대상, 주기, SLA, 예외 처리)",
+          "기간 중 스캔 결과 리포트와 스캔 대상 목록(자산 대장 대사 포함)",
+          "취약점 티켓 목록(발견일, 기한, 조치일, 재검증 결과)",
+          "기한 초과 건 목록과 에스컬레이션·위험 수용 승인 문서",
+          "CI 파이프라인의 이미지·의존성 스캔 설정과 차단 이력",
+          "경영진 보고 자료(지표 추이)"
+        ],
+        "auditorQuestions": [
+          "취약점 점검 대상은 어떻게 선정하며 자산 대장과 일치합니까?",
+          "심각도별 조치 기한은 어떻게 되고 준수율은 얼마입니까?",
+          "조치했다는 것을 어떻게 검증합니까?",
+          "기한 내 조치하지 못한 건은 어떻게 처리합니까? 누가 승인합니까?",
+          "패치가 불가능한 레거시 시스템의 취약점은 어떻게 관리합니까?",
+          "오픈소스 라이브러리 취약점도 관리 대상입니까?"
+        ],
+        "controlExample": "전 정보자산에 대해 정기 취약점 스캔과 배포 시점 이미지·의존성 스캔을 수행하며, 심각도에 따라 Critical 7일·High 30일 이내 조치를 원칙으로 한다. 조치 완료 건은 재스캔으로 검증한 후 종결되고, 기한 내 조치가 불가한 건은 완화 조치와 잔여 위험을 명시하여 CISO 승인 후 예외 대장에 등록·분기 재검토한다."
+      },
+      "related": [
+        "sec-patch-management",
+        "sec-pentest-redteam",
+        "sec-cspm-cnapp",
+        "sec-asset-classification",
+        "sec-edr-xdr",
+        "sec-secret-scanning",
+        "cicd-pipeline-security",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "NIST SP 800-40 Guide to Enterprise Patch Management",
+        "CISA Known Exploited Vulnerabilities Catalog",
+        "FIRST EPSS 문서"
+      ]
+    },
+    {
+      "id": "sec-patch-management",
+      "title": "패치 관리",
+      "titleEn": "Patch Management",
+      "aliases": [
+        "패치",
+        "보안 업데이트",
+        "패치 주기",
+        "긴급 패치",
+        "OS 업데이트",
+        "패치 검증"
+      ],
+      "tags": [
+        "operations",
+        "vulnerability",
+        "change",
+        "itgc"
+      ],
+      "level": "중급",
+      "oneLiner": "OS·미들웨어·라이브러리의 보안 업데이트를 검증하고 계획적으로 적용하는 절차",
+      "analogy": "자동차 리콜 정비와 같다. 제조사가 결함을 발견해 수리 부품을 내놓으면, 정비소는 무작정 갈아 끼우지 않고 먼저 시험차에 적용해 부작용을 확인한 뒤 순차적으로 교체한다. 급한 결함(브레이크)은 당장 하고, 사소한 것은 정기 점검 때 묶어서 한다. 정비 기록은 남겨야 하고, 오래돼 부품이 단종된 차는 다른 방법으로 위험을 줄여야 한다.",
+      "explanation": "<p><strong>패치 관리</strong>는 운영체제·미들웨어·데이터베이스·라이브러리·펌웨어의 보안 및 안정성 업데이트를 <strong>식별하고, 검증하고, 계획적으로 배포하고, 결과를 확인</strong>하는 절차다. 취약점 관리가 '무엇이 문제인가'를 다룬다면, 패치 관리는 '어떻게 안전하게 고칠 것인가'를 다룬다. ITGC에서는 <strong>변경관리와 운영 도메인이 겹치는 영역</strong>이라 특히 중요하다.</p><p><strong>패치가 어려운 이유</strong>는 명확하다. 패치는 <strong>변경</strong>이고, 모든 변경은 장애 위험을 동반한다. 실제로 패치 후 애플리케이션 호환성 문제로 서비스가 멈추는 사고가 드물지 않다. 그래서 '보안을 위해 빨리'와 '안정을 위해 신중히'가 늘 충돌한다. 이 균형을 규칙으로 못 박는 것이 패치 정책이다.</p><p><strong>패치 등급과 주기</strong>를 나눈다. <strong>정기 패치</strong>는 월 1회 또는 분기 1회 정해진 유지보수 시간(maintenance window)에 묶어서 적용한다. <strong>긴급(out-of-band) 패치</strong>는 실제 악용 중인 취약점이나 원격 코드 실행 같은 고위험 건으로, 정규 주기를 기다리지 않고 즉시 처리한다. 긴급 패치도 <strong>사후 변경 승인(emergency change)</strong> 절차를 반드시 밟아야 감사에서 통제 이탈로 보이지 않는다.</p><p><strong>표준 진행 순서</strong>는 개발 → 스테이징 → 운영 순의 단계적 배포다. 각 단계에서 기능 검증을 하고, 운영은 <strong>카나리(일부 서버 먼저)</strong>로 나눠 적용한다. 그리고 <strong>롤백 계획</strong>이 반드시 있어야 한다. 스냅샷·AMI 백업·이전 버전 컨테이너 이미지 보관이 그 수단이다.</p><p><strong>클라우드·컨테이너 환경에서는 방식이 달라진다.</strong> 서버에 로그인해 <code>yum update</code>를 하는 대신, <strong>새 이미지를 빌드해 교체(immutable infrastructure)</strong>한다. 베이스 이미지를 최신으로 갱신해 다시 빌드하고 롤링 배포하면 패치가 완료된다. 이 방식은 서버별 상태 차이(drift)를 없애고 패치 이력을 Git으로 추적할 수 있어 감사 대응이 훨씬 쉽다. 쿠버네티스 노드는 노드 그룹을 새 AMI로 교체하는 방식(노드 로테이션)을 쓴다.</p><p><strong>가장 어려운 문제는 패치할 수 없는 시스템</strong>이다. 지원 종료(EOL)된 OS, 벤더가 인증한 버전만 써야 하는 패키지 소프트웨어, 의료·산업 장비가 그렇다. 이 경우 <strong>보완통제</strong>(네트워크 격리, 접근 제한, 가상 패치, 모니터링 강화)를 적용하고 <strong>교체 로드맵</strong>과 함께 위험을 승인받아야 한다. 감사에서는 EOL 자산 목록과 그 대응 계획을 반드시 묻는다.</p><p><strong>증적의 핵심은 '적용률'</strong>이다. 패치 정책이 있어도 실제 적용률이 70%면 통제는 실패다. 자산별 현재 패치 수준을 자동 수집해 <strong>미적용 자산 목록</strong>을 만들 수 있어야 한다.</p>",
+      "howItWorks": "<ol><li>벤더 보안 공지, 취약점 스캔 결과, 위협 인텔리전스로 필요한 패치를 식별한다.</li><li>영향 자산을 조회하고(자산 대장·구성관리 DB), 심각도와 노출도로 긴급도를 판정한다.</li><li>변경 요청을 등록하고 적용 계획(대상, 일정, 검증 방법, 롤백 절차)을 작성해 승인받는다.</li><li>개발·스테이징 환경에 먼저 적용해 기능·성능 회귀를 검증한다.</li><li>운영 적용 전 백업·스냅샷을 생성한다.</li><li>운영에 단계적으로 적용한다(카나리 → 일부 → 전체). 컨테이너 환경은 새 이미지로 롤링 교체한다.</li><li>적용 후 서비스 정상 동작과 패치 반영 여부를 확인하고, 문제가 있으면 롤백한다.</li><li>패치 수준을 자동 수집해 미적용 자산을 식별하고 후속 조치한다.</li><li>긴급 패치는 사후 변경 승인 절차를 통해 기록을 완성한다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'의 패치 정책은 이렇다. 정기 패치는 매월 셋째 주 수요일 02:00~05:00, 긴급 패치는 KEV 등재 또는 CVSS 9.0 이상 시 72시간 내다. EKS 노드는 <strong>패치하지 않고 교체</strong>한다. 매월 최신 EKS 최적화 AMI로 노드 그룹을 새로 만들고 기존 노드를 드레인해 순차 교체하며, 애플리케이션 컨테이너는 베이스 이미지 갱신 후 재빌드·롤링 배포한다. 2026년 4월 OpenSSH 긴급 취약점 때는 4시간 만에 전 노드가 교체됐고, 사후 긴급 변경 승인을 받아 기록을 남겼다. 다만 레거시 정산 서버 2대는 벤더 인증 문제로 CentOS 7(EOL)에 머물러 있어, VPC 내 별도 서브넷 격리 + PAM 경유 접근 + 상시 모니터링을 조건으로 위험을 수용하고 2027년 1분기 교체를 계획에 넣었다.</p><pre><code># 패치 수준 자동 수집 (AWS Systems Manager)\naws ssm describe-instance-patch-states \\\n  --instance-ids i-0a1b2c3d4e5f67890 \\\n  --query 'InstancePatchStates[].[InstanceId,MissingCount,FailedCount,OperationEndTime]'\n\n# 미적용 자산 추출 (감사 증적)\naws ssm describe-instance-patch-states-for-patch-group \\\n  --patch-group \"prod\" \\\n  --query 'InstancePatchStates[?MissingCount&gt;`0`].[InstanceId,MissingCount]' --output table\n\n# 불변 인프라 방식: 패치 = 이미지 재빌드 + 롤링 교체\n# 1) 베이스 이미지 갱신\nFROM public.ecr.aws/docker/library/python:3.12-slim   # 최신 패치 포함 태그\nRUN apt-get update &amp;&amp; apt-get upgrade -y &amp;&amp; rm -rf /var/lib/apt/lists/*\n# 2) 재빌드 후 롤링 배포\nkubectl set image deploy/payment-api api=...:v2.3.2\nkubectl rollout status deploy/payment-api\n# 3) 문제 시 롤백\nkubectl rollout undo deploy/payment-api\n\n# EOL 자산 점검\nSELECT hostname, os_name, os_version, eol_date, owner, mitigation, replace_plan\nFROM assets WHERE eol_date &lt; current_date AND status = 'IN_USE';</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='45' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='64' text-anchor='middle' fill='currentColor' font-size='11'>패치 식별</text><text x='70' y='81' text-anchor='middle' fill='currentColor' font-size='10'>공지·스캔</text><line x1='120' y1='67' x2='155' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='155' y='45' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='64' text-anchor='middle' fill='currentColor' font-size='11'>변경 승인</text><text x='210' y='81' text-anchor='middle' fill='currentColor' font-size='10'>계획·롤백</text><line x1='265' y1='67' x2='300' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='300' y='45' width='115' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='357' y='64' text-anchor='middle' fill='currentColor' font-size='11'>스테이징 검증</text><text x='357' y='81' text-anchor='middle' fill='currentColor' font-size='10'>회귀 테스트</text><line x1='415' y1='67' x2='450' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='450' y='45' width='170' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='535' y='64' text-anchor='middle' fill='currentColor' font-size='11'>운영 단계 배포</text><text x='535' y='81' text-anchor='middle' fill='currentColor' font-size='10'>카나리 → 전체</text><rect x='20' y='110' width='290' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='165' y='131' text-anchor='middle' fill='currentColor' font-size='12'>전통 방식</text><text x='32' y='152' fill='currentColor' font-size='11'>서버에 접속해 yum/apt update</text><text x='32' y='166' fill='currentColor' font-size='10'>→ 서버마다 상태가 달라짐(drift)</text><rect x='325' y='110' width='295' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='472' y='131' text-anchor='middle' fill='currentColor' font-size='12'>불변 인프라 방식</text><text x='337' y='152' fill='currentColor' font-size='11'>새 이미지 빌드 → 롤링 교체</text><text x='337' y='166' fill='currentColor' font-size='10'>→ 이력이 Git에 남아 감사 대응 용이</text><rect x='20' y='185' width='600' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='32' y='206' fill='currentColor' font-size='11'>패치 불가 시스템(EOL·벤더 인증): 격리 · 접근제한 · 가상패치 · 모니터링 강화 + 교체 로드맵 + 위험 수용 승인</text><text x='32' y='226' fill='currentColor' font-size='11'>긴급 패치도 사후 변경 승인 필수 / 증적의 핵심은 '적용률'과 미적용 자산 목록</text><text x='20' y='30' fill='currentColor' font-size='12'>패치는 보안 조치이자 변경 - 두 절차를 함께 태운다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "정기 패치 / 긴급 패치",
+          "meaning": "주기적으로 묶어 적용하는 것과 즉시 적용하는 고위험 패치"
+        },
+        {
+          "term": "유지보수 시간(Maintenance Window)",
+          "meaning": "서비스 영향이 적은 시간대로 정한 작업 구간"
+        },
+        {
+          "term": "카나리 배포",
+          "meaning": "일부에만 먼저 적용해 문제를 조기 발견하는 방식"
+        },
+        {
+          "term": "롤백 계획",
+          "meaning": "패치 실패 시 이전 상태로 되돌리는 절차와 수단"
+        },
+        {
+          "term": "불변 인프라",
+          "meaning": "서버를 고치지 않고 새 이미지로 교체하는 운영 방식"
+        },
+        {
+          "term": "EOL",
+          "meaning": "벤더 지원이 끝나 보안 패치가 제공되지 않는 상태"
+        },
+        {
+          "term": "긴급 변경(Emergency Change)",
+          "meaning": "선조치 후 승인하는 변경 유형. 기록이 반드시 필요"
+        },
+        {
+          "term": "패치 적용률",
+          "meaning": "대상 자산 중 실제 적용된 비율. 통제 유효성의 핵심 지표"
+        }
+      ],
+      "pitfalls": [
+        "패치 정책은 있으나 실제 적용률을 측정하지 않아 미적용 자산이 누적된다.",
+        "긴급 패치를 승인 없이 적용하고 기록도 남기지 않아 변경관리 이탈로 지적된다.",
+        "스테이징 검증 없이 운영에 바로 적용해 호환성 장애를 유발한다.",
+        "롤백 계획과 백업 없이 패치해 문제 발생 시 복구가 불가능하다.",
+        "OS만 패치하고 미들웨어·라이브러리·컨테이너 베이스 이미지·펌웨어는 방치한다.",
+        "EOL 시스템 목록을 관리하지 않아 지원 종료 사실 자체를 모른다.",
+        "쿠버네티스 노드는 자동 갱신된다고 믿지만 실제로는 노드 교체를 하지 않아 오래된 커널이 남는다.",
+        "패치 후 검증을 '서비스가 떠 있다'로만 확인하고 실제 패치 반영 여부를 보지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 패치 적용이 변경관리 절차(요청·승인·검증·기록)를 통해 수행되는가",
+          "[운영] 심각도별 패치 적용 기한이 정의되고 실제 적용률이 측정·보고되는가",
+          "[운영] 패치 전 검증과 롤백 계획, 백업이 마련되는가",
+          "[운영] EOL·패치 불가 자산이 식별되고 보완통제와 교체 계획이 승인되는가",
+          "[변경] 긴급 패치에 대한 사후 승인 절차가 존재하고 이행되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 정보처리시스템의 보안 패치가 적시에 적용·관리되는가",
+          "패치 적용 전 시험과 적용 후 확인 절차가 있는가",
+          "지원 종료 소프트웨어 사용 시 보완대책이 마련되어 있는가"
+        ],
+        "isms": [
+          "2.10.8 패치관리: 패치 적용 기준·절차가 수립되고 적시에 적용되는가",
+          "2.9.1 변경관리: 패치가 변경 절차에 따라 통제되는가",
+          "2.11.2 취약점 점검 및 조치: 패치 미적용으로 인한 취약점이 관리되는가"
+        ],
+        "evidence": [
+          "패치 관리 정책·절차서(주기, 기한, 긴급 기준)",
+          "자산별 패치 수준 리포트와 미적용 자산 목록",
+          "패치 변경 요청·승인 티켓 샘플(정기 및 긴급)",
+          "스테이징 검증 결과와 운영 적용 후 확인 기록",
+          "EOL 자산 목록과 보완통제·교체 계획 승인 문서",
+          "패치로 인한 장애 이력과 롤백 사례"
+        ],
+        "auditorQuestions": [
+          "정기 패치 주기는 어떻게 되며 마지막 적용은 언제였습니까?",
+          "현재 패치가 누락된 서버는 몇 대입니까? 목록을 볼 수 있습니까?",
+          "긴급 패치는 어떤 기준으로 판단하고 누가 승인합니까?",
+          "패치 전 검증은 어떻게 하며 실패 시 어떻게 되돌립니까?",
+          "지원이 종료된 OS를 쓰는 시스템이 있습니까? 어떻게 관리합니까?",
+          "컨테이너 베이스 이미지와 쿠버네티스 노드는 어떻게 패치합니까?"
+        ],
+        "controlExample": "운영 시스템의 보안 패치는 월 1회 정기 유지보수 시간에 적용하되, 실제 악용이 확인된 취약점은 72시간 내 긴급 패치로 처리하고 사후 긴급 변경 승인을 받는다. 모든 패치는 스테이징 검증과 롤백 계획 수립 후 단계적으로 적용되며, 월별 패치 적용률과 미적용 자산 목록이 정보보호팀에 보고된다."
+      },
+      "related": [
+        "sec-vuln-management",
+        "plat-change-management",
+        "sec-edr-xdr",
+        "sec-asset-classification",
+        "k8s-node-management",
+        "iac-terraform",
+        "sec-cspm-cnapp",
+        "onprem-linux"
+      ],
+      "learnMore": [
+        "NIST SP 800-40r4 Enterprise Patch Management",
+        "AWS Systems Manager Patch Manager 문서",
+        "ISMS-P 인증기준 안내서 2.10.8 패치관리"
+      ]
+    },
+    {
+      "id": "sec-pentest-redteam",
+      "title": "모의해킹과 레드팀",
+      "titleEn": "Penetration Testing and Red Teaming",
+      "aliases": [
+        "모의해킹",
+        "침투테스트",
+        "펜테스트",
+        "레드팀",
+        "퍼플팀",
+        "취약점 진단",
+        "BAS"
+      ],
+      "tags": [
+        "offensive",
+        "assessment",
+        "process",
+        "compliance"
+      ],
+      "level": "중급",
+      "oneLiner": "실제 공격자처럼 시스템을 침투해 보며 방어의 실효성을 검증하는 평가 활동",
+      "analogy": "모의해킹은 건물 보안회사에 의뢰해 '모든 문과 창문을 실제로 열어보며 약점을 찾아 달라'고 하는 것이다. 정해진 기간에 최대한 많은 약점을 찾는 게 목표다. 레드팀은 다르다. '경비팀에게 알리지 말고, 한 달 동안 어떤 방법으로든 금고 안 서류를 가져와 보라'고 하는 것이다. 목표 달성이 핵심이고, 그 과정에서 경비팀이 알아차리는지(탐지 능력)까지 함께 평가된다.",
+      "explanation": "<p><strong>모의해킹(Penetration Testing)</strong>은 정해진 범위와 기간 안에서 시스템의 취약점을 실제로 악용해 보며 위험을 검증하는 평가다. 취약점 스캔이 '문이 잠겼는지 확인'이라면, 모의해킹은 '실제로 열어서 들어가 본다'는 차이가 있다. 자동 스캐너가 놓치는 <strong>논리 취약점</strong>(권한 우회, 가격 조작, IDOR)은 사람이 직접 테스트해야 발견된다.</p><p><strong>레드팀(Red Teaming)</strong>은 범위가 훨씬 넓고 목표 지향적이다. '고객 데이터베이스에 접근하라' 같은 목표를 주고, 피싱·물리 침입·협력사 경유 등 <strong>실제 공격자가 쓸 수 있는 모든 경로</strong>를 사용한다. 핵심 차이는 <strong>방어팀(블루팀)에게 알리지 않는다</strong>는 점이다. 그래서 취약점뿐 아니라 <strong>탐지·대응 능력(MTTD, MTTR)</strong>이 함께 평가된다. <strong>퍼플팀(Purple Team)</strong>은 공격팀과 방어팀이 협업해 특정 공격 기법을 실행하고 탐지 규칙을 즉시 개선하는 방식으로, 학습 효율이 가장 높다.</p><p><strong>테스트 유형</strong>은 정보 제공 수준으로 나눈다. <strong>블랙박스</strong>(정보 없이 외부 공격자 시점), <strong>그레이박스</strong>(일반 사용자 계정 제공, 가장 현실적이고 효율적), <strong>화이트박스</strong>(소스코드·설계 제공, 가장 깊은 분석)다. 시간이 한정된 평가에서는 그레이박스가 비용 대비 효과가 가장 좋다.</p><p><strong>사전 합의(Rules of Engagement)</strong>가 반드시 문서화되어야 한다. 범위(IP·도메인·제외 대상), 기간과 시간대, 금지 행위(DoS, 실제 데이터 삭제·유출), 비상 연락망, 긴급 중단 조건, 발견 데이터 처리 방침이다. 이것 없이 진행하면 <strong>법적 문제(정보통신망법 위반)와 실제 장애</strong>를 유발할 수 있다. 클라우드 환경에서는 사업자의 침투 테스트 정책도 확인해야 한다.</p><p><strong>한국의 규제 맥락</strong>이 중요하다. 전자금융감독규정과 정보통신기반보호법에 따라 금융회사·주요정보통신기반시설은 <strong>정기적인 취약점 분석·평가</strong>를 받아야 하고, 신규 전자금융서비스 오픈 전 보안성 점검이 요구된다. ISMS-P도 정기 취약점 점검과 모의훈련을 요구한다. 따라서 모의해킹은 '선택적 보안 활동'이 아니라 <strong>규제 이행 활동</strong>인 경우가 많다.</p><p><strong>감사 관점에서 가장 중요한 것은 결과 조치</strong>다. 보고서에 Critical 15건이 있는데 1년 뒤에도 그대로면, 모의해킹은 돈만 쓴 활동이 된다. 감사인은 <strong>발견 사항별 조치 계획, 완료 여부, 재점검(retest) 결과</strong>를 요구한다. 또한 보고서 자체가 <strong>침투 방법이 상세히 적힌 민감 문서</strong>이므로 배포 범위와 보관 통제도 확인 대상이다.</p>",
+      "howItWorks": "<ol><li>평가 목적·범위·유형을 정하고 Rules of Engagement를 문서화해 승인받는다.</li><li>[정찰] 대상의 노출 자산, 도메인, 기술 스택, 직원 정보(OSINT)를 수집한다.</li><li>[스캐닝] 포트·서비스·웹 애플리케이션을 탐색해 잠재 취약점을 식별한다.</li><li>[침투] 발견한 취약점을 실제로 악용해 초기 접근을 확보한다(웹 취약점, 기본 계정, 피싱 등).</li><li>[권한 상승·확산] 내부에서 권한을 높이고 다른 시스템으로 이동(lateral movement)하며 목표에 접근한다.</li><li>[목표 달성 확인] 목표 데이터 접근 가능 여부를 증명한다. 실제 유출·파괴는 하지 않고 증거만 남긴다.</li><li>[정리] 생성한 계정·백도어·파일을 모두 제거하고 원상복구한다.</li><li>[보고] 발견 사항을 위험도·재현 절차·조치 방안과 함께 보고하고, 경영진용 요약을 별도 작성한다.</li><li>[조치·재점검] 조치 계획을 수립해 이행하고, 정해진 기간 후 재점검으로 해소를 확인한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 연 1회 외부 전문업체 모의해킹과 반기 1회 내부 퍼플팀 훈련을 한다. 2026년 상반기 모의해킹(그레이박스, 2주)에서 Critical 3건이 나왔다. (1) 관리자 포털의 IDOR로 다른 가맹점 정산 내역 조회 가능, (2) 오래된 서브도메인의 테스트 서버에 기본 계정 잔존, (3) S3 버킷 하나가 목록 조회 가능 상태. 세 건 모두 2주 내 조치하고 재점검으로 해소를 확인했다. 한편 퍼플팀 훈련에서는 '피싱으로 계정 탈취 후 AWS 콘솔 접근'을 시뮬레이션했는데, EDR은 탐지했지만 <strong>SIEM 경보가 야간에 아무에게도 전달되지 않는</strong> 문제가 드러나 온콜 알림 체계를 개선했다. 보고서는 암호화 저장되고 열람 권한은 8명으로 제한된다.</p><pre><code># Rules of Engagement 핵심 항목 (반드시 사전 합의·승인)\n범위: *.paynow.example (운영), 10.20.0.0/16 (내부망)\n제외: 결제 승인 실시간 처리 구간, 협력사 소유 시스템\n기간: 2026-03-02 ~ 2026-03-13, 평일 09:00~18:00\n금지: DoS/DDoS, 실제 고객데이터 반출, 데이터 삭제·변조\n중단조건: 서비스 응답 지연 3초 초과 시 즉시 중단 후 연락\n연락: 보안팀 010-XXXX (24h), 인프라팀 온콜\n데이터: 발견 증거는 스크린샷·해시만, 원본 미보관, 종료 후 파기\n\n# 발견 사항 관리 (조치까지가 통제)\nID    위험도    내용                          담당      기한        상태\nPT-01 Critical IDOR - 타 가맹점 정산 조회      결제팀    2026-03-20  완료(재점검 OK)\nPT-02 Critical 테스트 서버 기본계정 잔존       인프라팀  2026-03-16  완료(서버 폐기)\nPT-03 High     S3 버킷 목록 조회 가능         플랫폼팀  2026-03-25  완료\nPT-07 Medium   TLS 1.1 지원 잔존              인프라팀  2026-04-30  진행중\n\n# 퍼플팀: 공격 기법별 탐지 여부 매트릭스 (ATT&amp;CK 기준)\nT1566 피싱          → 메일GW 차단 O / EDR 탐지 O / SIEM 경보 O\nT1078 유효계정 사용 → EDR 탐지 O / SIEM 경보 O / 야간 전달 X  ← 개선 필요\nT1530 클라우드 데이터 접근 → CloudTrail 기록 O / 탐지 룰 없음 ← 신규 룰 추가</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='38' width='195' height='88' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='112' y='59' text-anchor='middle' fill='currentColor' font-size='12'>모의해킹</text><text x='27' y='80' fill='currentColor' font-size='11'>범위·기간 한정</text><text x='27' y='98' fill='currentColor' font-size='11'>취약점 최대한 많이 발견</text><text x='27' y='116' fill='currentColor' font-size='11'>방어팀도 인지</text><rect x='222' y='38' width='195' height='88' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='319' y='59' text-anchor='middle' fill='currentColor' font-size='12'>레드팀</text><text x='234' y='80' fill='currentColor' font-size='11'>목표 지향·경로 무제한</text><text x='234' y='98' fill='currentColor' font-size='11'>방어팀 미고지</text><text x='234' y='116' fill='currentColor' font-size='11'>탐지·대응 능력까지 평가</text><rect x='429' y='38' width='195' height='88' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='526' y='59' text-anchor='middle' fill='currentColor' font-size='12'>퍼플팀</text><text x='441' y='80' fill='currentColor' font-size='11'>공격·방어 협업</text><text x='441' y='98' fill='currentColor' font-size='11'>기법별 탐지 확인</text><text x='441' y='116' fill='currentColor' font-size='11'>룰 즉시 개선 (학습효율↑)</text><rect x='15' y='145' width='100' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='171' text-anchor='middle' fill='currentColor' font-size='11'>사전 합의</text><line x1='115' y1='166' x2='145' y2='166' stroke='currentColor' marker-end='url(#ar)'/><rect x='145' y='145' width='100' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='195' y='171' text-anchor='middle' fill='currentColor' font-size='11'>수행</text><line x1='245' y1='166' x2='275' y2='166' stroke='currentColor' marker-end='url(#ar)'/><rect x='275' y='145' width='100' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='325' y='171' text-anchor='middle' fill='currentColor' font-size='11'>보고</text><line x1='375' y1='166' x2='405' y2='166' stroke='currentColor' marker-end='url(#ar)'/><rect x='405' y='145' width='100' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='455' y='171' text-anchor='middle' fill='currentColor' font-size='11'>조치</text><line x1='505' y1='166' x2='535' y2='166' stroke='currentColor' marker-end='url(#ar)'/><rect x='535' y='145' width='85' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='577' y='171' text-anchor='middle' fill='currentColor' font-size='11'>재점검</text><text x='15' y='212' fill='currentColor' font-size='11'>감사 핵심: 보고서 존재가 아니라 '발견 사항이 기한 내 조치되고 재점검으로 확인되었는가'</text><text x='15' y='232' fill='currentColor' font-size='11'>보고서 자체가 침투 방법이 담긴 민감 문서 - 배포 범위·보관 통제 필요</text><text x='15' y='252' fill='currentColor' font-size='11'>사전 합의(RoE) 없이 수행하면 법적 문제와 실제 장애 위험</text></svg>",
+      "keyTerms": [
+        {
+          "term": "모의해킹",
+          "meaning": "정해진 범위에서 실제 악용을 시도해 위험을 검증하는 평가"
+        },
+        {
+          "term": "레드팀",
+          "meaning": "목표 달성을 위해 모든 경로를 쓰는 비고지 공격 시뮬레이션"
+        },
+        {
+          "term": "블루팀 / 퍼플팀",
+          "meaning": "방어팀, 그리고 공격·방어가 협업해 탐지를 개선하는 방식"
+        },
+        {
+          "term": "Rules of Engagement",
+          "meaning": "범위·기간·금지행위·중단조건을 정한 사전 합의 문서"
+        },
+        {
+          "term": "그레이박스",
+          "meaning": "일반 사용자 수준 정보를 주고 하는 테스트. 비용 대비 효과 좋음"
+        },
+        {
+          "term": "권한 상승 / 측면 이동",
+          "meaning": "내부에서 권한을 높이고 다른 시스템으로 확산하는 공격 단계"
+        },
+        {
+          "term": "재점검(Retest)",
+          "meaning": "조치 후 취약점이 실제 해소됐는지 확인하는 후속 점검"
+        },
+        {
+          "term": "BAS",
+          "meaning": "공격 시나리오를 자동 반복 실행해 탐지를 지속 검증하는 도구군"
+        }
+      ],
+      "pitfalls": [
+        "보고서를 받고 조치하지 않는다. 다음 해 같은 취약점이 또 나오면 통제 실패로 평가된다.",
+        "범위를 너무 좁게 잡아(운영 제외, 핵심 시스템 제외) 형식적 점검이 된다.",
+        "사전 합의 문서 없이 진행해 장애나 법적 분쟁 위험을 만든다.",
+        "재점검을 하지 않아 '조치했다'는 주장만 남는다.",
+        "보고서를 메일·공유드라이브로 광범위하게 배포한다. 공격 지도를 배포하는 셈이다.",
+        "탐지 여부를 평가하지 않는다. 취약점만 찾고 '우리가 알아챘는가'는 확인하지 않는다.",
+        "테스트 중 생성한 계정·백도어·파일을 제거하지 않아 실제 위험이 남는다.",
+        "자동 스캐너 결과를 모의해킹 보고서로 제출한다. 논리 취약점은 발견되지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 모의해킹·취약점 평가가 정해진 주기로 수행되고 범위가 적절한가",
+          "[운영] 발견 사항별 조치 책임·기한이 지정되고 기한 내 조치되는가",
+          "[운영] 조치 후 재점검으로 해소가 검증되는가",
+          "[접근] 평가 보고서의 배포·보관이 통제되는가",
+          "[운영] 미조치 항목에 대한 위험 수용이 승인·재검토되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 전자금융기반시설 취약점 분석·평가를 정기적으로 수행하고 결과를 보고·보완하는가",
+          "신규 전자금융서비스 개시 전 보안성 점검을 수행했는가",
+          "정보통신기반보호법 대상인 경우 법정 주기의 취약점 분석·평가를 이행했는가"
+        ],
+        "isms": [
+          "2.11.2 취약점 점검 및 조치: 모의침투 등 점검을 수행하고 결과를 조치·재점검하는가",
+          "2.11.4 사고 대응 훈련 및 개선: 훈련 결과가 대응 체계 개선에 반영되는가",
+          "2.3.x 외부자 보안: 외부 전문업체 수행 시 보안 요구사항과 비밀유지가 계약에 반영되는가"
+        ],
+        "evidence": [
+          "모의해킹 계약서 및 Rules of Engagement 승인 문서",
+          "평가 보고서(발견 사항, 위험도, 재현 절차, 권고사항)",
+          "발견 사항별 조치 계획과 완료 증적",
+          "재점검 결과 보고서",
+          "미조치 항목의 위험 수용 승인 문서",
+          "보고서 열람 권한자 목록과 보관 방식",
+          "퍼플팀·모의훈련 결과와 탐지 규칙 개선 내역"
+        ],
+        "auditorQuestions": [
+          "가장 최근 모의해킹은 언제였고 범위는 어디까지였습니까?",
+          "발견된 Critical 항목은 몇 건이며 모두 조치되었습니까?",
+          "조치가 실제로 됐는지 재점검했습니까? 결과를 볼 수 있습니까?",
+          "공격을 우리 탐지 체계가 알아챘습니까? 그 결과로 개선한 것이 있습니까?",
+          "보고서는 누가 볼 수 있고 어디에 보관됩니까?",
+          "테스트 중 생성한 계정이나 도구는 어떻게 제거를 확인했습니까?"
+        ],
+        "controlExample": "연 1회 이상 외부 전문기관을 통한 모의해킹을 수행하며, 사전에 범위·기간·금지행위를 담은 Rules of Engagement를 승인받는다. 발견된 취약점은 위험도별 기한(Critical 14일, High 30일) 내 조치하고 재점검을 통해 해소를 검증하며, 미조치 항목은 보완통제와 함께 CISO 승인으로 관리한다. 평가 보고서는 암호화 보관되고 열람 권한은 지정된 인원으로 제한된다."
+      },
+      "related": [
+        "sec-vuln-management",
+        "sec-incident-response",
+        "sec-soc",
+        "sec-siem",
+        "sec-email-phishing",
+        "sec-patch-management",
+        "sec-awareness-training",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "PTES (Penetration Testing Execution Standard)",
+        "OWASP Web Security Testing Guide",
+        "MITRE ATT&CK Adversary Emulation Plans"
+      ]
+    },
+    {
+      "id": "sec-siem",
+      "title": "SIEM (Splunk / Elastic)",
+      "titleEn": "Security Information and Event Management",
+      "aliases": [
+        "SIEM",
+        "통합로그관리",
+        "Splunk",
+        "Elastic",
+        "로그 상관분석",
+        "보안관제 플랫폼"
+      ],
+      "tags": [
+        "monitoring",
+        "logging",
+        "detection",
+        "compliance"
+      ],
+      "level": "중급",
+      "oneLiner": "여러 시스템의 로그를 한곳에 모아 상관분석하고 보안 이벤트를 탐지·보관하는 플랫폼",
+      "analogy": "건물 전체의 CCTV·출입기록·엘리베이터 로그를 한 관제실 화면에 모으는 것과 같다. 개별 화면만 보면 '누가 3층 문을 열었다', '주차장에 차가 들어왔다'는 각각 평범한 사건이지만, 함께 놓고 보면 '퇴직한 직원의 카드로 새벽 2시에 서버실 문이 열렸다'는 이상 패턴이 드러난다. SIEM이 하는 일이 바로 이 '흩어진 기록을 붙여서 의미를 만드는' 작업이다.",
+      "explanation": "<p><strong>SIEM(Security Information and Event Management)</strong>은 서버·네트워크 장비·보안솔루션·클라우드·애플리케이션의 로그를 중앙으로 수집·정규화하고, 규칙과 분석으로 보안 이벤트를 탐지하며, 감사 요건에 맞게 장기 보관하는 플랫폼이다. Splunk, Elastic Security, Microsoft Sentinel, IBM QRadar가 대표적이며 국내에서는 자체 구축 ELK 스택도 흔하다.</p><p><strong>두 가지 목적이 겹쳐 있다는 점</strong>이 중요하다. 하나는 <strong>보안 탐지</strong>(실시간 위협 감지)이고, 다른 하나는 <strong>규제 준수</strong>(접속기록 보관·제출)다. 이 둘은 요구사항이 다르다. 탐지는 최근 데이터의 빠른 분석이 중요하고, 준수는 <strong>장기 보관과 무결성</strong>이 중요하다. 그래서 실무에서는 최근 90일은 고속 검색 계층에, 그 이후는 저비용 아카이브(S3 등)에 두는 <strong>계층형 보관</strong>을 쓴다.</p><p><strong>처리 흐름은 네 단계</strong>다. <strong>수집(Collection)</strong>은 에이전트나 API로 로그를 가져온다. <strong>정규화(Normalization)</strong>는 형식이 제각각인 로그를 공통 필드(사용자, 출발지 IP, 행위, 결과)로 매핑한다. 이 단계가 부실하면 상관분석이 불가능하다. <strong>상관분석(Correlation)</strong>은 여러 로그를 시간·주체 기준으로 엮어 규칙을 평가한다. <strong>대응(Response)</strong>은 경보를 발생시키고 SOAR나 티켓 시스템으로 넘긴다.</p><p><strong>탐지 규칙의 예</strong>를 보면 감이 온다. '해외 IP에서 로그인 성공 후 10분 내 대량 데이터 조회', '퇴직 처리된 계정의 인증 시도', '동일 IP에서 20개 이상 계정 로그인 실패', '관리자 그룹에 사용자 추가 후 1시간 내 그 계정으로 운영 서버 접속', 'CloudTrail에서 로그 비활성화 API 호출'. 이런 규칙은 <strong>단일 로그로는 절대 보이지 않는다</strong>는 것이 SIEM의 존재 이유다.</p><p><strong>ITGC 관점에서 SIEM의 가치</strong>는 두 가지다. 첫째 <strong>로그 무결성</strong>이다. 로그를 원본 시스템에만 두면 관리자가 지울 수 있지만, SIEM으로 실시간 전송하면 <strong>관리자가 자신의 행적을 지울 수 없다</strong>. 이것이 감사에서 결정적이다. 둘째 <strong>증적 제출 능력</strong>이다. '작년 3분기에 누가 운영 DB에 접속했는가'를 몇 분 만에 뽑을 수 있느냐가 감사 대응 속도를 결정한다.</p><p><strong>실패 원인은 대체로 세 가지</strong>다. (1) <strong>수집 누락</strong>: 중요 시스템 로그가 들어오지 않거나 조용히 끊긴다. 로그 수집 자체를 모니터링해야 한다. (2) <strong>경보 과다</strong>: 튜닝되지 않은 규칙이 하루 수천 건을 쏟아내 아무도 보지 않게 된다. (3) <strong>비용</strong>: 로그 볼륨이 커지면 라이선스·스토리지 비용이 급증해 보존기간을 줄이게 되고, 그 결과 감사 요건을 못 맞춘다.</p>",
+      "howItWorks": "<ol><li>로그 소스를 정의한다(IdP, AD, 방화벽, EDR, 서버 syslog, DB 접근제어, 클라우드 감사로그, 애플리케이션).</li><li>에이전트·포워더·API 연동으로 로그를 수집하고, 전송 구간은 암호화한다.</li><li>파서가 각 로그를 공통 스키마로 정규화한다(who, what, where, when, result).</li><li>자산 정보·사용자 정보·위협 인텔리전스로 데이터를 보강(enrichment)한다.</li><li>상관분석 규칙과 이상 탐지 모델이 실시간으로 이벤트를 평가한다.</li><li>조건에 맞으면 경보를 생성하고 심각도를 부여해 SOAR·티켓·메신저로 전달한다.</li><li>분석가가 경보를 조사하고 오탐이면 규칙을 튜닝, 진성이면 사고 절차로 전환한다.</li><li>로그는 보존 정책에 따라 고속 계층에서 아카이브 계층으로 이동하고, 변경 불가 저장소에 보관된다.</li><li>감사 시 기간·주체·행위 조건으로 검색해 증적을 추출한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 Splunk로 일 400GB의 로그를 수집한다. 소스는 Okta System Log, AD 보안이벤트, AWS CloudTrail·VPC Flow Log, EDR, DB 접근제어, PAM 세션, WAF, 애플리케이션 감사로그다. 보존은 90일 핫 + 2년 S3 아카이브(Object Lock)다. 탐지 규칙 중 하나는 '퇴직 처리(Okta deactivate) 후 해당 계정 식별자로 어떤 시스템이든 인증 시도가 발생하면 즉시 경보'인데, 2026년 5월 이 규칙이 실제로 발동해 조사한 결과 퇴사자 개인 노트북의 자동 동기화 클라이언트가 원인으로 확인됐다. 또 'CloudTrail StopLogging 호출'과 '관리자 그룹 추가 후 1시간 내 운영 접속'은 최고 심각도로 설정되어 온콜 호출로 이어진다. 감사 대응 시에는 저장된 검색(saved search)으로 분기 접속 이력을 즉시 추출한다.</p><pre><code># 상관분석 규칙 예 1: 권한 상승 직후 운영 접속 (Splunk SPL)\nindex=okta eventType=\"group.user_membership.add\" target.group=\"aws-prod-admin\"\n| eval grant_time=_time, user=actor.alternateId\n| join user [ search index=aws eventName=\"AssumeRole\" earliest=-1h\n              | eval login_time=_time, user=userIdentity.principalId ]\n| where login_time - grant_time &lt; 3600\n| table grant_time, login_time, user, target.group\n\n# 규칙 예 2: 퇴직자 계정 인증 시도\nindex=* (sourcetype=okta OR sourcetype=ad OR sourcetype=vpn)\n| lookup hr_terminated emp_id AS user OUTPUT term_date\n| where isnotnull(term_date) AND _time &gt; term_date\n| stats count by user, sourcetype, src_ip\n\n# 규칙 예 3: 감사 로그 무력화 시도 (최고 심각도)\nindex=aws eventName IN (\"StopLogging\",\"DeleteTrail\",\"PutEventSelectors\")\n| table _time, userIdentity.arn, sourceIPAddress, requestParameters\n\n# 수집 누락 탐지 (SIEM 자체 건강 점검 - 자주 빠짐)\n| tstats count WHERE index=* BY sourcetype, _time span=1h\n| where count=0   # 평소 들어오던 소스가 끊긴 경우 경보</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='35' width='105' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='56' text-anchor='middle' fill='currentColor' font-size='10'>IdP · AD</text><rect x='15' y='73' width='105' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='94' text-anchor='middle' fill='currentColor' font-size='10'>방화벽 · WAF</text><rect x='15' y='111' width='105' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='132' text-anchor='middle' fill='currentColor' font-size='10'>EDR · 서버</text><rect x='15' y='149' width='105' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='170' text-anchor='middle' fill='currentColor' font-size='10'>클라우드 감사로그</text><rect x='15' y='187' width='105' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='208' text-anchor='middle' fill='currentColor' font-size='10'>DB접근제어 · PAM</text><line x1='120' y1='51' x2='175' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='120' y1='127' x2='175' y2='127' stroke='currentColor' marker-end='url(#ar)'/><line x1='120' y1='203' x2='175' y2='150' stroke='currentColor' marker-end='url(#ar)'/><rect x='175' y='60' width='185' height='140' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='267' y='82' text-anchor='middle' fill='currentColor' font-size='12'>SIEM</text><rect x='187' y='92' width='161' height='26' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='267' y='110' text-anchor='middle' fill='currentColor' font-size='10'>정규화 (공통 필드)</text><rect x='187' y='124' width='161' height='26' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='267' y='142' text-anchor='middle' fill='currentColor' font-size='10'>상관분석 규칙</text><rect x='187' y='156' width='161' height='26' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='267' y='174' text-anchor='middle' fill='currentColor' font-size='10'>보강 (자산·사용자·위협정보)</text><line x1='360' y1='100' x2='420' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='360' y1='160' x2='420' y2='180' stroke='currentColor' marker-end='url(#ar)'/><rect x='420' y='45' width='200' height='62' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='66' text-anchor='middle' fill='currentColor' font-size='11'>탐지 · 경보</text><text x='432' y='86' fill='currentColor' font-size='10'>SOC 분석 / SOAR 자동대응</text><text x='432' y='101' fill='currentColor' font-size='10'>온콜 호출</text><rect x='420' y='150' width='200' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='520' y='171' text-anchor='middle' fill='currentColor' font-size='11'>장기 보관 (감사 증적)</text><text x='432' y='191' fill='currentColor' font-size='10'>90일 핫 + 2년 아카이브</text><text x='432' y='208' fill='currentColor' font-size='10'>관리자가 지울 수 없음 = 무결성</text><text x='140' y='240' fill='currentColor' font-size='11'>핵심 실패 원인: 수집 누락(조용히 끊김) · 경보 과다 · 비용으로 보존기간 축소</text></svg>",
+      "keyTerms": [
+        {
+          "term": "정규화(Normalization)",
+          "meaning": "제각각인 로그 형식을 공통 필드로 변환하는 과정"
+        },
+        {
+          "term": "상관분석(Correlation)",
+          "meaning": "여러 로그를 엮어 단일 로그로는 안 보이는 패턴을 찾는 분석"
+        },
+        {
+          "term": "보강(Enrichment)",
+          "meaning": "자산·사용자·위협 정보를 덧붙여 판단 정확도를 높이는 처리"
+        },
+        {
+          "term": "탐지 규칙(Detection Rule)",
+          "meaning": "경보를 발생시키는 조건 정의. ATT&CK 기법 매핑이 일반적"
+        },
+        {
+          "term": "보존 계층(Hot/Warm/Cold)",
+          "meaning": "검색 속도와 비용에 따라 로그를 나눠 저장하는 구조"
+        },
+        {
+          "term": "로그 무결성",
+          "meaning": "원본 시스템 관리자가 기록을 지울 수 없게 하는 성질"
+        },
+        {
+          "term": "UEBA",
+          "meaning": "사용자·개체 행위의 평소 패턴에서 벗어난 이상을 탐지하는 기법"
+        },
+        {
+          "term": "수집 건강도",
+          "meaning": "로그 소스가 정상 수집되는지 자체 모니터링하는 지표"
+        }
+      ],
+      "pitfalls": [
+        "중요 시스템 로그가 수집 대상에서 빠져 있거나 조용히 끊겼는데 아무도 모른다.",
+        "경보가 하루 수천 건이라 분석가가 사실상 무시한다. 튜닝 없는 SIEM은 무용지물이다.",
+        "비용 때문에 보존기간을 30일로 줄여 감사 요구(1년 이상)를 충족하지 못한다.",
+        "로그를 수집만 하고 상관분석 규칙이 거의 없어 사실상 로그 저장소로만 쓴다.",
+        "로그에 개인정보·비밀번호가 평문으로 들어와 SIEM 자체가 유출 위험원이 된다.",
+        "SIEM 접근 권한이 넓어 조사 대상자가 자기 로그를 조회·삭제할 수 있다.",
+        "시간 동기화(NTP)가 맞지 않아 상관분석의 시간 순서가 어긋난다.",
+        "클라우드 감사로그(CloudTrail)를 같은 계정에만 두어 침해자가 삭제할 수 있다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 중요 시스템의 로그가 빠짐없이 SIEM으로 수집되고 수집 중단이 탐지되는가",
+          "[운영] 로그 보존기간이 법적·감사 요구를 충족하고 변경·삭제가 방지되는가",
+          "[접근] SIEM 접근 권한이 제한되고 관리자 활동이 별도 기록되는가",
+          "[운영] 탐지 규칙이 정의·검토되고 경보가 처리 절차에 따라 조치되는가",
+          "[운영] 시스템 시간 동기화가 이루어져 이벤트 순서가 신뢰 가능한가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조에 따라 접속기록이 보존되고 위·변조가 방지되는가",
+          "전자금융거래법상 요구되는 기록 보존기간을 충족하는가",
+          "침해사고 탐지를 위한 상시 모니터링 체계를 갖추었는가"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리: 로그 생성·보관·보호가 이루어지는가",
+          "2.9.5 로그 및 접속기록 점검: 정기 점검과 이상행위 분석이 수행되는가",
+          "2.11.3 이상행위 분석 및 모니터링: 상시 모니터링 체계가 운영되는가",
+          "2.9.6 시간 동기화: 시스템 시각이 동기화되어 있는가"
+        ],
+        "evidence": [
+          "로그 소스 목록과 수집 현황(자산 대장 대사 포함)",
+          "로그 수집 중단 모니터링 설정과 알림 이력",
+          "보존기간 정책 및 아카이브 무결성 설정(Object Lock 등)",
+          "탐지 규칙 목록과 최근 변경·검토 기록",
+          "경보 처리 이력(발생-분석-조치 타임라인) 샘플",
+          "SIEM 접근 권한 보유자 목록과 관리자 활동 로그",
+          "감사 요청 시 실제 추출한 증적 샘플(예: 분기 운영 접속 이력)"
+        ],
+        "auditorQuestions": [
+          "어떤 시스템의 로그가 수집됩니까? 빠진 시스템이 있습니까?",
+          "로그 수집이 끊기면 누가 언제 알게 됩니까?",
+          "로그는 얼마나 보관되며 관리자가 삭제할 수 있습니까?",
+          "작년 3분기 특정 계정의 접속 이력을 지금 뽑아 보여줄 수 있습니까?",
+          "탐지 규칙은 몇 개이며 최근 어떤 경보가 실제 사고로 이어졌습니까?",
+          "SIEM에 접근할 수 있는 사람은 누구입니까?"
+        ],
+        "controlExample": "중요 정보시스템·보안솔루션·클라우드의 로그는 SIEM으로 실시간 수집되어 원본 시스템 관리자가 삭제할 수 없도록 보호되며, 90일간 온라인 검색 가능한 상태로, 이후 2년간 변경불가 아카이브에 보관된다. 로그 수집 중단은 자동 탐지되어 1영업일 내 복구하고, 탐지 규칙은 반기 1회 적정성을 검토한다."
+      },
+      "related": [
+        "sec-soc",
+        "sec-soar",
+        "sec-edr-xdr",
+        "sec-incident-response",
+        "sec-session-recording",
+        "obs-logging",
+        "awssec-cloudtrail",
+        "sec-db-access-control"
+      ],
+      "learnMore": [
+        "Splunk Enterprise Security 문서",
+        "Elastic Security 문서",
+        "NIST SP 800-92 Guide to Computer Security Log Management"
+      ]
+    },
+    {
+      "id": "sec-soar",
+      "title": "SOAR",
+      "titleEn": "Security Orchestration, Automation and Response",
+      "aliases": [
+        "SOAR",
+        "보안 자동화",
+        "플레이북",
+        "자동 대응",
+        "오케스트레이션"
+      ],
+      "tags": [
+        "automation",
+        "response",
+        "operations"
+      ],
+      "level": "심화",
+      "oneLiner": "보안 경보 처리 절차를 플레이북으로 자동화해 대응 속도를 높이는 체계",
+      "analogy": "119 신고 접수 후 표준 출동 매뉴얼과 같다. 신고가 들어오면 접수자가 매번 고민하는 게 아니라, 화재 유형별로 정해진 절차가 자동으로 돌아간다. 관할 소방서 자동 배정, 인근 병원 통보, 교통 통제 요청이 사람 손을 거치지 않고 동시에 나간다. 사람은 '건물 구조가 특이하다' 같은 판단이 필요한 부분에만 집중한다. SOAR는 보안 경보에 대해 이 표준 출동 절차를 자동으로 실행한다.",
+      "explanation": "<p><strong>SOAR(Security Orchestration, Automation and Response)</strong>는 보안 경보가 발생했을 때 수행해야 할 조사·판단·대응 절차를 <strong>플레이북(playbook)</strong>으로 정의해 자동 실행하는 플랫폼이다. SIEM이 '무엇이 일어났는가'를 알려준다면, SOAR는 '그래서 무엇을 할 것인가'를 자동으로 처리한다.</p><p><strong>왜 필요한가.</strong> 보안 분석가가 경보 하나를 처리할 때 하는 일은 대부분 반복 작업이다. IP 평판 조회, 사용자 정보 확인, EDR에서 해당 단말 프로세스 확인, 최근 로그인 이력 조회, 관련 티켓 검색. 이 과정만 15~30분이 걸리고, 하루 수백 건이면 처리 자체가 불가능하다. SOAR는 이 조사 단계를 <strong>수 초</strong>로 줄여 분석가가 판단에만 집중하게 한다.</p><p><strong>세 가지 축</strong>으로 이해하면 쉽다. <strong>오케스트레이션</strong>은 여러 보안 도구(SIEM, EDR, 방화벽, IdP, 티켓 시스템, 메신저)를 API로 연결하는 것이다. <strong>자동화</strong>는 정해진 조건에서 사람 개입 없이 조치를 실행하는 것이다. <strong>대응</strong>은 사건 전체의 생애주기(접수-조사-조치-종결-보고)를 관리하는 것이다.</p><p><strong>자동화 수준은 단계적으로</strong> 올려야 한다. 처음부터 자동 차단을 걸면 오탐 하나로 정상 서비스가 끊긴다. 실무 순서는 (1) <strong>자동 조사만</strong>(정보 수집해 분석가에게 요약 제공), (2) <strong>조치 제안</strong>(분석가가 버튼 하나로 승인), (3) <strong>저위험 자동 조치</strong>(악성 확실한 IP 차단, 피싱 메일 회수), (4) <strong>고위험 자동 조치</strong>(계정 잠금, 단말 격리)다. 3~4단계는 <strong>되돌릴 수 있는 조치</strong>부터 적용하는 것이 안전하다.</p><p><strong>ITGC 관점의 핵심 쟁점</strong>이 있다. SOAR는 계정을 잠그고, 방화벽 규칙을 바꾸고, 단말을 격리한다. 즉 <strong>변경을 수행하는 자동화 주체</strong>다. 따라서 (1) SOAR가 사용하는 서비스 계정의 권한이 최소화되어 있는가, (2) 자동 조치가 수행한 변경이 <strong>변경관리 기록으로 남는가</strong>, (3) 플레이북 자체의 수정이 승인·버전관리되는가가 감사 대상이 된다. 플레이북은 사실상 코드이므로 <strong>코드 리뷰와 형상관리</strong>를 적용하는 것이 모범 사례다.</p><p><strong>측정 지표</strong>도 알아둘 만하다. <strong>MTTD(평균 탐지 시간)</strong>와 <strong>MTTR(평균 대응 시간)</strong>이 SOAR 도입 효과를 보여주는 대표 지표이며, 경영진 보고와 감사 설명에 모두 쓰인다.</p>",
+      "howItWorks": "<ol><li>SIEM·EDR·메일보안 등에서 경보가 발생해 SOAR로 전달된다(웹훅 또는 API).</li><li>SOAR가 경보 유형에 맞는 플레이북을 자동 선택하고 사건(case)을 생성한다.</li><li>[자동 조사] 관련 정보를 병렬로 수집한다. IP 평판, 파일 해시 조회, 사용자 부서·직무, 단말 상태, 최근 로그인 이력, 유사 과거 사건.</li><li>수집 결과를 점수화하거나 규칙으로 평가해 심각도와 진위를 판정한다.</li><li>명백한 오탐이면 자동 종결하고 규칙 튜닝 후보로 기록한다.</li><li>저위험 진성 건은 사전 승인된 자동 조치를 실행한다(악성 IP 차단, 피싱 메일 전사 회수, 악성 URL 차단).</li><li>고위험 건은 분석가·온콜에게 요약과 권고 조치를 제시하고 승인 후 실행한다(계정 잠금, 단말 격리).</li><li>모든 수행 내역이 사건 타임라인에 기록되고, 필요 시 ITSM 티켓과 변경 기록이 자동 생성된다.</li><li>종결 후 지표(MTTD/MTTR, 자동화율, 오탐률)를 집계해 보고하고 플레이북을 개선한다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'의 대표 플레이북은 '피싱 메일 신고'다. 직원이 아웃룩 버튼으로 신고하면 SOAR가 (1) 첨부·URL을 샌드박스에 제출, (2) 발신 도메인 평판 조회, (3) 동일 메일 수신자 전체 검색, (4) 악성 판정 시 전 수신함에서 해당 메일 자동 회수, (5) URL을 프록시 차단 목록에 추가, (6) 클릭한 사용자 단말을 EDR로 점검, (7) 신고자에게 결과 자동 회신을 수행한다. 사람이 하면 40분 걸리던 일이 <strong>평균 3분</strong>으로 줄었다. 고위험 플레이북인 '계정 탈취 의심'은 자동 조사까지만 하고 계정 잠금은 온콜 승인 버튼을 거치게 했다. SOAR 서비스 계정은 '메일 회수, 프록시 차단, EDR 조회' 권한만 갖고 계정 잠금 권한은 승인 시에만 임시로 사용한다. 모든 자동 조치는 ITSM에 변경 기록으로 자동 등록된다.</p><pre><code># 플레이북 정의 예 (피싱 대응)\nname: phishing-report-response\ntrigger: mailbox(security-report@) OR siem_alert(type=phishing)\nsteps:\n  - parallel:\n      - sandbox.detonate(attachment)          # 첨부 동적 분석\n      - threatintel.lookup(sender_domain, urls)\n      - mail.search_all_mailboxes(subject_hash)  # 동일 메일 수신자\n  - decision: verdict\n      malicious:\n        - mail.purge_from_all(message_id)      # 자동 (되돌릴 수 있음)\n        - proxy.block(urls)\n        - edr.scan(clicked_users.endpoints)\n        - itsm.create_change(auto=true, type=\"security-block\")\n      suspicious:\n        - notify(analyst, summary)             # 사람 판단\n      benign:\n        - case.close(reason=\"false_positive\")\n  - always:\n      - mail.reply(reporter, template=result)\n      - case.timeline.append(all_actions)\n\n# 자동화 수준 설계 원칙\n되돌릴 수 있는 조치 → 자동화 우선 (메일 회수, URL 차단)\n되돌리기 어려운 조치 → 승인 필수 (계정 잠금, 단말 격리, 방화벽 영구 변경)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='100' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='62' y='120' text-anchor='middle' fill='currentColor' font-size='11'>경보</text><text x='62' y='138' text-anchor='middle' fill='currentColor' font-size='10'>SIEM·EDR·신고</text><line x1='110' y1='125' x2='150' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='150' y='55' width='180' height='140' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='77' text-anchor='middle' fill='currentColor' font-size='12'>SOAR 플레이북</text><rect x='162' y='88' width='156' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='107' text-anchor='middle' fill='currentColor' font-size='10'>자동 조사 (병렬 수집)</text><rect x='162' y='122' width='156' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='141' text-anchor='middle' fill='currentColor' font-size='10'>판정 (점수·규칙)</text><rect x='162' y='156' width='156' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='175' text-anchor='middle' fill='currentColor' font-size='10'>조치 분기</text><line x1='330' y1='95' x2='390' y2='70' stroke='currentColor' marker-end='url(#ar)'/><line x1='330' y1='140' x2='390' y2='140' stroke='currentColor' marker-end='url(#ar)'/><line x1='330' y1='180' x2='390' y2='205' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='45' width='230' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='65' text-anchor='middle' fill='currentColor' font-size='11'>자동 조치 (되돌릴 수 있는 것)</text><text x='505' y='83' text-anchor='middle' fill='currentColor' font-size='10'>메일 회수 · URL 차단 · 스캔</text><rect x='390' y='115' width='230' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='135' text-anchor='middle' fill='currentColor' font-size='11'>승인 후 조치 (고위험)</text><text x='505' y='153' text-anchor='middle' fill='currentColor' font-size='10'>계정 잠금 · 단말 격리</text><rect x='390' y='185' width='230' height='48' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='505' y='205' text-anchor='middle' fill='currentColor' font-size='11'>기록 (감사 관점 핵심)</text><text x='505' y='223' text-anchor='middle' fill='currentColor' font-size='10'>사건 타임라인 + 변경 티켓 자동 생성</text><text x='15' y='40' fill='currentColor' font-size='12'>반복 조사는 기계가, 판단은 사람이</text><text x='15' y='175' fill='currentColor' font-size='11'>SOAR는 변경을</text><text x='15' y='193' fill='currentColor' font-size='11'>수행하는 주체</text><text x='15' y='211' fill='currentColor' font-size='11'>→ 서비스계정 최소권한</text><text x='15' y='229' fill='currentColor' font-size='11'>→ 플레이북 형상관리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "플레이북",
+          "meaning": "경보 유형별 조사·판단·조치 절차를 정의한 자동화 워크플로"
+        },
+        {
+          "term": "오케스트레이션",
+          "meaning": "여러 보안 도구를 API로 연결해 하나의 흐름으로 묶는 것"
+        },
+        {
+          "term": "사건(Case) 관리",
+          "meaning": "탐지부터 종결까지 사건의 생애주기를 추적하는 기능"
+        },
+        {
+          "term": "MTTD / MTTR",
+          "meaning": "평균 탐지 시간과 평균 대응 시간. 효과 측정의 핵심 지표"
+        },
+        {
+          "term": "자동화 수준",
+          "meaning": "조사만/제안/저위험 자동/고위험 자동으로 나뉘는 단계"
+        },
+        {
+          "term": "되돌릴 수 있는 조치",
+          "meaning": "자동화를 우선 적용하기 좋은 복구 가능한 대응"
+        },
+        {
+          "term": "휴먼 인 더 루프",
+          "meaning": "고위험 조치 전 사람의 승인을 반드시 거치게 하는 설계"
+        },
+        {
+          "term": "SOAR 서비스 계정",
+          "meaning": "자동 조치를 수행하는 강력한 계정. 최소권한과 감사가 필수"
+        }
+      ],
+      "pitfalls": [
+        "처음부터 고위험 자동 차단을 적용해 오탐 한 건으로 정상 서비스·계정이 마비된다.",
+        "SOAR 서비스 계정에 관리자 권한을 통째로 부여한다. 침해 시 최악의 경로가 된다.",
+        "자동 조치가 수행한 변경이 변경관리 기록에 남지 않아 '누가 왜 바꿨는지' 추적이 끊긴다.",
+        "플레이북을 승인·버전관리 없이 수정한다. 사실상 운영 코드 무단 변경이다.",
+        "자동화율만 높이려다 정작 판단이 필요한 사건도 기계적으로 종결된다.",
+        "연동 도구의 API 변경으로 플레이북이 조용히 실패하는데 모니터링이 없다.",
+        "SOAR를 도입했지만 표준 절차가 정립되지 않아 자동화할 대상 자체가 불명확하다.",
+        "지표(MTTR 등)를 측정하지 않아 효과를 설명하지 못한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] SOAR가 사용하는 서비스 계정의 권한이 최소화되고 정기 검토되는가",
+          "[변경] 플레이북 생성·수정이 승인되고 버전관리·변경 이력이 남는가",
+          "[변경] 자동 수행된 조치(방화벽 변경, 계정 잠금 등)가 변경 기록으로 남는가",
+          "[운영] 고위험 자동 조치에 대한 승인 절차(휴먼 인 더 루프)가 정의되어 있는가",
+          "[운영] 플레이북 실행 실패가 탐지되고 조치되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 침해사고 대응 절차가 정의되고 자동화 조치도 그 절차에 부합하는가",
+          "자동 조치로 인한 서비스 영향 가능성이 평가되고 통제되는가",
+          "대응 이력이 기록·보존되는가"
+        ],
+        "isms": [
+          "2.11.5 사고 대응 및 복구: 대응 절차가 정의되고 이행 기록이 관리되는가",
+          "2.11.3 이상행위 분석 및 모니터링: 탐지 후 대응 연계가 이루어지는가",
+          "2.9.1 변경관리: 자동화된 변경도 통제 범위에 포함되는가"
+        ],
+        "evidence": [
+          "플레이북 목록과 각 플레이북의 자동화 수준·승인 요구 여부",
+          "플레이북 형상관리 이력(Git 커밋, 승인 기록)",
+          "SOAR 서비스 계정 권한 목록과 검토 결과",
+          "자동 조치 실행 이력과 연계된 변경 티켓 샘플",
+          "고위험 조치 승인 기록",
+          "MTTD·MTTR 등 지표 추이 보고서",
+          "플레이북 실행 실패 알림 및 조치 내역"
+        ],
+        "auditorQuestions": [
+          "자동으로 수행되는 조치는 무엇이며 사람 승인이 필요한 조치는 무엇입니까?",
+          "SOAR가 계정을 잠그거나 방화벽을 변경한 기록이 변경관리에 남습니까?",
+          "플레이북을 수정하려면 어떤 승인을 거칩니까?",
+          "SOAR 계정의 권한 범위는 어떻게 됩니까?",
+          "자동 조치로 인해 정상 서비스가 영향받은 사례가 있습니까?",
+          "평균 대응 시간은 도입 전후로 어떻게 변했습니까?"
+        ],
+        "controlExample": "보안 경보 대응 플레이북은 Git으로 형상관리되며 변경 시 코드 리뷰와 정보보호팀 승인을 거친다. 메일 회수·URL 차단 등 복구 가능한 조치는 자동 실행하되 계정 잠금·단말 격리 등 고위험 조치는 온콜 담당자의 승인 후 수행하며, 모든 자동 조치는 ITSM 변경 기록으로 자동 등록되어 사후 검토된다."
+      },
+      "related": [
+        "sec-siem",
+        "sec-soc",
+        "sec-incident-response",
+        "sec-edr-xdr",
+        "sec-email-phishing",
+        "plat-change-management",
+        "plat-itsm",
+        "sec-least-privilege"
+      ],
+      "learnMore": [
+        "Gartner SOAR 시장 개요",
+        "NIST SP 800-61 Incident Handling Guide",
+        "MITRE D3FEND 대응 기법 체계"
+      ]
+    },
+    {
+      "id": "sec-soc",
+      "title": "보안관제 (SOC)",
+      "titleEn": "Security Operations Center",
+      "aliases": [
+        "SOC",
+        "보안관제",
+        "관제센터",
+        "24x7 모니터링",
+        "MSSP",
+        "관제 위탁"
+      ],
+      "tags": [
+        "operations",
+        "monitoring",
+        "organization"
+      ],
+      "level": "중급",
+      "oneLiner": "보안 이벤트를 24시간 감시·분석·대응하는 조직과 운영 체계",
+      "analogy": "병원 응급실과 같다. 환자가 언제 올지 모르니 24시간 의료진이 대기하고, 도착하면 먼저 중증도를 분류(트리아지)해 급한 환자부터 본다. 경증은 간단히 처치하고, 중증은 전문의를 호출하고, 아주 위중하면 수술팀 전체가 소집된다. 모든 처치는 차트에 기록되고, 나중에 사례 검토로 프로토콜을 개선한다. SOC도 보안 이벤트에 대해 똑같은 방식으로 움직인다.",
+      "explanation": "<p><strong>SOC(Security Operations Center, 보안관제센터)</strong>는 조직의 보안 이벤트를 상시 모니터링하고 분석·대응하는 조직 단위이자 운영 체계다. 도구(SIEM, EDR, SOAR)가 아니라 <strong>사람과 프로세스</strong>가 중심이라는 점이 핵심이다. 아무리 좋은 도구가 있어도 경보를 보고 판단하는 사람과 절차가 없으면 SOC가 아니다.</p><p><strong>계층 구조</strong>가 일반적이다. <strong>Tier 1(관제·트리아지)</strong>은 경보를 1차 확인해 오탐을 걸러내고 정해진 절차대로 초동 조치한다. <strong>Tier 2(분석)</strong>는 진성 경보를 깊이 조사해 영향 범위와 근본 원인을 파악한다. <strong>Tier 3(위협 헌팅·포렌식)</strong>은 경보가 없어도 가설을 세워 침해 흔적을 능동적으로 찾고, 탐지 규칙을 만든다. 규모가 작은 회사는 이 역할을 몇 명이 겸한다.</p><p><strong>운영 모델은 세 가지</strong>다. <strong>자체 구축(In-house)</strong>은 통제력이 높지만 24시간 3교대 인력(최소 8~10명)이 필요해 비용이 크다. <strong>위탁(MSSP)</strong>은 전문 보안기업에 관제를 맡기는 방식으로 국내 금융·공공에서 매우 흔하다. <strong>하이브리드</strong>는 야간·휴일만 위탁하거나, 1차 관제는 위탁하고 심층 분석·대응은 내부가 맡는 방식으로 실무에서 가장 많이 쓰인다.</p><p><strong>위탁 시 감사 포인트</strong>가 별도로 있다. 위탁했다고 책임까지 위탁되는 것은 아니다. (1) <strong>계약에 SLA</strong>(경보 확인 시간, 보고 시한, 에스컬레이션 기준)가 명시되어 있는가, (2) 위탁사 인력의 <strong>접근 권한과 계정</strong>이 통제·검토되는가, (3) 위탁사가 제출하는 <strong>월간 보고서를 회사가 실제로 검토</strong>하는가, (4) 위탁사에 대한 <strong>연 1회 이상 점검</strong>이 이루어지는가다. 전자금융감독규정과 금융분야 외부주문 관련 규정은 위탁사 관리 책임을 명확히 요구한다.</p><p><strong>SOC의 성과 지표</strong>는 MTTD(평균 탐지 시간), MTTR(평균 대응 시간), 경보 처리량, 오탐률, 에스컬레이션 건수, 탐지 규칙 커버리지(ATT&amp;CK 기준)다. 특히 <strong>'탐지하지 못한 사고'</strong>가 있었는지가 SOC 유효성의 진짜 척도이며, 퍼플팀 훈련으로 이를 측정한다.</p><p><strong>가장 흔한 실패</strong>는 '경보는 오는데 아무 일도 일어나지 않는 상태'다. 야간 경보가 메일로만 가서 아침에 확인되거나, 에스컬레이션 기준이 모호해 판단이 지연되거나, 대응 권한이 없어 조치까지 몇 시간이 걸리는 경우다. 그래서 <strong>온콜 체계, 에스컬레이션 매트릭스, 사전 승인된 긴급 조치 권한</strong>이 SOC 설계의 필수 요소다.</p>",
+      "howItWorks": "<ol><li>SIEM·EDR·WAF·메일보안 등에서 경보가 SOC 콘솔로 모인다.</li><li>Tier 1이 경보를 트리아지한다. 오탐이면 근거를 남기고 종결, 진성이면 심각도를 부여한다.</li><li>정해진 초동 조치 플레이북을 수행한다(격리, 차단, 계정 잠금 등 사전 승인 범위 내).</li><li>심각도가 높거나 판단이 어려우면 Tier 2로 에스컬레이션한다.</li><li>Tier 2가 로그·포렌식 데이터를 분석해 영향 범위, 초기 침투 경로, 확산 여부를 확정한다.</li><li>기준을 넘으면 인시던트로 선언하고 사고대응 절차(CSIRT 소집, 경영진 보고, 필요 시 규제기관 신고)로 전환한다.</li><li>대응 완료 후 사후 검토(post-mortem)를 열어 탐지 지연 원인과 개선점을 도출한다.</li><li>Tier 3가 새로운 탐지 규칙을 작성하고, 위협 인텔리전스를 반영하며, 능동적 위협 헌팅을 수행한다.</li><li>월간으로 지표와 주요 사건을 경영진에 보고한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 하이브리드 SOC를 운영한다. 평일 09~18시는 내부 보안팀 3명이, 야간·휴일은 MSSP가 1차 관제를 맡는다. 계약 SLA는 '심각도 High 이상 경보는 15분 내 확인, 30분 내 회사 온콜 통보'다. 에스컬레이션 매트릭스는 명확하다. Critical은 즉시 온콜 전화 + CISO 보고, High는 30분 내 슬랙 + 온콜 통보, Medium은 다음 영업일 처리다. MSSP에는 조회 권한만 주고 차단 권한은 주지 않으며, MSSP 계정은 분기 권한 리뷰 대상이다. 2026년 상반기 총 경보 18,400건 중 진성 142건, 인시던트 선언 6건이었고 MTTD는 12분, MTTR은 1시간 47분이었다. 월간 위탁사 보고서는 보안팀장이 검토·서명하고, 연 1회 MSSP 현장 점검을 수행한다.</p><pre><code># 에스컬레이션 매트릭스 (모호하면 대응이 지연된다)\n심각도   기준                              1차 대응        통보          보고\nCritical 랜섬웨어·데이터 유출 정황·         즉시 격리       온콜 전화     CISO 즉시\n         운영 서비스 침해                   (사전 승인)     +CISO         경영진 2h 내\nHigh     계정 탈취 의심·관리자 권한 이상    계정 잠금 검토  슬랙+온콜     일일 보고\n         ·악성코드 실행 확인                (승인 후)       30분 내\nMedium   정책 위반·반복 로그인 실패         모니터링 강화   티켓 생성     주간 보고\nLow      정보성·스캔 탐지                   기록            없음          월간 통계\n\n# SOC 운영 지표 (월간 보고 항목)\n총 경보 3,067 / 오탐 종결 2,891(94.3%) / 진성 24 / 인시던트 1\nMTTD 12분  MTTR 1시간 47분\nATT&amp;CK 커버리지: 탐지규칙 보유 기법 87 / 대상 142 (61%)\n미탐지 사고: 0건 (퍼플팀 훈련 2회 모두 탐지)\n\n# 위탁(MSSP) 관리 체크리스트\n[ ] 계약서 SLA 명시  [ ] 위탁사 계정 권한 최소화·분기 검토\n[ ] 월간 보고서 회사 검토·서명  [ ] 연 1회 위탁사 보안 점검\n[ ] 위탁사 인력 변경 시 통보·계정 회수  [ ] 비밀유지 서약</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='105' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='60' y='125' text-anchor='middle' fill='currentColor' font-size='11'>경보 유입</text><text x='60' y='143' text-anchor='middle' fill='currentColor' font-size='10'>24시간</text><line x1='105' y1='130' x2='145' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='145' y='95' width='120' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='205' y='117' text-anchor='middle' fill='currentColor' font-size='11'>Tier 1</text><text x='205' y='135' text-anchor='middle' fill='currentColor' font-size='10'>트리아지</text><text x='205' y='152' text-anchor='middle' fill='currentColor' font-size='10'>오탐 종결·초동조치</text><line x1='265' y1='130' x2='305' y2='130' stroke='currentColor' marker-end='url(#ar)'/><text x='285' y='123' text-anchor='middle' fill='currentColor' font-size='10'>진성</text><rect x='305' y='95' width='120' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='365' y='117' text-anchor='middle' fill='currentColor' font-size='11'>Tier 2</text><text x='365' y='135' text-anchor='middle' fill='currentColor' font-size='10'>심층 분석</text><text x='365' y='152' text-anchor='middle' fill='currentColor' font-size='10'>범위·원인 규명</text><line x1='425' y1='115' x2='465' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='425' y1='145' x2='465' y2='180' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='50' width='155' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='71' text-anchor='middle' fill='currentColor' font-size='11'>인시던트 선언</text><text x='542' y='89' text-anchor='middle' fill='currentColor' font-size='10'>CSIRT·경영진·규제 신고</text><rect x='465' y='155' width='155' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='176' text-anchor='middle' fill='currentColor' font-size='11'>Tier 3</text><text x='542' y='194' text-anchor='middle' fill='currentColor' font-size='10'>위협 헌팅 · 규칙 개선</text><path d='M542,210 Q542,235 205,235 Q205,200 205,168' stroke='currentColor' fill='none' stroke-dasharray='5 4' marker-end='url(#ar)'/><text x='360' y='250' text-anchor='middle' fill='currentColor' font-size='10'>사후 검토 결과를 탐지 규칙에 환류</text><text x='15' y='40' fill='currentColor' font-size='12'>도구가 아니라 사람과 절차가 SOC의 본체</text><text x='15' y='62' fill='currentColor' font-size='11'>필수 3요소: 온콜 체계 · 에스컬레이션 매트릭스 · 사전 승인된 긴급 조치 권한</text><text x='15' y='82' fill='currentColor' font-size='11'>위탁(MSSP) 시에도 통제 책임은 회사에 남는다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "트리아지(Triage)",
+          "meaning": "경보의 진위와 심각도를 1차 분류하는 작업"
+        },
+        {
+          "term": "Tier 1/2/3",
+          "meaning": "관제-분석-헌팅으로 나뉘는 SOC 역할 계층"
+        },
+        {
+          "term": "에스컬레이션 매트릭스",
+          "meaning": "심각도별 통보 대상·시한·조치 권한을 정한 표"
+        },
+        {
+          "term": "온콜(On-call)",
+          "meaning": "업무 외 시간에 호출에 응답하는 당번 체계"
+        },
+        {
+          "term": "MSSP",
+          "meaning": "보안관제를 전문으로 위탁 수행하는 사업자"
+        },
+        {
+          "term": "위협 헌팅",
+          "meaning": "경보 없이도 가설 기반으로 침해 흔적을 능동 탐색하는 활동"
+        },
+        {
+          "term": "MTTD / MTTR",
+          "meaning": "평균 탐지 시간과 평균 대응 시간. SOC 핵심 지표"
+        },
+        {
+          "term": "사후 검토(Post-mortem)",
+          "meaning": "사고 후 원인과 개선점을 도출하는 비난 없는 회고"
+        }
+      ],
+      "pitfalls": [
+        "야간 경보가 메일로만 발송돼 아침에야 확인된다. 24시간 관제라는 말이 무의미해진다.",
+        "에스컬레이션 기준이 모호해 '이걸 보고해야 하나' 고민하다 대응이 지연된다.",
+        "관제는 위탁했는데 위탁사 보고서를 회사가 검토하지 않는다. 책임은 회사에 남는다.",
+        "위탁사 계정에 과도한 권한을 주고 권한 리뷰 대상에서 제외한다.",
+        "Tier 1이 오탐 종결한 근거를 남기지 않아 나중에 검증이 불가능하다.",
+        "SOC에 차단 권한이 전혀 없어 조치까지 승인 절차로만 몇 시간이 걸린다.",
+        "탐지 규칙 커버리지를 측정하지 않아 어떤 공격 유형에 눈이 없는지 모른다.",
+        "사후 검토를 책임 추궁으로 운영해 사람들이 사고를 숨기게 된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 보안 이벤트에 대한 상시 모니터링 체계와 담당·근무 체계가 정의되어 있는가",
+          "[운영] 심각도별 에스컬레이션 기준과 대응 시한이 문서화되고 준수되는가",
+          "[접근] 관제 위탁사 인력의 계정·권한이 최소화되고 정기 검토되는가",
+          "[운영] 위탁사 보고서를 회사가 검토·승인하고 연 1회 이상 점검하는가",
+          "[운영] 경보 처리 이력과 오탐 종결 근거가 기록·보존되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 침해사고 탐지·대응을 위한 상시 감시 체계를 갖추었는가",
+          "관제 업무 위탁 시 외부주문 관리 절차(계약, 보안요구사항, 점검, 보고)를 이행하는가",
+          "침해사고 발생 시 정해진 시한 내 보고·신고 절차가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.11.3 이상행위 분석 및 모니터링: 24시간 모니터링 체계와 분석이 이루어지는가",
+          "2.11.5 사고 대응 및 복구: 대응 조직·절차·역할이 정의되어 있는가",
+          "2.3.1~2.3.4 외부자 보안: 관제 위탁사에 대한 보안 요구사항과 점검이 이루어지는가"
+        ],
+        "evidence": [
+          "SOC 운영 절차서와 근무 편성표(24시간 커버리지 증명)",
+          "에스컬레이션 매트릭스 문서",
+          "기간 중 경보 처리 통계와 대표 사건 처리 타임라인",
+          "위탁 계약서(SLA, 보안 요구사항)와 월간 보고서 및 회사 검토 서명",
+          "위탁사 인력 계정 목록과 권한 검토 결과",
+          "위탁사 연간 점검 결과 보고서",
+          "MTTD·MTTR 등 지표 추이와 경영진 보고 자료"
+        ],
+        "auditorQuestions": [
+          "야간과 휴일에 보안 경보는 누가 언제 확인합니까?",
+          "심각한 경보가 발생하면 누구에게 몇 분 내에 통보됩니까?",
+          "관제를 위탁했다면 위탁사 보고서를 누가 검토합니까?",
+          "위탁사 인력은 어떤 권한을 갖고 있으며 인력 변경 시 어떻게 처리합니까?",
+          "지난 1년간 탐지하지 못한 사고가 있었습니까? 어떻게 확인했습니까?",
+          "SOC가 직접 차단할 수 있는 조치는 무엇입니까?"
+        ],
+        "controlExample": "보안 이벤트는 평일 주간 내부 보안팀, 야간·휴일 관제 위탁사를 통해 24시간 모니터링되며, 심각도별 에스컬레이션 매트릭스에 따라 Critical은 즉시, High는 30분 내 회사 온콜 담당자에게 통보된다. 위탁사 계정은 조회 권한으로 제한되어 분기마다 검토되고, 월간 관제 보고서는 정보보호팀장이 검토·서명하며 연 1회 위탁사 보안 점검을 수행한다."
+      },
+      "related": [
+        "sec-siem",
+        "sec-soar",
+        "sec-incident-response",
+        "sec-edr-xdr",
+        "sec-pentest-redteam",
+        "sec-cspm-cnapp",
+        "sec-policy-framework",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "NIST SP 800-61 Computer Security Incident Handling Guide",
+        "MITRE 11 Strategies of a World-Class SOC",
+        "금융분야 정보보호 상시감시 관련 안내(금융보안원)"
+      ]
+    },
+    {
+      "id": "sec-cspm-cnapp",
+      "title": "CSPM / CNAPP (Wiz, Prisma Cloud)",
+      "titleEn": "Cloud Security Posture Management / Cloud-Native Application Protection Platform",
+      "aliases": [
+        "CSPM",
+        "CNAPP",
+        "Wiz",
+        "Prisma Cloud",
+        "클라우드 보안",
+        "설정 진단",
+        "CWPP",
+        "CIEM"
+      ],
+      "tags": [
+        "cloud",
+        "posture",
+        "detection",
+        "compliance"
+      ],
+      "level": "심화",
+      "oneLiner": "클라우드 설정 오류·취약점·과다권한을 통합 진단하고 실제 위험 경로를 보여주는 플랫폼",
+      "analogy": "건물 안전진단 업체가 도면과 현장을 함께 보는 것과 같다. 예전에는 '창문이 열려 있다', '소화기가 없다'처럼 항목을 하나씩 지적했다면, 지금은 '지하 주차장 문이 열려 있고 → 그 통로가 서버실과 연결돼 있고 → 서버실 금고에 마스터키가 있다'는 식으로 <b>실제로 이어지는 침입 경로</b>를 그려서 보여준다. 항목 1,000개를 나열하는 것보다 이 경로 3개를 막는 게 훨씬 효과적이다.",
+      "explanation": "<p><strong>CSPM(Cloud Security Posture Management)</strong>은 클라우드 계정의 설정을 지속적으로 점검해 위험한 구성을 찾아내는 도구다. 공개된 S3 버킷, 0.0.0.0/0으로 열린 보안그룹, 암호화되지 않은 볼륨, MFA 없는 루트 계정, 비활성화된 CloudTrail 같은 것들이다. <strong>CNAPP(Cloud-Native Application Protection Platform)</strong>은 여기에 워크로드 보호(CWPP), 권한 분석(CIEM), 컨테이너·IaC 스캔, 런타임 탐지까지 합친 통합 플랫폼이다. Wiz, Prisma Cloud, Orca, AWS Security Hub 조합이 대표적이다.</p><p><strong>왜 필요한가.</strong> 클라우드에서는 <strong>설정 하나가 곧 보안 경계</strong>다. 방화벽 장비를 사는 대신 보안그룹 규칙을 쓰고, 서버실 출입통제 대신 IAM 정책을 쓴다. 그런데 이 설정은 IaC·콘솔·CLI·자동화로 수시로 바뀌고, 계정이 수십 개면 사람이 전수 점검하는 것은 불가능하다. 실제 클라우드 침해의 압도적 다수가 <strong>해킹 기술이 아니라 설정 실수</strong>에서 비롯된다.</p><p><strong>CNAPP의 핵심 진화는 '공격 경로 분석(Attack Path Analysis)'</strong>이다. 단순 항목 나열이 아니라 여러 약점을 연결해 실제 도달 가능한 위험을 계산한다. 예를 들어 '인터넷에 노출된 EC2 + 패치 안 된 웹 취약점 + 그 인스턴스에 붙은 과다 권한 IAM 역할 + 그 역할로 접근 가능한 고객정보 S3'라는 체인을 하나의 위험으로 제시한다. 이렇게 하면 <strong>수천 건의 경고 중 진짜 급한 것</strong>을 골라낼 수 있다.</p><p><strong>에이전트리스(agentless) 스캔</strong>도 중요한 특징이다. 워크로드에 에이전트를 설치하지 않고 스토리지 스냅샷을 분석해 취약점·비밀·악성코드를 찾는다. 배포 부담이 없어 커버리지가 빠르게 올라가지만, 실시간 런타임 탐지는 되지 않으므로 Falco 같은 런타임 센서와 병행한다.</p><p><strong>컴플라이언스 매핑</strong>이 감사에서 특히 유용하다. CIS Benchmark, PCI DSS, ISO 27001, ISMS-P 항목에 클라우드 설정 점검 결과를 자동 매핑해 '준수율 %'와 '미준수 리소스 목록'을 산출한다. 감사인에게 제출할 증적을 도구가 바로 만들어 주는 셈이다. 다만 <strong>자동 매핑 결과를 그대로 신뢰하면 안 된다</strong>. 회사 환경의 예외와 보완통제를 반영해 해석해야 한다.</p><p><strong>운영에서의 관건은 '누가 고칠 것인가'</strong>다. CSPM은 수천 건의 미준수를 찾아내지만, 대부분 클라우드 리소스의 소유 팀이 고쳐야 한다. 그래서 <strong>리소스 태그(소유팀, 환경, 시스템)</strong> 품질이 곧 조치율을 결정한다. 태그가 부실하면 담당자를 못 찾아 티켓이 정체된다. 또한 <strong>IaC 단계에서 차단</strong>(shift-left)하면 애초에 잘못된 설정이 배포되지 않으므로, 런타임 탐지보다 훨씬 효율적이다.</p>",
+      "howItWorks": "<ol><li>클라우드 계정에 읽기 전용 역할을 연결해 CNAPP가 구성 정보를 수집하게 한다(멀티 계정·멀티 클라우드).</li><li>주기적으로(수 분~수 시간) 리소스 구성, IAM 정책, 네트워크 규칙, 스토리지 설정을 수집한다.</li><li>에이전트리스 방식으로 볼륨 스냅샷을 분석해 OS·패키지 취약점, 노출된 비밀, 악성코드를 찾는다.</li><li>수집한 데이터를 그래프로 연결한다(리소스-권한-네트워크-데이터 관계).</li><li>정책 규칙과 벤치마크(CIS 등)를 평가해 미준수 항목을 산출한다.</li><li>그래프를 탐색해 '인터넷 노출 → 취약점 → 권한 → 민감 데이터'로 이어지는 공격 경로를 계산하고 우선순위를 매긴다.</li><li>리소스 태그를 기준으로 소유 팀에 티켓을 자동 배정하고 SLA를 부여한다.</li><li>IaC 스캔을 CI에 연결해 배포 전에 위험 설정을 차단하고, 런타임 이벤트는 SIEM·SOAR로 연계한다.</li><li>컴플라이언스 대시보드에서 기준별 준수율과 미준수 리소스를 추출해 감사 증적으로 활용한다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'는 AWS 계정 23개를 Wiz로 통합 점검한다. 도입 첫 주에 미준수 4,700건이 나왔지만 공격 경로 분석으로 <strong>'즉시 조치가 필요한 경로 9건'</strong>이 추려졌다. 그중 하나는 '퍼블릭 서브넷의 구형 Jenkins(RCE 취약점) → 인스턴스 프로파일에 <code>s3:*</code> 권한 → 고객 주문 데이터 버킷 접근 가능'이었다. 해당 경로는 24시간 내 차단됐다(보안그룹 제한 + IAM 정책 축소 + Jenkins 업그레이드). 이후 태그 정책을 강제해 <code>Owner</code>, <code>Env</code>, <code>System</code> 태그가 없는 리소스는 생성이 거부되게 했고, Terraform CI에 IaC 스캔을 붙여 위험 설정을 배포 전에 차단한다. 분기 감사 때는 CIS AWS Benchmark 준수율(94.2%)과 미준수 리소스 목록, 예외 승인 내역을 함께 제출한다.</p><pre><code># 공격 경로 예시 (단순 항목 나열보다 훨씬 실효적)\n[인터넷 노출] ALB → EC2 (0.0.0.0/0:8080)\n   ↓ [취약점] Jenkins 2.3xx RCE (CVE-2024-xxxxx, KEV 등재)\n   ↓ [과다 권한] 인스턴스 프로파일에 s3:* (Resource: *)\n   ↓ [민감 데이터] s3://shopcast-orders (개인정보 포함, 암호화 O)\n=> 위험도: Critical / 조치: 네트워크 제한 + 권한 축소 + 패치\n\n# 대표 CSPM 점검 항목 (CLI로도 확인 가능)\naws s3api get-public-access-block --bucket shopcast-orders\naws ec2 describe-security-groups \\\n  --query 'SecurityGroups[?IpPermissions[?IpRanges[?CidrIp==`0.0.0.0/0`]]].[GroupId,GroupName]'\naws cloudtrail describe-trails --query 'trailList[].[Name,IsMultiRegionTrail,LogFileValidationEnabled]'\naws iam get-account-summary --query 'SummaryMap.AccountMFAEnabled'\n\n# IaC 단계 차단 (shift-left가 가장 효율적)\n# .github/workflows/terraform.yml\n- name: IaC security scan\n  run: checkov -d . --framework terraform --hard-fail-on HIGH\n\n# 태그 없는 리소스 생성 차단 (SCP)\n{\n  \"Effect\": \"Deny\",\n  \"Action\": [\"ec2:RunInstances\", \"rds:CreateDBInstance\"],\n  \"Resource\": \"*\",\n  \"Condition\": {\"Null\": {\"aws:RequestTag/Owner\": \"true\"}}\n}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='26' fill='currentColor' font-size='12'>공격 경로 분석 - 흩어진 약점을 하나의 경로로 연결</text><rect x='20' y='40' width='115' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='77' y='60' text-anchor='middle' fill='currentColor' font-size='10'>인터넷 노출</text><text x='77' y='76' text-anchor='middle' fill='currentColor' font-size='10'>0.0.0.0/0</text><line x1='135' y1='62' x2='165' y2='62' stroke='currentColor' marker-end='url(#ar)'/><rect x='165' y='40' width='115' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='222' y='60' text-anchor='middle' fill='currentColor' font-size='10'>미패치 취약점</text><text x='222' y='76' text-anchor='middle' fill='currentColor' font-size='10'>KEV 등재</text><line x1='280' y1='62' x2='310' y2='62' stroke='currentColor' marker-end='url(#ar)'/><rect x='310' y='40' width='115' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='367' y='60' text-anchor='middle' fill='currentColor' font-size='10'>과다 IAM 권한</text><text x='367' y='76' text-anchor='middle' fill='currentColor' font-size='10'>s3:* on *</text><line x1='425' y1='62' x2='455' y2='62' stroke='currentColor' marker-end='url(#ar)'/><rect x='455' y='40' width='165' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='537' y='60' text-anchor='middle' fill='currentColor' font-size='10'>민감 데이터 도달</text><text x='537' y='76' text-anchor='middle' fill='currentColor' font-size='10'>고객정보 버킷</text><rect x='20' y='105' width='290' height='130' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='165' y='126' text-anchor='middle' fill='currentColor' font-size='12'>CNAPP 구성 요소</text><text x='32' y='148' fill='currentColor' font-size='11'>CSPM - 설정 오류 점검</text><text x='32' y='167' fill='currentColor' font-size='11'>CWPP - 워크로드 취약점·런타임</text><text x='32' y='186' fill='currentColor' font-size='11'>CIEM - 과다 권한 분석</text><text x='32' y='205' fill='currentColor' font-size='11'>IaC 스캔 - 배포 전 차단</text><text x='32' y='226' fill='currentColor' font-size='11'>컴플라이언스 매핑 (CIS 등)</text><rect x='325' y='105' width='295' height='130' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='472' y='126' text-anchor='middle' fill='currentColor' font-size='12'>조치가 되게 만드는 조건</text><text x='337' y='148' fill='currentColor' font-size='11'>리소스 태그 품질 = 담당자 식별</text><text x='337' y='167' fill='currentColor' font-size='11'>소유 팀 자동 티켓 + SLA</text><text x='337' y='186' fill='currentColor' font-size='11'>IaC 단계 차단(shift-left)이 최선</text><text x='337' y='205' fill='currentColor' font-size='11'>예외는 승인·기한과 함께 등록</text><text x='337' y='226' fill='currentColor' font-size='11'>준수율만 보지 말고 경로를 본다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "CSPM",
+          "meaning": "클라우드 설정 오류를 지속 점검하는 도구 분류"
+        },
+        {
+          "term": "CNAPP",
+          "meaning": "설정·워크로드·권한·런타임을 통합한 클라우드 보안 플랫폼"
+        },
+        {
+          "term": "CWPP",
+          "meaning": "VM·컨테이너 등 워크로드 자체를 보호하는 영역"
+        },
+        {
+          "term": "CIEM",
+          "meaning": "클라우드 권한을 분석해 과다 권한을 찾아 축소하는 영역"
+        },
+        {
+          "term": "공격 경로 분석",
+          "meaning": "여러 약점을 연결해 실제 도달 가능한 위험을 산출하는 기능"
+        },
+        {
+          "term": "에이전트리스 스캔",
+          "meaning": "스냅샷 분석으로 설치 없이 취약점을 찾는 방식"
+        },
+        {
+          "term": "Shift-left",
+          "meaning": "배포 전 IaC 단계에서 위험 설정을 차단하는 접근"
+        },
+        {
+          "term": "컴플라이언스 매핑",
+          "meaning": "점검 결과를 CIS·PCI 등 기준 항목에 자동 대응시키는 기능"
+        },
+        {
+          "term": "드리프트",
+          "meaning": "IaC 정의와 실제 클라우드 상태가 어긋나는 현상"
+        }
+      ],
+      "pitfalls": [
+        "미준수 수천 건을 그대로 팀에 던져 아무도 손대지 않는 상태가 된다. 우선순위화가 필수다.",
+        "리소스 태그가 부실해 담당자를 찾지 못하고 조치가 정체된다.",
+        "준수율 %만 관리 지표로 보고 실제 공격 경로는 방치한다.",
+        "런타임 탐지 없이 에이전트리스 스캔만 써서 실행 중 공격을 놓친다.",
+        "IaC 스캔을 CI에 붙이지 않아 같은 유형의 잘못된 설정이 계속 배포된다.",
+        "일부 계정만 연결하고 신규 계정 자동 온보딩이 없어 사각지대가 생긴다.",
+        "CNAPP에 준 읽기 권한이 과도하거나(데이터 접근 포함) 그 자체가 통제되지 않는다.",
+        "예외 처리를 무기한으로 등록해 사실상 점검 대상에서 영구 제외된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 모든 클라우드 계정이 보안 점검 도구에 연결되고 신규 계정이 자동 온보딩되는가",
+          "[운영] 발견된 위험이 소유 팀에 배정되고 심각도별 기한 내 조치되는가",
+          "[변경] IaC 단계 보안 점검이 파이프라인에 적용되어 위험 설정 배포가 차단되는가",
+          "[접근] 점검 도구에 부여된 클라우드 권한이 최소(읽기)로 제한되는가",
+          "[운영] 예외 처리가 승인·기한과 함께 관리되고 재검토되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제14조의2 클라우드컴퓨팅서비스 이용절차에 따른 안전성 확보조치가 지속 점검되는가",
+          "클라우드 환경의 접근통제·암호화·로그 요건이 상시 모니터링되는가",
+          "중요도 평가 결과에 따른 보안 통제가 실제 설정으로 구현·검증되는가"
+        ],
+        "isms": [
+          "2.10.2 클라우드 보안: 클라우드 서비스 설정과 보안 통제가 관리되는가",
+          "2.11.2 취약점 점검 및 조치: 클라우드 설정·워크로드 취약점이 점검·조치되는가",
+          "2.9.1 변경관리: 클라우드 구성 변경이 통제되고 드리프트가 관리되는가"
+        ],
+        "evidence": [
+          "점검 도구에 연결된 클라우드 계정 목록(전체 계정 대비 커버리지)",
+          "컴플라이언스 대시보드 결과(기준별 준수율, 미준수 리소스 목록)",
+          "공격 경로 리포트와 조치 내역",
+          "IaC 스캔 CI 설정과 차단 이력",
+          "위험 항목 티켓 배정·조치 기한·완료 증적",
+          "예외 승인 문서와 재검토 기록",
+          "점검 도구에 부여된 IAM 역할 정책"
+        ],
+        "auditorQuestions": [
+          "클라우드 계정이 몇 개이고 모두 보안 점검 대상입니까? 신규 계정은 어떻게 편입됩니까?",
+          "현재 가장 위험한 공격 경로는 무엇이며 언제까지 조치합니까?",
+          "미준수 항목은 누구에게 배정되고 기한은 어떻게 관리됩니까?",
+          "잘못된 설정이 배포되지 않도록 사전에 막는 장치가 있습니까?",
+          "점검 도구가 클라우드에서 어떤 권한을 갖고 있습니까? 데이터도 읽을 수 있습니까?",
+          "예외로 등록된 항목은 몇 건이고 언제 재검토됩니까?"
+        ],
+        "controlExample": "전 클라우드 계정은 CNAPP에 자동 온보딩되어 설정·취약점·권한이 지속 점검되며, 공격 경로로 식별된 Critical 위험은 24시간 내, High는 7일 내 조치한다. 리소스 태그 기반으로 소유 팀에 자동 배정되고 IaC 파이프라인에서 위험 설정 배포가 차단되며, 예외는 기한과 보완통제를 명시해 승인 후 분기 재검토한다."
+      },
+      "related": [
+        "sec-vuln-management",
+        "sec-falco",
+        "sec-least-privilege",
+        "iac-terraform",
+        "awssec-iam",
+        "sec-siem",
+        "sec-asset-classification",
+        "aws-organizations"
+      ],
+      "learnMore": [
+        "CIS Amazon Web Services Foundations Benchmark",
+        "Gartner CNAPP 시장 정의",
+        "AWS Security Hub 사용 설명서"
+      ]
+    },
+    {
+      "id": "sec-falco",
+      "title": "컨테이너 런타임 보안 (Falco)",
+      "titleEn": "Container Runtime Security with Falco",
+      "aliases": [
+        "Falco",
+        "런타임 보안",
+        "컨테이너 보안",
+        "eBPF",
+        "시스템콜 탐지",
+        "런타임 탐지"
+      ],
+      "tags": [
+        "container",
+        "kubernetes",
+        "detection",
+        "runtime"
+      ],
+      "level": "심화",
+      "oneLiner": "컨테이너가 실행 중 하는 행위를 커널 수준에서 감시해 비정상을 탐지하는 도구",
+      "analogy": "공장 생산라인에 설치한 행동 감지 센서와 같다. 출입할 때 신원을 확인하는 것(이미지 스캔)과 별개로, 작업자가 라인 안에서 '갑자기 공구함을 열고 설계도를 복사한다' 같은 평소와 다른 행동을 하면 즉시 알람이 울린다. 컨테이너는 원래 정해진 일만 하도록 만들어진 것이므로, 평소와 다른 행동은 그 자체로 강한 침해 신호다.",
+      "explanation": "<p><strong>Falco</strong>는 CNCF 졸업 프로젝트로, 리눅스 커널의 <strong>시스템 콜(system call)</strong>을 관찰해 컨테이너·호스트의 비정상 행위를 실시간 탐지하는 런타임 보안 도구다. 원래 커널 모듈 방식이었으나 지금은 <strong>eBPF</strong>를 주로 사용해 커널을 수정하지 않고 안전하게 관찰한다.</p><p><strong>왜 런타임 탐지가 필요한가.</strong> 컨테이너 보안은 보통 이미지 스캔(빌드 시점)과 admission 정책(배포 시점)으로 대응한다. 하지만 이는 '알려진 취약점이 없는 이미지'를 보장할 뿐이다. 애플리케이션의 제로데이 취약점이 악용되거나, 정상 이미지 안에서 공격자가 쉘을 띄우거나, 공급망 공격으로 악성 코드가 들어온 경우는 <strong>실행 중에만 드러난다</strong>. 런타임 탐지가 마지막 관문인 이유다.</p><p><strong>컨테이너는 탐지에 유리한 특성</strong>이 있다. 일반 서버와 달리 컨테이너는 <strong>하는 일이 매우 좁게 정해져 있다</strong>. 웹 API 컨테이너는 평생 같은 프로세스만 실행하고 같은 포트로만 통신한다. 그래서 '컨테이너 안에서 <code>bash</code>가 실행됐다', '패키지 관리자가 실행됐다', '<code>/etc/shadow</code>를 읽었다', '컨테이너가 예상 밖의 외부 IP로 접속했다' 같은 규칙이 오탐 없이 잘 작동한다. 일반 서버에서는 이런 규칙이 소음이 되지만 컨테이너에서는 강한 신호다.</p><p><strong>대표 탐지 규칙</strong>은 다음과 같다. 컨테이너 내 대화형 쉘 실행, 권한 상승(setuid) 시도, 민감 파일 읽기, 컨테이너 탈출 시도(호스트 마운트 접근, 특권 컨테이너 생성), 쿠버네티스 서비스어카운트 토큰 파일 접근, 암호화폐 채굴 프로세스 실행, 예상치 못한 아웃바운드 연결이다. Falco는 이를 <strong>규칙 파일(YAML)</strong>로 정의하며 자체 규칙을 추가할 수 있다.</p><p><strong>운영에서 중요한 점</strong>은 두 가지다. 첫째 <strong>기본 규칙셋은 그대로 쓰면 오탐이 많다</strong>. 정상 운영 작업(디버깅용 exec, 초기화 스크립트)이 계속 걸리므로 환경에 맞춘 예외 정의가 필요하다. 둘째 <strong>Falco는 탐지만 하고 차단은 하지 않는다</strong>(Falco Talon 등 대응 컴포넌트와 연계해 Pod 종료·격리를 수행). 그래서 SIEM·SOAR 연계 설계가 함께 필요하다.</p><p><strong>감사 관점</strong>에서는 (1) 모든 노드에 센서가 배포되어 있는가(DaemonSet 커버리지), (2) 탐지 이벤트가 SIEM으로 전달되어 보존되는가, (3) 규칙 변경이 승인·형상관리되는가, (4) 탐지 시 대응 절차와 실제 처리 이력이 있는가를 본다. 특히 <strong>'운영 컨테이너에 사람이 kubectl exec으로 들어간 사실'</strong>이 기록되는지는 ITGC의 직무분리·변경관리와 직결되므로 매우 유용한 증적이 된다.</p>",
+      "howItWorks": "<ol><li>Falco를 쿠버네티스 DaemonSet으로 배포해 모든 노드에 센서를 올린다.</li><li>센서가 eBPF 프로그램을 커널에 로드해 시스템 콜 이벤트를 수집한다.</li><li>수집된 이벤트에 컨테이너·Pod·네임스페이스·이미지 메타데이터를 덧붙인다.</li><li>규칙 엔진이 이벤트를 규칙(YAML)과 비교해 조건 일치 여부를 판정한다.</li><li>일치하면 우선순위(Critical/Warning 등)와 함께 알림을 생성한다.</li><li>Falcosidekick 같은 출력 컴포넌트가 알림을 Slack·SIEM·SOAR·웹훅으로 전달한다.</li><li>대응 컴포넌트가 연결돼 있으면 사전 정의된 조치를 실행한다(Pod 라벨링·격리·종료).</li><li>SOC가 이벤트를 분석하고, 오탐이면 규칙 예외를 추가하며, 진성이면 사고 절차로 전환한다.</li><li>규칙 변경은 Git으로 관리되어 리뷰·승인 후 배포된다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 EKS 노드 24대에 Falco를 DaemonSet으로 배포했다. 운영 네임스페이스에서는 '컨테이너 내 쉘 실행'을 Critical로 설정해 즉시 온콜 호출이 가도록 했는데, 정상적인 긴급 디버깅과 충돌하지 않도록 <strong>PAM을 통해 승인된 세션에서만 예외</strong>가 되도록 규칙을 튜닝했다. 2026년 7월, 정산 배치 컨테이너에서 <code>curl</code>이 외부 IP로 접속하는 이벤트가 탐지됐다. 조사 결과 오픈소스 라이브러리 업데이트에 포함된 텔레메트리 기능으로 확인돼 차단 목록에 추가하고 해당 버전을 고정했다. 또 '서비스어카운트 토큰 파일 읽기' 규칙은 실제 침해 시뮬레이션(퍼플팀)에서 유일하게 탐지에 성공한 규칙이었다. Falco 이벤트는 모두 Splunk로 전송되어 1년 보관된다.</p><pre><code># Falco 규칙 예 1: 운영 컨테이너 내 쉘 실행 (승인 세션은 예외)\n- rule: Shell in Production Container\n  desc: 운영 네임스페이스 컨테이너에서 대화형 쉘 실행 탐지\n  condition: &gt;\n    spawned_process and container\n    and k8s.ns.name in (payment, settlement)\n    and proc.name in (bash, sh, zsh, ash)\n    and not user.name in (approved_pam_users)\n  output: &gt;\n    운영 컨테이너 쉘 실행 (user=%user.name ns=%k8s.ns.name\n    pod=%k8s.pod.name image=%container.image.repository cmd=%proc.cmdline)\n  priority: CRITICAL\n  tags: [container, shell, mitre_execution]\n\n# Falco 규칙 예 2: 서비스어카운트 토큰 접근 (권한 탈취 징후)\n- rule: Read K8s ServiceAccount Token\n  condition: &gt;\n    open_read and container\n    and fd.name startswith /var/run/secrets/kubernetes.io/serviceaccount\n    and not proc.name in (kubelet, kube-proxy)\n  priority: WARNING\n\n# 배포와 커버리지 확인 (감사 증적)\nkubectl get daemonset -n falco falco\nkubectl get pods -n falco -o wide | wc -l   # 노드 수와 일치해야 함\nkubectl get nodes --no-headers | wc -l</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='26' fill='currentColor' font-size='12'>컨테이너 보안 3단계 - 런타임이 마지막 관문</text><rect x='20' y='38' width='130' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='57' text-anchor='middle' fill='currentColor' font-size='10'>빌드: 이미지 스캔</text><text x='85' y='73' text-anchor='middle' fill='currentColor' font-size='10'>알려진 취약점</text><line x1='150' y1='59' x2='180' y2='59' stroke='currentColor' marker-end='url(#ar)'/><rect x='180' y='38' width='130' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='245' y='57' text-anchor='middle' fill='currentColor' font-size='10'>배포: admission</text><text x='245' y='73' text-anchor='middle' fill='currentColor' font-size='10'>정책 위반 차단</text><line x1='310' y1='59' x2='340' y2='59' stroke='currentColor' marker-end='url(#ar)'/><rect x='340' y='38' width='150' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='415' y='57' text-anchor='middle' fill='currentColor' font-size='10'>런타임: Falco</text><text x='415' y='73' text-anchor='middle' fill='currentColor' font-size='10'>제로데이·공급망 대응</text><rect x='20' y='100' width='265' height='120' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='152' y='121' text-anchor='middle' fill='currentColor' font-size='12'>노드 (DaemonSet 센서)</text><rect x='35' y='132' width='110' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='90' y='153' text-anchor='middle' fill='currentColor' font-size='10'>컨테이너 A</text><rect x='155' y='132' width='110' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='153' text-anchor='middle' fill='currentColor' font-size='10'>컨테이너 B</text><rect x='35' y='176' width='230' height='32' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='150' y='196' text-anchor='middle' fill='currentColor' font-size='10'>커널 - eBPF로 시스템콜 관찰</text><line x1='285' y1='160' x2='330' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='100' width='290' height='120' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475' y='121' text-anchor='middle' fill='currentColor' font-size='12'>탐지 규칙 (컨테이너는 하는 일이 좁다)</text><text x='342' y='143' fill='currentColor' font-size='11'>컨테이너 안에서 쉘 실행</text><text x='342' y='162' fill='currentColor' font-size='11'>민감 파일 · SA 토큰 읽기</text><text x='342' y='181' fill='currentColor' font-size='11'>컨테이너 탈출 시도 · 특권 상승</text><text x='342' y='200' fill='currentColor' font-size='11'>예상 밖 외부 연결 · 채굴 프로세스</text><text x='20' y='240' fill='currentColor' font-size='11'>Falco는 탐지만 - 차단은 대응 컴포넌트/SOAR 연계  |  감사: 노드 커버리지 · SIEM 전송 · 규칙 형상관리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Falco",
+          "meaning": "시스템 콜 기반으로 컨테이너 런타임 이상 행위를 탐지하는 CNCF 도구"
+        },
+        {
+          "term": "eBPF",
+          "meaning": "커널을 수정하지 않고 안전하게 커널 이벤트를 관찰하는 기술"
+        },
+        {
+          "term": "시스템 콜",
+          "meaning": "프로세스가 커널에 요청하는 동작. 행위 탐지의 최소 단위"
+        },
+        {
+          "term": "DaemonSet",
+          "meaning": "모든 노드에 하나씩 Pod를 띄우는 쿠버네티스 배포 방식"
+        },
+        {
+          "term": "컨테이너 탈출",
+          "meaning": "컨테이너 격리를 벗어나 호스트를 장악하려는 공격"
+        },
+        {
+          "term": "Falcosidekick",
+          "meaning": "탐지 알림을 Slack·SIEM·SOAR 등으로 전달하는 출력 컴포넌트"
+        },
+        {
+          "term": "규칙 튜닝",
+          "meaning": "정상 운영 행위를 예외 처리해 오탐을 줄이는 작업"
+        },
+        {
+          "term": "admission 정책",
+          "meaning": "배포 시점에 정책 위반 워크로드를 차단하는 통제"
+        }
+      ],
+      "pitfalls": [
+        "일부 노드에만 센서가 배포돼 커버리지 공백이 생긴다. 신규 노드 그룹 추가 시 특히 흔하다.",
+        "기본 규칙셋을 그대로 써서 오탐이 폭증하고 결국 알림을 무시하게 된다.",
+        "탐지 이벤트를 SIEM으로 보내지 않아 보존·상관분석이 되지 않는다.",
+        "Falco가 차단까지 해줄 것으로 오해한다. 기본은 탐지 전용이다.",
+        "규칙을 클러스터에 직접 수정하고 Git 형상관리를 하지 않는다.",
+        "이미지 스캔만 하고 런타임 탐지를 생략해 제로데이·공급망 공격에 대응 수단이 없다.",
+        "kubectl exec 사용을 탐지하면서도 승인된 운영 작업과 구분하지 않아 소음이 된다.",
+        "센서 자체의 리소스 사용량을 모니터링하지 않아 노드 성능에 영향을 준다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 런타임 보안 센서가 모든 운영 노드에 배포되어 있고 커버리지가 확인되는가",
+          "[운영] 탐지 이벤트가 중앙(SIEM)으로 수집·보존되고 검토 절차가 있는가",
+          "[변경] 탐지 규칙이 형상관리되고 변경이 승인되는가",
+          "[접근] 운영 컨테이너에 대한 사람의 직접 접근(kubectl exec)이 탐지·기록되는가",
+          "[운영] 탐지 시 대응 절차와 실제 처리 이력이 존재하는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템의 이상행위 탐지 및 침해사고 대응 체계를 갖추었는가",
+          "컨테이너 기반 운영 환경에 대한 접근과 작업이 기록·감시되는가",
+          "클라우드 이용에 따른 보안 통제가 실제 운영 환경에 적용되어 있는가"
+        ],
+        "isms": [
+          "2.10.2 클라우드 보안: 컨테이너 환경의 보안 통제가 적용되는가",
+          "2.11.3 이상행위 분석 및 모니터링: 런타임 이상행위가 탐지·분석되는가",
+          "2.9.4 로그 및 접속기록 관리: 탐지 기록이 보존·보호되는가"
+        ],
+        "evidence": [
+          "DaemonSet 배포 현황과 노드 수 대비 센서 커버리지",
+          "적용 중인 탐지 규칙 목록과 Git 변경 이력",
+          "탐지 이벤트 샘플과 SIEM 전송 설정",
+          "운영 네임스페이스 exec 이벤트 기록과 승인 세션 대사 결과",
+          "탐지 후 조사·조치 기록 샘플",
+          "오탐 튜닝 이력"
+        ],
+        "auditorQuestions": [
+          "모든 쿠버네티스 노드에 런타임 탐지가 적용되어 있습니까?",
+          "운영 컨테이너에 사람이 직접 접속하면 탐지됩니까? 기록은 어디에 남습니까?",
+          "탐지 규칙은 어떻게 관리하고 변경 시 누가 승인합니까?",
+          "최근 탐지된 이벤트 중 실제 조사로 이어진 사례가 있습니까?",
+          "탐지 이벤트는 얼마나 보관됩니까?",
+          "탐지만 합니까, 차단도 합니까?"
+        ],
+        "controlExample": "운영 쿠버네티스 전 노드에 런타임 보안 센서를 DaemonSet으로 배포하여 컨테이너 내 쉘 실행, 민감 파일 접근, 권한 상승 등 이상 행위를 탐지하며, 모든 탐지 이벤트는 SIEM으로 전송되어 1년간 보존된다. 탐지 규칙은 Git으로 형상관리되어 변경 시 리뷰·승인을 거치고, Critical 이벤트는 온콜 담당자에게 즉시 통보되어 조사 결과가 기록된다."
+      },
+      "related": [
+        "sec-edr-xdr",
+        "sec-cspm-cnapp",
+        "sec-siem",
+        "k8s-security",
+        "k8s-rbac",
+        "sec-incident-response",
+        "sec-vuln-management",
+        "sec-session-recording"
+      ],
+      "learnMore": [
+        "Falco 공식 문서",
+        "CNCF Cloud Native Security Whitepaper",
+        "NIST SP 800-190 Application Container Security Guide"
+      ]
+    },
+    {
+      "id": "sec-email-phishing",
+      "title": "이메일 보안과 피싱 대응",
+      "titleEn": "Email Security and Phishing Defense",
+      "aliases": [
+        "피싱",
+        "스피어피싱",
+        "메일보안",
+        "SPF",
+        "DKIM",
+        "DMARC",
+        "BEC",
+        "랜섬웨어 메일"
+      ],
+      "tags": [
+        "email",
+        "social-engineering",
+        "detection",
+        "awareness"
+      ],
+      "level": "중급",
+      "oneLiner": "침해의 최다 진입 경로인 이메일을 인증·필터링·교육·신고 체계로 방어하는 활동",
+      "analogy": "회사로 오는 우편물 검수와 같다. 발신인이 진짜 그 회사인지 도장을 확인하고(SPF/DKIM/DMARC), 수상한 소포는 열어보기 전에 검색대를 통과시키고(샌드박스), 직원에게는 '이런 우편물은 열지 말고 신고하라'고 교육한다. 그리고 누군가 이미 열어버렸을 때를 대비해, 같은 소포를 받은 다른 사람의 우편함에서 즉시 회수할 수 있는 절차를 갖춘다.",
+      "explanation": "<p><strong>이메일은 여전히 침해의 최대 진입 경로</strong>다. 랜섬웨어 감염, 계정 탈취, 송금 사기 대부분이 메일 한 통에서 시작된다. 그래서 이메일 보안은 기술·교육·대응이 모두 필요한 복합 통제 영역이다.</p><p><strong>먼저 발신자 인증 3종</strong>을 이해해야 한다. <strong>SPF</strong>는 '이 도메인의 메일은 이 IP들에서만 보낸다'를 DNS에 선언한다. <strong>DKIM</strong>은 메일에 디지털 서명을 붙여 내용 위변조와 발신 도메인을 검증한다. <strong>DMARC</strong>는 SPF·DKIM 검증에 실패한 메일을 어떻게 처리할지(none/quarantine/reject) 정하고 결과 리포트를 받는다. 많은 회사가 DMARC를 <code>p=none</code>(관찰만)으로 두고 몇 년째 방치하는데, 이러면 <strong>자사 도메인을 사칭한 메일이 그대로 배달</strong>된다. <code>p=reject</code>까지 가는 것이 목표다.</p><p><strong>공격 유형</strong>도 구분해야 한다. <strong>대량 피싱</strong>은 불특정 다수에게 보내는 가짜 로그인 유도다. <strong>스피어피싱</strong>은 특정인을 조사해 맞춤 제작한 메일이다. <strong>BEC(Business Email Compromise, 업무메일 침해)</strong>는 임원이나 거래처를 사칭해 <strong>송금 계좌 변경</strong>을 요구하는 사기로, 금전 피해 규모가 가장 크다. BEC는 악성코드나 링크가 없어 기술적 필터로 걸리지 않는 경우가 많아, <strong>업무 절차(계좌 변경 시 유선 이중 확인)</strong>가 핵심 통제가 된다.</p><p><strong>기술적 방어 계층</strong>은 다음과 같다. 발신자 인증 검증, 평판 기반 차단, <strong>첨부파일 샌드박스</strong>(가상환경에서 실제 실행해 악성 여부 판정), <strong>URL 재작성</strong>(클릭 시점에 다시 검사), 외부 발신 메일 배너 표시, 유사 도메인(lookalike) 탐지, 그리고 <strong>사후 회수(claw-back)</strong>다. 마지막 기능이 특히 중요하다. 이미 배달된 악성 메일을 전 수신함에서 일괄 삭제할 수 있느냐가 사고 대응 속도를 좌우한다.</p><p><strong>사람 측면의 통제</strong>는 모의훈련과 신고 체계다. <strong>신고 버튼</strong>을 메일 클라이언트에 심어 원클릭 신고가 가능하게 하고, 신고를 SOAR 플레이북에 연결한다. 중요한 것은 <strong>'속은 사람을 벌하지 않는 문화'</strong>다. 클릭한 사실을 숨기면 대응이 늦어져 피해가 커진다. 훈련 지표도 '클릭률'뿐 아니라 <strong>'신고율'과 '신고까지 걸린 시간'</strong>을 함께 봐야 한다.</p><p><strong>감사 관점</strong>에서는 (1) SPF/DKIM/DMARC 설정 상태와 DMARC 정책 수준, (2) 첨부·URL 검사 적용 범위, (3) 모의훈련 실시 주기와 결과 추이, (4) 신고 처리 절차와 평균 대응 시간, (5) BEC 대비 송금·계좌 변경 절차의 이중 확인 여부를 확인한다. 마지막 항목은 <strong>ITGC의 업무 프로세스 통제</strong>와도 직결된다.</p>",
+      "howItWorks": "<ol><li>외부 메일이 도착하면 게이트웨이가 발신 IP 평판과 SPF·DKIM·DMARC 검증을 수행한다.</li><li>DMARC 정책에 따라 인증 실패 메일을 격리하거나 거부한다.</li><li>본문과 헤더를 분석해 유사 도메인, 표시이름 사칭, 긴급성 유도 문구 등 피싱 지표를 평가한다.</li><li>첨부파일을 샌드박스에서 실행해 악성 행위를 관찰하고, 위험하면 차단하거나 무해화(CDR)한다.</li><li>본문의 URL을 안전 링크로 재작성해 사용자가 클릭하는 시점에 다시 검사한다.</li><li>통과한 메일에는 외부 발신 배너를 붙여 사용자에게 주의를 준다.</li><li>사용자가 의심 메일을 신고 버튼으로 제출하면 SOAR 플레이북이 자동 분석한다.</li><li>악성으로 판정되면 동일 메일을 전 수신함에서 회수하고, URL·발신지를 차단 목록에 추가하며, 클릭한 사용자의 단말을 점검한다.</li><li>분기 모의훈련을 실시하고 클릭률·신고율·신고 소요시간을 측정해 교육에 반영한다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'는 2025년 DMARC를 <code>p=none</code>에서 <code>p=reject</code>로 단계적으로 올렸다(6개월간 리포트 분석 → quarantine → reject). 이후 자사 도메인 사칭 메일이 사실상 사라졌다. 2026년 3월에는 재무팀장을 사칭해 협력사에 '입금 계좌가 변경됐다'고 보낸 BEC 시도가 있었는데, 협력사가 <strong>계약서상 명시된 유선 확인 절차</strong>를 지켜 피해를 막았다. 내부적으로는 분기 모의훈련을 하는데, 2026년 2분기 결과는 클릭률 4.1%(전년 11.3%), 신고율 62%, 평균 신고 시간 8분이었다. 신고 버튼을 누르면 SOAR가 평균 3분 내 분석해 악성이면 전사 회수까지 자동 수행한다.</p><pre><code># DNS 설정 확인 (감사 증적으로 그대로 사용 가능)\ndig +short TXT shopcast.example\n\"v=spf1 include:_spf.google.com include:mailgun.org -all\"\n\ndig +short TXT _dmarc.shopcast.example\n\"v=DMARC1; p=reject; rua=mailto:dmarc@shopcast.example; pct=100; adkim=s; aspf=s\"\n\ndig +short TXT selector1._domainkey.shopcast.example\n\"v=DKIM1; k=rsa; p=MIIBIjANBgkqhki...\"\n\n# DMARC 정책 단계 (한 번에 reject로 가면 정상 메일이 끊긴다)\np=none       → 리포트만 수집, 발송 경로 파악 (3~6개월)\np=quarantine → 실패 메일 스팸함으로 (pct=10 → 50 → 100 단계적)\np=reject     → 실패 메일 거부 (최종 목표)\n\n# BEC 대응은 기술이 아니라 업무 절차\n계좌 변경 요청 접수 → 메일 회신 금지, 기존 등록된 연락처로 유선 확인\n→ 변경 요청서 원본 수령 → 재무팀장 승인 → 시스템 등록 → 첫 송금 소액 검증\n\n# 모의훈련 지표 (클릭률만 보면 안 된다)\n클릭률 4.1% / 자격증명 입력률 0.9% / 신고율 62% / 평균 신고 8분</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='105' width='85' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='57' y='132' text-anchor='middle' fill='currentColor' font-size='11'>외부 메일</text><line x1='100' y1='127' x2='135' y2='127' stroke='currentColor' marker-end='url(#ar)'/><rect x='135' y='60' width='150' height='135' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='210' y='82' text-anchor='middle' fill='currentColor' font-size='12'>메일 게이트웨이</text><rect x='146' y='92' width='128' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='109' text-anchor='middle' fill='currentColor' font-size='10'>SPF·DKIM·DMARC</text><rect x='146' y='120' width='128' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='137' text-anchor='middle' fill='currentColor' font-size='10'>첨부 샌드박스</text><rect x='146' y='148' width='128' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='210' y='165' text-anchor='middle' fill='currentColor' font-size='10'>URL 재작성</text><text x='210' y='188' text-anchor='middle' fill='currentColor' font-size='10'>외부 발신 배너</text><line x1='285' y1='127' x2='320' y2='127' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='105' width='95' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='367' y='132' text-anchor='middle' fill='currentColor' font-size='11'>직원 수신함</text><line x1='367' y1='150' x2='367' y2='180' stroke='currentColor' marker-end='url(#ar)'/><rect x='300' y='180' width='135' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='367' y='199' text-anchor='middle' fill='currentColor' font-size='10'>신고 버튼 (원클릭)</text><text x='367' y='215' text-anchor='middle' fill='currentColor' font-size='10'>→ SOAR 자동 분석</text><line x1='435' y1='200' x2='470' y2='200' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='170' width='150' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='191' text-anchor='middle' fill='currentColor' font-size='10'>전 수신함 회수</text><text x='545' y='208' text-anchor='middle' fill='currentColor' font-size='10'>URL 차단 · 단말 점검</text><text x='545' y='224' text-anchor='middle' fill='currentColor' font-size='10'>(대응 속도의 핵심)</text><rect x='440' y='55' width='180' height='85' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='530' y='76' text-anchor='middle' fill='currentColor' font-size='11'>BEC는 기술로 못 막는다</text><text x='452' y='97' fill='currentColor' font-size='10'>악성코드·링크 없음</text><text x='452' y='114' fill='currentColor' font-size='10'>→ 계좌변경 시 유선 이중확인</text><text x='452' y='131' fill='currentColor' font-size='10'>→ 업무 절차가 통제</text><text x='15' y='35' fill='currentColor' font-size='12'>DMARC는 p=reject까지 가야 사칭이 막힌다 (p=none은 관찰만)</text><text x='15' y='240' fill='currentColor' font-size='11'>지표: 클릭률뿐 아니라 신고율·신고 소요시간  |  속은 사람을 벌하지 않는 문화가 대응 속도를 만든다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "SPF",
+          "meaning": "도메인의 메일을 보낼 수 있는 IP를 DNS에 선언하는 인증"
+        },
+        {
+          "term": "DKIM",
+          "meaning": "메일에 디지털 서명을 붙여 위변조와 발신 도메인을 검증"
+        },
+        {
+          "term": "DMARC",
+          "meaning": "인증 실패 메일의 처리 정책과 리포트를 정하는 표준"
+        },
+        {
+          "term": "BEC",
+          "meaning": "임원·거래처를 사칭해 송금·계좌 변경을 유도하는 사기"
+        },
+        {
+          "term": "스피어피싱",
+          "meaning": "특정인을 조사해 맞춤 제작한 표적 피싱"
+        },
+        {
+          "term": "샌드박스",
+          "meaning": "격리 환경에서 첨부를 실행해 악성 여부를 판정하는 기술"
+        },
+        {
+          "term": "URL 재작성",
+          "meaning": "클릭 시점에 링크를 재검사하도록 주소를 바꿔 배달하는 기능"
+        },
+        {
+          "term": "메일 회수(Claw-back)",
+          "meaning": "이미 배달된 악성 메일을 전 수신함에서 삭제하는 대응"
+        },
+        {
+          "term": "무해화(CDR)",
+          "meaning": "문서에서 실행 요소를 제거해 안전한 형태로 재구성하는 기술"
+        }
+      ],
+      "pitfalls": [
+        "DMARC를 p=none으로 두고 방치해 자사 도메인 사칭 메일이 그대로 배달된다.",
+        "외부 발신 표시나 배너가 없어 사칭 메일을 시각적으로 구분할 수 없다.",
+        "이미 배달된 악성 메일을 회수할 수단이 없어 대응이 수 시간 지연된다.",
+        "BEC를 기술로 막으려 한다. 계좌 변경 절차의 이중 확인이 실질 통제다.",
+        "모의훈련 후 클릭한 직원을 공개 질책해 이후 아무도 신고하지 않게 된다.",
+        "신고 채널이 '보안팀 메일로 전달'이라 번거로워 신고율이 낮다.",
+        "협력사·자회사 도메인은 인증 설정을 하지 않아 그쪽이 사칭 경로가 된다.",
+        "훈련 지표로 클릭률만 보고 신고율과 신고 소요시간을 측정하지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 메일 발신자 인증(SPF/DKIM/DMARC)이 설정되고 DMARC 정책 수준이 적절한가",
+          "[운영] 첨부파일·URL 검사와 악성 메일 차단 체계가 운영되는가",
+          "[운영] 악성 메일 신고 채널과 처리 절차가 있고 대응 시간이 관리되는가",
+          "[운영] 피싱 모의훈련이 정기적으로 실시되고 결과가 교육에 반영되는가",
+          "[ITAC] 거래처 계좌 변경 등 금전 관련 요청에 이중 확인 절차가 적용되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 악성코드 유입 방지 및 이메일 보안 대책이 마련되어 있는가",
+          "임직원 대상 정보보호 교육과 모의훈련이 정기적으로 실시되는가",
+          "금융사고 예방을 위한 자금이체·계좌변경 관련 통제가 적용되는가"
+        ],
+        "isms": [
+          "2.11.1 사고 예방 및 대응체계 구축: 피싱 등 침해 시도에 대한 대응 체계가 있는가",
+          "2.2.4 인식제고 및 교육훈련: 정기 교육과 모의훈련이 실시되고 효과가 측정되는가",
+          "2.10.4 전자거래 및 핀테크 보안 / 2.10.x: 메일 보안 통제가 적용되는가"
+        ],
+        "evidence": [
+          "SPF·DKIM·DMARC DNS 레코드 조회 결과와 DMARC 리포트 요약",
+          "메일 보안 솔루션 정책 설정 화면(샌드박스, URL 검사, 격리)",
+          "기간 중 차단·격리 통계 및 악성 메일 회수 수행 이력",
+          "피싱 신고 처리 이력(신고-분석-조치 타임라인)",
+          "모의훈련 계획·실시 결과(클릭률, 신고율, 후속 교육)",
+          "계좌 변경 요청 처리 절차서와 이중 확인 증적"
+        ],
+        "auditorQuestions": [
+          "DMARC 정책은 현재 어떤 수준입니까? reject까지 적용되어 있습니까?",
+          "악성 메일이 이미 배달됐다면 얼마 만에 회수할 수 있습니까?",
+          "직원이 의심 메일을 신고하는 방법은 무엇이며 평균 처리 시간은 얼마입니까?",
+          "최근 모의훈련 클릭률과 신고율은 얼마였습니까?",
+          "거래처가 계좌 변경을 요청하면 어떤 절차로 확인합니까?",
+          "훈련에서 클릭한 직원에게 어떤 조치를 합니까?"
+        ],
+        "controlExample": "전사 메일 도메인에 SPF·DKIM을 적용하고 DMARC 정책을 p=reject로 운영하며, 수신 메일은 첨부 샌드박스 분석과 URL 재작성 검사를 거친다. 임직원은 원클릭 신고 버튼으로 의심 메일을 신고하고 자동 분석·전사 회수가 수행되며, 분기별 모의훈련을 실시해 클릭률·신고율을 측정하고 결과를 교육에 반영한다."
+      },
+      "related": [
+        "sec-awareness-training",
+        "sec-soar",
+        "sec-edr-xdr",
+        "sec-mfa",
+        "sec-incident-response",
+        "sec-fido2-passkey",
+        "sec-dlp",
+        "net-dns"
+      ],
+      "learnMore": [
+        "RFC 7489 DMARC",
+        "CISA Phishing Guidance",
+        "KISA 스팸·피싱 대응 안내"
+      ]
+    },
+    {
+      "id": "sec-mdm",
+      "title": "엔드포인트 관리 (MDM/Jamf/Intune)",
+      "titleEn": "Endpoint Management - MDM, Jamf, Microsoft Intune",
+      "aliases": [
+        "MDM",
+        "Jamf",
+        "Intune",
+        "단말관리",
+        "기기관리",
+        "BYOD",
+        "준수 기기",
+        "UEM"
+      ],
+      "tags": [
+        "endpoint",
+        "device",
+        "compliance",
+        "operations"
+      ],
+      "level": "중급",
+      "oneLiner": "업무용 단말의 설정·보안 상태를 중앙에서 강제하고 분실 시 원격 조치하는 체계",
+      "analogy": "회사 지급 차량 관리와 같다. 차를 내주기만 하는 게 아니라 정기 점검을 강제하고, 블랙박스와 위치 추적을 달고, 안전벨트 미착용이면 경고가 뜨게 한다. 차를 분실하면 원격으로 시동을 잠글 수 있다. 직원 개인 차를 업무에 쓰는 경우(BYOD)에는 차 전체가 아니라 '회사 업무용 짐칸'만 회사가 관리한다.",
+      "explanation": "<p><strong>엔드포인트 관리(MDM/UEM)</strong>는 노트북·스마트폰·태블릿 같은 업무용 단말의 설정, 보안 상태, 설치 소프트웨어를 중앙에서 관리·강제하는 체계다. 애플 환경은 <strong>Jamf</strong>, 마이크로소프트 환경은 <strong>Intune</strong>, 혼합 환경은 두 가지를 함께 쓰거나 UEM 제품을 쓴다.</p><p><strong>왜 중요해졌는가.</strong> 재택·하이브리드 근무가 일상이 되면서 <strong>사무실 네트워크라는 경계가 사라졌다</strong>. 예전에는 사내망에 있으면 신뢰하고 밖에 있으면 차단했지만, 이제는 어디서 접속하든 '<strong>이 기기가 회사가 관리하는 안전한 기기인가</strong>'가 판단 기준이 된다. 이것이 제로트러스트의 핵심 축 중 하나이며, 조건부 접근 정책과 직접 연결된다.</p><p><strong>핵심 기능</strong>은 다섯 가지다. (1) <strong>등록과 구성</strong>: 기기를 회사 관리 대상으로 등록하고 WiFi·VPN·인증서·계정을 자동 설정한다. 애플 ADE(Automated Device Enrollment)나 윈도우 Autopilot으로 <strong>개봉하자마자 자동 구성</strong>되게 할 수 있다. (2) <strong>정책 강제</strong>: 디스크 암호화(FileVault/BitLocker), 화면 잠금 시간, 비밀번호 복잡도, 방화벽, USB 제한을 강제한다. (3) <strong>소프트웨어 배포·패치</strong>: 필수 앱 설치와 OS 업데이트를 밀어 넣는다. (4) <strong>준수 상태 평가</strong>: 정책 위반 기기를 식별하고 표시한다. (5) <strong>원격 조치</strong>: 분실 시 원격 잠금·위치 확인·초기화(wipe)를 수행한다.</p><p><strong>준수 기기(compliant device)와 조건부 접근의 연동</strong>이 가장 강력한 활용이다. MDM이 판정한 준수 여부를 IdP가 읽어, <strong>암호화가 꺼져 있거나 OS가 오래된 기기는 사내 시스템 접근을 아예 차단</strong>한다. 정책 문서로 '암호화를 해야 한다'고 쓰는 것과, 기술적으로 접근이 막히는 것은 통제 강도가 완전히 다르다. 감사에서도 후자가 훨씬 강한 증적이다.</p><p><strong>BYOD(개인 기기 업무 사용)</strong>는 별도 설계가 필요하다. 개인 기기 전체를 회사가 관리하면 사생활 침해와 법적 문제가 생기므로, <strong>업무 프로파일 분리</strong>(안드로이드 Work Profile, iOS 사용자 등록)를 써서 회사 데이터 영역만 관리하고 그 영역만 선택 삭제(selective wipe)한다. 개인 사진·앱은 회사가 보지도, 지우지도 못한다는 점을 명확히 고지해야 한다.</p><p><strong>감사 관점</strong>에서 볼 것은 (1) <strong>등록률</strong> — 업무에 쓰이는 기기 중 관리되지 않는 기기가 얼마나 되는가, (2) 정책 준수율과 미준수 기기 처리, (3) 퇴사·분실 시 <strong>원격 조치 절차와 수행 기록</strong>, (4) 원격 초기화 권한 보유자와 사용 통제, (5) BYOD 고지·동의 증적이다. 특히 <strong>'회사 자산 대장의 노트북 수 = MDM 등록 수'가 맞는지</strong>가 핵심 대사 항목이다.</p>",
+      "howItWorks": "<ol><li>기기 구매 시 공급업체가 애플 Business Manager나 Windows Autopilot에 자동 등록되도록 설정한다.</li><li>직원이 기기를 처음 켜면 회사 계정으로 로그인하고 MDM 프로파일이 자동 설치된다.</li><li>MDM이 기본 구성을 배포한다(WiFi, VPN, 인증서, 필수 앱, 보안 정책).</li><li>정책이 단말에 강제 적용된다(디스크 암호화, 화면 잠금, 비밀번호, 방화벽, 백신·EDR 설치).</li><li>에이전트가 주기적으로 기기 상태를 보고하고 MDM이 준수 여부를 판정한다.</li><li>IdP가 이 준수 상태를 조건부 접근 정책에서 참조해 비준수 기기의 접근을 제한·차단한다.</li><li>미준수 기기 사용자에게 자동 안내와 유예 기간이 주어지고, 기한 초과 시 접근이 차단된다.</li><li>분실·도난·퇴사 시 관리자가 원격 잠금 또는 초기화를 수행하고 이력을 남긴다. BYOD는 업무 영역만 선택 삭제한다.</li><li>자산 대장과 MDM 등록 목록을 주기적으로 대사해 미등록 기기를 찾아 조치한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 맥북 620대를 Jamf로, 윈도우 노트북 180대와 모바일 900대를 Intune으로 관리한다. 정책은 FileVault/BitLocker 필수, 화면 잠금 5분, OS 최신-1 버전 이내, EDR 설치 필수다. Entra ID 조건부 접근에서 '<strong>준수 기기에서만 사내 시스템 접근 허용</strong>'을 강제하므로, 암호화가 꺼진 기기는 그 즉시 메일조차 열리지 않는다. 2026년 2월 직원이 카페에서 맥북을 분실했을 때, 신고 후 12분 만에 원격 잠금과 위치 추적이 실행됐고 FileVault 덕분에 데이터 유출 위험은 없다고 판단해 사고를 종결했다. 원격 초기화 권한은 IT팀 2인으로 제한되며 실행 시 팀장 승인이 필요하다. 협력사 인력은 BYOD로 업무 프로파일만 등록하고 계약 종료 시 그 영역만 삭제한다.</p><pre><code># 준수(compliance) 정책 항목 예시\n[필수]\n  디스크 암호화: FileVault / BitLocker 활성 (복구키는 MDM 에스크로)\n  화면 잠금: 5분 이내, 재진입 시 비밀번호\n  OS 버전: 최신-1 이내 (초과 시 30일 유예 후 차단)\n  보안 프로그램: EDR 에이전트 실행 중\n  기기 상태: 탈옥/루팅 아님, 관리자 권한 상시 부여 금지\n[차단 조건]\n  미준수 상태 30일 초과 → 조건부 접근으로 사내 시스템 차단\n\n# 자산 대장과 MDM 등록 대사 (감사 핵심 증적)\nSELECT a.asset_tag, a.serial_no, a.owner, a.status,\n       CASE WHEN m.device_id IS NULL THEN 'NOT_ENROLLED'\n            WHEN m.compliant = false THEN 'NON_COMPLIANT'\n            ELSE 'OK' END AS mdm_status\nFROM cmdb_assets a\nLEFT JOIN mdm_devices m ON a.serial_no = m.serial_no\nWHERE a.asset_type = 'LAPTOP' AND a.status = 'IN_USE'\nORDER BY mdm_status;\n\n# 원격 조치 유형 (권한 제한 필요)\n원격 잠금(lock)        - 분실 즉시, 되돌릴 수 있음\n선택 삭제(selective)   - BYOD 업무 영역만, 개인 데이터 보존\n전체 초기화(full wipe) - 회사 자산 한정, 승인 필수</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='95' width='105' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='120' text-anchor='middle' fill='currentColor' font-size='11'>업무용 단말</text><text x='67' y='138' text-anchor='middle' fill='currentColor' font-size='10'>노트북·모바일</text><line x1='120' y1='125' x2='165' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='165' y='60' width='165' height='135' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='247' y='82' text-anchor='middle' fill='currentColor' font-size='12'>MDM / UEM</text><rect x='176' y='92' width='143' height='25' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='247' y='109' text-anchor='middle' fill='currentColor' font-size='10'>자동 등록·구성</text><rect x='176' y='121' width='143' height='25' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='247' y='138' text-anchor='middle' fill='currentColor' font-size='10'>정책 강제(암호화·잠금)</text><rect x='176' y='150' width='143' height='25' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='247' y='167' text-anchor='middle' fill='currentColor' font-size='10'>준수 상태 평가</text><text x='247' y='189' text-anchor='middle' fill='currentColor' font-size='10'>원격 잠금·초기화</text><line x1='330' y1='110' x2='380' y2='90' stroke='currentColor' marker-end='url(#ar)'/><text x='355' y='78' text-anchor='middle' fill='currentColor' font-size='10'>준수 여부</text><rect x='380' y='60' width='240' height='62' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='500' y='81' text-anchor='middle' fill='currentColor' font-size='11'>IdP 조건부 접근</text><text x='392' y='101' fill='currentColor' font-size='10'>준수 기기에서만 사내 시스템 허용</text><text x='392' y='116' fill='currentColor' font-size='10'>→ 정책이 문서가 아니라 기술로 강제</text><rect x='380' y='140' width='240' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='500' y='160' text-anchor='middle' fill='currentColor' font-size='11'>BYOD 분리</text><text x='392' y='180' fill='currentColor' font-size='10'>업무 프로파일만 관리 · 선택 삭제</text><text x='15' y='40' fill='currentColor' font-size='12'>경계는 사무실이 아니라 '관리되는 기기'</text><text x='15' y='215' fill='currentColor' font-size='11'>감사 핵심: 자산 대장 수 = MDM 등록 수 (미등록 기기가 사각지대)</text><text x='15' y='237' fill='currentColor' font-size='11'>원격 초기화 권한은 최소 인원 + 승인 + 실행 이력 보관</text></svg>",
+      "keyTerms": [
+        {
+          "term": "MDM / UEM",
+          "meaning": "모바일 기기 관리와 그것을 PC까지 확장한 통합 단말 관리"
+        },
+        {
+          "term": "자동 등록(ADE/Autopilot)",
+          "meaning": "개봉 즉시 회사 관리 대상으로 구성되게 하는 방식"
+        },
+        {
+          "term": "준수 기기(Compliant Device)",
+          "meaning": "정책 요건을 충족한 기기. 조건부 접근의 판단 근거"
+        },
+        {
+          "term": "디스크 암호화 에스크로",
+          "meaning": "복구키를 MDM이 안전하게 보관해 복구를 가능하게 하는 것"
+        },
+        {
+          "term": "선택 삭제(Selective Wipe)",
+          "meaning": "BYOD에서 업무 영역만 지우고 개인 데이터는 보존하는 조치"
+        },
+        {
+          "term": "업무 프로파일",
+          "meaning": "개인 기기 안에 분리된 회사 데이터 영역"
+        },
+        {
+          "term": "원격 초기화(Wipe)",
+          "meaning": "기기를 공장 초기화하는 강력한 대응. 권한 제한 필수"
+        },
+        {
+          "term": "등록률",
+          "meaning": "업무 사용 기기 중 관리 대상으로 등록된 비율"
+        }
+      ],
+      "pitfalls": [
+        "자산 대장과 MDM 등록 목록을 대사하지 않아 미등록 업무 기기가 사각지대로 남는다.",
+        "정책을 만들어 두고 미준수 기기에 실제 제재(접근 차단)를 걸지 않아 준수율이 오르지 않는다.",
+        "디스크 암호화 복구키를 에스크로하지 않아 사용자가 잊으면 데이터를 못 살린다.",
+        "BYOD에 회사 기기와 같은 전체 관리 정책을 적용해 사생활 침해 문제가 생긴다.",
+        "원격 초기화 권한이 넓게 부여돼 실수로 실행되면 복구가 불가능하다.",
+        "협력사·계약직 기기가 관리 범위 밖인데 사내 시스템에는 접근한다.",
+        "퇴사 시 기기 회수·데이터 삭제 절차가 없어 회사 데이터가 개인 기기에 남는다.",
+        "OS 업데이트 강제 정책이 없어 지원 종료 버전 기기가 계속 사용된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 업무용 단말이 모두 관리 대상으로 등록되고 자산 대장과 대사되는가",
+          "[접근] 준수하지 않는 기기의 사내 시스템 접근이 제한되는가",
+          "[운영] 디스크 암호화·화면잠금·OS 최신화 등 보안 정책이 기술적으로 강제되는가",
+          "[접근] 원격 잠금·초기화 권한이 최소화되고 실행 시 승인·기록되는가",
+          "[접근] 퇴사·계약 종료 시 기기 회수 또는 업무 데이터 삭제가 수행·기록되는가",
+          "[운영] BYOD 사용에 대한 정책·고지·동의가 관리되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 업무용 단말기 보안대책(암호화, 매체제어, 백신 등)이 적용되는가",
+          "내부망 접속 단말에 대한 보안 요건과 관리 체계가 있는가",
+          "외주 인력 단말에 대한 보안 통제가 계약과 기술로 적용되는가"
+        ],
+        "isms": [
+          "2.10.6 업무용 단말기기 보안: 단말 보안 요건이 정의·적용되고 점검되는가",
+          "2.10.7 보조저장매체 관리: 매체 사용 통제가 적용되는가",
+          "2.6.6 원격접근 통제: 외부 접속 단말의 안전성이 확인되는가",
+          "2.4.6 반출입 기기 통제 / 2.1.3 정보자산 관리: 기기가 자산으로 관리되는가"
+        ],
+        "evidence": [
+          "MDM 등록 기기 목록과 자산 대장 대사 결과(등록률)",
+          "준수 정책 설정 화면과 준수율 리포트, 미준수 기기 목록",
+          "조건부 접근 정책에서 기기 준수 요구 설정 화면",
+          "원격 잠금·초기화 실행 이력과 승인 문서",
+          "퇴사자 기기 회수·데이터 삭제 확인서",
+          "BYOD 정책·고지·동의 문서",
+          "디스크 암호화 복구키 보관 방식 설명"
+        ],
+        "auditorQuestions": [
+          "업무에 사용되는 노트북은 몇 대이고 그중 관리 대상으로 등록된 것은 몇 대입니까?",
+          "암호화가 꺼진 기기는 사내 시스템에 접근할 수 있습니까?",
+          "기기를 분실하면 어떤 절차로 얼마 만에 조치합니까?",
+          "원격 초기화를 실행할 수 있는 사람은 누구이며 승인이 필요합니까?",
+          "퇴사자의 기기와 그 안의 회사 데이터는 어떻게 처리됩니까?",
+          "협력사 인력이 개인 기기로 업무하는 경우 어떻게 통제합니까?"
+        ],
+        "controlExample": "업무용 단말은 전량 MDM에 등록되어 디스크 암호화·화면잠금·OS 최신화·EDR 설치 정책이 강제되며, 준수 상태는 IdP 조건부 접근과 연동되어 미준수 기기의 사내 시스템 접근이 차단된다. 분실·퇴사 시 원격 잠금 또는 데이터 삭제를 수행하고 이력을 보관하며, 월 1회 자산 대장과 등록 현황을 대사해 미등록 기기를 조치한다."
+      },
+      "related": [
+        "sec-edr-xdr",
+        "sec-entra-id",
+        "sec-dlp",
+        "sec-asset-classification",
+        "sec-mfa",
+        "sec-patch-management",
+        "sec-identity-lifecycle",
+        "sec-awareness-training"
+      ],
+      "learnMore": [
+        "Microsoft Intune 문서",
+        "Jamf Pro 관리자 가이드",
+        "NIST SP 800-124 Mobile Device Security"
+      ]
+    },
+    {
+      "id": "sec-asset-classification",
+      "title": "정보자산 분류와 자산관리",
+      "titleEn": "Information Asset Inventory and Classification",
+      "aliases": [
+        "자산관리",
+        "자산대장",
+        "정보자산",
+        "데이터 분류",
+        "CMDB",
+        "중요도 등급",
+        "섀도 IT"
+      ],
+      "tags": [
+        "governance",
+        "asset",
+        "foundation",
+        "compliance"
+      ],
+      "level": "기초",
+      "oneLiner": "무엇을 보유하고 있고 각각이 얼마나 중요한지 식별·등급화해 관리하는 기반 활동",
+      "analogy": "이사 가기 전 짐 목록을 만드는 것과 같다. 상자마다 '주방-깨지기 쉬움', '서류-중요'라고 라벨을 붙이면, 어떤 상자를 특별히 보호하고 어떤 상자를 먼저 옮길지 정할 수 있다. 목록이 없으면 이삿날 상자 하나가 사라져도 아무도 모른다. 보안도 마찬가지다. 무엇을 갖고 있는지 모르면 그것을 지킬 수도, 잃어버린 것을 알아챌 수도 없다.",
+      "explanation": "<p><strong>정보자산 관리</strong>는 조직이 보유한 시스템·데이터·소프트웨어·기기를 식별하고 목록화하며, 각각의 <strong>중요도를 등급으로 분류</strong>하고 소유자를 지정하는 활동이다. 화려하지 않지만 <strong>모든 보안 통제의 전제</strong>다. 취약점 관리, 권한 검토, 백업, 사고 대응, 암호화 범위가 전부 '무엇이 있는가'에서 출발하기 때문이다.</p><p><strong>자산의 범위</strong>는 넓다. 물리 자산(서버, 노트북, 네트워크 장비), 클라우드 자산(계정, 인스턴스, 버킷, 데이터베이스), 소프트웨어(상용 라이선스, 오픈소스), <strong>데이터 자산</strong>(고객정보 DB, 정산 데이터, 소스코드), SaaS 서비스, 도메인·인증서까지 포함한다. 최근에는 <strong>SaaS와 클라우드 리소스가 가장 누락되기 쉬운 영역</strong>이다.</p><p><strong>분류(classification)</strong>는 보통 3~4단계로 한다. 예를 들어 <strong>극비/기밀/내부용/공개</strong> 또는 <strong>1~4등급</strong>이다. 분류 기준은 유출·훼손 시 영향(법적 제재, 재무 손실, 평판)으로 정한다. 중요한 것은 <strong>분류 자체가 목적이 아니라 등급별 취급 규칙이 따라와야 한다</strong>는 점이다. '기밀 자료는 암호화 저장, 외부 전송 시 승인, 출력물에 워터마크' 같은 규칙이 없으면 라벨은 장식에 그친다.</p><p><strong>소유자(owner) 지정</strong>이 실무의 핵심이다. 자산마다 <strong>업무 책임자(비즈니스 오너)</strong>와 <strong>기술 관리자(시스템 오너)</strong>를 지정해야 권한 승인, 취약점 조치, 백업 요건 결정, 사고 시 판단 주체가 명확해진다. 소유자가 없는 자산은 아무도 고치지 않고, 아무도 폐기하지 않는다.</p><p><strong>클라우드 시대의 자산관리는 태그(tag)로 한다.</strong> 수천 개 리소스에 수동 대장은 불가능하므로, <code>Owner</code>, <code>System</code>, <code>Env</code>, <code>DataClass</code> 같은 <strong>필수 태그를 정책으로 강제</strong>하고(태그 없으면 생성 거부), 태그를 기준으로 자동 집계한다. 이렇게 하면 자산 대장이 수작업 문서가 아니라 <strong>실시간 쿼리 결과</strong>가 된다.</p><p><strong>가장 큰 위험은 섀도 IT</strong>다. 부서가 임의로 결제한 SaaS, 개인 계정으로 만든 클라우드 리소스, 폐기했다고 생각했는데 살아 있는 서버가 여기 해당한다. 이들은 보안 점검·백업·계정 관리 밖에 있으면서 실제 데이터를 갖고 있다. 대응은 <strong>다중 소스 대사</strong>다. 클라우드 API, 네트워크 스캔, EDR 설치 현황, 카드 지출 내역, SSO 연동 목록을 서로 비교하면 어느 한쪽에만 있는 자산이 드러난다.</p><p><strong>감사 관점</strong>에서 자산 대장은 <strong>'감사 범위(scope) 결정의 근거'</strong>다. 감사인은 '이 목록이 전부인가'를 먼저 묻는다. 목록이 불완전하면 그 위의 모든 통제 테스트가 신뢰를 잃는다.</p>",
+      "howItWorks": "<ol><li>자산 유형과 분류 등급, 필수 관리 항목(소유자, 위치, 중요도, 데이터 유형)을 정의한다.</li><li>여러 소스에서 자산을 자동 수집한다(클라우드 API, CMDB, MDM, EDR, SSO 앱 목록, 네트워크 스캔).</li><li>소스 간 대사를 통해 불일치를 찾아낸다. 한쪽에만 존재하는 자산이 섀도 IT 후보다.</li><li>각 자산에 소유자를 지정하고, 처리하는 데이터의 유형에 따라 중요도 등급을 부여한다.</li><li>등급별 취급 규칙(암호화, 접근통제, 백업 주기, 보존기간, 폐기 방법)을 적용한다.</li><li>클라우드는 필수 태그 정책으로 자산 정보를 강제하고, 태그 없는 리소스 생성을 차단한다.</li><li>취약점 관리·권한 검토·백업·모니터링 도구가 자산 대장을 참조하도록 연동한다.</li><li>주기적으로(분기) 자산 대장을 검토해 신규·폐기 자산을 반영하고 소유자를 재확인한다.</li><li>폐기 시 데이터 파기(디스크 삭제·파쇄) 증적을 남기고 대장에서 상태를 변경한다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'는 자산을 4등급으로 나눈다. <strong>1등급(극비)</strong>은 고객 개인정보·결제 데이터, <strong>2등급(기밀)</strong>은 정산·매출 데이터와 소스코드, <strong>3등급(내부)</strong>은 일반 업무 문서, <strong>4등급(공개)</strong>은 홍보 자료다. AWS 리소스는 <code>Owner</code>, <code>System</code>, <code>Env</code>, <code>DataClass</code> 태그가 없으면 SCP로 생성이 거부된다. 2026년 1분기 다중 소스 대사에서 <strong>섀도 IT 31건</strong>이 발견됐다. 부서가 개별 결제한 SaaS 14개(SSO 미연동), 폐기 처리됐지만 실행 중이던 EC2 9대, 소유자 불명 S3 버킷 8개였다. 이 중 S3 버킷 하나에는 2년 전 마케팅 캠페인의 고객 연락처 파일이 남아 있어 즉시 삭제하고 사고로 기록했다. 이후 SaaS 도입은 정보보호팀 검토를 거치는 절차를 신설했다.</p><pre><code># 다중 소스 대사로 섀도 IT 찾기\n# 1) 클라우드에 실재하지만 자산대장에 없는 것\naws ec2 describe-instances --query \\\n  'Reservations[].Instances[].[InstanceId,Tags[?Key==`Owner`].Value|[0],State.Name]' \\\n  --output text | grep -v terminated &gt; cloud_actual.txt\n# 2) 대장과 비교\ncomm -23 &lt;(sort cloud_actual.txt) &lt;(sort cmdb_export.txt)\n\n# 필수 태그 강제 (태그 없으면 생성 거부)\n{\n  \"Effect\": \"Deny\",\n  \"Action\": [\"ec2:RunInstances\",\"s3:CreateBucket\",\"rds:CreateDBInstance\"],\n  \"Resource\": \"*\",\n  \"Condition\": {\"Null\": {\n    \"aws:RequestTag/Owner\": \"true\",\n    \"aws:RequestTag/DataClass\": \"true\"\n  }}\n}\n\n# 등급별 취급 규칙 (분류는 규칙이 따라와야 의미가 있다)\n등급        저장          전송        접근            백업      보존/폐기\n1 극비      암호화 필수   TLS+승인    최소권한+MFA    일 1회    법정기간, 파기 증적\n2 기밀      암호화 필수   TLS         역할기반        일 1회    3년\n3 내부      권장          TLS         사내 전체       주 1회    1년\n4 공개      -             -           제한 없음       -         -</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='26' fill='currentColor' font-size='12'>여러 소스를 대사해야 실제 자산이 보인다</text><rect x='20' y='38' width='105' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='56' text-anchor='middle' fill='currentColor' font-size='10'>클라우드 API</text><rect x='20' y='70' width='105' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='88' text-anchor='middle' fill='currentColor' font-size='10'>MDM · EDR</text><rect x='20' y='102' width='105' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='120' text-anchor='middle' fill='currentColor' font-size='10'>SSO 앱 목록</text><rect x='20' y='134' width='105' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='152' text-anchor='middle' fill='currentColor' font-size='10'>네트워크 스캔</text><rect x='20' y='166' width='105' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='184' text-anchor='middle' fill='currentColor' font-size='10'>카드 지출 내역</text><line x1='125' y1='115' x2='165' y2='115' stroke='currentColor' marker-end='url(#ar)'/><rect x='165' y='70' width='150' height='95' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='92' text-anchor='middle' fill='currentColor' font-size='12'>자산 대장</text><text x='177' y='113' fill='currentColor' font-size='10'>소유자 (업무·기술)</text><text x='177' y='131' fill='currentColor' font-size='10'>중요도 등급</text><text x='177' y='149' fill='currentColor' font-size='10'>처리 데이터 유형</text><line x1='315' y1='95' x2='360' y2='70' stroke='currentColor' marker-end='url(#ar)'/><line x1='315' y1='140' x2='360' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='360' y='40' width='260' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='490' y='61' text-anchor='middle' fill='currentColor' font-size='11'>등급별 취급 규칙</text><text x='372' y='81' fill='currentColor' font-size='10'>암호화 · 접근통제 · 백업 주기</text><text x='372' y='98' fill='currentColor' font-size='10'>보존기간 · 폐기 방법 · 반출 통제</text><text x='372' y='112' fill='currentColor' font-size='10'>(규칙 없는 분류는 장식일 뿐)</text><rect x='360' y='135' width='260' height='90' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='490' y='156' text-anchor='middle' fill='currentColor' font-size='11'>다른 통제의 입력값</text><text x='372' y='176' fill='currentColor' font-size='10'>취약점 스캔 대상 = 자산 목록</text><text x='372' y='193' fill='currentColor' font-size='10'>권한 검토 범위 = 자산 목록</text><text x='372' y='210' fill='currentColor' font-size='10'>감사 범위 결정의 근거</text><text x='20' y='215' fill='currentColor' font-size='11'>소스 간 불일치</text><text x='20' y='233' fill='currentColor' font-size='11'>= 섀도 IT 후보</text></svg>",
+      "keyTerms": [
+        {
+          "term": "정보자산",
+          "meaning": "시스템·데이터·소프트웨어·기기 등 보호 대상이 되는 모든 자원"
+        },
+        {
+          "term": "자산 분류(등급)",
+          "meaning": "유출·훼손 시 영향을 기준으로 나눈 중요도 구분"
+        },
+        {
+          "term": "자산 소유자",
+          "meaning": "업무 책임자와 기술 관리자. 승인·조치의 주체"
+        },
+        {
+          "term": "CMDB",
+          "meaning": "구성 항목과 그 관계를 관리하는 데이터베이스"
+        },
+        {
+          "term": "태그 정책",
+          "meaning": "클라우드 리소스에 필수 메타데이터를 강제하는 통제"
+        },
+        {
+          "term": "섀도 IT",
+          "meaning": "IT·보안 부서 모르게 도입·운영되는 자산과 서비스"
+        },
+        {
+          "term": "데이터 분류(Data Classification)",
+          "meaning": "데이터 자체의 민감도를 등급화하는 것"
+        },
+        {
+          "term": "폐기 증적",
+          "meaning": "저장매체 삭제·파쇄를 증명하는 기록"
+        }
+      ],
+      "pitfalls": [
+        "자산 대장을 엑셀로 수작업 관리해 6개월만 지나면 현실과 달라진다.",
+        "물리 서버만 관리하고 클라우드 리소스·SaaS·데이터 자산을 누락한다.",
+        "분류 등급만 정하고 등급별 취급 규칙이 없어 라벨이 아무 효과가 없다.",
+        "소유자를 '인프라팀'처럼 모호하게 지정해 실제 책임자가 없다.",
+        "섀도 IT를 찾는 대사 활동이 없어 통제 밖 자산이 계속 늘어난다.",
+        "폐기 처리했다고 대장에서 지웠지만 실제 리소스는 살아 있다.",
+        "자산 대장이 취약점 스캔·권한 검토 등 다른 통제와 연동되지 않아 따로 논다.",
+        "데이터 자산(어떤 DB에 어떤 개인정보가 있는지)을 목록화하지 않아 유출 시 영향 범위를 모른다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 정보자산 목록이 존재하고 최신성이 유지되며 다중 소스로 완전성이 검증되는가",
+          "[운영] 자산별 소유자(업무·기술)가 지정되어 있는가",
+          "[운영] 중요도 등급이 부여되고 등급별 보호 요건이 정의·적용되는가",
+          "[접근] 자산 목록이 권한 검토·취약점 관리 범위 결정에 사용되는가",
+          "[운영] 자산 폐기 시 데이터 파기와 대장 갱신이 이루어지는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 정보처리시스템 목록과 구성도가 최신으로 관리되는가",
+          "전자금융기반시설 지정 및 중요도 평가가 이루어지고 문서화되었는가",
+          "클라우드 이용 시 이용 서비스 목록과 중요도 평가 결과가 관리되는가"
+        ],
+        "isms": [
+          "2.1.3 정보자산 관리: 자산 식별·분류·책임자 지정·목록 관리가 이루어지는가",
+          "2.4.6 반출입 기기 통제 / 2.10.7: 자산 반출입과 매체 관리가 이루어지는가",
+          "2.4.x 물리보안 및 3.x 개인정보: 개인정보 보유 현황이 파악·관리되는가"
+        ],
+        "evidence": [
+          "정보자산 목록(자산명, 유형, 소유자, 등급, 위치, 처리 데이터)",
+          "자산 분류 기준서와 등급별 취급 규칙 문서",
+          "다중 소스 대사 결과와 섀도 IT 발견·조치 내역",
+          "클라우드 태그 정책 설정과 미준수 리소스 목록",
+          "분기 자산 대장 검토·승인 기록",
+          "폐기 자산 목록과 데이터 파기 확인서",
+          "개인정보 보유 현황표(어떤 시스템에 어떤 항목이 있는지)"
+        ],
+        "auditorQuestions": [
+          "정보자산 목록은 어떻게 만들고 얼마나 자주 갱신합니까?",
+          "이 목록이 전부라는 것을 어떻게 확인합니까?",
+          "각 자산의 소유자는 누구이며 어떤 책임을 집니까?",
+          "중요도 등급에 따라 실제로 다른 보호조치가 적용됩니까? 예를 들어 주십시오.",
+          "부서가 임의로 도입한 SaaS나 클라우드 리소스는 어떻게 찾아냅니까?",
+          "폐기한 서버의 디스크는 어떻게 처리했고 증빙이 있습니까?",
+          "고객 개인정보가 어느 시스템에 있는지 목록이 있습니까?"
+        ],
+        "controlExample": "전 정보자산은 자산관리 시스템에 등록되어 업무·기술 소유자와 중요도 등급이 지정되며, 클라우드 리소스는 필수 태그 없이는 생성이 차단된다. 분기마다 클라우드 API·MDM·SSO·네트워크 스캔 결과를 대사하여 미등록 자산을 식별·조치하고, 등급별 암호화·접근통제·백업·폐기 요건이 적용되는지 정보보호팀이 점검한다."
+      },
+      "related": [
+        "sec-vuln-management",
+        "sec-data-masking",
+        "sec-uar",
+        "sec-mdm",
+        "sec-cspm-cnapp",
+        "sec-policy-framework",
+        "plat-cmdb",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "ISO/IEC 27001 Annex A 5.9 정보자산 목록",
+        "ISMS-P 인증기준 안내서 2.1.3 정보자산 관리",
+        "NIST SP 800-53 CM-8 System Component Inventory"
+      ]
+    },
+    {
+      "id": "sec-policy-framework",
+      "title": "보안 정책·지침 체계",
+      "titleEn": "Security Policy Framework",
+      "aliases": [
+        "보안정책",
+        "정보보호정책",
+        "지침",
+        "절차서",
+        "규정 체계",
+        "내부관리계획"
+      ],
+      "tags": [
+        "governance",
+        "policy",
+        "compliance",
+        "documentation"
+      ],
+      "level": "기초",
+      "oneLiner": "정책-지침-절차-양식으로 이어지는 문서 위계로 보안 요구사항을 조직에 전달하는 체계",
+      "analogy": "나라의 법 체계와 같다. 헌법(정책)이 큰 원칙을 선언하고, 법률(지침)이 분야별 규칙을 정하고, 시행령·시행규칙(절차)이 실제 집행 방법을 적고, 서식(양식)이 실무에서 쓰인다. 헌법만 있고 시행규칙이 없으면 공무원은 무엇을 어떻게 해야 할지 모른다. 반대로 시행규칙만 잔뜩 있고 상위 원칙이 없으면 서로 충돌한다. 보안 문서도 똑같은 위계가 필요하다.",
+      "explanation": "<p><strong>보안 정책 체계</strong>는 조직의 보안 요구사항을 문서로 정립하고 전달하는 위계 구조다. 보통 <strong>4단계</strong>로 구성한다. <strong>정책(Policy)</strong>은 최고경영진이 승인하는 최상위 선언으로, 보안의 원칙·범위·역할과 책임을 규정한다. <strong>지침(Standard)</strong>은 분야별로 지켜야 할 구체적 기준이다(접근통제 지침, 암호화 지침, 개발보안 지침). <strong>절차(Procedure)</strong>는 실제 수행 방법을 단계별로 적은 것이다(계정 신청 절차, 사고 대응 절차). <strong>양식·가이드</strong>는 실무 도구다.</p><p><strong>왜 문서 체계가 감사에서 중요한가.</strong> ITGC와 ISMS-P는 모두 <strong>'정해진 규칙이 있고, 그대로 수행되며, 그 증거가 있는가'</strong>를 본다. 규칙이 문서로 없으면 '수행했다'를 판단할 기준 자체가 없다. 반대로 문서에 없는 일을 하고 있어도 통제 이탈이 된다. 그래서 <strong>문서와 실제 운영의 일치</strong>가 감사의 핵심 관심사다.</p><p><strong>가장 흔한 실패는 '문서와 현실의 괴리'</strong>다. 인증 취득을 위해 컨설팅사 템플릿으로 문서를 만들었는데, 실제 운영은 전혀 다른 방식인 경우다. 예컨대 지침에는 '비밀번호는 분기마다 변경한다'고 쓰여 있지만 실제로는 패스키를 쓰고 있다면, 이것은 좋은 운영을 하고도 <strong>통제 이탈로 지적</strong>된다. 이때 정답은 운영을 문서에 맞추는 것이 아니라 <strong>문서를 현실에 맞게 개정</strong>하는 것이다.</p><p><strong>문서 관리 자체가 통제 대상</strong>이다. (1) <strong>승인</strong>: 정책은 경영진, 지침은 CISO, 절차는 부서장 등 승인 주체가 정해져야 한다. (2) <strong>버전 관리</strong>: 제·개정 이력과 유효 버전이 명확해야 한다. (3) <strong>주기적 검토</strong>: 최소 연 1회 검토하고 변경 없어도 '검토했음'을 기록해야 한다. (4) <strong>전달</strong>: 임직원이 접근할 수 있고 변경 시 공지되어야 한다. (5) <strong>예외 관리</strong>: 지킬 수 없는 경우의 승인 절차가 있어야 한다.</p><p><strong>한국 규제와의 연결</strong>도 중요하다. 개인정보보호법은 <strong>'내부관리계획'</strong> 수립·시행을 의무화하고 연 1회 이상 점검을 요구한다. 전자금융감독규정은 정보보호 관련 내부규정 마련과 <strong>정보기술부문 계획서</strong> 수립·보고를 요구한다. ISMS-P는 1.1~1.4 영역에서 정책 수립·이행 체계를 직접 심사한다. 따라서 문서 체계는 여러 규제의 <strong>공통 접점</strong>이며, 하나의 체계로 여러 요구를 매핑하는 것이 효율적이다.</p><p><strong>실무 팁</strong>은 문서를 <strong>적게, 그러나 실제로 쓰이게</strong> 만드는 것이다. 지침 40개를 만들어 아무도 읽지 않는 것보다, 10개를 만들어 실제로 인용되고 갱신되는 편이 통제 효과가 높다. 또한 각 문서에 <strong>어떤 규제 요구사항에 대응하는지 매핑 표</strong>를 붙이면 감사 대응 시간이 크게 줄어든다.</p>",
+      "howItWorks": "<ol><li>규제 요구사항(개인정보보호법, 전자금융감독규정, ISMS-P, SOX)과 조직 위험을 분석해 필요한 문서 목록을 정한다.</li><li>최상위 정보보호 정책을 작성하고 경영진 승인을 받는다. 범위·원칙·역할과 책임을 명시한다.</li><li>분야별 지침을 작성한다(접근통제, 암호화, 변경관리, 사고대응, 외부자, 개발보안, 물리보안 등).</li><li>각 지침에 대응하는 실행 절차서와 양식을 만든다. 실제 업무 흐름과 일치하는지 담당자와 검증한다.</li><li>문서별 승인권자·검토주기·소유 부서를 지정하고 문서관리대장에 등록한다.</li><li>임직원에게 배포·공지하고 교육에 반영한다. 접근 가능한 위치(포털)에 게시한다.</li><li>운영 중 예외가 필요하면 예외 신청·승인 절차를 통해 사유·기간·보완통제와 함께 등록한다.</li><li>연 1회 이상 전체 문서를 검토해 규제 변화·조직 변화·실제 운영과의 차이를 반영해 개정한다.</li><li>개정 시 변경 이력과 승인 기록을 남기고 관련자에게 재공지한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'의 문서 체계는 1개 정책 + 12개 지침 + 34개 절차서로 구성된다. 2026년 정기 검토에서 <strong>문서와 현실의 불일치 7건</strong>이 발견됐다. 대표적으로 (1) 접근통제 지침에 '비밀번호 90일 변경'이 있으나 실제로는 패스키 사용자에게 면제 적용 중 → 지침에 면제 조건 명문화, (2) 변경관리 절차서에 'CAB 주간 회의 승인'이 있으나 실제로는 GitOps PR 승인으로 대체됨 → 절차서를 실제 흐름에 맞게 전면 개정, (3) 백업 지침의 보존기간이 개인정보 보존 정책과 충돌 → 통일. 각 문서 첫 장에는 대응 규제 매핑표(전자금융감독규정 조항, ISMS-P 인증기준 번호, ITGC 통제번호)를 붙여 감사 때 바로 활용한다. 예외 대장에는 현재 9건이 등록돼 있고 모두 재검토일이 지정돼 있다.</p><pre><code># 문서 위계와 승인 주체\n[정책] 정보보호 및 개인정보보호 정책        승인: 대표이사    검토: 연 1회\n  ├─[지침] 접근통제 지침                    승인: CISO        검토: 연 1회\n  │    ├─[절차] 계정 신청·승인 절차서       승인: 정보보호팀장\n  │    ├─[절차] 권한 정기검토(UAR) 절차서   승인: 정보보호팀장\n  │    └─[양식] 권한신청서, 예외신청서\n  ├─[지침] 암호화 지침\n  ├─[지침] 변경관리 지침\n  ├─[지침] 침해사고 대응 지침\n  └─[지침] 외부자(위탁) 보안 지침\n\n# 문서 관리대장 항목 (감사에서 그대로 요구됨)\n문서번호 | 문서명 | 버전 | 제정일 | 최종개정일 | 승인자 | 소유부서 | 차기검토일\nSEC-P-01 | 정보보호정책 | v4.2 | 2019-03-01 | 2026-02-15 | 대표이사 | 정보보호팀 | 2027-02\nSEC-S-03 | 접근통제지침 | v6.1 | 2019-03-01 | 2026-06-30 | CISO     | 정보보호팀 | 2027-06\n\n# 규제 매핑표 (문서 첫 장에 첨부)\n지침 조항        | 전자금융감독규정 | ISMS-P   | ITGC 통제\n4.2 계정 발급    | 제15조           | 2.5.1    | AC-01\n4.5 권한 검토    | 제15조           | 2.5.6    | AC-04\n5.1 특권 계정    | 제15조           | 2.5.5    | AC-07</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='150' y='30' width='230' height='36' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265' y='53' text-anchor='middle' fill='currentColor' font-size='11'>정책 - 원칙·범위·책임 (경영진 승인)</text><line x1='265' y1='66' x2='265' y2='82' stroke='currentColor' marker-end='url(#ar)'/><rect x='120' y='82' width='290' height='36' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265' y='105' text-anchor='middle' fill='currentColor' font-size='11'>지침 - 분야별 기준 (CISO 승인)</text><line x1='265' y1='118' x2='265' y2='134' stroke='currentColor' marker-end='url(#ar)'/><rect x='90' y='134' width='350' height='36' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265' y='157' text-anchor='middle' fill='currentColor' font-size='11'>절차 - 수행 방법 단계별 (부서장 승인)</text><line x1='265' y1='170' x2='265' y2='186' stroke='currentColor' marker-end='url(#ar)'/><rect x='60' y='186' width='410' height='36' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265' y='209' text-anchor='middle' fill='currentColor' font-size='11'>양식·가이드 - 실무 도구 (신청서·체크리스트)</text><rect x='455' y='60' width='170' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='540' y='81' text-anchor='middle' fill='currentColor' font-size='11'>문서 관리 통제</text><text x='467' y='100' fill='currentColor' font-size='10'>승인 · 버전 · 연 1회 검토</text><text x='467' y='117' fill='currentColor' font-size='10'>공지 · 예외 승인 절차</text><text x='467' y='131' fill='currentColor' font-size='10'>(문서관리대장 유지)</text><rect x='455' y='148' width='170' height='75' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='540' y='169' text-anchor='middle' fill='currentColor' font-size='11'>감사의 핵심 질문</text><text x='467' y='189' fill='currentColor' font-size='10'>문서대로 실제 하는가</text><text x='467' y='206' fill='currentColor' font-size='10'>불일치 시 문서를 현실에</text><text x='467' y='220' fill='currentColor' font-size='10'>맞게 개정했는가</text><text x='20' y='95' fill='currentColor' font-size='10'>적게, 그러나</text><text x='20' y='112' fill='currentColor' font-size='10'>실제로 쓰이게</text><text x='20' y='240' fill='currentColor' font-size='11'>각 문서에 규제 매핑표(전금감독규정·ISMS-P·ITGC 통제번호)를 붙이면 감사 대응이 빨라진다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "정책(Policy)",
+          "meaning": "경영진이 승인하는 최상위 보안 원칙과 책임 선언"
+        },
+        {
+          "term": "지침(Standard)",
+          "meaning": "분야별로 지켜야 할 구체적 기준"
+        },
+        {
+          "term": "절차(Procedure)",
+          "meaning": "실제 수행 방법을 단계별로 정한 문서"
+        },
+        {
+          "term": "내부관리계획",
+          "meaning": "개인정보 보호를 위해 법상 수립·시행이 의무인 계획 문서"
+        },
+        {
+          "term": "문서관리대장",
+          "meaning": "문서별 버전·승인자·검토일을 관리하는 목록"
+        },
+        {
+          "term": "예외 승인",
+          "meaning": "규정을 지킬 수 없을 때 사유·기간·보완통제와 함께 허용하는 절차"
+        },
+        {
+          "term": "규제 매핑",
+          "meaning": "내부 문서 조항과 외부 규제 요구사항을 연결한 표"
+        },
+        {
+          "term": "문서-운영 일치",
+          "meaning": "문서에 적힌 대로 실제 운영되는지의 정합성"
+        }
+      ],
+      "pitfalls": [
+        "컨설팅 템플릿을 그대로 써서 실제 운영과 다른 내용이 문서에 남는다. 감사 지적 1순위다.",
+        "문서를 만든 뒤 몇 년간 개정하지 않아 조직·시스템 변화가 반영되지 않는다.",
+        "검토 주기가 정해져 있지만 '변경 없음'을 기록하지 않아 검토 사실을 증명하지 못한다.",
+        "지침 수가 너무 많아 담당자도 어떤 문서가 유효한지 모른다.",
+        "예외 처리 절차가 없어 지킬 수 없는 규정을 그냥 무시하게 된다.",
+        "문서 접근 권한이 제한돼 정작 지켜야 할 현업이 내용을 모른다.",
+        "규제 매핑이 없어 감사 때마다 조항을 처음부터 찾는다.",
+        "좋은 운영을 하고 있는데 문서가 낡아 오히려 이탈로 지적된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 보안 관련 정책·지침·절차가 문서화되고 적절한 권한자의 승인을 받았는가",
+          "[운영] 문서가 정기적으로(최소 연 1회) 검토·개정되고 그 기록이 있는가",
+          "[운영] 문서 내용과 실제 운영이 일치하는가",
+          "[운영] 규정 예외가 승인 절차를 통해 관리되고 재검토되는가",
+          "[운영] 문서가 임직원에게 전달·교육되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 정보보호 관련 내부규정이 마련되고 이행되는가",
+          "정보기술부문 및 정보보호 관련 계획을 수립하고 이사회·경영진 보고가 이루어지는가",
+          "개인정보보호법상 내부관리계획을 수립·시행하고 연 1회 이상 점검하는가"
+        ],
+        "isms": [
+          "1.1.5 정책 수립 / 1.1.6 자원 할당: 정책이 수립·승인되고 자원이 배정되는가",
+          "1.2.4 보호대책 선정 / 1.4.1 법적 요구사항 준수 검토: 요구사항이 반영·점검되는가",
+          "1.1.4 범위 설정 및 2.x 전반: 각 통제 항목의 근거 문서가 존재하는가"
+        ],
+        "evidence": [
+          "문서관리대장(문서명, 버전, 승인자, 제·개정일, 차기 검토일)",
+          "최신 정책·지침·절차서 원본과 승인 결재 기록",
+          "연간 문서 검토 결과(변경 없음 포함) 보고서",
+          "임직원 공지·교육 이수 기록",
+          "규정 예외 대장과 승인·재검토 기록",
+          "규제 요구사항-내부 문서 매핑표",
+          "개인정보 내부관리계획과 연간 점검 결과"
+        ],
+        "auditorQuestions": [
+          "보안 관련 문서는 몇 개이며 최종 개정일은 언제입니까?",
+          "이 지침 내용대로 실제로 운영되고 있습니까? 다른 부분이 있습니까?",
+          "문서 검토는 얼마나 자주 하며 마지막 검토 기록을 볼 수 있습니까?",
+          "규정을 지킬 수 없는 경우 어떤 절차를 밟습니까? 현재 예외는 몇 건입니까?",
+          "임직원은 이 문서를 어디서 볼 수 있습니까?",
+          "개인정보 내부관리계획을 수립하고 연 1회 점검했습니까?"
+        ],
+        "controlExample": "정보보호 정책은 대표이사 승인 하에 제정되며 분야별 지침과 절차서로 구체화된다. 모든 보안 문서는 문서관리대장으로 버전·승인자·검토주기가 관리되고 연 1회 이상 검토·개정되며, 규정 예외는 사유·기간·보완통제를 명시해 CISO 승인 후 등록하고 반기마다 재검토한다."
+      },
+      "related": [
+        "sec-awareness-training",
+        "sec-asset-classification",
+        "sec-incident-response",
+        "comp-isms-p",
+        "comp-sox-itgc",
+        "comp-fss-egfs",
+        "sec-uar",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "ISO/IEC 27001 및 27002",
+        "ISMS-P 인증기준 안내서 1. 관리체계 수립 및 운영",
+        "개인정보의 안전성 확보조치 기준(내부관리계획)"
+      ]
+    },
+    {
+      "id": "sec-awareness-training",
+      "title": "보안 인식 교육",
+      "titleEn": "Security Awareness and Training",
+      "aliases": [
+        "보안교육",
+        "인식제고",
+        "정보보호 교육",
+        "개인정보 교육",
+        "모의훈련",
+        "교육 이수"
+      ],
+      "tags": [
+        "people",
+        "governance",
+        "compliance",
+        "training"
+      ],
+      "level": "기초",
+      "oneLiner": "임직원이 보안 위협을 알아보고 올바르게 행동하도록 만드는 교육과 훈련 체계",
+      "analogy": "소방 훈련과 같다. 소화기를 아무리 많이 비치해도 직원이 사용법을 모르고 대피로를 모르면 소용이 없다. 그래서 정기적으로 교육하고 실제로 대피 훈련을 해본다. 훈련에서 허둥댄 사람을 혼내는 게 아니라, 왜 헷갈렸는지를 보고 안내판을 고친다. 보안 교육도 '아는가'가 아니라 '실제 상황에서 제대로 행동하는가'를 만드는 것이 목적이다.",
+      "explanation": "<p><strong>보안 인식 교육</strong>은 임직원이 보안 위협을 인지하고 규정에 맞게 행동하도록 만드는 활동이다. 기술 통제로 막을 수 없는 영역 — 피싱 클릭, 비밀번호 공유, 자료 무단 반출, 사회공학 — 이 대부분 사람의 판단에 달려 있기 때문에, 교육은 <strong>선택이 아니라 필수 통제</strong>다.</p><p><strong>법적 의무</strong>이기도 하다. 개인정보보호법은 개인정보취급자에 대한 정기 교육을, 전자금융감독규정은 임직원 정보보호 교육을, ISMS-P는 인식제고와 교육훈련 항목을 요구한다. 따라서 <strong>'실시 여부'와 '이수 증적'</strong>은 감사에서 반드시 확인되는 항목이다.</p><p><strong>대상별로 내용을 나누는 것</strong>이 효과를 좌우한다. 전 직원 공통 교육(피싱, 비밀번호, 자료 취급, 사고 신고)과 별개로, <strong>개인정보취급자</strong>는 법적 의무와 처리 절차를, <strong>개발자</strong>는 시큐어 코딩과 비밀 관리를, <strong>운영자</strong>는 특권 접근과 변경 절차를, <strong>경영진</strong>은 보안 리스크와 사고 시 의사결정을 배워야 한다. 모두에게 같은 슬라이드를 돌리면 아무도 기억하지 않는다.</p><p><strong>가장 효과적인 방식은 실습과 상황 기반</strong>이다. 연 1회 2시간짜리 이러닝만으로는 행동이 바뀌지 않는다. 실무에서 효과가 검증된 조합은 (1) <strong>분기 피싱 모의훈련</strong>과 즉시 피드백, (2) 실제 사고 사례를 익명화해 공유하는 <strong>짧은 정기 뉴스레터</strong>, (3) 신규 입사자 온보딩 교육, (4) 사고 발생 시 <strong>맞춤 재교육</strong>이다.</p><p><strong>측정이 관건</strong>이다. 이수율 100%는 '교육을 들었다'만 증명할 뿐이다. 실제 지표는 <strong>모의훈련 클릭률, 신고율, 신고까지 걸린 시간, 반복 클릭자 비율, 보안 규정 위반 건수 추이</strong>다. 특히 <strong>신고율</strong>이 중요하다. 클릭률이 0%인 조직보다, 클릭률 5%에 신고율 70%인 조직이 실제로는 훨씬 안전하다. 사고를 빨리 알 수 있기 때문이다.</p><p><strong>문화가 결과를 만든다.</strong> 실수한 사람을 공개적으로 질책하면 다음부터는 숨긴다. 숨기면 대응이 늦어지고 피해가 커진다. 그래서 <strong>'신고하면 칭찬, 숨기면 문제'</strong>라는 메시지를 일관되게 보내야 한다. 다만 반복적·고의적 위반은 인사 절차와 연결하는 것이 필요하며, 이 둘의 경계를 규정으로 명확히 해두어야 한다.</p><p><strong>감사 증적</strong>은 교육 계획서, 교육 자료, 대상자 명단과 이수 기록(미이수자 사후 조치 포함), 모의훈련 결과와 후속 조치, 경영진 보고 자료다. 협력사·파견 인력이 교육 대상에서 빠지는 경우가 흔하므로 <strong>외부 인력 포함 여부</strong>도 확인 포인트다.</p>",
+      "howItWorks": "<ol><li>연간 교육 계획을 수립한다. 대상 그룹, 주제, 방식, 시기, 이수 기준을 정하고 경영진 승인을 받는다.</li><li>대상자 명단을 인사 데이터와 연동해 확정한다(정규직·계약직·협력사·신규 입사자 포함).</li><li>전 직원 공통 교육과 직무별 특화 교육을 편성해 실시한다.</li><li>신규 입사자는 입사 후 정해진 기간(예: 2주) 내 온보딩 보안 교육을 이수하게 한다.</li><li>분기별로 피싱 모의훈련을 실시하고, 클릭한 사용자에게 즉시 학습 콘텐츠를 제공한다.</li><li>이수 현황을 모니터링해 미이수자에게 독촉하고, 기한 초과 시 부서장에게 통보한다.</li><li>결과 지표(이수율, 클릭률, 신고율, 신고 소요시간)를 집계해 경영진에 보고한다.</li><li>사고 발생 시 원인과 연관된 주제로 맞춤 재교육을 실시한다.</li><li>연말에 교육 효과를 평가하고 다음 연도 계획에 반영한다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'의 2026년 교육 체계는 이렇다. 전 직원 연 2회(상·하반기) 정보보호·개인정보 교육, 개발자 대상 시큐어 코딩 실습 연 1회, 운영자 대상 특권 접근·변경관리 교육 연 1회, 경영진 대상 사이버 위기 대응 테이블탑 훈련 연 1회다. 신규 입사자는 입사 2주 내 온보딩 교육을 이수해야 사내 시스템 권한이 정상 부여된다(미이수 시 제한 권한 유지). 협력사 상주 인력 47명도 동일 교육 대상이다. 2026년 상반기 이수율은 98.7%(미이수 9명은 휴직·장기출장으로 복귀 후 이수), 피싱 모의훈련 클릭률 4.1%, 신고율 62%였다. 전년 대비 신고율이 41%→62%로 오른 것이 가장 큰 성과로 보고됐다. 반복 클릭자 12명은 1:1 맞춤 교육을 받았다.</p><pre><code># 연간 교육 계획 (대상별 차별화가 핵심)\n대상            주제                              주기    방식        이수기준\n전 직원         피싱·비밀번호·자료취급·신고방법    반기    이러닝+퀴즈  80점 이상\n개인정보취급자  법적의무·처리절차·마스킹           연 1회  집합        출석+서명\n개발자          시큐어코딩·비밀관리·의존성         연 1회  실습        과제 제출\n운영자          특권접근·변경관리·세션기록         연 1회  집합        출석\n경영진          위기대응 의사결정                  연 1회  테이블탑    참석\n신규 입사자     온보딩 보안 교육                    수시    이러닝      입사 2주 내\n협력사 인력     전 직원 과정과 동일                반기    이러닝      80점 이상\n\n# 효과 지표 (이수율만 보면 안 된다)\n이수율            98.7%  (미이수 9명: 휴직·출장, 복귀 후 이수 예정)\n피싱 클릭률        4.1%  (전년 11.3%)\n신고율            62.0%  (전년 41.0%)  ← 가장 중요한 개선\n평균 신고 시간     8분\n반복 클릭자        12명   → 1:1 맞춤 교육 실시\n\n# 교육 미이수와 권한의 연계 (실효성 확보 장치)\nIF 신규입사자 AND 온보딩교육 미이수 AND 입사경과 &gt; 14일\n  THEN 사내 시스템 권한 제한 유지 + 부서장 통보</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='26' fill='currentColor' font-size='12'>대상별로 다른 내용을 - 같은 슬라이드는 아무도 기억하지 않는다</text><rect x='20' y='38' width='140' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='90' y='59' text-anchor='middle' fill='currentColor' font-size='10'>전 직원 - 피싱·신고</text><rect x='170' y='38' width='140' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='59' text-anchor='middle' fill='currentColor' font-size='10'>개발자 - 시큐어코딩</text><rect x='320' y='38' width='140' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='390' y='59' text-anchor='middle' fill='currentColor' font-size='10'>운영자 - 특권접근</text><rect x='470' y='38' width='150' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='59' text-anchor='middle' fill='currentColor' font-size='10'>경영진 - 위기 의사결정</text><rect x='20' y='90' width='290' height='68' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='165' y='111' text-anchor='middle' fill='currentColor' font-size='12'>효과를 만드는 방식</text><text x='32' y='131' fill='currentColor' font-size='10'>분기 모의훈련 + 즉시 피드백</text><text x='32' y='148' fill='currentColor' font-size='10'>실제 사례 공유 · 신규자 온보딩 · 사고 후 재교육</text><rect x='325' y='90' width='295' height='68' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='472' y='111' text-anchor='middle' fill='currentColor' font-size='12'>측정 지표</text><text x='337' y='131' fill='currentColor' font-size='10'>이수율 · 클릭률 · 신고율 · 신고 소요시간</text><text x='337' y='148' fill='currentColor' font-size='10'>클릭 0%보다 신고 70%가 더 안전하다</text><rect x='20' y='172' width='600' height='72' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='193' text-anchor='middle' fill='currentColor' font-size='12'>문화가 결과를 만든다</text><text x='32' y='214' fill='currentColor' font-size='11'>실수한 사람을 공개 질책 → 다음부터 숨김 → 대응 지연 → 피해 확대</text><text x='32' y='234' fill='currentColor' font-size='11'>'신고하면 칭찬' 메시지 일관 유지 / 단, 반복·고의 위반은 규정으로 별도 처리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "인식제고(Awareness)",
+          "meaning": "일상적 노출로 보안 행동을 습관화하는 활동"
+        },
+        {
+          "term": "직무별 교육",
+          "meaning": "개발자·운영자·개인정보취급자 등 역할에 맞춘 특화 교육"
+        },
+        {
+          "term": "모의훈련",
+          "meaning": "실제와 유사한 피싱 등을 발송해 행동을 측정·교정하는 훈련"
+        },
+        {
+          "term": "신고율",
+          "meaning": "의심 상황을 신고한 비율. 클릭률보다 중요한 지표"
+        },
+        {
+          "term": "온보딩 교육",
+          "meaning": "신규 입사자가 권한을 받기 전 이수해야 하는 기본 교육"
+        },
+        {
+          "term": "이수 증적",
+          "meaning": "대상자 명단과 이수 기록. 법적 의무 이행의 증거"
+        },
+        {
+          "term": "테이블탑 훈련",
+          "meaning": "시나리오를 놓고 의사결정을 연습하는 토론형 훈련"
+        },
+        {
+          "term": "비난 없는 문화",
+          "meaning": "실수를 숨기지 않고 신고하게 만드는 조직 분위기"
+        }
+      ],
+      "pitfalls": [
+        "연 1회 이러닝 이수율만 채우고 행동 변화는 측정하지 않는다.",
+        "모든 직군에 동일한 내용을 제공해 개발자·운영자에게 실질적 도움이 되지 않는다.",
+        "협력사·파견 인력을 교육 대상에서 제외한다. 실제로는 사내 시스템에 접근한다.",
+        "모의훈련에서 클릭한 직원을 공개 질책해 이후 신고 문화가 무너진다.",
+        "미이수자에 대한 후속 조치가 없어 이수율이 형식적으로 관리된다.",
+        "교육 자료가 몇 년째 그대로여서 최신 위협(AI 활용 피싱, QR 피싱 등)을 다루지 않는다.",
+        "사고가 발생해도 그 원인과 연결된 맞춤 재교육이 이루어지지 않는다.",
+        "경영진 교육을 생략해 사고 시 의사결정 지연이 발생한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 연간 교육 계획이 수립·승인되고 계획대로 실시되는가",
+          "[운영] 대상자 명단이 인사 정보와 연동되어 누락 없이 관리되는가(협력사 포함)",
+          "[운영] 이수 증적이 보관되고 미이수자에 대한 후속 조치가 이루어지는가",
+          "[운영] 모의훈련 결과가 측정되고 교육·통제 개선에 반영되는가",
+          "[접근] 신규 입사자의 교육 이수와 권한 부여가 연계되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따라 임직원 대상 정보보호 교육을 정기적으로 실시하는가",
+          "전산 부문 인력에 대한 직무별 교육이 이루어지는가",
+          "개인정보보호법에 따라 개인정보취급자 교육을 연 1회 이상 실시하고 기록을 보관하는가"
+        ],
+        "isms": [
+          "2.2.4 인식제고 및 교육훈련: 교육 계획 수립·실시·효과 평가가 이루어지는가",
+          "2.2.1 주요 직무자 지정 및 관리 / 2.2.3 보안 서약: 대상자 관리가 이루어지는가",
+          "2.3.2 외부자 계약 시 보안: 외부 인력도 교육 대상에 포함되는가",
+          "2.11.4 사고 대응 훈련 및 개선: 모의훈련이 실시되고 개선에 반영되는가"
+        ],
+        "evidence": [
+          "연간 교육 계획서와 승인 문서",
+          "교육 자료(과정별 커리큘럼)",
+          "대상자 명단과 이수 기록(이수일, 점수, 미이수 사유)",
+          "미이수자 독촉·후속 조치 기록",
+          "피싱 모의훈련 계획·실시 결과 및 지표 추이",
+          "신규 입사자 온보딩 교육 이수 현황",
+          "경영진 보고 자료",
+          "협력사 인력 교육 이수 증적"
+        ],
+        "auditorQuestions": [
+          "올해 보안 교육은 몇 회 실시했고 이수율은 얼마입니까?",
+          "미이수자는 어떻게 관리합니까?",
+          "개발자와 운영자에게는 어떤 별도 교육을 제공합니까?",
+          "협력사 인력도 교육을 받습니까?",
+          "피싱 모의훈련 결과는 어떠했으며 전년 대비 개선되었습니까?",
+          "훈련에서 클릭한 직원에게 어떤 조치를 합니까?",
+          "사고가 발생한 뒤 관련 교육을 추가로 실시한 사례가 있습니까?"
+        ],
+        "controlExample": "전 임직원 및 협력사 상주 인력을 대상으로 반기 1회 정보보호·개인정보 교육을 실시하고 직무별(개발·운영·개인정보취급자) 특화 교육을 연 1회 제공한다. 신규 입사자는 입사 2주 내 온보딩 교육을 이수해야 사내 시스템 권한이 정상 부여되며, 분기별 피싱 모의훈련 결과(클릭률·신고율)를 측정해 경영진에 보고하고 반복 클릭자에게 맞춤 교육을 실시한다."
+      },
+      "related": [
+        "sec-email-phishing",
+        "sec-policy-framework",
+        "sec-incident-response",
+        "sec-dlp",
+        "sec-pentest-redteam",
+        "sec-mdm",
+        "comp-isms-p",
+        "comp-privacy-law"
+      ],
+      "learnMore": [
+        "NIST SP 800-50 Building an Information Technology Security Awareness Program",
+        "ISMS-P 인증기준 안내서 2.2.4 인식제고 및 교육훈련",
+        "개인정보보호 교육 안내(개인정보보호위원회)"
+      ]
+    },
+    {
+      "id": "sec-incident-response",
+      "title": "침해사고 대응과 금융권 신고 의무",
+      "titleEn": "Incident Response and Regulatory Reporting Obligations",
+      "aliases": [
+        "침해사고",
+        "사고대응",
+        "CSIRT",
+        "IR",
+        "사고 신고",
+        "유출 통지",
+        "포렌식"
+      ],
+      "tags": [
+        "incident",
+        "process",
+        "compliance",
+        "regulation"
+      ],
+      "level": "중급",
+      "oneLiner": "침해를 탐지·봉쇄·복구하고 법정 기한 내 신고·통지까지 수행하는 절차 체계",
+      "analogy": "화재 대응과 같다. 불을 발견하면 먼저 알리고(탐지·보고), 문을 닫아 번지지 않게 하고(봉쇄), 불씨를 끄고(제거), 복구하고, 마지막으로 소방서에 사고 경위를 신고한다. 중요한 것은 순서와 시간이다. 불부터 끄겠다고 혼자 뛰어들면 증거가 타버리고 신고도 늦어진다. 그리고 법적으로 정해진 시간 안에 신고하지 않으면 그 자체가 별개의 위반이 된다.",
+      "explanation": "<p><strong>침해사고 대응(Incident Response)</strong>은 보안 사고를 탐지한 시점부터 봉쇄·제거·복구·사후개선까지 수행하는 절차다. 여기에 한국 금융·개인정보 환경에서는 <strong>법정 신고·통지 의무</strong>가 결합되어, 기술적 대응만큼이나 <strong>시간 내 보고</strong>가 중요하다.</p><p><strong>표준 절차는 NIST SP 800-61의 4단계</strong>를 따른다. <strong>준비(Preparation)</strong> — 조직·연락망·도구·절차를 미리 갖춘다. <strong>탐지 및 분석(Detection &amp; Analysis)</strong> — 사고를 인지하고 범위·영향을 판단한다. <strong>봉쇄·제거·복구(Containment, Eradication, Recovery)</strong> — 확산을 막고 원인을 제거한 뒤 정상화한다. <strong>사후 활동(Post-Incident)</strong> — 교훈을 도출하고 통제를 개선한다.</p><p><strong>봉쇄 단계의 딜레마</strong>를 이해해야 한다. 감염된 서버를 바로 끄면 확산은 멈추지만 <strong>메모리 증거가 사라진다</strong>. 또 공격자가 눈치채고 다른 백도어로 숨을 수 있다. 그래서 '즉시 차단'과 '관찰 후 일괄 차단' 중 무엇을 택할지는 사고 유형과 피해 규모에 따라 <strong>사전에 기준을 정해두어야</strong> 한다. 랜섬웨어는 즉시 격리, 지속적 침투(APT) 의심은 범위 파악 후 일괄 차단이 일반적이다.</p><p><strong>한국의 신고 의무는 여러 법에 걸쳐 있다</strong>는 점이 핵심이다. 실무자는 사고 유형별로 <strong>어느 기관에 언제까지</strong> 알려야 하는지 표로 정리해 두어야 한다. 대표적으로 (1) <strong>개인정보 유출</strong>: 개인정보보호법에 따라 정보주체에게 지체 없이 통지하고, 일정 규모 이상은 개인정보보호위원회 또는 한국인터넷진흥원에 <strong>72시간 이내</strong> 신고한다. (2) <strong>정보통신서비스 제공자의 침해사고</strong>: 정보통신망법에 따라 과기정통부·KISA에 신고한다. (3) <strong>금융회사의 전자금융사고</strong>: 전자금융거래법·전자금융감독규정에 따라 <strong>금융감독원에 지체 없이 보고</strong>하고, 금융보안원 등과 공조한다. 구체적 기한과 대상은 개정이 잦으므로 <strong>법무·컴플라이언스와 함께 최신 기준을 확인</strong>하는 것이 원칙이다.</p><p><strong>사고 등급 분류</strong>가 대응 속도를 결정한다. 등급별로 소집 범위, 보고 대상, 대응 시한을 미리 정해두면 사고 당시 판단 부담이 줄어든다. 또한 <strong>'무엇이 사고인가'의 정의</strong>도 필요하다. 정의가 모호하면 담당자가 보고를 주저하고, 그 사이 골든타임이 지나간다.</p><p><strong>증거 보전(포렌식)</strong>도 필수 요소다. 디스크·메모리 이미지를 확보하고 해시로 무결성을 보장하며, <strong>증거 취급 이력(chain of custody)</strong>을 기록한다. 법적 분쟁이나 수사로 이어질 경우 이 기록이 없으면 증거 능력이 약해진다.</p><p><strong>사후 검토(post-mortem)</strong>가 사고 대응의 가치를 완성한다. 근본 원인, 탐지 지연 요인, 대응 병목을 도출해 통제를 개선하고, 그 이행을 추적한다. 감사인은 <strong>'사고 후 무엇을 바꿨는가'</strong>를 반드시 묻는다.</p>",
+      "howItWorks": "<ol><li>[준비] CSIRT 구성, 역할·연락망, 사고 등급 기준, 대응 절차서, 포렌식 도구, 외부 전문기관 계약을 미리 갖춘다.</li><li>[탐지] SOC·EDR·SIEM 경보 또는 직원·고객 신고로 사고를 인지하고 접수한다.</li><li>[분석] 침해 범위, 영향 자산, 유출 데이터 유무, 초기 침투 경로를 파악하고 사고 등급을 판정한다.</li><li>[선언·소집] 기준을 넘으면 인시던트를 선언하고 CSIRT와 경영진을 소집한다. 법무·홍보·고객대응도 포함한다.</li><li>[증거 보전] 봉쇄 전에 메모리·디스크 이미지, 로그를 확보하고 해시와 취급 이력을 기록한다.</li><li>[봉쇄] 계정 잠금, 단말 격리, 네트워크 차단, 자격증명 전면 교체 등으로 확산을 막는다.</li><li>[신고·통지] 법정 요건을 확인해 규제기관 신고와 정보주체 통지를 기한 내 수행한다.</li><li>[제거·복구] 악성코드 제거, 취약점 패치, 시스템 재구축 후 정상 서비스를 복구하고 재감염 여부를 모니터링한다.</li><li>[사후] 타임라인을 정리해 사후 검토를 실시하고 개선 과제를 도출·추적하며 최종 보고서를 작성·보관한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'의 2026년 6월 사고 대응 사례다. 02:14 EDR이 정산 서버에서 비인가 프로세스 실행을 탐지해 자동 격리했고 온콜이 호출됐다. 02:31 분석 결과 협력사 VPN 계정이 탈취돼 내부로 들어온 정황이 확인돼 <strong>등급 2(중대)</strong>로 선언, CSIRT가 소집됐다. 03:10 증거 보전(메모리·디스크 이미지 + 해시) 후 해당 계정과 동일 협력사 계정 전체를 잠그고 VPN 세션을 폐기했다. 05:40 고객 개인정보 접근 흔적이 없음을 DB 접근제어 로그로 확인했다. 그럼에도 사내 기준에 따라 <strong>금융감독원에 전자금융사고로 보고</strong>했고, 개인정보 유출은 확인되지 않아 정보주체 통지는 해당 없음으로 법무 검토를 받아 문서화했다. 사후 검토에서 '협력사 계정에 피싱 내성 MFA 미적용'이 근본 원인으로 도출돼 전 협력사 계정에 FIDO2를 의무화하고, VPN 계정의 세션 수명을 단축했다. 개선 과제 5건은 모두 8주 내 완료됐다.</p><pre><code># 사고 등급 기준 (사전 정의가 대응 속도를 만든다)\n등급1(경미) 단일 단말 감염, 데이터 영향 없음\n            → 보안팀 처리, 일일 보고\n등급2(중대) 서버 침해, 계정 탈취, 내부 확산 가능성\n            → CSIRT 소집, CISO 즉시 보고, 경영진 2시간 내\n등급3(위기) 고객정보 유출, 서비스 중단, 랜섬웨어 확산\n            → 위기대응본부 가동, 대표이사 즉시, 규제기관 신고 준비\n\n# 신고·통지 체크리스트 (유형별로 기관과 기한이 다르다 - 최신 기준 확인 필수)\n[ ] 개인정보 유출 → 정보주체 통지(지체 없이) + 감독기관 신고(72시간 이내)\n[ ] 정보통신 침해사고 → 과기정통부/KISA 신고\n[ ] 전자금융사고(금융회사) → 금융감독원 보고, 금융보안원 공조\n[ ] 수사 필요 시 → 경찰(사이버수사대) 신고\n[ ] 계약상 통지 의무 → 제휴사·위탁사 통지\n※ 각 기한·대상은 법령 개정이 잦으므로 법무·컴플라이언스 확인 후 진행\n\n# 증거 보전 (봉쇄보다 먼저)\ndd if=/dev/sda of=/evidence/srv01-disk.img bs=4M status=progress\nsha256sum /evidence/srv01-disk.img &gt; /evidence/srv01-disk.img.sha256\n# chain of custody 기록: 수집자, 일시, 장소, 해시, 인계 이력\n\n# 사고 타임라인 (사후 검토의 기초 자료)\n02:14 EDR 탐지·자동 격리   02:18 온콜 호출   02:31 등급2 선언\n03:10 증거 보전 완료        03:25 계정 일괄 잠금·세션 폐기\n05:40 개인정보 접근 없음 확인  09:00 금감원 보고   14:00 서비스 정상화</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='45' width='95' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='62' y='64' text-anchor='middle' fill='currentColor' font-size='10'>준비</text><text x='62' y='80' text-anchor='middle' fill='currentColor' font-size='10'>조직·절차·도구</text><line x1='110' y1='67' x2='140' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='140' y='45' width='95' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='187' y='64' text-anchor='middle' fill='currentColor' font-size='10'>탐지·분석</text><text x='187' y='80' text-anchor='middle' fill='currentColor' font-size='10'>범위·등급 판정</text><line x1='235' y1='67' x2='265' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='265' y='45' width='105' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='317' y='64' text-anchor='middle' fill='currentColor' font-size='10'>증거 보전</text><text x='317' y='80' text-anchor='middle' fill='currentColor' font-size='10'>봉쇄보다 먼저</text><line x1='370' y1='67' x2='400' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='400' y='45' width='105' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='452' y='64' text-anchor='middle' fill='currentColor' font-size='10'>봉쇄·제거</text><text x='452' y='80' text-anchor='middle' fill='currentColor' font-size='10'>확산 차단</text><line x1='505' y1='67' x2='535' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='535' y='45' width='90' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='580' y='64' text-anchor='middle' fill='currentColor' font-size='10'>복구</text><text x='580' y='80' text-anchor='middle' fill='currentColor' font-size='10'>재감염 감시</text><path d='M580,90 Q580,115 300,115 Q62,115 62,92' stroke='currentColor' fill='none' marker-end='url(#ar)'/><text x='320' y='130' text-anchor='middle' fill='currentColor' font-size='11'>사후 검토 → 근본원인·탐지지연 개선 → 준비 단계에 환류</text><rect x='15' y='145' width='295' height='95' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='162' y='166' text-anchor='middle' fill='currentColor' font-size='12'>병행 트랙: 신고·통지</text><text x='27' y='187' fill='currentColor' font-size='10'>개인정보 유출 → 정보주체 통지 + 감독기관 신고</text><text x='27' y='205' fill='currentColor' font-size='10'>전자금융사고 → 금융감독원 보고</text><text x='27' y='223' fill='currentColor' font-size='10'>침해사고 → 과기정통부·KISA 신고</text><text x='27' y='237' fill='currentColor' font-size='10'>기한·대상은 법령 확인 필수 (지연도 별개 위반)</text><rect x='325' y='145' width='295' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='472' y='166' text-anchor='middle' fill='currentColor' font-size='12'>사전에 정해둘 것</text><text x='337' y='187' fill='currentColor' font-size='10'>무엇이 사고인가 (정의)</text><text x='337' y='205' fill='currentColor' font-size='10'>등급별 소집·보고 대상·시한</text><text x='337' y='223' fill='currentColor' font-size='10'>즉시 차단 vs 관찰 후 차단 기준</text><text x='337' y='237' fill='currentColor' font-size='10'>외부 전문기관·법무 연락망</text></svg>",
+      "keyTerms": [
+        {
+          "term": "CSIRT",
+          "meaning": "침해사고 대응을 담당하는 조직. 역할과 연락망이 사전 정의되어야 함"
+        },
+        {
+          "term": "봉쇄(Containment)",
+          "meaning": "피해 확산을 막는 단계. 증거 보전과의 순서 판단이 중요"
+        },
+        {
+          "term": "증거 보전",
+          "meaning": "메모리·디스크 이미지와 해시를 확보해 분석·법적 증거로 남기는 작업"
+        },
+        {
+          "term": "Chain of Custody",
+          "meaning": "증거의 수집·보관·인계 이력. 증거 능력의 근거"
+        },
+        {
+          "term": "사고 등급",
+          "meaning": "영향도에 따른 분류. 소집 범위·보고 대상·시한을 결정"
+        },
+        {
+          "term": "유출 통지",
+          "meaning": "개인정보 유출 시 정보주체에게 알리는 법적 의무"
+        },
+        {
+          "term": "규제기관 신고",
+          "meaning": "감독기관에 정해진 기한 내 사고를 신고하는 의무"
+        },
+        {
+          "term": "사후 검토(Post-mortem)",
+          "meaning": "근본 원인과 개선 과제를 도출하는 비난 없는 회고"
+        },
+        {
+          "term": "골든타임",
+          "meaning": "초기 대응이 피해 규모를 결정하는 짧은 시간대"
+        }
+      ],
+      "pitfalls": [
+        "봉쇄를 서두르다 증거를 파괴해 원인 규명과 유출 여부 판단이 불가능해진다.",
+        "'무엇이 사고인가'의 정의가 없어 담당자가 보고를 주저하고 골든타임을 놓친다.",
+        "법정 신고 기한을 모르거나 기술 대응에만 집중해 보고가 늦어진다. 지연 자체가 별개 위반이다.",
+        "탈취된 계정만 잠그고 동일 경로의 다른 자격증명을 교체하지 않아 재침투된다.",
+        "야간·휴일 사고 시 연락망이 작동하지 않아 대응이 아침까지 지연된다.",
+        "사후 검토를 책임 추궁으로 운영해 사실이 왜곡되고 재발 방지가 안 된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 침해사고 대응 절차와 조직(CSIRT), 연락망이 문서화되고 최신인가",
+          "[운영] 사고 등급 기준과 등급별 보고·소집 체계가 정의되어 있는가",
+          "[운영] 사고 발생 시 탐지·대응·복구 이력과 타임라인이 기록·보존되는가",
+          "[운영] 법정 신고·통지 요건이 식별되고 기한 내 이행된 증적이 있는가",
+          "[운영] 사후 검토를 통해 개선 과제가 도출·이행·추적되는가",
+          "[운영] 사고 대응 훈련(모의훈련·테이블탑)이 정기적으로 실시되는가"
+        ],
+        "fss": [
+          "전자금융거래법·전자금융감독규정에 따라 전자금융사고 발생 시 금융감독원에 지체 없이 보고하는가",
+          "전자금융기반시설 침해사고 대응 체계와 비상대책이 마련되어 있는가",
+          "금융보안원 등 유관기관과의 정보공유·공조 체계가 있는가",
+          "사고 관련 기록이 보존되고 재발 방지 대책이 수립·이행되는가"
+        ],
+        "isms": [
+          "2.11.1 사고 예방 및 대응체계 구축: 대응 절차와 체계가 수립되어 있는가",
+          "2.11.4 사고 대응 훈련 및 개선: 훈련 실시와 개선 반영이 이루어지는가",
+          "2.11.5 사고 대응 및 복구: 사고 처리와 복구, 기록 관리가 이루어지는가",
+          "3.x 개인정보 유출 대응: 통지·신고 절차가 정의되고 이행되는가"
+        ],
+        "evidence": [
+          "침해사고 대응 절차서와 CSIRT 구성·연락망(최신 갱신 확인)",
+          "사고 등급 기준표와 보고 체계도",
+          "기간 중 사고 대장(발생일시, 등급, 영향, 조치, 종결일)",
+          "대표 사고의 상세 타임라인과 증거 보전 기록(해시, chain of custody)",
+          "규제기관 신고 문서와 접수 증적, 정보주체 통지 증적",
+          "사후 검토 보고서와 개선 과제 이행 추적표",
+          "사고 대응 훈련 계획·실시 결과",
+          "외부 전문기관 계약서 및 비상 연락처"
+        ],
+        "auditorQuestions": [
+          "지난 1년간 침해사고는 몇 건이었고 어떻게 분류·처리했습니까?",
+          "사고 등급은 누가 어떤 기준으로 판정합니까?",
+          "야간에 사고가 나면 누가 몇 분 안에 대응을 시작합니까?",
+          "개인정보 유출이 확인되면 언제까지 누구에게 신고·통지해야 합니까?",
+          "가장 최근 사고에서 증거는 어떻게 보전했습니까?",
+          "사후 검토에서 도출된 개선 과제는 모두 완료되었습니까?",
+          "사고 대응 훈련은 언제 실시했고 무엇이 개선되었습니까?"
+        ],
+        "controlExample": "침해사고 대응 절차에 따라 사고는 영향도 기준 3단계로 분류되며, 등급별로 CSIRT 소집·경영진 보고·규제기관 신고 요건과 시한이 정의되어 있다. 사고 발생 시 봉쇄 전 증거를 보전하고 전 과정을 타임라인으로 기록하며, 법정 신고·통지 대상 여부를 법무 검토와 함께 확인해 기한 내 이행한다. 종결 후 사후 검토를 실시해 개선 과제를 도출·추적하고 연 1회 이상 대응 훈련을 수행한다."
+      },
+      "related": [
+        "sec-soc",
+        "sec-siem",
+        "sec-soar",
+        "sec-edr-xdr",
+        "sec-policy-framework",
+        "sec-awareness-training",
+        "sec-pentest-redteam",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "NIST SP 800-61 Computer Security Incident Handling Guide",
+        "개인정보 유출 등 사고 대응 매뉴얼(개인정보보호위원회)",
+        "전자금융감독규정 및 금융보안원 침해대응 안내"
+      ]
+    }
+  ]
+}

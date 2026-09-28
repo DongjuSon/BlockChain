@@ -1,0 +1,1393 @@
+{
+  "category": "security",
+  "categoryLabel": "보안·계정/권한(IAM)·비밀관리·보안운영",
+  "entries": [
+    {
+      "id": "sec-authn-authz",
+      "title": "인증과 인가",
+      "titleEn": "Authentication vs Authorization",
+      "aliases": [
+        "인증",
+        "인가",
+        "권한부여",
+        "AuthN",
+        "AuthZ",
+        "Authentication",
+        "Authorization"
+      ],
+      "tags": [
+        "iam",
+        "basics",
+        "access-control"
+      ],
+      "level": "기초",
+      "oneLiner": "'누구인가'를 확인하는 것이 인증, '무엇을 해도 되는가'를 정하는 것이 인가",
+      "analogy": "회사 건물 출입과 같다. 정문에서 사원증을 찍어 '나는 김대리다'를 증명하는 것이 인증(AuthN)이다. 그런데 사원증을 찍었다고 모든 문이 열리지는 않는다. 서버실 문은 인프라팀 사원증에만 열리고, 임원실은 임원 카드에만 열린다. 이렇게 '이 사람이 이 문을 열어도 되는가'를 판단하는 것이 인가(AuthZ)다. 인증은 한 번, 인가는 문을 지날 때마다 일어난다.",
+      "explanation": "<p><strong>인증(Authentication, AuthN)</strong>은 접속하려는 주체가 자신이 주장하는 그 사람(또는 그 시스템)이 맞는지 확인하는 절차다. 아이디와 비밀번호, OTP, 지문, 인증서, API 키 같은 <strong>자격증명(credential)</strong>을 제시하고 시스템이 이를 검증한다. 결과물은 '이 요청자는 eddie.kim이다'라는 확정된 신원(identity)이다.</p><p><strong>인가(Authorization, AuthZ)</strong>는 이미 신원이 확인된 주체가 특정 자원에 특정 행위를 할 권한이 있는지 판단하는 절차다. 'eddie.kim이 운영 DB의 고객 테이블을 SELECT 해도 되는가'가 인가의 질문이다. 인증이 통과해도 인가는 얼마든지 거부될 수 있다. HTTP 상태코드로 보면 인증 실패는 401 Unauthorized(이름과 달리 실제 의미는 '인증 안 됨'), 인가 실패는 403 Forbidden이다.</p><p><strong>왜 둘을 분리하는가.</strong> 분리해야 계정 관리와 권한 관리를 각각 다른 주기로 운영할 수 있기 때문이다. 입사·퇴사는 인사(HR) 이벤트에 따라 계정을 만들고 지우는 인증 영역의 일이고, 부서 이동에 따른 권한 조정은 인가 영역의 일이다. 감사에서도 '유령 계정이 있는가'(인증)와 '과도한 권한이 있는가'(인가)는 별개의 통제로 테스트한다.</p><p><strong>구성요소</strong>는 네 가지로 본다. <strong>주체(Subject/Principal)</strong>는 사람 계정·서비스 계정·워크로드다. <strong>자격증명(Credential)</strong>은 비밀번호·인증서·토큰이다. <strong>정책(Policy)</strong>은 누가 무엇을 할 수 있는지 적어둔 규칙(IAM 정책, RBAC 롤, ACL)이다. <strong>정책 결정점(PDP)과 집행점(PEP)</strong>은 규칙을 판단하는 곳과 실제로 막는 곳이다. 쉽게 말하면 PDP는 판사, PEP는 문 앞의 경비원이다.</p><p>여기에 종종 <strong>기록(Accounting/Audit)</strong>을 더해 AAA(Authentication, Authorization, Accounting)라고 부른다. 누가 언제 무엇을 했는지 남기는 것으로, ITGC에서 가장 자주 요구되는 증빙의 원천이다. 인증·인가만 있고 기록이 없으면 감사에서 '통제는 있으나 증명할 수 없음'이 된다.</p><p>현대 클라우드 환경에서는 인증은 대부분 <strong>중앙 IdP(Okta, Entra ID, Keycloak)</strong>가 담당하고, 인가는 각 시스템(AWS IAM, Kubernetes RBAC, DB 권한)이 따로 담당한다. 즉 문은 하나(SSO)지만 방마다 잠금장치가 다르다. 감사인이 '권한 리뷰'를 요구할 때 IdP 그룹만 보여줘서는 부족하고, 각 시스템의 실제 권한까지 함께 봐야 하는 이유가 여기에 있다.</p>",
+      "howItWorks": "<ol><li>사용자가 시스템에 접속을 시도한다(브라우저로 관리자 콘솔 접속 등).</li><li>시스템은 아직 신원을 모르므로 인증을 요구한다(로그인 화면 또는 401 응답).</li><li>사용자가 자격증명(ID/PW + OTP)을 제출한다.</li><li>인증 서버가 저장된 해시·2차 인증 결과와 대조해 신원을 확정하고 세션 또는 토큰을 발급한다. 여기까지가 인증이다.</li><li>사용자가 '고객 테이블 조회' 같은 구체적 요청을 보내며 세션/토큰을 함께 제시한다.</li><li>집행점(PEP, 예: API 게이트웨이·DB 프록시)이 요청을 가로채 정책 결정점(PDP)에 '이 주체가 이 자원에 이 행위를 해도 되는가'를 묻는다.</li><li>PDP가 정책(RBAC 롤, IAM 정책)을 평가해 허용/거부를 반환한다. 거부면 403이다.</li><li>허용된 요청만 실제 자원에 도달하고, 전 과정이 인증 로그와 접근 로그에 각각 기록된다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'에서 정산팀 박과장이 사내 관리자 포털에 접속한다. 포털은 Okta로 SSO 로그인을 시키고(인증), 로그인 성공 후 발급된 토큰에 <code>groups: [settlement-viewer]</code>가 담긴다. 포털 백엔드는 이 그룹을 보고 '정산 조회'는 허용하지만 '정산 확정 승인' 버튼은 숨기고 API 호출도 403으로 막는다(인가). 박과장이 승인 권한이 필요해지면 계정을 새로 만드는 것이 아니라 Okta 그룹에 <code>settlement-approver</code>를 추가하는 워크플로를 태운다. 이 요청은 팀장 승인 후 반영되고 Okta System Log에 그룹 변경 이벤트가 남는다.</p><pre><code># 인증 실패와 인가 실패는 다른 코드로 구분한다\ncurl -i https://admin.paynow.example/api/settlements\nHTTP/1.1 401 Unauthorized        # 토큰 없음 = 인증 안 됨\n\ncurl -i -H \"Authorization: Bearer $TOKEN\" \\\n  -X POST https://admin.paynow.example/api/settlements/2026-09/approve\nHTTP/1.1 403 Forbidden           # 로그인은 했지만 승인 권한 없음\n\n# 서버 측 인가 판단 로직 (의사코드)\nif \"settlement-approver\" not in token.groups:\n    deny(403, reason=\"missing role settlement-approver\")\naudit_log.write(user=token.sub, action=\"settlement.approve\", result=\"DENIED\")</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='100' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='60' y='130' text-anchor='middle' fill='currentColor'>사용자</text><line x1='105' y1='115' x2='175' y2='115' stroke='currentColor' marker-end='url(#ar)'/><text x='140' y='108' text-anchor='middle' fill='currentColor' font-size='11'>ID/PW+OTP</text><rect x='175' y='60' width='130' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='85' text-anchor='middle' fill='currentColor'>인증 (AuthN)</text><text x='240' y='103' text-anchor='middle' fill='currentColor' font-size='11'>너는 누구인가</text><line x1='240' y1='120' x2='240' y2='150' stroke='currentColor' marker-end='url(#ar)'/><text x='302' y='140' text-anchor='middle' fill='currentColor' font-size='11'>토큰/세션</text><rect x='175' y='150' width='130' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='175' text-anchor='middle' fill='currentColor'>인가 (AuthZ)</text><text x='240' y='193' text-anchor='middle' fill='currentColor' font-size='11'>해도 되는가</text><line x1='305' y1='180' x2='380' y2='180' stroke='currentColor' marker-end='url(#ar)'/><text x='342' y='173' text-anchor='middle' fill='currentColor' font-size='11'>허용</text><rect x='380' y='150' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='185' text-anchor='middle' fill='currentColor'>자원 (DB/API)</text><rect x='380' y='60' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='85' text-anchor='middle' fill='currentColor'>정책 저장소</text><text x='435' y='103' text-anchor='middle' fill='currentColor' font-size='11'>롤/그룹/정책</text><line x1='380' y1='90' x2='310' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='510' y='100' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='565' y='125' text-anchor='middle' fill='currentColor'>감사 로그</text><text x='565' y='143' text-anchor='middle' fill='currentColor' font-size='11'>AAA의 A</text><line x1='490' y1='170' x2='560' y2='162' stroke='currentColor' marker-end='url(#ar)'/><text x='120' y='30' fill='currentColor' font-size='12'>401 = 인증 실패 / 403 = 인가 실패</text></svg>",
+      "keyTerms": [
+        {
+          "term": "인증(AuthN)",
+          "meaning": "주체가 주장하는 신원이 맞는지 자격증명으로 검증하는 절차"
+        },
+        {
+          "term": "인가(AuthZ)",
+          "meaning": "확인된 주체가 특정 자원에 특정 행위를 할 권한이 있는지 판단"
+        },
+        {
+          "term": "주체(Principal)",
+          "meaning": "권한 판단의 대상이 되는 사람·서비스 계정·워크로드"
+        },
+        {
+          "term": "자격증명(Credential)",
+          "meaning": "비밀번호·인증서·토큰 등 신원을 증명하는 비밀 정보"
+        },
+        {
+          "term": "PDP/PEP",
+          "meaning": "정책 결정점(판단)과 정책 집행점(실제 차단). 판사와 경비원"
+        },
+        {
+          "term": "AAA",
+          "meaning": "인증·인가·기록(Accounting)을 묶어 부르는 접근통제 3요소"
+        },
+        {
+          "term": "401 / 403",
+          "meaning": "401은 인증되지 않음, 403은 인증됐으나 권한 없음"
+        }
+      ],
+      "pitfalls": [
+        "SSO를 도입했으니 권한 통제가 끝났다고 생각. SSO는 인증만 통합했을 뿐 각 시스템의 인가(권한)는 여전히 개별 관리 대상이다.",
+        "인증 로그만 보관하고 인가 거부(403) 이벤트는 기록하지 않음. 권한 우회 시도 탐지가 불가능해진다.",
+        "애플리케이션이 화면에서 버튼만 숨기고 API 레벨 인가를 구현하지 않음. 요청을 직접 날리면 그대로 통과한다.",
+        "서비스 계정·배치 계정은 인가 대상이 아니라고 보고 최고권한을 부여. 감사에서 가장 자주 지적되는 항목이다.",
+        "401과 403을 구분하지 않고 모두 401로 응답해 인가 실패 원인 분석과 감사 추적이 어려워진다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 모든 중요 시스템에 대해 인증 수단(SSO/MFA/로컬계정)과 인가 방식(롤·그룹)이 문서화되어 있는가",
+          "[접근] 인증 성공·실패 및 인가 거부 이벤트가 로그로 남고 보존기간 정책에 따라 관리되는가",
+          "[접근] 애플리케이션 레벨 권한(메뉴/기능)과 DB·인프라 레벨 권한이 모두 권한 리뷰 범위에 포함되는가",
+          "[운영] 서비스 계정·배치 계정에도 최소권한 원칙이 적용되고 소유자가 지정되어 있는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제13조 전산자료 보호대책에 따라 이용자 정보 접근 시 신원확인과 권한통제가 이루어지는가",
+          "전자금융감독규정 제15조 정보처리시스템 접근통제 요건(식별·인증·권한부여)이 충족되는가",
+          "접근 기록이 위·변조되지 않도록 보호되고 일정 기간 보존되는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리: 계정 생성·변경·삭제 절차와 권한 부여 승인 체계가 수립되어 있는가",
+          "2.5.2 사용자 식별: 모든 사용자에게 고유 식별자를 부여하고 공용 계정 사용을 제한하는가",
+          "2.6.1 네트워크 접근 / 2.6.3 응용프로그램 접근: 자원별 접근 권한이 업무 필요성에 따라 제한되는가"
+        ],
+        "evidence": [
+          "시스템별 인증 방식·인가 모델 정리표(자산대장 연계)",
+          "IdP 로그인 성공/실패 로그 샘플 및 보존 설정 화면",
+          "애플리케이션 권한 매트릭스(역할 × 기능) 문서",
+          "인가 거부(403) 이벤트 로그 추출 샘플",
+          "계정 생성·권한 부여 승인 티켓 샘플"
+        ],
+        "auditorQuestions": [
+          "이 시스템에 로그인하는 방법이 SSO 외에 또 있습니까? 로컬 계정은 몇 개입니까?",
+          "권한은 개인 단위로 줍니까, 그룹/롤 단위로 줍니까? 그 기준은 무엇입니까?",
+          "권한 없는 사용자가 API를 직접 호출하면 어떻게 차단됩니까? 그 기록은 어디에 남습니까?",
+          "인증 로그와 권한 변경 로그의 보존기간은 각각 얼마입니까?",
+          "서비스 계정의 권한은 누가 승인하고 주기적으로 검토합니까?"
+        ],
+        "controlExample": "모든 중요 정보시스템은 중앙 IdP를 통한 인증과 MFA를 거치며, 기능·데이터 접근 권한은 역할(Role) 단위로만 부여된다. 인증 및 인가 거부 이벤트는 SIEM으로 집중 수집되어 1년 이상 보존되고, 반기 1회 권한 적정성 검토를 수행한다."
+      },
+      "related": [
+        "sec-sso",
+        "sec-rbac-abac-rebac",
+        "sec-identity-lifecycle",
+        "sec-mfa",
+        "sec-oauth2",
+        "k8s-rbac",
+        "awssec-iam",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "NIST SP 800-63 Digital Identity Guidelines",
+        "OWASP Authentication Cheat Sheet",
+        "OWASP Authorization Cheat Sheet"
+      ]
+    },
+    {
+      "id": "sec-identity-lifecycle",
+      "title": "계정 수명주기(JML)",
+      "titleEn": "Identity Lifecycle - Joiner, Mover, Leaver",
+      "aliases": [
+        "JML",
+        "입사자 계정",
+        "부서이동",
+        "퇴직자 계정",
+        "계정 생성 삭제",
+        "프로비저닝"
+      ],
+      "tags": [
+        "iam",
+        "lifecycle",
+        "itgc"
+      ],
+      "level": "기초",
+      "oneLiner": "입사(J)·이동(M)·퇴사(L) 인사 이벤트에 맞춰 계정과 권한을 정합시키는 체계",
+      "analogy": "회사 사원증 발급과 회수 절차와 같다. 입사하면 사원증을 만들어 필요한 문만 열리게 설정하고, 부서를 옮기면 예전 부서 문 권한을 회수하고 새 부서 문 권한을 준다. 퇴사하면 즉시 사원증을 반납받아 무효화한다. 문제는 '옮길 때 예전 권한을 회수하지 않는 것'인데, 이게 쌓이면 한 사람이 회사 모든 문을 열 수 있게 된다. 이것을 권한 누적(privilege creep)이라 부른다.",
+      "explanation": "<p><strong>계정 수명주기 관리(Identity Lifecycle Management)</strong>는 사람의 고용 상태 변화에 맞춰 시스템 계정과 권한을 생성·변경·차단·삭제하는 전 과정을 말한다. 실무에서는 앞 글자를 따 <strong>JML(Joiner, Mover, Leaver)</strong>이라고 부른다. ITGC에서 '접근(Access)' 도메인의 가장 핵심적인 통제이며, 감사 지적의 상당수가 이 영역에서 나온다.</p><p><strong>Joiner(입사·전입)</strong>는 신규 계정 생성 단계다. 권한의 출발점을 어떻게 잡느냐가 중요하다. 좋은 방식은 <strong>직무 기반 기본 권한 세트(birthright access)</strong>를 정의해 두고, 직무가 확정되면 그 세트만 자동 부여하는 것이다. 나쁜 방식은 '옆자리 김대리와 똑같이 주세요'라는 복제 요청이다. 복제는 이미 과다한 권한을 그대로 번식시킨다.</p><p><strong>Mover(부서이동·직무변경)</strong>가 가장 어렵다. 새 권한은 본인이 요청하므로 잘 부여되지만, 기존 권한 회수는 아무도 요청하지 않기 때문이다. 이것이 <strong>권한 누적(privilege creep)</strong>이며 결과적으로 직무분리(SoD) 위반을 만든다. 예컨대 개발자였다가 운영자로 옮긴 사람이 개발 권한과 운영 배포 권한을 모두 갖게 되는 식이다. 대응은 이동 시 기존 권한 전면 재검토(re-certification)를 강제하는 것이다.</p><p><strong>Leaver(퇴사·계약종료)</strong>는 속도가 생명이다. 퇴사 당일 또는 그 이전에 인증 수단을 차단해야 한다. 실무 표준은 '차단(disable)은 즉시, 삭제(delete)는 유예 후'다. 즉시 삭제하면 그 계정으로 돌던 배치·스케줄러·API 연동이 함께 죽어 장애가 나고, 과거 로그의 소유자 추적도 끊긴다. 보통 계정 비활성화 + 세션 강제 종료 + 토큰/키 폐기를 즉시 하고, 30~90일 뒤 정리한다.</p><p><strong>자동화의 핵심은 권한의 출처(authoritative source)를 인사시스템으로 두는 것</strong>이다. Workday·SAP HR 같은 HR 시스템이 '재직 상태'의 원본이고, 이 데이터가 IdP(Okta, Entra ID)로 흘러가고, IdP가 SCIM으로 각 SaaS와 내부 시스템에 계정을 밀어 넣는다. 이 체인이 끊기지 않으면 퇴사 처리 한 번으로 수십 개 시스템 계정이 동시에 잠긴다. 쉽게 말하면 인사팀이 퇴사 버튼을 누르는 순간 모든 문 열쇠가 자동으로 무효화되는 구조다.</p><p>하지만 현실에서는 <strong>SCIM 연동이 안 되는 레거시 시스템</strong>(사내 ERP, 온프레미스 DB, 네트워크 장비, 공유계정)이 반드시 남는다. 이 '수동 영역'을 목록화하고 체크리스트로 관리하며, 주기적으로 인사 데이터와 계정 목록을 대사(reconciliation)하는 것이 실무의 절반이다. 감사인은 정확히 이 대사 결과를 요구한다.</p>",
+      "howItWorks": "<ol><li>인사시스템(HR)에 입사·이동·퇴사 정보가 입력되고 확정된다.</li><li>IdP가 HR 데이터를 주기적(또는 실시간)으로 동기화해 사용자 프로필과 속성(부서, 직무, 재직상태)을 갱신한다.</li><li>Joiner: 직무 속성에 따라 그룹 규칙이 자동 적용되어 기본 권한 세트가 부여되고, 추가 권한은 신청·승인 워크플로를 탄다.</li><li>Mover: 부서 속성이 바뀌면 이전 부서 그룹에서 자동 제외되고 신규 그룹에 편입된다. 동시에 관리자에게 기존 권한 재검토 태스크가 발행된다.</li><li>Leaver: 재직상태가 '퇴직'으로 바뀌면 IdP가 계정을 즉시 비활성화하고 모든 활성 세션·리프레시 토큰을 폐기한다.</li><li>SCIM 연동된 하위 시스템(SaaS, 내부 앱)에 비활성화/삭제 이벤트가 전파된다.</li><li>SCIM 미연동 시스템은 티켓이 자동 생성되어 담당자가 수동 차단하고 완료를 기록한다.</li><li>월 1회 HR 재직자 명부와 각 시스템 계정 목록을 대사해 불일치(유령계정)를 찾아 조치한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'에서 개발자 이차장이 플랫폼팀에서 정보보안팀으로 이동했다. Workday에 이동이 반영되자 Okta 그룹 규칙이 <code>dept eq \"플랫폼\"</code> 조건 불일치로 그를 <code>gh-platform-write</code>(GitHub 쓰기), <code>aws-prod-deploy</code> 그룹에서 자동 제외했고 신규로 <code>sec-analyst</code> 그룹에 편입했다. 그런데 그가 개인 IAM 사용자로 발급받아 두었던 액세스 키와 운영 DB의 개인 계정은 SCIM 연동 밖이라 자동 처리되지 않았다. 월간 대사에서 이 두 건이 잡혀 3일 뒤 회수됐고, 이후 회사는 '이동 시 개인 액세스 키·DB 계정 회수'를 체크리스트에 추가했다.</p><pre><code># 퇴사자 처리 자동화 예시 (Okta API)\n# 1) 계정 비활성화\ncurl -X POST \"https://paynow.okta.com/api/v1/users/${UID}/lifecycle/deactivate\" \\\n  -H \"Authorization: SSWS ${OKTA_TOKEN}\"\n\n# 2) 모든 세션/리프레시 토큰 폐기\ncurl -X DELETE \"https://paynow.okta.com/api/v1/users/${UID}/sessions\" \\\n  -H \"Authorization: SSWS ${OKTA_TOKEN}\"\n\n# 3) 비연동 시스템 대사 쿼리 (HR 명부 vs DB 계정)\nSELECT d.username\nFROM db_accounts d\nLEFT JOIN hr_active_employees h ON d.username = h.emp_id\nWHERE h.emp_id IS NULL AND d.account_status = 'ACTIVE';</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='100' width='105' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='67' y='123' text-anchor='middle' fill='currentColor'>인사시스템</text><text x='67' y='141' text-anchor='middle' fill='currentColor' font-size='11'>재직상태 원본</text><line x1='120' y1='127' x2='185' y2='127' stroke='currentColor' marker-end='url(#ar)'/><text x='152' y='120' text-anchor='middle' fill='currentColor' font-size='11'>동기화</text><rect x='185' y='95' width='115' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='242' y='120' text-anchor='middle' fill='currentColor'>IdP</text><text x='242' y='138' text-anchor='middle' fill='currentColor' font-size='11'>그룹 규칙 평가</text><line x1='300' y1='110' x2='390' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='300' y1='127' x2='390' y2='127' stroke='currentColor' marker-end='url(#ar)'/><line x1='300' y1='145' x2='390' y2='195' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='35' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='445' y='62' text-anchor='middle' fill='currentColor'>SaaS (SCIM)</text><rect x='390' y='105' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='445' y='132' text-anchor='middle' fill='currentColor'>사내 앱</text><rect x='390' y='175' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='445' y='195' text-anchor='middle' fill='currentColor' font-size='11'>레거시/DB</text><text x='445' y='211' text-anchor='middle' fill='currentColor' font-size='11'>수동 티켓</text><rect x='520' y='105' width='105' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='572' y='125' text-anchor='middle' fill='currentColor' font-size='11'>월간 대사</text><text x='572' y='141' text-anchor='middle' fill='currentColor' font-size='11'>유령계정 탐지</text><line x1='500' y1='127' x2='518' y2='127' stroke='currentColor' marker-end='url(#ar)'/><text x='20' y='30' fill='currentColor' font-size='12'>J: 기본권한 부여   M: 기존권한 회수+재검토   L: 즉시 차단</text><text x='20' y='48' fill='currentColor' font-size='11'>차단은 즉시, 삭제는 유예</text></svg>",
+      "keyTerms": [
+        {
+          "term": "JML",
+          "meaning": "Joiner(입사)·Mover(이동)·Leaver(퇴사) 계정 수명주기 3단계"
+        },
+        {
+          "term": "권한 누적(Privilege Creep)",
+          "meaning": "부서 이동 시 기존 권한이 회수되지 않아 권한이 쌓이는 현상"
+        },
+        {
+          "term": "기본 권한 세트(Birthright Access)",
+          "meaning": "직무가 정해지면 자동 부여되는 최소한의 표준 권한 묶음"
+        },
+        {
+          "term": "권위 있는 원본(Authoritative Source)",
+          "meaning": "재직 상태의 기준이 되는 단일 시스템. 보통 HR 시스템"
+        },
+        {
+          "term": "대사(Reconciliation)",
+          "meaning": "HR 명부와 시스템 계정 목록을 비교해 불일치를 찾는 작업"
+        },
+        {
+          "term": "유령계정(Orphan Account)",
+          "meaning": "소유자가 퇴사했거나 식별되지 않은 채 남아 있는 활성 계정"
+        },
+        {
+          "term": "비활성화 vs 삭제",
+          "meaning": "즉시 차단은 disable, 데이터·추적 보존을 위해 delete는 유예"
+        }
+      ],
+      "pitfalls": [
+        "퇴사 처리를 '월말 일괄'로 운영. 퇴사일부터 차단일까지의 공백이 그대로 감사 예외가 된다.",
+        "'김대리와 동일 권한으로' 방식의 복제 부여. 과다 권한이 조직 전체로 번진다.",
+        "Mover 시 신규 권한만 부여하고 기존 권한 회수 절차가 없음. SoD 위반의 주원인이다.",
+        "계정을 즉시 삭제해 해당 계정으로 돌던 배치·스케줄러가 중단되고 과거 로그의 소유자 추적이 끊긴다.",
+        "SCIM 연동 시스템만 관리하고 연동 불가 레거시·공유계정을 범위에서 누락한다.",
+        "협력업체·계약직·인턴은 HR 시스템에 없어 수명주기 관리 밖에 방치된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 입사·이동·퇴사 시 계정 생성/변경/차단 절차가 문서화되고 승인 증적과 함께 수행되는가",
+          "[접근] 퇴사자 계정이 정해진 기한(예: 퇴사 당일) 내 차단되는지 표본 테스트로 확인 가능한가",
+          "[접근] 부서 이동 시 기존 권한 회수 및 재검토가 수행된 증적이 있는가",
+          "[접근] HR 재직자 명부와 시스템 계정 목록 간 주기적 대사가 수행되고 불일치가 조치되는가",
+          "[운영] 협력업체·계약직 등 비정규 인력의 계정도 수명주기 관리 범위에 포함되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 접근통제에 따라 인사이동·퇴직 시 지체 없이 접근권한을 변경·말소하는가",
+          "전자금융기반시설 접근 권한자 명부가 최신으로 유지되고 정기적으로 점검되는가",
+          "외주 인력의 접근권한이 계약 종료와 동시에 말소되는 절차가 있는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리: 계정 발급·변경·삭제 절차와 책임자 승인 체계가 운영되는가",
+          "2.5.5 특수 계정 및 권한 관리: 관리자·특수권한 계정의 별도 수명주기 통제가 있는가",
+          "2.5.6 접근권한 검토: 접근권한의 적정성을 정기적으로 검토하고 문제점을 조치하는가",
+          "2.3.2 외부자 계약 시 보안: 외주 인력 계정의 생성·회수 절차가 계약에 반영되어 있는가"
+        ],
+        "evidence": [
+          "JML 절차서 및 권한 신청·승인 워크플로 화면 캡처",
+          "감사 대상 기간의 퇴사자 명부와 각 시스템 계정 차단일시 비교표",
+          "부서 이동자 표본의 권한 변경 전/후 스냅샷 및 재검토 승인 기록",
+          "월간 계정 대사 결과 보고서와 불일치 조치 내역",
+          "SCIM 연동 시스템 목록 및 비연동 시스템의 수동 처리 체크리스트",
+          "IdP 사용자 상태 변경 로그(deactivate 이벤트) 추출"
+        ],
+        "auditorQuestions": [
+          "퇴사 정보가 IT에 전달되는 경로와 소요 시간은 어떻게 됩니까? 금요일 퇴사자는 언제 차단됩니까?",
+          "부서 이동자의 이전 권한은 누가 언제 회수합니까? 최근 사례를 보여주실 수 있습니까?",
+          "인사시스템에 등록되지 않는 협력업체 계정은 어떻게 식별하고 만료시킵니까?",
+          "SCIM으로 자동 처리되지 않는 시스템은 무엇이며 수동 처리 누락은 어떻게 탐지합니까?",
+          "지난 분기 대사에서 발견된 유령계정은 몇 건이며 원인은 무엇이었습니까?"
+        ],
+        "controlExample": "인사시스템의 퇴직 확정과 동시에 IdP 계정이 자동 비활성화되고 전 세션·토큰이 폐기되며, SCIM 비연동 시스템은 자동 생성된 티켓으로 1영업일 내 차단 후 완료를 기록한다. 매월 HR 재직자 명부와 주요 시스템 계정 목록을 대사하여 불일치 계정을 식별·조치하고 결과를 정보보호팀이 검토·승인한다."
+      },
+      "related": [
+        "sec-scim",
+        "sec-okta",
+        "sec-uar",
+        "sec-shared-service-account",
+        "sec-sod",
+        "sec-authn-authz",
+        "plat-change-management",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "NIST SP 800-53 AC-2 Account Management",
+        "Okta Lifecycle Management 문서",
+        "ISMS-P 인증기준 안내서 2.5 인증 및 권한관리"
+      ]
+    },
+    {
+      "id": "sec-sso",
+      "title": "SSO",
+      "titleEn": "Single Sign-On",
+      "aliases": [
+        "싱글사인온",
+        "통합인증",
+        "통합로그인",
+        "SSO",
+        "한번 로그인"
+      ],
+      "tags": [
+        "iam",
+        "authentication",
+        "federation"
+      ],
+      "level": "기초",
+      "oneLiner": "한 번 로그인하면 연결된 여러 시스템에 다시 로그인하지 않고 들어가는 방식",
+      "analogy": "놀이공원 자유이용권과 같다. 입구에서 한 번 신분 확인을 하고 손목띠를 받으면, 안에 있는 롤러코스터·회전목마마다 다시 신분증을 보여줄 필요 없이 손목띠만 보이면 된다. 각 놀이기구는 손목띠가 진짜인지만 확인하고, 이 사람이 누구인지는 입구(IdP)가 이미 보증한 것으로 믿는다. 대신 손목띠를 잃어버리면 모든 기구를 남이 탈 수 있으므로 입구의 확인이 그만큼 철저해야 한다(MFA).",
+      "explanation": "<p><strong>SSO(Single Sign-On, 통합인증)</strong>는 사용자가 한 번만 신원을 증명하면 신뢰 관계를 맺은 여러 애플리케이션에 추가 로그인 없이 접근할 수 있게 하는 인증 방식이다. 각 애플리케이션이 각자 비밀번호를 갖는 대신, <strong>중앙 신원공급자(IdP, Identity Provider)</strong>가 인증을 전담하고 애플리케이션(SP 또는 RP)은 그 결과를 신뢰한다.</p><p><strong>왜 필요한가.</strong> 회사에 SaaS 30개, 내부 시스템 50개가 있으면 직원은 80개의 비밀번호를 갖게 된다. 결과는 뻔하다. 같은 비밀번호 재사용, 메모지 기록, 만료 관리 포기다. 더 큰 문제는 관리 측면이다. 퇴사자 한 명을 차단하려면 80군데를 손봐야 하고, 한 군데라도 빠지면 그게 사고가 된다. SSO는 인증 지점을 하나로 줄여 <strong>차단도 한 번에 되게</strong> 만든다. 쉽게 말하면 문을 여러 개 만들지 말고 정문 하나만 두되 그 정문을 아주 튼튼하게 만들자는 전략이다.</p><p><strong>구성요소</strong>는 세 가지다. <strong>IdP</strong>는 사용자 디렉터리를 갖고 인증을 수행하며 서명된 증명을 발급한다(Okta, Entra ID, Keycloak, Google Workspace). <strong>SP(Service Provider) 또는 RP(Relying Party)</strong>는 로그인을 위임하는 애플리케이션이다. <strong>신뢰(Trust)</strong>는 둘 사이에 미리 교환한 메타데이터와 서명 검증용 공개키로 성립한다. 이 신뢰 설정 자체가 변경관리 대상이다.</p><p><strong>프로토콜은 크게 두 계열</strong>이다. <strong>SAML 2.0</strong>은 XML 기반으로 전통적 엔터프라이즈 웹 앱에서 지배적이고, <strong>OIDC(OpenID Connect)</strong>는 OAuth 2.0 위에 얹힌 JSON/JWT 기반으로 모바일·SPA·최신 SaaS에서 표준이다. 사내 윈도우 환경에서는 <strong>Kerberos</strong> 기반 통합 인증(IWA)도 여전히 쓰인다. 2026년 현재 신규 연동은 대부분 OIDC로 간다.</p><p><strong>SSO와 세션의 관계</strong>가 중요하다. IdP는 자체 세션(예: 8시간)을 갖고 각 애플리케이션도 자체 세션을 갖는다. 그래서 IdP에서 로그아웃해도 애플리케이션 세션은 남아 있을 수 있다. 이를 해결하는 것이 <strong>SLO(Single Logout)</strong>인데 실제로는 구현이 까다로워 완전하게 동작하지 않는 경우가 많다. 퇴사자 차단 시 계정 비활성화만으로 부족하고 <strong>활성 세션 강제 종료</strong>가 필요한 이유다.</p><p><strong>감사 관점에서 SSO는 양날의 검</strong>이다. 인증 지점을 하나로 모아 통제와 증적 확보가 쉬워지지만, IdP가 뚫리면 연결된 모든 시스템이 함께 뚫린다(단일 실패점). 그래서 IdP 자체에 대한 통제 — 관리자 권한 제한, MFA 필수, 관리자 활동 로그, 가용성 — 이 SSO 도입 회사의 최우선 감사 포인트가 된다.</p>",
+      "howItWorks": "<ol><li>사용자가 애플리케이션(SP)의 보호된 URL에 접근한다.</li><li>SP는 유효한 세션이 없음을 확인하고 사용자를 IdP로 리다이렉트한다. 이때 '누가 요청했는지'와 '어디로 돌아올지'를 담은 인증 요청을 함께 보낸다.</li><li>IdP는 사용자에게 기존 IdP 세션이 있는지 확인한다. 있으면 4번을 건너뛴다.</li><li>세션이 없으면 로그인 화면을 띄워 ID/PW와 MFA를 검증한다.</li><li>IdP가 '이 사용자는 eddie.kim이며 소속은 정보보안팀'이라는 내용을 담고 자신의 개인키로 <strong>서명한 증명(SAML Assertion 또는 ID Token)</strong>을 만들어 브라우저를 통해 SP로 전달한다.</li><li>SP는 미리 받아 둔 IdP 공개키로 서명을 검증하고 수신자·유효기간·재사용 여부를 확인한다.</li><li>검증에 성공하면 SP는 자체 애플리케이션 세션을 만들고 원래 요청한 페이지로 보낸다.</li><li>다른 애플리케이션에 접근하면 2~3번에서 IdP 세션이 이미 있으므로 로그인 화면 없이 즉시 증명이 발급된다. 사용자 눈에는 '자동 로그인'으로 보인다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'는 Okta를 IdP로 두고 Slack, Jira, AWS 콘솔, 사내 관리자 포털, Grafana 등 42개 앱을 SSO로 묶었다. 직원은 아침에 Okta에 한 번 로그인(비밀번호 + 패스키)하고 하루 종일 다시 로그인하지 않는다. 보안팀은 Okta 세션 수명을 일반 앱 8시간, AWS 콘솔 앱은 1시간으로 따로 설정했고, AWS 콘솔 접근에는 재인증 정책을 걸어 세션이 있어도 MFA를 다시 요구하게 했다. 퇴사자 발생 시 Okta 계정 비활성화 + 세션 폐기를 동시에 수행하여 42개 앱 접근이 즉시 끊긴다. 다만 SSO 연동이 안 되는 레거시 정산 시스템 1개는 별도 차단 체크리스트로 관리한다.</p><pre><code># SP(애플리케이션) 측 OIDC SSO 설정 예 (nginx + oauth2-proxy)\nOAUTH2_PROXY_PROVIDER=oidc\nOAUTH2_PROXY_OIDC_ISSUER_URL=https://shopcast.okta.com/oauth2/default\nOAUTH2_PROXY_CLIENT_ID=0oa8x2k9admin\nOAUTH2_PROXY_EMAIL_DOMAINS=shopcast.example\nOAUTH2_PROXY_COOKIE_EXPIRE=8h\nOAUTH2_PROXY_ALLOWED_GROUPS=ops-admin,sec-analyst\n\n# 퇴사 시 계정 비활성화만으로는 부족 - 세션도 함께 폐기\nokta-cli users deactivate eddie.kim\nokta-cli users clear-sessions eddie.kim   # 발급된 세션·리프레시 토큰 무효화</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='110' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='140' text-anchor='middle' fill='currentColor'>사용자</text><rect x='230' y='95' width='140' height='75' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='300' y='122' text-anchor='middle' fill='currentColor'>IdP</text><text x='300' y='140' text-anchor='middle' fill='currentColor' font-size='11'>인증 + MFA</text><text x='300' y='157' text-anchor='middle' fill='currentColor' font-size='11'>서명된 증명 발급</text><line x1='115' y1='125' x2='228' y2='125' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='118' text-anchor='middle' fill='currentColor' font-size='11'>1회 로그인</text><line x1='228' y1='150' x2='117' y2='150' stroke='currentColor' marker-end='url(#ar)'/><text x='172' y='166' text-anchor='middle' fill='currentColor' font-size='11'>IdP 세션</text><line x1='370' y1='110' x2='470' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='132' x2='470' y2='132' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='155' x2='470' y2='210' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='30' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='57' text-anchor='middle' fill='currentColor'>Slack / Jira</text><rect x='470' y='110' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='137' text-anchor='middle' fill='currentColor'>AWS 콘솔</text><rect x='470' y='188' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='215' text-anchor='middle' fill='currentColor'>사내 포털</text><text x='408' y='98' text-anchor='middle' fill='currentColor' font-size='11'>서명 검증 후 자체 세션</text><text x='20' y='30' fill='currentColor' font-size='12'>정문은 하나, 대신 아주 튼튼하게</text><text x='20' y='48' fill='currentColor' font-size='11'>IdP 침해 = 전체 침해 (단일 실패점)</text><text x='20' y='195' fill='currentColor' font-size='11'>연동 불가 레거시는</text><text x='20' y='213' fill='currentColor' font-size='11'>별도 차단 체크리스트</text></svg>",
+      "keyTerms": [
+        {
+          "term": "IdP(Identity Provider)",
+          "meaning": "인증을 수행하고 서명된 신원 증명을 발급하는 중앙 시스템"
+        },
+        {
+          "term": "SP / RP",
+          "meaning": "로그인을 IdP에 위임하고 증명을 신뢰하는 애플리케이션"
+        },
+        {
+          "term": "페더레이션(Federation)",
+          "meaning": "서로 다른 조직·도메인 간 신원 신뢰 관계를 맺는 것"
+        },
+        {
+          "term": "SLO(Single Logout)",
+          "meaning": "한 번의 로그아웃으로 모든 연동 앱 세션을 종료하는 기능"
+        },
+        {
+          "term": "IdP-initiated / SP-initiated",
+          "meaning": "로그인 시작점이 IdP 포털이냐 앱 URL이냐의 차이"
+        },
+        {
+          "term": "메타데이터(Metadata)",
+          "meaning": "IdP·SP가 교환하는 엔드포인트와 서명 공개키 정보"
+        },
+        {
+          "term": "단일 실패점(SPOF)",
+          "meaning": "IdP 장애·침해 시 연결된 모든 앱이 동시에 영향받는 위험"
+        }
+      ],
+      "pitfalls": [
+        "SSO 연동만 해두고 앱의 로컬 계정 로그인 경로를 그대로 열어둠. 우회 로그인으로 모든 통제가 무력화된다.",
+        "계정 비활성화만 하고 활성 세션·리프레시 토큰을 폐기하지 않아 퇴사자가 몇 시간 더 접근 가능한 상태로 남는다.",
+        "IdP 관리자 권한을 다수에게 부여. IdP 관리자는 사실상 모든 연동 앱의 최고권한자다.",
+        "SSO 도입으로 권한 관리까지 끝났다고 판단. SSO는 인증만 통합하고 앱 내부 권한은 별개다.",
+        "IdP 장애 시 업무 전면 중단에 대한 대응 계획(비상 계정, 대체 인증)이 없다.",
+        "SLO가 동작한다고 가정하지만 실제로는 일부 앱 세션이 남아 있는 경우가 많다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] SSO 대상 시스템 목록과 미연동 시스템 목록이 관리되고 미연동 사유·보완통제가 문서화되어 있는가",
+          "[접근] SSO 우회 경로(로컬 계정, 직접 로그인 URL)가 차단되거나 예외 승인·모니터링되는가",
+          "[접근] IdP 관리자(super admin) 계정이 최소 인원으로 제한되고 MFA·별도 승인 절차가 적용되는가",
+          "[변경] IdP-앱 신뢰관계(메타데이터, 인증서, 그룹 매핑) 변경이 승인·기록되는가",
+          "[운영] IdP 장애 시 대체 접근 절차와 비상계정 사용 통제가 정의되어 있는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조에 따른 접근통제 수단으로서 통합인증 체계가 적절히 구성·운영되는가",
+          "전자금융기반시설 접속 시 안전한 인증수단(MFA 등)이 적용되고 인증 기록이 보존되는가",
+          "IdP가 외부 클라우드 서비스인 경우 제14조의2 클라우드컴퓨팅서비스 이용절차(중요도 평가·안전성 확보)를 이행했는가"
+        ],
+        "isms": [
+          "2.5.3 사용자 인증: 안전한 인증절차와 필요 시 추가 인증수단을 적용하는가",
+          "2.5.4 비밀번호 관리: 인증수단의 안전한 관리 체계가 있는가",
+          "2.6.3 응용프로그램 접근: 접근 권한이 통합적으로 관리되고 세션 타임아웃이 설정되어 있는가"
+        ],
+        "evidence": [
+          "IdP 연동 애플리케이션 목록(export) 및 각 앱의 할당 그룹",
+          "IdP 관리자 역할 보유자 목록과 부여 승인 기록",
+          "인증 정책 설정 화면(세션 수명, MFA 요구, 재인증 규칙)",
+          "SSO 미연동 시스템 목록과 보완통제(수동 차단 체크리스트) 수행 기록",
+          "IdP System Log에서 로그인 성공/실패·관리자 활동 추출 샘플"
+        ],
+        "auditorQuestions": [
+          "SSO로 연동되지 않은 시스템은 무엇이며 그 계정은 어떻게 관리합니까?",
+          "앱에서 SSO를 거치지 않고 직접 로그인할 수 있는 경로가 남아 있습니까?",
+          "IdP 관리자 권한을 가진 사람은 몇 명이고 어떻게 승인되었습니까?",
+          "퇴사자 차단 시 이미 발급된 세션과 토큰은 어떻게 무효화합니까?",
+          "IdP가 다운되면 운영 시스템에 어떻게 접근합니까? 그 비상계정은 누가 통제합니까?"
+        ],
+        "controlExample": "전사 애플리케이션은 중앙 IdP를 통한 SSO 및 MFA 인증을 거치도록 표준화되며 앱 자체 로그인 경로는 비활성화된다. IdP 최고관리자 권한은 정보보호팀 2인으로 제한되고 부여·회수 시 CISO 승인을 받으며, 모든 관리자 활동 로그는 SIEM으로 전송되어 월 1회 검토된다."
+      },
+      "related": [
+        "sec-saml",
+        "sec-oidc",
+        "sec-okta",
+        "sec-mfa",
+        "sec-session-vs-token",
+        "sec-entra-id",
+        "sec-keycloak",
+        "sec-authn-authz"
+      ],
+      "learnMore": [
+        "OASIS SAML 2.0 Technical Overview",
+        "OpenID Connect Core 1.0",
+        "NIST SP 800-63C Federation and Assertions"
+      ]
+    },
+    {
+      "id": "sec-saml",
+      "title": "SAML 2.0",
+      "titleEn": "Security Assertion Markup Language 2.0",
+      "aliases": [
+        "사말",
+        "샘엘",
+        "SAML",
+        "어설션",
+        "SAML 연동",
+        "엔터프라이즈 SSO"
+      ],
+      "tags": [
+        "iam",
+        "sso",
+        "protocol",
+        "xml"
+      ],
+      "level": "중급",
+      "oneLiner": "IdP가 XML로 서명한 신원 증명서를 앱에 전달하는 엔터프라이즈 SSO 표준",
+      "analogy": "공증받은 재직증명서를 들고 가는 것과 같다. 회사(IdP)가 '이 사람은 우리 직원 김대리이고 정보보안팀 소속이 맞습니다'라고 쓴 문서에 인감(디지털 서명)을 찍어준다. 거래처(SP)는 그 인감이 미리 등록된 회사 인감과 같은지만 확인하면 되고, 회사에 전화해 확인할 필요가 없다. 문서에는 유효기간과 '누구에게 제출용인지'가 적혀 있어 복사해 다른 데 내밀 수 없다.",
+      "explanation": "<p><strong>SAML 2.0(Security Assertion Markup Language)</strong>은 IdP가 사용자의 신원과 속성을 XML 문서로 표현하고 디지털 서명하여 애플리케이션(SP)에 전달하는 SSO 표준이다. 2005년에 표준화되어 20년 넘게 쓰이고 있으며, 2026년 현재도 Workday·SAP·Salesforce·AWS 콘솔 등 엔터프라이즈 SaaS에서 가장 널리 지원되는 방식이다.</p><p><strong>핵심 산출물은 Assertion(어설션)</strong>이다. 어설션 안에는 세 종류의 문장(statement)이 들어간다. <strong>Authentication Statement</strong>는 '언제, 어떤 방법으로 인증했는가'(예: 2026-09-14 09:12, 비밀번호+MFA)를, <strong>Attribute Statement</strong>는 '이 사람의 속성'(이메일, 부서, 그룹 목록)을, <strong>Authorization Decision Statement</strong>는 권한 판단 결과를 담는다. 실무에서는 앞의 두 가지만 쓴다.</p><p><strong>왜 서명이 중요한가.</strong> 어설션은 사용자의 브라우저를 거쳐 전달된다. 즉 중간에 사용자가 내용을 볼 수 있고, 마음만 먹으면 고칠 수도 있는 경로다. 그래서 IdP는 자신의 <strong>개인키로 XML 서명</strong>을 하고, SP는 사전에 등록한 IdP의 <strong>서명 인증서(공개키)</strong>로 검증한다. 서명 검증에 실패하거나, 서명 범위를 잘못 확인하면 'SAML Raw XML Signature Wrapping' 같은 우회 공격이 성립한다. 쉽게 말하면 도장이 찍힌 부분과 내가 읽는 부분이 같은 부분인지까지 확인해야 한다.</p><p><strong>재사용·중계 방지 장치</strong>도 어설션에 들어 있다. <code>NotBefore</code>/<code>NotOnOrAfter</code>로 유효 시간을 보통 5분 내외로 제한하고, <code>Audience</code>로 '이 어설션은 이 SP 전용'임을 못 박고, <code>InResponseTo</code>로 내가 보낸 요청에 대한 응답인지 확인하며, ID 값을 기록해 <strong>재사용(replay)</strong>을 막는다.</p><p><strong>바인딩(Binding)</strong>은 어설션을 어떤 방법으로 옮기느냐다. 실무에서는 거의 <strong>HTTP-POST 바인딩</strong>을 쓴다. IdP가 자동 제출되는 HTML form을 브라우저에 주고, 브라우저가 SP의 ACS(Assertion Consumer Service) URL로 POST한다. 요청 전달은 HTTP-Redirect 바인딩(URL 파라미터)을 쓴다.</p><p><strong>SAML과 OIDC의 선택 기준</strong>은 단순하다. 브라우저 기반 엔터프라이즈 웹 앱이고 상대가 SAML만 지원하면 SAML, 모바일 앱·SPA·API 접근이 필요하면 OIDC다. SAML은 XML 서명 처리가 무겁고 모바일에 부적합하며 API 인가(access token) 개념이 없다. 신규 구축은 OIDC가 기본이고, SAML은 기존 SaaS 연동 때문에 계속 남아 있다.</p><p><strong>감사 관점</strong>에서 SAML 연동의 핵심 자산은 <strong>서명 인증서와 속성 매핑</strong>이다. 인증서는 보통 2~3년 만료이며 갱신을 놓치면 전사 로그인이 멈춘다(가용성 사고). 속성 매핑은 '어떤 IdP 그룹이 앱의 어떤 권한이 되는가'를 정하므로, 매핑을 바꾸는 것은 곧 권한 부여이며 변경관리 대상이다.</p>",
+      "howItWorks": "<ol><li>사용자가 SP의 보호 URL에 접근하면 SP가 <code>AuthnRequest</code> XML을 만들어 Base64+Deflate 인코딩 후 브라우저를 IdP의 SSO URL로 리다이렉트한다(HTTP-Redirect 바인딩).</li><li>IdP가 요청의 Issuer(SP 식별자)가 등록된 것인지 확인하고, 사용자에게 세션이 없으면 로그인과 MFA를 수행한다.</li><li>IdP가 Assertion을 생성한다. Subject(NameID=사용자 식별자), Conditions(NotBefore/NotOnOrAfter, Audience=SP), AuthnStatement, AttributeStatement(email, groups 등)를 채운다.</li><li>IdP가 Assertion(또는 Response 전체)에 XML 디지털 서명을 붙이고, 필요하면 암호화한다.</li><li>IdP가 자동 제출 form이 담긴 HTML을 브라우저에 반환하고, 브라우저는 SP의 ACS URL로 <code>SAMLResponse</code>를 POST한다(HTTP-POST 바인딩).</li><li>SP가 서명을 IdP 공개키로 검증하고, Audience·시간 조건·InResponseTo·Assertion ID 중복(replay)을 확인한다.</li><li>검증 통과 시 SP는 NameID로 내부 사용자를 찾거나(JIT 프로비저닝이면 즉석 생성) 매핑하고, Attribute의 그룹 값을 내부 권한으로 변환한다.</li><li>SP가 자체 세션 쿠키를 발급하고 원래 요청 페이지로 리다이렉트한다. 이후 요청은 SP 세션으로 처리된다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 AWS 관리콘솔 접근을 SAML로 연동했다. IAM 사용자를 사람마다 만들지 않고, Okta를 SAML IdP로 등록한 뒤 Okta 그룹 <code>aws-prod-readonly</code>, <code>aws-prod-poweruser</code>를 각각 IAM Role ARN에 매핑했다. 직원이 Okta 대시보드에서 AWS 타일을 누르면 Okta가 어설션을 발급하고, AWS STS가 이를 받아 1시간짜리 임시 자격증명으로 콘솔 세션을 만든다. 장기 액세스 키가 없으므로 유출 위험이 크게 줄었고, 퇴사자는 Okta 차단만으로 AWS 접근이 끊긴다. 보안팀은 Okta 서명 인증서 만료 60일 전 알림을 캘린더와 모니터링에 등록해 두었다.</p><pre><code>&lt;!-- IdP가 발급한 Assertion의 핵심 부분(축약) --&gt;\n&lt;saml:Assertion ID=\"id-9f3a\" IssueInstant=\"2026-09-14T09:12:03Z\"&gt;\n  &lt;saml:Issuer&gt;http://www.okta.com/exk1a2b3c&lt;/saml:Issuer&gt;\n  &lt;ds:Signature&gt;...IdP 개인키 서명...&lt;/ds:Signature&gt;\n  &lt;saml:Subject&gt;\n    &lt;saml:NameID Format=\"...emailAddress\"&gt;eddie.kim@paynow.example&lt;/saml:NameID&gt;\n  &lt;/saml:Subject&gt;\n  &lt;saml:Conditions NotBefore=\"2026-09-14T09:11:03Z\"\n                   NotOnOrAfter=\"2026-09-14T09:17:03Z\"&gt;\n    &lt;saml:AudienceRestriction&gt;\n      &lt;saml:Audience&gt;urn:amazon:webservices&lt;/saml:Audience&gt;\n    &lt;/saml:AudienceRestriction&gt;\n  &lt;/saml:Conditions&gt;\n  &lt;saml:AttributeStatement&gt;\n    &lt;saml:Attribute Name=\"https://aws.amazon.com/SAML/Attributes/Role\"&gt;\n      &lt;saml:AttributeValue&gt;arn:aws:iam::123456789012:role/OktaReadOnly,\n        arn:aws:iam::123456789012:saml-provider/Okta&lt;/saml:AttributeValue&gt;\n    &lt;/saml:Attribute&gt;\n  &lt;/saml:AttributeStatement&gt;\n&lt;/saml:Assertion&gt;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='240' y='20' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='315' y='45' text-anchor='middle' fill='currentColor'>브라우저 (중계자)</text><rect x='25' y='110' width='130' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='90' y='135' text-anchor='middle' fill='currentColor'>SP (앱)</text><text x='90' y='153' text-anchor='middle' fill='currentColor' font-size='11'>ACS URL</text><rect x='480' y='110' width='135' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='547' y='135' text-anchor='middle' fill='currentColor'>IdP</text><text x='547' y='153' text-anchor='middle' fill='currentColor' font-size='11'>개인키로 서명</text><line x1='155' y1='120' x2='240' y2='50' stroke='currentColor' marker-end='url(#ar)'/><text x='185' y='95' fill='currentColor' font-size='11'>1 AuthnRequest</text><line x1='390' y1='45' x2='480' y2='120' stroke='currentColor' marker-end='url(#ar)'/><text x='430' y='80' fill='currentColor' font-size='11'>2 redirect</text><line x1='480' y1='155' x2='390' y2='58' stroke='currentColor' marker-end='url(#ar)'/><text x='415' y='120' fill='currentColor' font-size='11'>3 Assertion</text><line x1='240' y1='58' x2='158' y2='150' stroke='currentColor' marker-end='url(#ar)'/><text x='160' y='195' fill='currentColor' font-size='11'>4 POST SAMLResponse</text><rect x='210' y='205' width='215' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='317' y='224' text-anchor='middle' fill='currentColor' font-size='11'>5 SP 검증: 서명 · Audience</text><text x='317' y='241' text-anchor='middle' fill='currentColor' font-size='11'>유효시간 · replay · 매핑</text><line x1='210' y1='227' x2='125' y2='172' stroke='currentColor' marker-end='url(#ar)'/><text x='25' y='95' fill='currentColor' font-size='11'>사전 신뢰: 메타데이터 + 서명 인증서 교환</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Assertion(어설션)",
+          "meaning": "사용자 신원·인증방법·속성을 담고 IdP가 서명한 XML 증명서"
+        },
+        {
+          "term": "ACS URL",
+          "meaning": "SP가 SAMLResponse를 받는 엔드포인트(Assertion Consumer Service)"
+        },
+        {
+          "term": "NameID",
+          "meaning": "어설션 안의 사용자 식별자. 이메일·고유ID 형식 등을 사용"
+        },
+        {
+          "term": "Audience Restriction",
+          "meaning": "이 어설션이 어느 SP 전용인지 못 박아 다른 곳 재사용을 막는 조건"
+        },
+        {
+          "term": "서명 인증서",
+          "meaning": "IdP 공개키 인증서. 만료되면 전사 SSO 로그인이 중단된다"
+        },
+        {
+          "term": "바인딩(Binding)",
+          "meaning": "메시지 전달 방식. 요청은 HTTP-Redirect, 응답은 HTTP-POST가 일반적"
+        },
+        {
+          "term": "JIT 프로비저닝",
+          "meaning": "첫 SSO 로그인 시 어설션 속성으로 앱 계정을 즉석 생성하는 방식"
+        },
+        {
+          "term": "RelayState",
+          "meaning": "로그인 후 되돌아갈 원래 URL을 보존하는 파라미터"
+        }
+      ],
+      "pitfalls": [
+        "서명 인증서 만료를 놓쳐 어느 날 아침 전사 SSO가 중단된다. 만료 60일 전 알림이 필수다.",
+        "서명 검증을 '서명이 있는가'만 확인하고 서명 대상 범위·Audience·유효시간을 검증하지 않아 우회가 가능해진다.",
+        "JIT 프로비저닝만 켜두고 해지(deprovisioning) 연동은 하지 않아 퇴사자 계정이 앱에 그대로 남는다.",
+        "IdP-initiated SSO를 허용하면 InResponseTo 검증이 불가능해 재생 공격 위험이 커진다. 가능하면 SP-initiated만 허용한다.",
+        "속성 매핑(그룹→권한) 변경을 단순 설정 작업으로 보고 변경관리·승인 없이 수행한다. 사실상 권한 부여 행위다.",
+        "NameID를 변경 가능한 이메일로 잡아 두면 이메일이 바뀔 때 계정이 중복 생성된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] SAML 연동 앱별 속성 매핑(IdP 그룹 → 앱 역할)이 문서화되고 권한 부여 승인 체계와 연결되는가",
+          "[변경] SAML 메타데이터·서명 인증서·매핑 변경이 변경관리 절차(요청·승인·기록)를 통해 수행되는가",
+          "[운영] 서명 인증서 만료 관리(모니터링·갱신 리허설) 절차가 있는가",
+          "[접근] JIT 프로비저닝으로 생성된 앱 계정의 해지 절차가 존재하는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 접근통제 요건에 따라 인증 결과의 무결성(서명 검증)이 보장되는가",
+          "인증 관련 암호키·인증서가 안전하게 보관·갱신되는가(전자금융감독규정 제32조 암호프로그램 및 키 관리 취지)",
+          "인증 기록(로그인 일시·수단·결과)이 보존되고 위변조 방지되는가"
+        ],
+        "isms": [
+          "2.5.3 사용자 인증: 인증 정보의 위·변조 방지 및 안전한 전송이 이루어지는가",
+          "2.7.1 암호정책 적용 / 2.7.2 암호키 관리: 서명용 인증서·키의 생성·보관·폐기 절차가 있는가",
+          "2.9.1 변경관리: 인증 연동 설정 변경이 절차에 따라 통제되는가"
+        ],
+        "evidence": [
+          "IdP의 SAML 앱 설정 화면(ACS URL, Audience, 서명 알고리즘, 속성 매핑)",
+          "서명 인증서 목록과 만료일, 갱신 이력 및 알림 설정 증적",
+          "앱별 그룹-역할 매핑 문서와 최근 변경 승인 티켓",
+          "SAML 로그인 성공/실패 로그 샘플(IdP System Log)",
+          "JIT 생성 계정 목록과 퇴사자 대사 결과"
+        ],
+        "auditorQuestions": [
+          "SAML 서명 인증서 만료일은 언제이며 갱신은 누가 어떤 절차로 수행합니까?",
+          "IdP 그룹이 앱의 어떤 권한으로 매핑되는지 문서가 있습니까? 매핑 변경은 누가 승인합니까?",
+          "IdP-initiated 로그인을 허용합니까? 허용한다면 위험은 어떻게 완화합니까?",
+          "SAML로 만들어진 앱 계정은 퇴사 시 어떻게 삭제됩니까?",
+          "어설션 유효시간과 재사용 방지 설정은 어떻게 되어 있습니까?"
+        ],
+        "controlExample": "SAML 연동 애플리케이션의 신뢰 설정(메타데이터·서명 인증서·속성 매핑) 변경은 변경관리 티켓과 정보보호팀 승인을 거쳐 수행되며, 서명 인증서는 만료 60일 전 자동 알림에 따라 사전 갱신하고 갱신 결과를 기록한다."
+      },
+      "related": [
+        "sec-sso",
+        "sec-oidc",
+        "sec-okta",
+        "sec-entra-id",
+        "sec-certificate-lifecycle",
+        "awssec-iam",
+        "sec-scim",
+        "sec-jwt"
+      ],
+      "learnMore": [
+        "OASIS SAML 2.0 Core Specification",
+        "SAML 2.0 Technical Overview (OASIS)",
+        "AWS IAM SAML 2.0 federation 문서"
+      ]
+    },
+    {
+      "id": "sec-oauth2",
+      "title": "OAuth 2.0 그랜트",
+      "titleEn": "OAuth 2.0 Authorization Framework and Grant Types",
+      "aliases": [
+        "오어스",
+        "OAuth",
+        "권한 위임",
+        "액세스 토큰",
+        "authorization code",
+        "client credentials"
+      ],
+      "tags": [
+        "iam",
+        "authorization",
+        "protocol",
+        "api"
+      ],
+      "level": "중급",
+      "oneLiner": "비밀번호를 주지 않고 제3의 앱에 제한된 권한만 위임하는 인가 프레임워크",
+      "analogy": "호텔 발렛파킹 키와 같다. 주차 요원에게 내 차를 맡길 때 모든 문이 열리는 마스터 키 대신, 시동과 주행만 되고 트렁크와 글러브박스는 열리지 않는 발렛 키를 준다. 요원은 차를 옮길 수 있지만 귀중품에는 손댈 수 없고, 나는 언제든 발렛 키를 무효화할 수 있다. OAuth의 액세스 토큰이 바로 이 발렛 키이고, '무엇까지 되는가'를 정한 것이 스코프(scope)다.",
+      "explanation": "<p><strong>OAuth 2.0</strong>은 사용자가 자신의 비밀번호를 넘겨주지 않고, 제3의 애플리케이션에 <strong>자신의 자원에 대한 제한된 접근 권한</strong>을 위임하는 표준이다. 여기서 가장 중요한 오해 하나를 먼저 정리해야 한다. <strong>OAuth 2.0은 인가(authorization) 프로토콜이지 인증(authentication) 프로토콜이 아니다.</strong> '이 사람이 누구인가'를 안전하게 알려주는 것은 그 위에 얹은 OIDC의 역할이다.</p><p><strong>등장인물은 넷</strong>이다. <strong>Resource Owner</strong>는 자원의 주인인 사용자, <strong>Client</strong>는 권한을 위임받으려는 애플리케이션, <strong>Authorization Server</strong>는 동의를 받고 토큰을 발급하는 서버(Okta, Keycloak, Entra ID), <strong>Resource Server</strong>는 토큰을 검증하고 자원을 내주는 API다.</p><p><strong>토큰은 두 종류</strong>다. <strong>액세스 토큰(Access Token)</strong>은 API 호출에 실제로 쓰이는 짧은 수명(보통 5분~1시간)의 열쇠이고, <strong>리프레시 토큰(Refresh Token)</strong>은 액세스 토큰이 만료됐을 때 사용자를 다시 귀찮게 하지 않고 새 액세스 토큰을 받아오는 긴 수명(며칠~수개월) 열쇠다. 리프레시 토큰이 유출되면 장기간 접근이 가능하므로 보관 수준이 훨씬 중요하다.</p><p><strong>그랜트 타입(Grant Type)</strong>은 토큰을 받아오는 시나리오별 방식이다. 2026년 기준 권장 조합은 다음과 같다. <strong>Authorization Code + PKCE</strong>는 사람이 로그인하는 모든 경우(웹앱, SPA, 모바일)의 기본이다. <strong>Client Credentials</strong>는 사람이 없는 서버-대-서버 통신(배치, 마이크로서비스)용이다. <strong>Device Authorization</strong>은 TV·CLI처럼 입력이 불편한 기기용이다. 반면 <strong>Implicit</strong>과 <strong>Resource Owner Password Credentials(ROPC)</strong>는 <strong>폐기(deprecated)</strong>되었다. Implicit은 토큰이 URL에 노출되고, ROPC는 사용자의 비밀번호를 앱이 직접 다루므로 OAuth의 존재 이유 자체를 무너뜨린다.</p><p><strong>PKCE(Proof Key for Code Exchange, '픽시')</strong>는 인가 코드 가로채기 공격을 막는 장치다. 클라이언트가 임의의 난수(code_verifier)를 만들고 그 해시(code_challenge)를 먼저 인가 서버에 보낸 뒤, 코드를 토큰으로 바꿀 때 원본 난수를 제시한다. 코드만 훔친 공격자는 원본 난수를 모르므로 토큰을 받을 수 없다. 원래 모바일용이었지만 지금은 <strong>모든 클라이언트에 필수</strong>로 권장된다.</p><p><strong>스코프(Scope)</strong>는 위임 범위다. <code>payments:read</code>, <code>users:write</code>처럼 자원과 동작 단위로 잘게 정의하고, 클라이언트에는 필요한 것만 허용해야 한다. 감사에서 자주 나오는 지적이 '모든 내부 클라이언트에 전체 스코프를 부여'인데, 이는 최소권한 위반이며 토큰 하나 유출이 전면 침해로 번지게 만든다.</p><p><strong>감사 관점</strong>에서 OAuth의 통제 자산은 <strong>클라이언트 등록 정보(client_id/secret), 허용 스코프, 리다이렉트 URI, 토큰 수명, 동의(consent) 기록</strong>이다. 특히 리다이렉트 URI에 와일드카드를 허용하면 토큰 탈취 경로가 열리고, 사용자가 임의로 외부 앱에 사내 데이터 접근을 동의해 버리는 <strong>OAuth 동의 피싱(consent phishing)</strong>은 최근 실제 침해 사례가 많은 공격 방식이다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 code_verifier(난수)를 생성하고 그 SHA-256 해시를 code_challenge로 만든다.</li><li>클라이언트가 사용자 브라우저를 인가 서버의 <code>/authorize</code>로 보낸다. client_id, redirect_uri, scope, state, code_challenge를 함께 전달한다.</li><li>인가 서버가 사용자를 인증(필요 시 로그인·MFA)하고, 요청된 스코프에 대한 동의 화면을 보여준다.</li><li>사용자가 동의하면 인가 서버가 짧은 수명(보통 10~60초)의 <strong>인가 코드</strong>를 redirect_uri로 돌려준다. 이때 state 값으로 CSRF를 방지한다.</li><li>클라이언트가 백채널(서버-서버)로 <code>/token</code>에 인가 코드 + code_verifier + client 인증 정보를 보낸다.</li><li>인가 서버가 code_verifier 해시와 저장된 code_challenge를 비교해 일치하면 액세스 토큰(+리프레시 토큰)을 발급한다.</li><li>클라이언트가 API 호출 시 <code>Authorization: Bearer &lt;access_token&gt;</code> 헤더로 토큰을 제시한다.</li><li>Resource Server가 토큰의 서명·만료·스코프·audience를 검증(JWT 로컬 검증 또는 introspection 호출)하고 허용 범위 내에서만 응답한다.</li><li>액세스 토큰 만료 시 리프레시 토큰으로 갱신하며, 리프레시 토큰은 사용 시마다 교체(rotation)하는 것이 권장된다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'는 정산 데이터를 외부 회계 SaaS에 연동한다. 예전에는 회계 SaaS에 사내 관리자 계정 ID/PW를 넣어 두었는데(비밀번호 공유, 감사 지적 대상), OAuth 2.0 Client Credentials로 전환했다. 회계 SaaS 전용 클라이언트를 등록하고 스코프를 <code>settlement:read</code> 하나만 허용했으며, 토큰 수명은 15분, 클라이언트 시크릿은 Vault에 보관하고 90일마다 자동 교체한다. 또한 사내 관리자 웹은 Authorization Code + PKCE를 쓰고, 리다이렉트 URI는 <code>https://admin.shopcast.example/callback</code> 정확 일치만 허용한다. 보안팀은 분기마다 등록된 클라이언트 목록과 스코프를 리뷰해 미사용 클라이언트 4개를 폐기했다.</p><pre><code># 1) 서버-서버용 토큰 발급 (Client Credentials)\ncurl -X POST https://auth.shopcast.example/oauth2/v1/token \\\n  -u \"0oa7settlement:${CLIENT_SECRET}\" \\\n  -d \"grant_type=client_credentials&amp;scope=settlement:read\"\n\n{\"access_token\":\"eyJhbGciOi...\",\"token_type\":\"Bearer\",\"expires_in\":900,\n \"scope\":\"settlement:read\"}\n\n# 2) 사람 로그인용 (Authorization Code + PKCE) 시작 URL\nGET /oauth2/v1/authorize?client_id=0oa9adminweb\n  &amp;response_type=code&amp;scope=openid%20settlement:read\n  &amp;redirect_uri=https://admin.shopcast.example/callback\n  &amp;state=xyz789&amp;code_challenge=E9Melhoa2Ow...&amp;code_challenge_method=S256\n\n# 3) API 호출\ncurl -H \"Authorization: Bearer ${ACCESS_TOKEN}\" \\\n  https://api.shopcast.example/v1/settlements/2026-09</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='57' text-anchor='middle' fill='currentColor'>사용자</text><rect x='20' y='120' width='100' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='70' y='142' text-anchor='middle' fill='currentColor'>클라이언트</text><text x='70' y='159' text-anchor='middle' fill='currentColor' font-size='11'>앱</text><rect x='250' y='30' width='150' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='325' y='53' text-anchor='middle' fill='currentColor'>인가 서버</text><text x='325' y='71' text-anchor='middle' fill='currentColor' font-size='11'>동의·토큰 발급</text><rect x='250' y='175' width='150' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='325' y='198' text-anchor='middle' fill='currentColor'>자원 서버 (API)</text><text x='325' y='216' text-anchor='middle' fill='currentColor' font-size='11'>토큰 검증</text><line x1='120' y1='50' x2='248' y2='50' stroke='currentColor' marker-end='url(#ar)'/><text x='184' y='43' text-anchor='middle' fill='currentColor' font-size='11'>1 동의</text><line x1='248' y1='78' x2='122' y2='128' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='112' text-anchor='middle' fill='currentColor' font-size='11'>2 인가코드</text><line x1='120' y1='145' x2='248' y2='90' stroke='currentColor' marker-end='url(#ar)'/><text x='195' y='152' text-anchor='middle' fill='currentColor' font-size='11'>3 코드+verifier</text><line x1='248' y1='82' x2='125' y2='160' stroke='currentColor' marker-end='url(#ar)'/><text x='120' y='190' fill='currentColor' font-size='11'>4 액세스 토큰</text><line x1='120' y1='165' x2='248' y2='200' stroke='currentColor' marker-end='url(#ar)'/><text x='185' y='222' text-anchor='middle' fill='currentColor' font-size='11'>5 Bearer 토큰</text><rect x='440' y='60' width='180' height='140' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='530' y='82' text-anchor='middle' fill='currentColor' font-size='12'>그랜트 선택</text><text x='452' y='104' fill='currentColor' font-size='11'>사람 로그인 → Code+PKCE</text><text x='452' y='124' fill='currentColor' font-size='11'>서버-서버 → Client Cred.</text><text x='452' y='144' fill='currentColor' font-size='11'>CLI/TV → Device Flow</text><text x='452' y='168' fill='currentColor' font-size='11'>Implicit / ROPC → 폐기</text><text x='452' y='188' fill='currentColor' font-size='11'>스코프는 최소한으로</text></svg>",
+      "keyTerms": [
+        {
+          "term": "액세스 토큰",
+          "meaning": "API 호출에 사용하는 짧은 수명의 권한 증표(Bearer 토큰)"
+        },
+        {
+          "term": "리프레시 토큰",
+          "meaning": "액세스 토큰 갱신용 장기 토큰. 유출 시 피해가 커 보관·회전이 중요"
+        },
+        {
+          "term": "스코프(Scope)",
+          "meaning": "위임된 권한의 범위. payments:read처럼 자원+동작 단위로 정의"
+        },
+        {
+          "term": "PKCE",
+          "meaning": "인가 코드 탈취를 막는 난수-해시 검증 장치. 모든 클라이언트에 권장"
+        },
+        {
+          "term": "Client Credentials",
+          "meaning": "사용자 없이 서버가 자기 자신의 자격으로 토큰을 받는 그랜트"
+        },
+        {
+          "term": "리다이렉트 URI",
+          "meaning": "코드를 되돌려받을 주소. 정확 일치로 등록해야 토큰 탈취를 막는다"
+        },
+        {
+          "term": "동의(Consent)",
+          "meaning": "사용자가 앱에 권한 위임을 승인하는 절차. 기록이 감사 증적이 된다"
+        },
+        {
+          "term": "Introspection",
+          "meaning": "자원 서버가 인가 서버에 토큰 유효성을 물어보는 표준 API"
+        }
+      ],
+      "pitfalls": [
+        "OAuth 2.0을 로그인(인증) 용도로 그대로 사용. 액세스 토큰은 '누구인가'를 보증하지 않으므로 OIDC의 ID 토큰을 써야 한다.",
+        "Implicit 그랜트나 ROPC(비밀번호 그랜트)를 계속 사용. 둘 다 폐기 대상이며 감사 지적 사유다.",
+        "리다이렉트 URI에 와일드카드나 느슨한 매칭을 허용해 토큰 탈취 경로를 연다.",
+        "클라이언트 시크릿을 코드·설정파일에 하드코딩하고 회전하지 않는다.",
+        "모든 내부 서비스 클라이언트에 광범위한 스코프를 부여해 최소권한이 무너진다.",
+        "사용자가 외부 앱에 자유롭게 동의할 수 있게 방치해 OAuth 동의 피싱에 노출된다(관리자 승인 필요 설정 미적용).",
+        "리프레시 토큰을 회전 없이 장기 사용하고 폐기 목록(revocation) 관리를 하지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 등록된 OAuth 클라이언트 목록과 각 클라이언트의 스코프·소유자·용도가 관리되고 주기적으로 검토되는가",
+          "[접근] 클라이언트 시크릿이 비밀관리 솔루션에 보관되고 정해진 주기로 교체되는가",
+          "[변경] 클라이언트 등록·스코프 변경·리다이렉트 URI 변경이 승인 절차를 거치는가",
+          "[운영] 토큰 발급·폐기 이벤트가 로깅되고 이상 징후(비정상 발급량, 미사용 클라이언트)가 모니터링되는가",
+          "[접근] 사용자 동의로 외부 앱이 사내 데이터에 접근하는 것을 관리자 승인 정책으로 통제하는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 접근통제에 따라 API 접근 권한이 최소범위로 부여·관리되는가",
+          "전자금융거래 관련 API 연동 시 인증·인가 정보의 안전한 보관 및 전송이 이루어지는가",
+          "외부 기관·제휴사 연동 시 권한 범위와 책임이 계약·기술적으로 제한되어 있는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리: 서비스·애플리케이션 계정(클라이언트)도 관리 대상에 포함되는가",
+          "2.6.3 응용프로그램 접근: API 접근 권한이 최소한으로 부여되고 검토되는가",
+          "2.7.2 암호키 관리: 클라이언트 시크릿·서명키의 보관과 교체 절차가 정의되어 있는가"
+        ],
+        "evidence": [
+          "인가 서버의 클라이언트(애플리케이션) 목록 export - client_id, 그랜트 타입, 스코프, 리다이렉트 URI",
+          "클라이언트 시크릿 보관 위치 및 최근 교체 이력",
+          "토큰 발급·폐기 로그 샘플과 이상 탐지 룰 설정",
+          "미사용·폐기 클라이언트 정리 내역(분기 리뷰 결과)",
+          "외부 앱 동의 정책 설정 화면(관리자 승인 요구 여부)"
+        ],
+        "auditorQuestions": [
+          "등록된 OAuth 클라이언트는 몇 개이며 각각의 소유 팀과 용도는 무엇입니까?",
+          "아직 Implicit이나 비밀번호 그랜트를 쓰는 클라이언트가 있습니까?",
+          "클라이언트 시크릿은 어디에 보관하고 얼마나 자주 교체합니까?",
+          "액세스 토큰과 리프레시 토큰의 수명은 각각 얼마이며 폐기는 어떻게 합니까?",
+          "직원이 외부 앱에 사내 계정 권한을 위임하려 할 때 승인 절차가 있습니까?"
+        ],
+        "controlExample": "OAuth 클라이언트는 신청·승인 후에만 등록되며 필요한 최소 스코프와 정확 일치 리다이렉트 URI만 허용된다. 클라이언트 시크릿은 Vault에 보관되어 90일 주기로 자동 교체되고, 분기별로 클라이언트 목록·스코프·최근 사용 이력을 검토하여 미사용 클라이언트를 폐기한다."
+      },
+      "related": [
+        "sec-oidc",
+        "sec-jwt",
+        "sec-sso",
+        "sec-session-vs-token",
+        "sec-keycloak",
+        "sec-okta",
+        "sec-vault",
+        "app-api-gateway"
+      ],
+      "learnMore": [
+        "RFC 6749 OAuth 2.0 Authorization Framework",
+        "RFC 7636 PKCE",
+        "OAuth 2.0 Security Best Current Practice (RFC 9700)"
+      ]
+    },
+    {
+      "id": "sec-oidc",
+      "title": "OIDC",
+      "titleEn": "OpenID Connect",
+      "aliases": [
+        "오아이디씨",
+        "OpenID Connect",
+        "ID 토큰",
+        "소셜 로그인",
+        "OIDC 연동"
+      ],
+      "tags": [
+        "iam",
+        "sso",
+        "authentication",
+        "protocol"
+      ],
+      "level": "중급",
+      "oneLiner": "OAuth 2.0 위에 '누가 로그인했는가'를 표준화해 얹은 현대 SSO 프로토콜",
+      "analogy": "OAuth가 '이 발렛 키로 차를 운전해도 된다'는 이용 허가증이라면, OIDC는 거기에 '이 허가증을 받은 사람은 주민등록상 김대리이고 생년월일은 언제'라는 신분 확인서를 한 장 더 붙여주는 것이다. 발렛 요원은 운전 허가만 필요하지만, 건물 관리인은 이 사람이 누구인지 알아야 출입대장을 쓸 수 있다. 그 신분 확인서가 ID 토큰이다.",
+      "explanation": "<p><strong>OIDC(OpenID Connect)</strong>는 OAuth 2.0 위에 얇은 인증 계층을 얹은 표준이다. OAuth 2.0은 '무엇을 해도 되는가'(인가)만 다루고 '누가 로그인했는가'는 표준화하지 않았기 때문에, 각 서비스가 제각각의 방식으로 사용자 정보를 확인하면서 보안 구멍이 생겼다. OIDC는 이 부분을 <strong>ID 토큰</strong>이라는 표준 산출물로 해결했다.</p><p><strong>핵심은 ID 토큰</strong>이다. ID 토큰은 항상 <strong>JWT(JSON Web Token)</strong> 형식이고, 인가 서버(여기서는 OP, OpenID Provider)가 서명한다. 안에는 표준 클레임이 들어간다. <code>iss</code>(발급자), <code>sub</code>(사용자 고유 ID), <code>aud</code>(이 토큰을 받을 클라이언트), <code>exp</code>/<code>iat</code>(만료·발급 시각), <code>nonce</code>(재생 방지), <code>auth_time</code>과 <code>amr</code>(언제 어떤 방법으로 인증했는가, 예: MFA 사용 여부)다.</p><p><strong>액세스 토큰과 ID 토큰의 역할이 다르다는 점</strong>이 가장 흔한 혼동 포인트다. ID 토큰은 <strong>클라이언트가 소비</strong>하는 신분증이고, 액세스 토큰은 <strong>API에 제시</strong>하는 열쇠다. ID 토큰을 API 인증에 쓰면 안 되고(감사 대상이 되는 안티패턴), 액세스 토큰의 내용을 뜯어 사용자 신원을 판단해서도 안 된다. 쉽게 말하면 신분증으로 문을 열려고 하면 안 되고, 열쇠에 적힌 이름을 신분 확인용으로 믿어서도 안 된다.</p><p><strong>주요 엔드포인트</strong>는 표준화되어 있어 연동이 쉽다. <code>/.well-known/openid-configuration</code>(Discovery 문서)만 알면 authorize·token·userinfo·jwks 엔드포인트를 자동으로 찾는다. <code>jwks_uri</code>에는 서명 검증용 공개키가 JSON으로 공개되어 있어 SAML처럼 인증서 파일을 수동 교환할 필요가 없고, <strong>키 교체(rotation)</strong>가 훨씬 매끄럽다. 이것이 OIDC가 SAML보다 운영이 편한 큰 이유다.</p><p><strong>스코프와 클레임</strong>도 표준이 있다. <code>openid</code> 스코프가 있어야 OIDC가 동작하고, <code>profile</code>(이름), <code>email</code>, <code>groups</code>(공급자별 확장) 등을 추가로 요청한다. 그룹 클레임을 ID 토큰에 담아 애플리케이션이 곧바로 권한 판단에 쓰는 구조가 실무에서 매우 흔하다. 다만 그룹이 많으면 토큰이 커지므로 UserInfo 엔드포인트로 분리하기도 한다.</p><p><strong>감사 관점에서 OIDC의 장점</strong>은 <code>amr</code>/<code>acr</code> 클레임으로 <strong>'이 로그인이 MFA를 거쳤는가'를 토큰 자체로 증명</strong>할 수 있다는 것이다. 운영 시스템이 '<code>amr</code>에 MFA가 포함된 토큰만 허용' 정책을 걸면, MFA 적용 여부가 설정 문서가 아니라 기술적으로 강제된다. 반대로 통제 포인트는 서명 검증(특히 <code>alg: none</code> 및 키 혼동 공격 방지), <code>aud</code>·<code>iss</code> 검증, nonce 검증, 그리고 <strong>토큰 유효기간</strong> 설정이다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 OP의 Discovery 문서(<code>/.well-known/openid-configuration</code>)를 읽어 엔드포인트와 jwks_uri를 파악한다.</li><li>사용자를 <code>/authorize</code>로 보낸다. <code>scope=openid profile email groups</code>, <code>response_type=code</code>, <code>nonce</code>, <code>state</code>, PKCE 파라미터를 포함한다.</li><li>OP가 사용자 인증(비밀번호·패스키·MFA)을 수행하고, 신규 스코프면 동의를 받는다.</li><li>OP가 인가 코드를 redirect_uri로 반환한다.</li><li>클라이언트가 백채널로 <code>/token</code>을 호출해 코드를 교환하고, <strong>ID 토큰 + 액세스 토큰(+ 리프레시 토큰)</strong>을 받는다.</li><li>클라이언트가 jwks_uri에서 받은 공개키로 ID 토큰 서명을 검증하고, iss·aud·exp·nonce를 확인한다. 알고리즘은 화이트리스트로 고정한다.</li><li>검증된 <code>sub</code>를 내부 사용자와 매핑하고 애플리케이션 세션을 생성한다. <code>groups</code> 클레임으로 화면·기능 권한을 결정한다.</li><li>API 호출 시에는 ID 토큰이 아닌 액세스 토큰을 Bearer로 보내고, API는 <code>aud</code>가 자기 자신인지까지 확인한다.</li><li>추가 사용자 정보가 필요하면 액세스 토큰으로 <code>/userinfo</code>를 호출한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 사내 Grafana, Argo CD, Kubernetes 대시보드를 모두 Keycloak OIDC로 연동했다. 운영 클러스터 접근용 클라이언트에는 <code>acr_values</code>로 MFA 수행을 요구하고, Kubernetes API 서버는 <code>--oidc-groups-claim=groups</code> 설정으로 Keycloak 그룹을 그대로 RBAC 주체로 사용한다. 즉 IdP에서 <code>k8s-prod-admin</code> 그룹을 빼면 그 사람의 클러스터 권한이 토큰 갱신 시점에 사라진다. 다만 이미 발급된 토큰은 만료(10분) 전까지 유효하므로, 긴급 차단 시에는 Keycloak에서 세션 폐기와 함께 RBAC 바인딩도 제거하는 절차를 둔다.</p><pre><code># Discovery 문서로 엔드포인트 확인\ncurl -s https://sso.paynow.example/realms/prod/.well-known/openid-configuration | jq .\n{\n  \"issuer\": \"https://sso.paynow.example/realms/prod\",\n  \"authorization_endpoint\": \".../protocol/openid-connect/auth\",\n  \"token_endpoint\": \".../protocol/openid-connect/token\",\n  \"jwks_uri\": \".../protocol/openid-connect/certs\",\n  \"id_token_signing_alg_values_supported\": [\"RS256\"]\n}\n\n# 쿠버네티스 API 서버에 OIDC 인증 연결\nkube-apiserver \\\n  --oidc-issuer-url=https://sso.paynow.example/realms/prod \\\n  --oidc-client-id=k8s-prod \\\n  --oidc-username-claim=email \\\n  --oidc-groups-claim=groups \\\n  --oidc-signing-algs=RS256\n\n# 발급된 ID 토큰 payload (디코딩)\n{\"iss\":\"https://sso.paynow.example/realms/prod\",\"sub\":\"f47ac10b\",\n \"aud\":\"k8s-prod\",\"exp\":1789000000,\"auth_time\":1788999400,\n \"amr\":[\"pwd\",\"otp\"],\"email\":\"eddie.kim@paynow.example\",\n \"groups\":[\"k8s-prod-readonly\",\"sec-analyst\"]}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='105' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='138' text-anchor='middle' fill='currentColor'>클라이언트</text><rect x='205' y='95' width='140' height='75' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='275' y='120' text-anchor='middle' fill='currentColor'>OP (OIDC IdP)</text><text x='275' y='138' text-anchor='middle' fill='currentColor' font-size='11'>authorize/token</text><text x='275' y='156' text-anchor='middle' fill='currentColor' font-size='11'>jwks · userinfo</text><line x1='125' y1='120' x2='203' y2='120' stroke='currentColor' marker-end='url(#ar)'/><text x='164' y='113' text-anchor='middle' fill='currentColor' font-size='11'>code+PKCE</text><line x1='203' y1='150' x2='127' y2='150' stroke='currentColor' marker-end='url(#ar)'/><text x='164' y='166' text-anchor='middle' fill='currentColor' font-size='11'>토큰 2종</text><rect x='400' y='25' width='215' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='507' y='47' text-anchor='middle' fill='currentColor' font-size='12'>ID 토큰 (JWT)</text><text x='412' y='67' fill='currentColor' font-size='11'>iss·sub·aud·exp·nonce</text><text x='412' y='85' fill='currentColor' font-size='11'>amr=MFA 여부 / groups</text><text x='412' y='99' fill='currentColor' font-size='11'>→ 클라이언트가 소비</text><rect x='400' y='125' width='215' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='507' y='147' text-anchor='middle' fill='currentColor' font-size='12'>액세스 토큰</text><text x='412' y='167' fill='currentColor' font-size='11'>scope 기반 API 권한</text><text x='412' y='185' fill='currentColor' font-size='11'>→ 자원 서버에 제시</text><line x1='345' y1='115' x2='398' y2='70' stroke='currentColor' marker-end='url(#ar)'/><line x1='345' y1='145' x2='398' y2='160' stroke='currentColor' marker-end='url(#ar)'/><text x='20' y='200' fill='currentColor' font-size='11'>ID 토큰으로 API 인증 금지</text><text x='20' y='220' fill='currentColor' font-size='11'>검증: 서명·iss·aud·exp·nonce·alg 고정</text><text x='20' y='40' fill='currentColor' font-size='12'>OIDC = OAuth 2.0 + 신분증</text></svg>",
+      "keyTerms": [
+        {
+          "term": "ID 토큰",
+          "meaning": "OP가 서명한 JWT 형식의 신분증. 클라이언트가 사용자 식별에 사용"
+        },
+        {
+          "term": "OP / RP",
+          "meaning": "OpenID Provider(IdP)와 Relying Party(연동 앱)"
+        },
+        {
+          "term": "Discovery 문서",
+          "meaning": "/.well-known/openid-configuration. 엔드포인트와 키 위치를 자동 안내"
+        },
+        {
+          "term": "JWKS",
+          "meaning": "서명 검증용 공개키 집합. 키 교체가 자동으로 반영되는 구조"
+        },
+        {
+          "term": "nonce",
+          "meaning": "ID 토큰 재생 공격을 막기 위해 요청-응답을 묶는 1회용 난수"
+        },
+        {
+          "term": "amr / acr",
+          "meaning": "인증 수단(pwd, otp, hwk)과 인증 강도. MFA 수행 여부의 기술적 증거"
+        },
+        {
+          "term": "UserInfo 엔드포인트",
+          "meaning": "액세스 토큰으로 추가 사용자 속성을 조회하는 표준 API"
+        },
+        {
+          "term": "sub(Subject)",
+          "meaning": "OP 내에서 변하지 않는 사용자 고유 식별자. 계정 매핑의 기준"
+        }
+      ],
+      "pitfalls": [
+        "ID 토큰을 그대로 API 인증 토큰으로 사용. audience가 맞지 않아 토큰 오용 위험이 생긴다.",
+        "서명 알고리즘을 토큰 헤더 값에 따라 동적으로 선택해 alg=none이나 HS256 혼동 공격에 노출된다.",
+        "iss·aud·exp·nonce 검증을 생략하고 서명만 확인. 다른 클라이언트용 토큰이 통과할 수 있다.",
+        "이메일(email)을 사용자 매핑 키로 사용. 이메일 변경 시 계정이 중복 생성된다. sub를 기준으로 해야 한다.",
+        "그룹 클레임을 권한에 쓰면서 토큰 수명을 길게 잡아, 권한 회수가 최대 토큰 수명만큼 지연된다.",
+        "로그아웃 시 IdP 세션만 끊고 앱 세션·리프레시 토큰을 폐기하지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] OIDC 클라이언트별 허용 스코프·그룹 클레임 매핑이 문서화되고 권한 승인 체계와 연결되는가",
+          "[접근] 운영 시스템 접근 토큰에 MFA 수행(amr/acr) 요구가 적용되어 있는가",
+          "[변경] 클라이언트 설정(리다이렉트 URI, 토큰 수명, 클레임 매핑) 변경이 승인·기록되는가",
+          "[운영] 서명키 교체 주기와 절차가 정의되고 키 교체 시 무중단이 검증되는가",
+          "[접근] 권한 회수 시 토큰·세션 폐기까지 수행되어 실제 접근이 즉시 차단되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조에 따른 접근통제 및 안전한 인증수단 적용 여부",
+          "정보처리시스템 접근 시 이용자·운영자 인증 기록이 보존되고 위변조 방지되는가",
+          "암호키(서명키) 관리 절차가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.5.3 사용자 인증: 인증 강도와 추가 인증 적용 기준이 정의·운영되는가",
+          "2.6.3 응용프로그램 접근: 토큰 기반 권한이 최소 범위로 부여되고 세션 종료가 관리되는가",
+          "2.7.2 암호키 관리: 서명키 생성·보관·교체·폐기 절차가 있는가"
+        ],
+        "evidence": [
+          "OIDC Discovery 문서 및 클라이언트 설정 export(스코프, 토큰 수명, redirect URI)",
+          "운영 시스템 로그인 토큰 샘플의 amr/acr 클레임(MFA 증거)",
+          "서명키(JWKS) 목록과 최근 교체 이력",
+          "그룹 클레임 → 시스템 권한 매핑표",
+          "권한 회수 시 세션·토큰 폐기 수행 증적"
+        ],
+        "auditorQuestions": [
+          "운영 시스템에 접근하는 토큰은 MFA를 거친 로그인에서만 발급됩니까? 어떻게 확인합니까?",
+          "액세스 토큰과 ID 토큰의 유효기간은 각각 얼마입니까?",
+          "IdP에서 그룹을 제거하면 실제 권한은 언제 사라집니까? 그 지연은 얼마입니까?",
+          "토큰 서명키는 얼마나 자주 교체하며 교체 시 서비스 영향은 어떻게 검증합니까?",
+          "애플리케이션은 ID 토큰의 어떤 항목을 검증합니까? 검증 코드를 보여줄 수 있습니까?"
+        ],
+        "controlExample": "운영 환경 애플리케이션은 중앙 OIDC 공급자로만 인증하며, 토큰의 amr 클레임에 MFA 수행이 포함된 경우에만 접근을 허용한다. 액세스 토큰 수명은 15분 이내로 제한되고, 권한 회수 시 그룹 제거와 함께 활성 세션·리프레시 토큰을 즉시 폐기한다."
+      },
+      "related": [
+        "sec-oauth2",
+        "sec-jwt",
+        "sec-sso",
+        "sec-keycloak",
+        "sec-okta",
+        "sec-mfa",
+        "k8s-rbac",
+        "sec-saml"
+      ],
+      "learnMore": [
+        "OpenID Connect Core 1.0 Specification",
+        "OpenID Connect Discovery 1.0",
+        "Keycloak Server Administration Guide"
+      ]
+    },
+    {
+      "id": "sec-jwt",
+      "title": "JWT 구조와 검증",
+      "titleEn": "JSON Web Token",
+      "aliases": [
+        "제이더블유티",
+        "JWT",
+        "토큰",
+        "Bearer 토큰",
+        "JWS",
+        "클레임"
+      ],
+      "tags": [
+        "iam",
+        "token",
+        "crypto",
+        "api"
+      ],
+      "level": "중급",
+      "oneLiner": "헤더·페이로드·서명 세 조각으로 된, 서명으로 위조를 막는 자기기술적 토큰",
+      "analogy": "JWT는 위조방지 장치가 들어간 종이 출입증과 같다. 앞면에는 이름·부서·유효시각이 누구나 읽을 수 있게 인쇄돼 있고(페이로드), 아래쪽에 발급기관의 홀로그램 도장이 찍혀 있다(서명). 경비원은 발급기관에 전화할 필요 없이 도장만 확인하면 진짜인지 안다. 대신 내용은 '가려진 것이 아니라 그냥 보이는 것'이므로, 출입증에 비밀번호를 적어두면 안 된다.",
+      "explanation": "<p><strong>JWT(JSON Web Token)</strong>는 사용자 정보나 권한 정보를 JSON으로 담고 서명을 붙여 한 줄 문자열로 만든 토큰 형식이다. <code>헤더.페이로드.서명</code> 세 부분을 점(.)으로 이어 붙이고 각각 Base64URL로 인코딩한다. OIDC의 ID 토큰, 많은 시스템의 액세스 토큰, 쿠버네티스 서비스어카운트 토큰이 모두 JWT다.</p><p><strong>가장 중요한 오해부터 정리한다. JWT는 암호화가 아니다.</strong> Base64URL은 인코딩일 뿐이라 누구나 디코딩해 내용을 볼 수 있다. JWT가 보장하는 것은 기밀성이 아니라 <strong>무결성(위조 불가)</strong>이다. 그래서 페이로드에 주민등록번호·카드번호 같은 민감정보를 넣으면 그대로 유출된다. 내용을 감추려면 JWE(암호화된 JWT)를 써야 하지만 실무에서는 드물다.</p><p><strong>헤더</strong>에는 서명 알고리즘(<code>alg</code>)과 어떤 키로 서명했는지(<code>kid</code>)가 들어간다. <strong>페이로드</strong>에는 클레임(claim)이 들어간다. 표준 클레임은 <code>iss</code>(발급자), <code>sub</code>(주체), <code>aud</code>(수신 대상), <code>exp</code>(만료), <code>nbf</code>(유효 시작), <code>iat</code>(발급시각), <code>jti</code>(토큰 고유 ID)다. 여기에 회사가 정한 커스텀 클레임(groups, roles, tenant)이 붙는다.</p><p><strong>서명 방식은 두 계열</strong>이다. <strong>HS256(HMAC)</strong>은 하나의 공유 비밀키로 서명하고 검증한다. 검증하는 쪽도 서명할 수 있다는 뜻이라 신뢰 경계가 넓어진다. <strong>RS256/ES256(비대칭)</strong>은 IdP가 개인키로 서명하고 누구나 공개키(JWKS)로 검증만 할 수 있다. 검증자가 토큰을 위조할 수 없으므로 여러 서비스가 검증하는 구조에서는 반드시 비대칭을 써야 한다.</p><p><strong>검증은 서명 확인 하나로 끝나지 않는다.</strong> 실무에서 반드시 확인할 것은 (1) <code>alg</code>를 서버가 정한 값으로 고정 — 토큰 헤더 값을 믿고 <code>none</code>이나 HS256으로 바꿔치기하는 고전적 공격이 있다, (2) <code>iss</code>가 우리 IdP인지, (3) <code>aud</code>가 우리 서비스인지, (4) <code>exp</code>/<code>nbf</code> 시간 유효성(서버 시계 동기화 필수), (5) <code>kid</code>에 해당하는 공개키를 신뢰하는 JWKS에서 가져왔는지다.</p><p><strong>JWT의 최대 약점은 폐기(revocation)</strong>다. 서버가 상태를 갖지 않고 서명만으로 검증하므로, 발급한 토큰을 중간에 무효화하기 어렵다. 권한을 회수해도 <strong>토큰 만료 시각까지는 유효</strong>하다. 그래서 액세스 토큰 수명을 짧게(5~15분) 잡고, 긴급 차단이 필요하면 블랙리스트(jti 기준)나 introspection 방식으로 보완한다. 감사에서 '권한 회수 후 실제 접근 차단까지 얼마나 걸리는가'를 물으면 바로 이 토큰 수명이 답이 된다.</p>",
+      "howItWorks": "<ol><li>인증 서버가 사용자 인증에 성공하면 클레임 JSON을 구성한다(sub, aud, exp, groups 등).</li><li>헤더와 페이로드를 각각 Base64URL로 인코딩해 점으로 잇는다.</li><li>그 문자열을 개인키(RS256) 또는 공유키(HS256)로 서명해 세 번째 조각을 만든다.</li><li>클라이언트가 API 요청 시 <code>Authorization: Bearer &lt;JWT&gt;</code> 헤더로 토큰을 보낸다.</li><li>API 서버가 헤더의 <code>kid</code>를 보고 JWKS 엔드포인트에서 받은 공개키 중 해당 키를 찾는다(JWKS는 캐시하되 주기적으로 갱신).</li><li>서버가 허용 알고리즘 목록으로 <code>alg</code>를 고정한 채 서명을 검증한다.</li><li>서명 검증 후 iss·aud·exp·nbf를 확인하고, 필요하면 jti 블랙리스트를 조회한다.</li><li>페이로드의 groups/scope로 인가를 판단하고 요청을 처리한다. 만료되면 클라이언트가 리프레시 토큰으로 새 토큰을 받는다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'의 주문 API는 Keycloak이 RS256으로 서명한 액세스 토큰만 받는다. 액세스 토큰 수명은 10분, 리프레시 토큰은 8시간이다. 2026년 6월 한 협력사 계정이 유출됐을 때, 보안팀은 Keycloak에서 세션을 폐기했지만 이미 발급된 액세스 토큰 때문에 최대 10분간 접근이 가능하다는 점을 인지하고, 게이트웨이에 해당 <code>sub</code>를 즉시 차단 목록으로 넣어 1분 내 차단했다. 이후 '긴급 차단 시 게이트웨이 deny 리스트 적용'이 사고대응 절차에 정식 포함됐다.</p><pre><code># JWT 디코딩 (서명 검증 없이 내용만 보기 - 누구나 가능)\necho $TOKEN | cut -d. -f2 | base64 -d | jq .\n{\n  \"iss\": \"https://sso.shopcast.example/realms/prod\",\n  \"sub\": \"a1b2c3d4-5e6f\",\n  \"aud\": \"order-api\",\n  \"exp\": 1789003200,\n  \"iat\": 1789002600,\n  \"jti\": \"5f2c9a11\",\n  \"scope\": \"orders:read orders:write\",\n  \"groups\": [\"cs-agent\"]\n}\n\n# 서버 측 검증 (Python, PyJWT) - alg 고정과 aud/iss 검증이 핵심\nimport jwt\nfrom jwt import PyJWKClient\njwks = PyJWKClient(\"https://sso.shopcast.example/realms/prod/protocol/openid-connect/certs\")\nkey = jwks.get_signing_key_from_jwt(token).key\nclaims = jwt.decode(\n    token, key,\n    algorithms=[\"RS256\"],                 # 토큰 헤더를 믿지 말고 고정\n    audience=\"order-api\",\n    issuer=\"https://sso.shopcast.example/realms/prod\",\n    options={\"require\": [\"exp\", \"iat\", \"aud\", \"iss\"]},\n)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='28' fill='currentColor' font-size='12'>JWT = 헤더 . 페이로드 . 서명  (Base64URL, 암호화 아님)</text><rect x='20' y='40' width='160' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='100' y='62' text-anchor='middle' fill='currentColor' font-size='12'>헤더</text><text x='100' y='82' text-anchor='middle' fill='currentColor' font-size='11'>alg · kid</text><rect x='190' y='40' width='210' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='295' y='62' text-anchor='middle' fill='currentColor' font-size='12'>페이로드 (누구나 읽힘)</text><text x='295' y='82' text-anchor='middle' fill='currentColor' font-size='11'>iss·sub·aud·exp·groups</text><rect x='410' y='40' width='210' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='515' y='62' text-anchor='middle' fill='currentColor' font-size='12'>서명</text><text x='515' y='82' text-anchor='middle' fill='currentColor' font-size='11'>개인키(RS256)로 생성</text><rect x='20' y='130' width='150' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='152' text-anchor='middle' fill='currentColor'>IdP</text><text x='95' y='172' text-anchor='middle' fill='currentColor' font-size='11'>발급 + JWKS 공개</text><line x1='170' y1='157' x2='240' y2='157' stroke='currentColor' marker-end='url(#ar)'/><text x='205' y='150' text-anchor='middle' fill='currentColor' font-size='11'>공개키</text><rect x='240' y='120' width='210' height='115' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='345' y='142' text-anchor='middle' fill='currentColor' font-size='12'>API 서버 검증 순서</text><text x='252' y='163' fill='currentColor' font-size='11'>1 alg 화이트리스트 고정</text><text x='252' y='181' fill='currentColor' font-size='11'>2 서명 검증 (kid로 키 선택)</text><text x='252' y='199' fill='currentColor' font-size='11'>3 iss · aud 일치</text><text x='252' y='217' fill='currentColor' font-size='11'>4 exp · nbf 시간</text><rect x='470' y='130' width='150' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='152' text-anchor='middle' fill='currentColor' font-size='12'>폐기의 어려움</text><text x='482' y='174' fill='currentColor' font-size='11'>만료 전엔 계속 유효</text><text x='482' y='194' fill='currentColor' font-size='11'>→ 수명 짧게(5~15분)</text><text x='482' y='214' fill='currentColor' font-size='11'>→ 긴급 시 deny 리스트</text></svg>",
+      "keyTerms": [
+        {
+          "term": "클레임(Claim)",
+          "meaning": "토큰 페이로드에 담긴 주장 항목. iss·sub·aud·exp 등 표준과 커스텀"
+        },
+        {
+          "term": "alg / kid",
+          "meaning": "서명 알고리즘과 사용된 키 식별자. alg는 서버가 고정해야 안전"
+        },
+        {
+          "term": "JWKS",
+          "meaning": "검증용 공개키 목록을 공개하는 JSON 엔드포인트"
+        },
+        {
+          "term": "HS256 vs RS256",
+          "meaning": "공유 비밀키 방식과 개인키/공개키 방식. 다자 검증에는 RS256"
+        },
+        {
+          "term": "aud(Audience)",
+          "meaning": "이 토큰을 소비해야 할 대상 서비스. 미검증 시 토큰 오용 발생"
+        },
+        {
+          "term": "jti",
+          "meaning": "토큰 고유 ID. 재사용 탐지나 폐기 목록 관리에 사용"
+        },
+        {
+          "term": "JWE",
+          "meaning": "내용까지 암호화한 JWT. 기밀성이 필요할 때 사용하나 실무 채택은 드묾"
+        },
+        {
+          "term": "Bearer 토큰",
+          "meaning": "가진 사람이 곧 권한자인 토큰. 유출 자체가 곧 침해"
+        }
+      ],
+      "pitfalls": [
+        "JWT가 암호화라고 오해해 페이로드에 개인정보·민감정보를 담는다. 누구나 디코딩할 수 있다.",
+        "토큰 헤더의 alg 값을 그대로 신뢰해 alg=none 또는 RS256→HS256 혼동 공격에 노출된다.",
+        "서명만 검증하고 aud·iss를 확인하지 않아 다른 서비스용 토큰이 통과한다.",
+        "액세스 토큰 수명을 몇 시간~며칠로 길게 설정. 권한 회수가 그만큼 지연된다.",
+        "JWT를 localStorage에 저장해 XSS 한 번으로 토큰이 탈취된다(HttpOnly 쿠키 권장 상황 검토 필요).",
+        "서버 시계가 어긋나 exp/nbf 검증이 잘못 동작한다. NTP 동기화가 전제다.",
+        "리프레시 토큰을 회전 없이 장기 사용하고 폐기 관리도 하지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 토큰 수명(액세스/리프레시)이 정책으로 정의되고 운영 시스템에 일관되게 적용되는가",
+          "[접근] 권한 회수 시 실제 접근 차단까지의 최대 지연(토큰 수명)이 식별되고 긴급 차단 수단이 있는가",
+          "[운영] 서명키 보관·교체 절차가 있고 교체 시 서비스 영향이 검증되는가",
+          "[운영] 토큰 검증 로직(alg 고정, aud/iss 검증)이 보안 코드 리뷰 대상에 포함되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 접근통제상 세션·토큰의 유효시간이 적정하게 제한되는가",
+          "전자금융감독규정 제32조 취지에 따라 서명·암호키가 안전하게 생성·보관·폐기되는가",
+          "이용자·운영자 인증정보가 전송 구간에서 암호화(TLS)되어 노출되지 않는가"
+        ],
+        "isms": [
+          "2.7.1 암호정책 적용 / 2.7.2 암호키 관리: 서명 알고리즘과 키 관리 기준이 정의되어 있는가",
+          "2.6.3 응용프로그램 접근: 세션·토큰 타임아웃과 재인증 기준이 적용되는가",
+          "2.8.x 정보시스템 도입 및 개발 보안: 토큰 검증 취약점이 개발 보안 점검 항목에 포함되는가"
+        ],
+        "evidence": [
+          "IdP의 토큰 수명 설정 화면(액세스/리프레시/세션)",
+          "API 서버의 토큰 검증 코드 또는 게이트웨이 설정(허용 alg, aud, issuer)",
+          "JWKS 엔드포인트 응답과 서명키 교체 이력",
+          "긴급 차단(deny 리스트) 적용 사례와 사고 대응 기록",
+          "토큰 발급·검증 실패 로그 샘플"
+        ],
+        "auditorQuestions": [
+          "액세스 토큰과 리프레시 토큰의 유효기간은 얼마이며 그 근거는 무엇입니까?",
+          "권한을 회수하면 실제 API 접근은 언제 차단됩니까? 즉시 차단이 필요한 경우 수단이 있습니까?",
+          "토큰 검증 시 aud와 iss를 확인합니까? 코드를 보여줄 수 있습니까?",
+          "서명키는 어디에 보관되며 교체 주기는 어떻게 됩니까?",
+          "토큰 안에 개인정보가 포함되어 있지는 않습니까?"
+        ],
+        "controlExample": "API 액세스 토큰의 유효기간은 15분 이내로 제한되며, 모든 자원 서버는 허용 서명 알고리즘을 고정하고 issuer·audience·만료시각을 검증한다. 계정 침해 등 긴급 상황에는 API 게이트웨이 차단 목록을 적용하여 토큰 만료 전이라도 즉시 접근을 차단하고 사고 기록에 남긴다."
+      },
+      "related": [
+        "sec-oidc",
+        "sec-oauth2",
+        "sec-session-vs-token",
+        "sec-crypto-basics",
+        "sec-kms-hsm",
+        "sec-keycloak",
+        "k8s-serviceaccount",
+        "net-tls"
+      ],
+      "learnMore": [
+        "RFC 7519 JSON Web Token",
+        "RFC 8725 JWT Best Current Practices",
+        "OWASP JWT Security Cheat Sheet"
+      ]
+    },
+    {
+      "id": "sec-session-vs-token",
+      "title": "세션 vs 토큰",
+      "titleEn": "Session-based vs Token-based Authentication",
+      "aliases": [
+        "세션 인증",
+        "토큰 인증",
+        "쿠키 세션",
+        "stateless 인증",
+        "세션 타임아웃"
+      ],
+      "tags": [
+        "iam",
+        "authentication",
+        "web"
+      ],
+      "level": "중급",
+      "oneLiner": "서버가 접속 상태를 기억하느냐(세션), 토큰 자체가 증명이냐(토큰)의 차이",
+      "analogy": "세션은 헬스장 프런트에 이름을 적어두고 번호표만 받는 방식이다. 번호표에는 아무 정보가 없고, 직원이 장부를 보고 '3번은 김대리, 오늘 결제 완료'를 확인한다. 회원 자격을 정지시키려면 장부에서 지우면 즉시 끝난다. 토큰은 회원증 카드를 발급해 주는 방식이다. 카드 자체에 정보가 적혀 있어 직원이 장부를 볼 필요가 없지만, 이미 나눠준 카드를 회수하려면 카드가 만료될 때까지 기다리거나 별도의 정지 목록을 돌려야 한다.",
+      "explanation": "<p><strong>세션 기반 인증(Session-based)</strong>은 로그인 성공 시 서버가 세션 데이터(누구인지, 언제 로그인했는지, 권한은 무엇인지)를 서버 메모리나 Redis 같은 저장소에 만들고, 사용자에게는 세션 ID만 쿠키로 준다. 이후 요청마다 서버는 세션 ID로 저장소를 조회해 상태를 확인한다. 상태를 서버가 갖고 있으므로 <strong>stateful</strong>이라 부른다.</p><p><strong>토큰 기반 인증(Token-based)</strong>은 로그인 성공 시 사용자 정보와 권한을 담아 서명한 토큰(대개 JWT)을 발급하고, 서버는 아무것도 저장하지 않는다. 요청마다 토큰의 서명만 검증하면 되므로 <strong>stateless</strong>다. 서버를 몇 대로 늘려도 세션 공유 문제가 없어 마이크로서비스·모바일 환경에서 유리하다.</p><p><strong>가장 중요한 실무적 차이는 '즉시 차단이 되는가'</strong>다. 세션은 저장소에서 지우는 순간 다음 요청부터 막힌다. 퇴사자 차단, 계정 탈취 대응에서 결정적인 장점이다. 반면 토큰은 서명이 유효하고 만료 전이면 서버가 막을 방법이 기본적으로 없다. 그래서 토큰 방식은 수명을 짧게 하고 리프레시 토큰으로 갱신하는 구조를 함께 쓴다. 쉽게 말하면 세션은 '언제든 끊을 수 있지만 서버가 기억해야 하고', 토큰은 '서버가 편하지만 끊기가 어렵다'.</p><p><strong>저장 위치와 보안</strong>도 갈린다. 세션 ID는 보통 쿠키에 담고 <code>HttpOnly</code>(자바스크립트 접근 차단), <code>Secure</code>(HTTPS 전용), <code>SameSite</code>(CSRF 완화) 속성을 건다. 토큰을 브라우저의 localStorage에 넣으면 XSS 한 번으로 탈취되므로, 브라우저 앱에서는 토큰도 HttpOnly 쿠키에 담는 하이브리드 방식이 늘고 있다. 반대로 쿠키 방식은 CSRF 대응(SameSite, CSRF 토큰)이 필요하다.</p><p><strong>현실의 구성은 대부분 혼합형</strong>이다. 사용자-브라우저 구간은 세션 쿠키(BFF 패턴), 서비스-서비스 구간은 JWT를 쓰는 식이다. 이렇게 하면 즉시 차단 가능성과 확장성을 모두 얻는다. 2026년 기준 금융권 웹 관리자 시스템은 여전히 세션 방식이 많고, 대고객 모바일 앱과 내부 API는 토큰 방식이 표준이다.</p><p><strong>감사 포인트</strong>는 세 가지로 요약된다. 첫째 <strong>유휴 타임아웃(idle timeout)과 절대 만료(absolute timeout)</strong>가 설정되어 있는가. 금융권 관리자 화면은 통상 10~30분 유휴 타임아웃을 요구한다. 둘째 <strong>동시 세션 제한과 강제 종료 기능</strong>이 있는가. 셋째 <strong>로그아웃·권한 회수 시 실제로 세션·토큰이 무효화되는가</strong>다. 설정 화면만 보지 말고 실제 테스트 결과를 증빙으로 남기는 것이 좋다.</p>",
+      "howItWorks": "<ol><li>[세션] 로그인 성공 → 서버가 난수 세션 ID 생성, 저장소에 사용자·권한·최종활동시각 저장.</li><li>[세션] <code>Set-Cookie: SESSIONID=...; HttpOnly; Secure; SameSite=Lax</code>로 브라우저에 전달.</li><li>[세션] 요청마다 서버가 저장소를 조회해 유효성·유휴시간을 확인하고 최종활동시각을 갱신.</li><li>[세션] 로그아웃·강제종료 시 저장소에서 삭제 → 다음 요청부터 즉시 거부.</li><li>[토큰] 로그인 성공 → 인증서버가 클레임을 담아 서명한 액세스 토큰(짧음)과 리프레시 토큰(김) 발급.</li><li>[토큰] 클라이언트가 요청마다 Authorization 헤더로 액세스 토큰 제시, 서버는 서명·만료만 검증(저장소 조회 없음).</li><li>[토큰] 액세스 토큰 만료 시 리프레시 토큰으로 갱신. 이때 인증서버가 계정 상태를 확인하므로 차단이 반영된다.</li><li>[혼합] 게이트웨이가 쿠키 세션을 받아 내부 호출용 단기 JWT로 변환(BFF/토큰 교환)해 양쪽 장점을 취한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'의 내부 관리자 포털은 세션 방식이다. 유휴 15분, 절대 만료 8시간, 동시 로그인 1개로 제한하고, 보안팀이 Redis에서 특정 사용자 세션을 즉시 삭제할 수 있는 운영 도구를 갖췄다. 반면 고객용 모바일 앱은 토큰 방식으로 액세스 토큰 10분, 리프레시 토큰 14일(사용 시마다 회전)을 쓴다. 2026년 5월 계정 탈취 의심 건에서 관리자 세션은 즉시 삭제로 30초 만에 차단됐고, 모바일 토큰은 리프레시 토큰 폐기 + 게이트웨이 차단으로 대응했다.</p><pre><code># 세션 방식 설정 (Spring Boot application.yml)\nserver:\n  servlet:\n    session:\n      timeout: 15m                 # 유휴 타임아웃\n      cookie:\n        http-only: true\n        secure: true\n        same-site: lax\n\n# 특정 사용자의 모든 세션 강제 종료 (Redis 세션 저장소)\nredis-cli --scan --pattern \"spring:session:sessions:*\" \\\n | xargs -I{} sh -c 'redis-cli hget {} sessionAttr:user | grep -q eddie.kim &amp;&amp; redis-cli del {}'\n\n# 토큰 방식 수명 설정 (Keycloak)\nAccess Token Lifespan: 10 minutes\nSSO Session Idle: 30 minutes\nSSO Session Max: 10 hours\nRefresh Token Rotation: enabled (재사용 감지 시 세션 폐기)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='26' fill='currentColor' font-size='12'>세션 (stateful)</text><rect x='20' y='36' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='63' text-anchor='middle' fill='currentColor'>브라우저</text><line x1='120' y1='58' x2='185' y2='58' stroke='currentColor' marker-end='url(#ar)'/><text x='152' y='51' text-anchor='middle' fill='currentColor' font-size='11'>세션ID</text><rect x='185' y='36' width='105' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='237' y='63' text-anchor='middle' fill='currentColor'>앱 서버</text><line x1='290' y1='58' x2='350' y2='58' stroke='currentColor' marker-end='url(#ar)'/><rect x='350' y='36' width='120' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='410' y='56' text-anchor='middle' fill='currentColor' font-size='12'>세션 저장소</text><text x='410' y='73' text-anchor='middle' fill='currentColor' font-size='11'>Redis/DB</text><text x='485' y='52' fill='currentColor' font-size='11'>삭제하면</text><text x='485' y='69' fill='currentColor' font-size='11'>즉시 차단</text><line x1='20' y1='105' x2='620' y2='105' stroke='currentColor' stroke-dasharray='4 3'/><text x='20' y='128' fill='currentColor' font-size='12'>토큰 (stateless)</text><rect x='20' y='140' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='167' text-anchor='middle' fill='currentColor'>클라이언트</text><line x1='120' y1='162' x2='185' y2='162' stroke='currentColor' marker-end='url(#ar)'/><text x='152' y='155' text-anchor='middle' fill='currentColor' font-size='11'>JWT</text><rect x='185' y='140' width='105' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='237' y='160' text-anchor='middle' fill='currentColor' font-size='12'>API 서버</text><text x='237' y='177' text-anchor='middle' fill='currentColor' font-size='11'>서명만 검증</text><rect x='350' y='130' width='170' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='152' text-anchor='middle' fill='currentColor' font-size='12'>저장소 조회 없음</text><text x='435' y='172' text-anchor='middle' fill='currentColor' font-size='11'>확장 쉬움 / 차단 어려움</text><text x='435' y='189' text-anchor='middle' fill='currentColor' font-size='11'>→ 수명 짧게 + 회전</text><text x='20' y='218' fill='currentColor' font-size='11'>감사 포인트: 유휴 타임아웃 · 절대 만료 · 동시세션 제한 · 강제종료 가능 여부</text><text x='20' y='238' fill='currentColor' font-size='11'>실무 표준: 브라우저 구간은 세션 쿠키, 서비스 간은 단기 JWT (혼합형)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "세션 ID",
+          "meaning": "서버가 보관한 세션 데이터를 가리키는 난수 식별자. 쿠키로 전달"
+        },
+        {
+          "term": "유휴 타임아웃(Idle Timeout)",
+          "meaning": "일정 시간 활동이 없으면 세션을 종료하는 설정"
+        },
+        {
+          "term": "절대 만료(Absolute Timeout)",
+          "meaning": "활동 여부와 무관하게 최대 세션 지속 시간"
+        },
+        {
+          "term": "HttpOnly / Secure / SameSite",
+          "meaning": "쿠키 탈취(XSS)·전송노출·CSRF를 줄이는 쿠키 속성"
+        },
+        {
+          "term": "리프레시 토큰 회전",
+          "meaning": "갱신할 때마다 새 리프레시 토큰을 주고 이전 것을 폐기하는 기법"
+        },
+        {
+          "term": "동시 세션 제한",
+          "meaning": "한 계정이 동시에 유지할 수 있는 세션 수를 제한하는 통제"
+        },
+        {
+          "term": "BFF 패턴",
+          "meaning": "프런트엔드 전용 백엔드가 쿠키 세션을 받아 내부 토큰으로 바꾸는 구조"
+        }
+      ],
+      "pitfalls": [
+        "토큰 방식에서 '로그아웃'을 클라이언트의 토큰 삭제로만 구현. 서버는 여전히 그 토큰을 유효하다고 본다.",
+        "관리자 화면에 유휴 타임아웃을 걸지 않아 자리를 비운 사이 세션이 그대로 살아 있다.",
+        "토큰을 localStorage에 저장해 XSS 발생 시 즉시 탈취된다.",
+        "세션 고정(session fixation) 대비 없이 로그인 후 세션 ID를 재발급하지 않는다.",
+        "동시 세션 제한이 없어 하나의 계정이 여러 곳에서 공유 사용되는 것을 탐지하지 못한다.",
+        "리프레시 토큰 수명이 수개월이고 회전도 하지 않아 사실상 영구 접근 수단이 된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 중요 시스템의 유휴 타임아웃·절대 만료 값이 정책에 정의되고 실제 설정과 일치하는가",
+          "[접근] 로그아웃·권한 회수 시 세션 또는 토큰이 실제로 무효화되는지 테스트 증적이 있는가",
+          "[접근] 동시 세션 제한 또는 이상 동시 접속 탐지가 운영되는가",
+          "[운영] 세션 저장소(Redis 등)에 대한 접근이 제한되고 세션 데이터가 보호되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조에 따라 일정 시간 미사용 시 자동 접속 차단(세션 종료)이 적용되는가",
+          "관리자 접속 세션에 대해 동시 접속 제한 및 재인증 요건이 적용되는가",
+          "세션·인증정보가 전송 구간에서 암호화되어 노출되지 않는가"
+        ],
+        "isms": [
+          "2.6.3 응용프로그램 접근: 일정 시간 미사용 시 세션 자동 차단, 동시 접속 제한이 적용되는가",
+          "2.5.3 사용자 인증: 재인증이 필요한 업무 구간이 정의되어 있는가",
+          "2.10.x 시스템 보안관리: 세션 관리 취약점 점검이 수행되는가"
+        ],
+        "evidence": [
+          "시스템별 세션 타임아웃 설정 화면 또는 설정 파일",
+          "로그아웃 후 이전 세션ID/토큰으로 접근 시 차단되는지 테스트 결과(요청·응답 캡처)",
+          "동시 세션 제한 설정 및 위반 탐지 로그",
+          "쿠키 속성(HttpOnly/Secure/SameSite) 확인용 응답 헤더 캡처",
+          "리프레시 토큰 수명·회전 설정 화면"
+        ],
+        "auditorQuestions": [
+          "관리자 화면의 유휴 타임아웃은 몇 분입니까? 실제로 동작하는지 보여줄 수 있습니까?",
+          "사용자가 로그아웃한 뒤 이전 토큰으로 API를 호출하면 어떻게 됩니까?",
+          "한 계정으로 여러 곳에서 동시 접속하면 탐지되거나 차단됩니까?",
+          "긴급 시 특정 사용자의 모든 세션을 강제 종료할 수 있습니까? 누가 그 권한을 갖습니까?",
+          "리프레시 토큰 유효기간과 회전 정책은 어떻게 됩니까?"
+        ],
+        "controlExample": "운영 관리자 시스템은 유휴 15분·최대 8시간의 세션 타임아웃과 계정당 1개의 동시 세션 제한을 적용하며, 보안 사고 시 정보보호팀이 해당 계정의 전 세션을 즉시 강제 종료할 수 있다. 세션 종료 및 강제 종료 이력은 로그로 보관되고 분기 점검 시 설정 적정성을 확인한다."
+      },
+      "related": [
+        "sec-jwt",
+        "sec-sso",
+        "sec-oauth2",
+        "sec-mfa",
+        "sec-authn-authz",
+        "net-tls",
+        "db-redis",
+        "app-msa"
+      ],
+      "learnMore": [
+        "OWASP Session Management Cheat Sheet",
+        "RFC 6265 HTTP State Management",
+        "NIST SP 800-63B Session Management"
+      ]
+    },
+    {
+      "id": "sec-mfa",
+      "title": "MFA / 다중요소 인증",
+      "titleEn": "Multi-Factor Authentication",
+      "aliases": [
+        "MFA",
+        "2FA",
+        "이중인증",
+        "다중인증",
+        "OTP",
+        "추가인증"
+      ],
+      "tags": [
+        "iam",
+        "authentication",
+        "control"
+      ],
+      "level": "기초",
+      "oneLiner": "아는 것·가진 것·자신인 것 중 둘 이상을 요구해 계정 탈취를 막는 인증",
+      "analogy": "은행 금고를 여는 데 열쇠 하나가 아니라 '비밀번호 + 지점장 키'를 함께 요구하는 것과 같다. 비밀번호가 새어 나가도 물리 키가 없으면 금고는 열리지 않는다. 다만 지점장 키를 책상 서랍에 두면 의미가 없듯, 두 번째 요소가 첫 번째와 같은 곳(예: 같은 휴대폰, 같은 이메일)에 있으면 실질적으로 하나의 요소나 마찬가지다.",
+      "explanation": "<p><strong>MFA(Multi-Factor Authentication, 다중요소 인증)</strong>는 서로 다른 종류의 인증 요소를 둘 이상 요구하는 방식이다. 요소의 종류는 세 가지로 나눈다. <strong>지식(something you know)</strong>은 비밀번호·PIN, <strong>소유(something you have)</strong>는 휴대폰·OTP 기기·보안키, <strong>생체(something you are)</strong>는 지문·얼굴이다. 비밀번호 + PIN은 둘 다 지식이므로 MFA가 아니라는 점이 핵심이다.</p><p><strong>왜 필수인가.</strong> 오늘날 계정 침해의 압도적 다수는 비밀번호 유출·추측·재사용에서 시작한다. 피싱으로 비밀번호를 얻거나, 다른 사이트에서 유출된 비밀번호를 대입하는 크리덴셜 스터핑이 일상적이다. MFA는 비밀번호가 완전히 노출된 상황에서도 침해를 막는 <strong>마지막 방어선</strong>이며, 비용 대비 효과가 가장 큰 보안 통제로 꼽힌다.</p><p><strong>인증 수단별 강도 차이</strong>를 아는 것이 실무에서 중요하다. <strong>SMS OTP</strong>는 가장 약하다. 심 스와핑(SIM swap)과 중계 공격에 취약해 NIST는 이미 권장하지 않는다. <strong>TOTP(구글 OTP 등 30초 코드)</strong>는 중간이다. 코드를 사람이 읽어 입력하므로 실시간 피싱 사이트에 그대로 넘어갈 수 있다. <strong>푸시 승인</strong>은 편하지만 계속 푸시를 보내 사용자가 지쳐 승인하게 만드는 <strong>MFA 피로 공격(MFA fatigue)</strong>에 당한다. 번호 매칭(number matching)을 켜야 완화된다. <strong>FIDO2 보안키·패스키</strong>가 유일하게 <strong>피싱 내성(phishing-resistant)</strong>을 갖는다. 브라우저가 도메인(origin)을 검증하므로 가짜 사이트에서는 아예 동작하지 않는다.</p><p><strong>어디에 적용할 것인가</strong>가 정책의 핵심이다. 최소한 (1) IdP 로그인, (2) VPN·원격접속, (3) 클라우드 콘솔과 특권 계정, (4) 운영 서버 접근(Bastion/PAM), (5) 코드 저장소·CI/CD, (6) 메일과 협업도구에는 반드시 적용한다. 금융권에서는 관리자·운영자 접속에 MFA가 사실상 필수 요건이다.</p><p><strong>조건부 접근(Conditional Access) / 적응형 MFA</strong>가 2026년의 표준 운영 방식이다. 모든 로그인에 MFA를 요구하면 사용자 피로가 커지므로, 위험 신호가 있을 때만 추가 인증을 요구한다. 사내 관리 단말·사내망에서는 통과시키고, 새로운 국가·새 기기·비정상 시간대·불가능한 이동(impossible travel)이 감지되면 MFA 또는 차단을 건다.</p><p><strong>감사 관점에서 가장 자주 지적되는 것은 '예외'</strong>다. MFA 정책은 있는데 서비스 계정, 레거시 프로토콜(IMAP/POP), 특정 임원, 협력사 계정이 예외로 빠져 있는 경우다. 예외 목록·사유·승인·재검토 주기가 없으면 통제가 실질적으로 무력화된다. 또한 <strong>MFA 등록(enrollment) 절차와 분실 시 재설정 절차</strong>가 통제 공백이 되기 쉽다. 헬프데스크가 신원 확인 없이 MFA를 초기화해 주면 공격자가 그 경로를 노린다.</p>",
+      "howItWorks": "<ol><li>사용자가 ID/비밀번호로 1차 인증을 시도한다.</li><li>IdP가 비밀번호를 검증하고, 조건부 접근 정책을 평가한다(기기 상태, IP·국가, 위험 점수, 접근 대상 앱의 민감도).</li><li>추가 인증이 필요하다고 판단되면 등록된 인증 수단 중 하나를 요구한다.</li><li>[TOTP] 인증 앱이 공유 비밀키와 현재 시각으로 6자리 코드를 계산해 표시하고, 사용자가 입력하면 서버가 동일 계산으로 대조한다.</li><li>[푸시] 사용자 단말로 승인 요청을 보내고, 화면에 표시된 숫자를 사용자가 고르게 해(번호 매칭) 무심코 승인하는 것을 막는다.</li><li>[FIDO2] 브라우저가 현재 도메인(origin) 정보를 포함한 챌린지를 보안키/패스키에 전달하고, 기기가 개인키로 서명해 응답한다. 도메인이 다르면 서명 자체가 생성되지 않는다.</li><li>IdP가 검증에 성공하면 세션·토큰을 발급하고 <code>amr</code>에 사용된 인증 수단을 기록한다.</li><li>애플리케이션은 필요 시 amr/acr 값을 확인해 MFA를 거친 세션만 민감 기능을 허용한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 전 직원 MFA 필수 정책을 쓴다. 일반 SaaS 접근은 사내 관리 노트북 + 사내망이면 추가 인증을 생략하고, 외부망이면 패스키를 요구한다. AWS 운영 계정 콘솔과 PAM 접속은 위치와 무관하게 <strong>항상</strong> FIDO2 보안키를 요구한다. SMS OTP는 2025년에 전면 폐지했고, 레거시 정산 시스템 2개는 MFA 미지원이라 접근을 Bastion 경유로만 제한하는 보완통제를 적용한 뒤 예외 목록에 등록하고 반기마다 재검토한다. MFA 분실 재설정은 화상으로 사원증과 얼굴을 확인한 뒤 팀장 승인을 받아야만 처리된다.</p><pre><code># AWS: MFA 없는 IAM 사용자 찾기 (감사 증적 추출)\naws iam list-users --query 'Users[].UserName' --output text \\\n| tr '\\t' '\\n' \\\n| while read u; do\n    n=$(aws iam list-mfa-devices --user-name \"$u\" --query 'length(MFADevices)')\n    [ \"$n\" = \"0\" ] &amp;&amp; echo \"MFA 미등록: $u\"\n  done\n\n# IAM 정책: MFA 없는 세션은 민감 작업 차단\n{\n  \"Effect\": \"Deny\",\n  \"NotAction\": [\"iam:ChangePassword\", \"sts:GetSessionToken\"],\n  \"Resource\": \"*\",\n  \"Condition\": {\"BoolIfExists\": {\"aws:MultiFactorAuthPresent\": \"false\"}}\n}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='26' fill='currentColor' font-size='12'>인증 요소 3종 - 서로 다른 종류를 2개 이상</text><rect x='20' y='36' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='57' text-anchor='middle' fill='currentColor' font-size='12'>지식</text><text x='95' y='75' text-anchor='middle' fill='currentColor' font-size='11'>비밀번호 · PIN</text><rect x='185' y='36' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='57' text-anchor='middle' fill='currentColor' font-size='12'>소유</text><text x='260' y='75' text-anchor='middle' fill='currentColor' font-size='11'>보안키 · 단말</text><rect x='350' y='36' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='425' y='57' text-anchor='middle' fill='currentColor' font-size='12'>생체</text><text x='425' y='75' text-anchor='middle' fill='currentColor' font-size='11'>지문 · 얼굴</text><text x='20' y='112' fill='currentColor' font-size='12'>강도 순서 (아래로 갈수록 강함)</text><rect x='20' y='122' width='250' height='28' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='32' y='141' fill='currentColor' font-size='11'>SMS OTP - 심스와핑 취약, 비권장</text><rect x='20' y='156' width='250' height='28' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='32' y='175' fill='currentColor' font-size='11'>TOTP / 푸시 - 실시간 피싱에 취약</text><rect x='20' y='190' width='250' height='28' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='32' y='209' fill='currentColor' font-size='11'>FIDO2 / 패스키 - 피싱 내성</text><rect x='300' y='110' width='320' height='110' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='460' y='132' text-anchor='middle' fill='currentColor' font-size='12'>조건부 접근 (적응형 MFA)</text><text x='312' y='154' fill='currentColor' font-size='11'>사내 관리단말 + 사내망 → 통과</text><text x='312' y='174' fill='currentColor' font-size='11'>새 기기 · 해외 IP · 이상시간 → MFA</text><text x='312' y='194' fill='currentColor' font-size='11'>운영 콘솔 · PAM → 항상 보안키</text><text x='312' y='212' fill='currentColor' font-size='11'>예외 목록은 승인 + 반기 재검토</text><line x1='270' y1='204' x2='298' y2='180' stroke='currentColor' marker-end='url(#ar)'/><text x='520' y='246' text-anchor='middle' fill='currentColor' font-size='11'>결과는 토큰의 amr 클레임에 기록</text></svg>",
+      "keyTerms": [
+        {
+          "term": "인증 요소(Factor)",
+          "meaning": "지식·소유·생체 세 범주. 서로 다른 범주를 조합해야 진짜 MFA"
+        },
+        {
+          "term": "TOTP",
+          "meaning": "공유키와 시각으로 30초마다 바뀌는 6자리 코드 생성 방식"
+        },
+        {
+          "term": "피싱 내성(Phishing-resistant)",
+          "meaning": "가짜 사이트에서 동작하지 않는 인증. FIDO2/패스키가 대표"
+        },
+        {
+          "term": "MFA 피로 공격",
+          "meaning": "푸시를 반복 전송해 사용자가 무심코 승인하게 만드는 공격"
+        },
+        {
+          "term": "번호 매칭(Number Matching)",
+          "meaning": "화면의 숫자를 단말에서 고르게 해 무심코 승인 방지"
+        },
+        {
+          "term": "조건부 접근",
+          "meaning": "위험 신호에 따라 추가 인증·차단을 동적으로 적용하는 정책"
+        },
+        {
+          "term": "등록(Enrollment)",
+          "meaning": "인증 수단을 계정에 최초 등록하는 절차. 신원확인이 핵심 통제점"
+        },
+        {
+          "term": "MFA 예외",
+          "meaning": "정책에서 제외된 계정·프로토콜. 사유·승인·재검토 관리가 필수"
+        }
+      ],
+      "pitfalls": [
+        "MFA 정책을 만들었으나 서비스 계정·레거시 프로토콜·일부 임원이 예외로 빠져 실효성이 사라진다.",
+        "SMS OTP를 MFA로 계속 사용. 심 스와핑·중계 공격으로 우회 가능하며 감사 지적 대상이다.",
+        "헬프데스크가 전화 한 통으로 MFA를 초기화해 준다. 이 경로가 실제 침해의 시작점이 된다.",
+        "번호 매칭 없는 푸시 승인만 사용해 MFA 피로 공격에 노출된다.",
+        "비밀번호와 OTP 앱이 같은 휴대폰에 있고 그 휴대폰 잠금이 약하면 실질 단일요소가 된다.",
+        "MFA 적용 여부를 설정 문서로만 관리하고 실제 미등록 계정 목록을 주기적으로 뽑지 않는다.",
+        "백업 코드를 평문으로 공유 드라이브에 보관한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 원격접속·클라우드 콘솔·특권 계정 등 MFA 적용 대상이 정책으로 정의되고 실제 적용되는가",
+          "[접근] MFA 미적용(예외) 계정 목록과 사유·승인·보완통제·재검토 기록이 존재하는가",
+          "[접근] MFA 등록 및 분실 시 재설정 절차에 본인확인과 승인이 포함되는가",
+          "[운영] MFA 실패·이상 승인 이벤트가 모니터링되고 이상 징후 시 대응 절차가 있는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조에 따라 정보처리시스템 접속 시 안전한 인증수단(다중요소)이 적용되는가",
+          "내부 운영자·관리자의 외부 접속에 대해 추가 인증 및 접속 기록 관리가 이루어지는가",
+          "전자금융거래의 중요 거래에 대해 추가 인증수단이 적용되는가"
+        ],
+        "isms": [
+          "2.5.3 사용자 인증: 중요 정보 접근 시 추가 인증수단을 적용하는가",
+          "2.6.6 원격접근 통제: 외부 접속 시 강화된 인증과 접속 기록 관리가 이루어지는가",
+          "2.5.5 특수 계정 및 권한 관리: 관리자 계정에 강화된 인증이 적용되는가"
+        ],
+        "evidence": [
+          "IdP의 MFA 정책 설정 화면(대상 그룹, 요구 인증 수단, 조건부 규칙)",
+          "MFA 미등록·예외 계정 목록과 승인 문서",
+          "AWS IAM 사용자별 MFA 등록 현황 추출 결과",
+          "MFA 재설정 요청·처리 티켓 샘플(본인확인 증적 포함)",
+          "MFA 인증 실패·거부 이벤트 로그 샘플"
+        ],
+        "auditorQuestions": [
+          "MFA가 적용되지 않는 계정이나 접근 경로가 있습니까? 그 목록과 사유는 무엇입니까?",
+          "어떤 MFA 수단을 허용합니까? SMS는 아직 허용됩니까?",
+          "직원이 휴대폰을 분실했을 때 MFA를 어떻게 재설정합니까? 본인확인은 어떻게 합니까?",
+          "운영 서버·클라우드 콘솔 접근에도 MFA가 강제됩니까? 우회 경로는 없습니까?",
+          "비정상 로그인(해외 IP, 새 기기)에 대한 추가 인증 또는 차단 규칙이 있습니까?"
+        ],
+        "controlExample": "전 임직원은 중앙 IdP 로그인 시 다중요소 인증을 수행하며, 클라우드 관리콘솔·특권접근관리(PAM)·원격접속에는 피싱 내성 인증수단(FIDO2)을 필수 적용한다. MFA 예외는 CISO 승인 하에 보완통제와 함께 등록되고 반기마다 재검토되며, MFA 재설정은 신원확인과 관리자 승인을 거쳐서만 처리된다."
+      },
+      "related": [
+        "sec-fido2-passkey",
+        "sec-sso",
+        "sec-okta",
+        "sec-password-policy",
+        "sec-pam",
+        "sec-oidc",
+        "awssec-iam",
+        "sec-email-phishing"
+      ],
+      "learnMore": [
+        "NIST SP 800-63B Authentication and Lifecycle Management",
+        "CISA Implementing Phishing-Resistant MFA",
+        "Microsoft Entra Conditional Access 문서"
+      ]
+    },
+    {
+      "id": "sec-fido2-passkey",
+      "title": "FIDO2 / 패스키",
+      "titleEn": "FIDO2, WebAuthn and Passkeys",
+      "aliases": [
+        "패스키",
+        "Passkey",
+        "FIDO2",
+        "WebAuthn",
+        "보안키",
+        "YubiKey",
+        "비밀번호 없는 로그인"
+      ],
+      "tags": [
+        "iam",
+        "authentication",
+        "crypto",
+        "passwordless"
+      ],
+      "level": "중급",
+      "oneLiner": "기기 안 개인키로 서명해 로그인하는, 피싱이 통하지 않는 인증 방식",
+      "analogy": "패스키는 인감도장과 인감증명 제도와 같다. 도장(개인키)은 절대 내 손을 떠나지 않고, 서류에 찍은 도장 자국(서명)만 상대에게 준다. 도장 자국을 훔쳐도 다른 서류에 쓸 수 없고, 도장 자체를 복제할 수도 없다. 게다가 이 도장은 '거래처 이름이 정확히 맞을 때만 찍히는' 특수 도장이라, 이름이 한 글자라도 다른 가짜 회사 서류에는 아예 찍히지 않는다. 그것이 피싱 내성이다.",
+      "explanation": "<p><strong>FIDO2</strong>는 비밀번호 없이(또는 비밀번호를 대체해) 공개키 암호로 로그인하는 표준 묶음이다. 브라우저 API 표준인 <strong>WebAuthn</strong>과 인증 기기와 통신하는 프로토콜 <strong>CTAP2</strong>로 구성된다. <strong>패스키(Passkey)</strong>는 FIDO2 자격증명을 사용자 친화적으로 부르는 이름이며, 특히 여러 기기에 동기화되는 형태를 가리키는 경우가 많다.</p><p><strong>동작의 핵심은 공개키 암호</strong>다. 등록할 때 사용자의 기기(보안키, 스마트폰의 보안칩, 노트북의 TPM)가 <strong>사이트마다 다른 키 쌍</strong>을 만든다. 개인키는 기기 밖으로 절대 나오지 않고, 공개키만 서비스에 저장된다. 로그인할 때 서비스가 보낸 난수(challenge)에 기기가 개인키로 서명하고, 서비스는 저장된 공개키로 검증한다. 서버에 저장되는 것이 '공개키'뿐이므로, <strong>서버가 해킹당해도 훔칠 비밀이 없다</strong>는 점이 비밀번호와 근본적으로 다르다.</p><p><strong>피싱이 왜 통하지 않는가.</strong> 서명 대상에는 현재 접속한 <strong>도메인(origin)</strong>이 포함되고, 이 값은 브라우저가 채워 넣는다. 사용자가 속아서 <code>paynow-secure.example</code> 같은 가짜 사이트에 들어가면 브라우저가 그 도메인으로 서명을 요청하지만, 기기에는 진짜 <code>paynow.example</code>용 키만 있으므로 <strong>서명할 키 자체가 없다</strong>. 사용자가 아무리 속아도 인증이 성립하지 않는다. TOTP·SMS와 결정적으로 갈리는 지점이다.</p><p><strong>패스키의 두 종류</strong>를 구분해야 감사 대화가 정확해진다. <strong>동기화 패스키(synced)</strong>는 iCloud 키체인·Google 비밀번호 관리자·1Password 등을 통해 사용자의 여러 기기로 복제된다. 편의성이 높지만 키가 클라우드 계정 보안에 의존하고 개인 기기로 퍼질 수 있다. <strong>기기 바인딩 패스키(device-bound)</strong>는 YubiKey 같은 물리 보안키나 특정 단말의 보안칩에만 존재하며 복제되지 않는다. 금융권·특권 접근에는 기기 바인딩을 요구하는 것이 일반적이다.</p><p><strong>사용자 검증(User Verification, UV)</strong> 개념도 중요하다. 보안키를 꽂아 터치만 하면 '소유' 요소 하나지만, PIN 입력이나 지문 확인을 함께 하면 '소유 + 지식/생체'가 되어 그 자체로 다중요소가 된다. 이를 UV 필수로 설정하면 패스키 하나로 MFA 요건을 충족한다.</p><p><strong>도입 시 현실적 과제</strong>는 등록과 복구다. 기기를 분실하면 그 안의 개인키도 사라지므로 <strong>최소 2개 이상의 인증 수단 등록</strong>(예: 보안키 2개, 또는 패스키 + 백업 보안키)이 실무 원칙이다. 또한 복구 절차가 약하면(헬프데스크 전화 한 통으로 재등록) 공격자가 그 경로를 노리므로, 복구야말로 가장 중요한 통제 포인트가 된다. 감사인은 '패스키를 도입했다'보다 <strong>'분실 시 어떻게 재등록하는가'</strong>를 더 깊게 본다.</p>",
+      "howItWorks": "<ol><li>[등록] 사용자가 로그인된 상태에서 '보안키 추가'를 선택하면 서비스가 challenge와 서비스 식별자(rpId), 사용자 정보를 브라우저에 전달한다.</li><li>브라우저가 WebAuthn API로 인증기(보안키·단말 보안칩)에 전달하고, 인증기가 PIN·지문으로 사용자를 검증한다.</li><li>인증기가 이 서비스 전용 키 쌍을 생성하고, 공개키와 자격증명 ID, 인증기 정보(AAGUID)를 서명해 반환한다.</li><li>서비스가 서명을 검증하고 공개키·자격증명 ID를 사용자 계정에 저장한다. 개인키는 기기 밖으로 나오지 않는다.</li><li>[로그인] 서비스가 새 challenge와 허용 자격증명 목록을 보낸다.</li><li>브라우저가 현재 origin을 포함한 클라이언트 데이터를 만들고 인증기에 서명을 요청한다.</li><li>인증기가 사용자 검증(지문·PIN) 후 개인키로 서명하고, 서명 카운터를 증가시켜 함께 반환한다.</li><li>서비스가 저장된 공개키로 서명을 검증하고, rpId·origin 일치와 사용자 검증 플래그(UV), 서명 카운터 역행 여부를 확인한 뒤 세션을 발급한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 2025년에 전 직원 패스키 전환을 완료했다. 일반 직원은 회사 지급 노트북의 플랫폼 인증기(Windows Hello/Touch ID)와 휴대폰 패스키 2개를 등록한다. 반면 <strong>운영 권한자 18명</strong>은 동기화 패스키를 금지하고 YubiKey 2개(주·예비)만 허용하며, Okta 인증 정책에서 <code>authenticator: FIDO2 (hardware-protected)</code>와 <code>User Verification: required</code>를 강제한다. 분실 시에는 팀장 승인 + 화상 신원확인 + 보안팀 2인 확인 후에만 재등록이 가능하고, 재등록 이력은 System Log에서 월간으로 검토한다. 전환 이후 사내 피싱 모의훈련에서 자격증명 탈취 성공률이 0%로 떨어졌다.</p><pre><code>// WebAuthn 등록 요청 (브라우저 측)\nconst cred = await navigator.credentials.create({\n  publicKey: {\n    challenge: base64urlToBuffer(serverChallenge),\n    rp: { id: \"paynow.example\", name: \"PayNow\" },   // 이 도메인 전용 키\n    user: { id: userIdBuf, name: \"eddie.kim\", displayName: \"Eddie Kim\" },\n    pubKeyCredParams: [{ type: \"public-key\", alg: -7 }],   // ES256\n    authenticatorSelection: {\n      authenticatorAttachment: \"cross-platform\",  // 물리 보안키 요구\n      residentKey: \"required\",\n      userVerification: \"required\"                // PIN/지문까지 = 2요소\n    },\n    attestation: \"direct\"   // 인증기 종류 확인용\n  }\n});\n\n// 서버 검증 시 확인 항목\n// 1) origin == \"https://paynow.example\"  2) rpIdHash 일치\n// 3) flags.UV == true  4) signCount 역행 없음  5) AAGUID가 허용 목록인지</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='90' width='120' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='80' y='114' text-anchor='middle' fill='currentColor' font-size='12'>인증기</text><text x='80' y='132' text-anchor='middle' fill='currentColor' font-size='11'>개인키 보관</text><text x='80' y='150' text-anchor='middle' fill='currentColor' font-size='11'>(밖으로 안 나감)</text><rect x='185' y='90' width='120' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='245' y='114' text-anchor='middle' fill='currentColor' font-size='12'>브라우저</text><text x='245' y='134' text-anchor='middle' fill='currentColor' font-size='11'>origin 주입</text><text x='245' y='152' text-anchor='middle' fill='currentColor' font-size='11'>(위조 불가)</text><rect x='350' y='90' width='130' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='415' y='114' text-anchor='middle' fill='currentColor' font-size='12'>서비스</text><text x='415' y='134' text-anchor='middle' fill='currentColor' font-size='11'>공개키만 저장</text><text x='415' y='152' text-anchor='middle' fill='currentColor' font-size='11'>훔칠 비밀 없음</text><line x1='350' y1='105' x2='307' y2='105' stroke='currentColor' marker-end='url(#ar)'/><text x='328' y='84' text-anchor='middle' fill='currentColor' font-size='11'>challenge</text><line x1='185' y1='105' x2='142' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='145' x2='183' y2='145' stroke='currentColor' marker-end='url(#ar)'/><line x1='305' y1='145' x2='348' y2='145' stroke='currentColor' marker-end='url(#ar)'/><text x='245' y='178' text-anchor='middle' fill='currentColor' font-size='11'>서명(origin 포함)</text><rect x='500' y='40' width='130' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='565' y='62' text-anchor='middle' fill='currentColor' font-size='12'>가짜 사이트</text><text x='512' y='84' fill='currentColor' font-size='11'>origin 불일치</text><text x='512' y='102' fill='currentColor' font-size='11'>→ 서명할 키 없음</text><text x='512' y='116' fill='currentColor' font-size='11'>→ 피싱 실패</text><text x='20' y='36' fill='currentColor' font-size='12'>FIDO2 = WebAuthn(브라우저) + CTAP2(기기)</text><text x='20' y='210' fill='currentColor' font-size='11'>동기화 패스키: 편리, 클라우드 계정 의존   /   기기 바인딩(보안키): 복제 불가, 특권용</text><text x='20' y='232' fill='currentColor' font-size='11'>필수 운영: 인증수단 2개 이상 등록 + 엄격한 재등록(복구) 절차</text></svg>",
+      "keyTerms": [
+        {
+          "term": "WebAuthn",
+          "meaning": "브라우저가 인증기와 통신해 공개키 인증을 수행하는 W3C 표준 API"
+        },
+        {
+          "term": "CTAP2",
+          "meaning": "PC·모바일과 외부 보안키 간 통신 프로토콜(USB/NFC/BLE)"
+        },
+        {
+          "term": "rpId / origin",
+          "meaning": "자격증명이 묶이는 도메인. 피싱 내성의 근거"
+        },
+        {
+          "term": "동기화 패스키",
+          "meaning": "클라우드로 여러 기기에 복제되는 패스키. 편의성↑ 통제성↓"
+        },
+        {
+          "term": "기기 바인딩 패스키",
+          "meaning": "특정 하드웨어에만 존재해 복제되지 않는 자격증명"
+        },
+        {
+          "term": "사용자 검증(UV)",
+          "meaning": "PIN·생체로 사용자를 확인하는 단계. 켜면 단독으로 다중요소 성립"
+        },
+        {
+          "term": "AAGUID",
+          "meaning": "인증기 모델 식별자. 허용 기기 화이트리스트 운영에 사용"
+        },
+        {
+          "term": "서명 카운터",
+          "meaning": "복제 탐지용 증가 카운터. 역행 시 복제 의심"
+        }
+      ],
+      "pitfalls": [
+        "보안키를 1개만 등록시켜 분실 시 계정이 잠기고, 결국 약한 복구 경로(SMS·헬프데스크)를 다시 열게 된다.",
+        "패스키를 도입했다면서 비밀번호 로그인 경로를 그대로 열어둬 공격자가 약한 쪽으로만 들어온다.",
+        "동기화 패스키를 특권 계정에 허용. 개인 클라우드 계정 침해가 곧 운영 권한 침해가 된다.",
+        "사용자 검증(UV)을 required로 두지 않아 보안키 터치만으로 통과되어 단일 요소가 된다.",
+        "재등록(복구) 절차의 신원확인이 약해 그 경로가 실제 공격 대상이 된다.",
+        "AAGUID 허용 목록을 관리하지 않아 신뢰할 수 없는 저가 인증기가 등록된다.",
+        "서버가 origin·rpIdHash 검증을 생략해 피싱 내성이라는 장점을 스스로 없앤다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 특권·운영 계정에 피싱 내성 인증수단이 적용되고 허용 인증기 유형이 정책으로 제한되는가",
+          "[접근] 인증수단 등록·재등록(분실 복구) 절차에 본인확인과 승인이 포함되고 기록되는가",
+          "[접근] 비밀번호 등 약한 대체 로그인 경로가 차단 또는 통제되는가",
+          "[운영] 인증수단 등록 현황(사용자별 등록 개수·유형)이 주기적으로 점검되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 접근통제 및 안전한 인증수단 요건에 부합하는 인증방식을 사용하는가",
+          "관리자·운영자 접속에 강화된 인증수단이 적용되고 그 기록이 보존되는가",
+          "인증수단 분실·재발급 절차가 문서화되고 통제되는가"
+        ],
+        "isms": [
+          "2.5.3 사용자 인증: 안전한 인증수단 선정 기준과 적용 현황이 관리되는가",
+          "2.5.4 비밀번호 관리: 비밀번호 대체·병행 수단의 관리 기준이 있는가",
+          "2.6.6 원격접근 통제: 외부에서의 접근에 강화된 인증이 적용되는가"
+        ],
+        "evidence": [
+          "IdP 인증 정책 화면(허용 인증기 유형, UV 요구 여부, 대상 그룹)",
+          "사용자별 등록 인증수단 목록 export(유형·등록일·개수)",
+          "MFA/패스키 재등록 요청 티켓 샘플과 본인확인 증적",
+          "특권 계정의 하드웨어 보안키 지급·회수 대장",
+          "비밀번호 로그인 차단 설정 또는 예외 승인 문서"
+        ],
+        "auditorQuestions": [
+          "운영 권한자는 어떤 인증수단을 사용합니까? 동기화 패스키도 허용됩니까?",
+          "인증수단을 분실하면 어떤 절차로 재등록합니까? 누가 승인합니까?",
+          "사용자당 등록된 인증수단이 2개 이상인지 확인하고 있습니까?",
+          "비밀번호만으로 로그인할 수 있는 경로가 남아 있습니까?",
+          "허용되는 보안키 모델을 제한하고 있습니까? 어떻게 관리합니까?"
+        ],
+        "controlExample": "운영 권한자 및 특권 계정은 기기 바인딩 FIDO2 보안키(사용자 검증 필수)로만 인증하며, 사용자당 2개 이상의 인증수단 등록을 강제하고 비밀번호 단독 로그인 경로를 차단한다. 인증수단 분실 시 재등록은 화상 신원확인과 부서장 승인을 거쳐 처리되고 재등록 이력은 월 1회 검토된다."
+      },
+      "related": [
+        "sec-mfa",
+        "sec-sso",
+        "sec-okta",
+        "sec-password-policy",
+        "sec-crypto-basics",
+        "sec-email-phishing",
+        "sec-entra-id",
+        "sec-authn-authz"
+      ],
+      "learnMore": [
+        "W3C Web Authentication (WebAuthn) Level 3",
+        "FIDO Alliance Passkeys 문서",
+        "CISA Implementing Phishing-Resistant MFA"
+      ]
+    },
+    {
+      "id": "sec-okta",
+      "title": "Okta",
+      "titleEn": "Okta Identity Cloud",
+      "aliases": [
+        "옥타",
+        "Okta",
+        "IdP",
+        "SSO 솔루션",
+        "Universal Directory",
+        "System Log"
+      ],
+      "tags": [
+        "iam",
+        "saas",
+        "idp",
+        "sso"
+      ],
+      "level": "중급",
+      "oneLiner": "SaaS형 통합 신원관리 플랫폼. SSO·MFA·프로비저닝·라이프사이클을 한곳에서 운영",
+      "analogy": "Okta는 회사의 통합 경비실이자 인사 연동 센터와 같다. 정문 출입(SSO)과 얼굴 확인(MFA)을 담당하고, 인사팀에서 오는 입·퇴사 명단(HR 연동)에 따라 사원증을 만들고 없애며, 각 사무실(SaaS)에 '이 사람 들여보내라'고 통보(SCIM)한다. 경비실 일지(System Log)에는 누가 언제 어느 문을 열었는지가 전부 남는다.",
+      "explanation": "<p><strong>Okta</strong>는 클라우드 기반 신원·접근 관리(IAM) 플랫폼으로, 기업의 IdP 역할을 한다. 한국 기업에서도 SaaS 사용이 늘면서 표준 선택지가 되었고, ITGC 감사에서 '계정 관리 증적'의 상당 부분이 Okta 화면과 로그에서 나온다. Eddie 같은 감사 담당자는 Okta의 4가지 축 — <strong>디렉터리, 앱 통합, 정책, 라이프사이클</strong> — 만 알면 대부분의 질문을 던질 수 있다.</p><p><strong>Universal Directory(사용자 저장소)</strong>가 첫 번째 축이다. 모든 사용자와 그 속성(부서, 직급, 매니저, 고용형태, 재직상태)을 보관한다. 이 속성의 원본은 보통 HR 시스템(Workday, 더존, 자체 인사)이며, HR-driven provisioning으로 동기화한다. <strong>속성이 정확해야 뒤따르는 모든 자동화가 정확해진다</strong>는 점이 핵심이다.</p><p><strong>앱 통합(Application Integration)</strong>이 두 번째다. Okta Integration Network(OIN)에 수천 개 SaaS 템플릿이 있어 SAML/OIDC 연동을 몇 분에 끝낸다. 각 앱에는 <strong>Assignment(할당)</strong>가 있는데, 개인 단위 할당과 그룹 단위 할당이 가능하다. 감사 관점에서 <strong>개인 직접 할당은 위험 신호</strong>다. 그룹 기반이어야 권한의 근거(왜 이 권한을 갖는가)가 설명되고 회수도 자동화된다.</p><p><strong>그룹 규칙(Group Rules)</strong>이 세 번째 축이자 자동화의 심장이다. <code>user.department == \"정보보안\" AND user.employeeType == \"정규직\"</code> 같은 조건식으로 그룹 편입을 자동화한다. 부서가 바뀌면 조건이 깨져 자동으로 그룹에서 빠지고, 그에 연결된 앱 권한도 회수된다. 반대로 규칙이 잘못 설계되면 대량 권한 오부여가 순식간에 일어나므로, <strong>그룹 규칙 변경은 변경관리 대상</strong>으로 다뤄야 한다.</p><p><strong>Lifecycle Management와 정책</strong>이 네 번째다. HR에서 퇴직이 내려오면 Okta가 계정을 <code>DEPROVISIONED</code> 상태로 만들고, SCIM 연동 앱에 삭제·비활성화를 전파하며, 세션을 폐기한다. 인증 정책(Authentication Policy)과 글로벌 세션 정책으로 '어떤 앱에 어떤 인증 강도와 세션 수명을 적용할지'를 앱별로 정한다. 예컨대 AWS 콘솔 앱만 FIDO2 필수 + 1시간 세션으로 조일 수 있다.</p><p><strong>감사에서 반드시 확인할 것은 Okta 자체의 특권</strong>이다. Super Administrator는 모든 연동 앱에 대한 권한을 사실상 부여할 수 있는 최상위 계정이다. 2023년 업계에서 발생한 Okta 지원 시스템 침해 사례 이후, 관리자 계정 보호(피싱 내성 MFA, 관리자 전용 정책, 관리자 수 최소화)와 <strong>System Log 외부 반출(SIEM 연동)</strong>이 표준 권고가 되었다. System Log는 기본 보존기간이 제한적(통상 90일)이므로, SOX 감사에 쓰려면 SIEM이나 S3로 장기 보관해야 한다.</p>",
+      "howItWorks": "<ol><li>HR 시스템이 신규 입사자를 등록하면 Okta HR-driven provisioning이 사용자 프로필을 생성한다(상태: STAGED).</li><li>그룹 규칙이 부서·직무 속성을 평가해 해당 사용자를 <code>dept-security</code> 같은 그룹에 자동 편입한다.</li><li>그룹에 할당된 앱들(Slack, Jira, AWS 등)에 SCIM으로 계정 생성 요청이 전파되고, 앱 내 역할도 매핑에 따라 설정된다.</li><li>사용자가 Okta 대시보드에 로그인하면 글로벌 세션 정책이 평가되어 MFA 요구 여부가 결정된다.</li><li>사용자가 앱 타일을 클릭하면 해당 앱의 인증 정책이 추가로 평가되고(예: 운영 콘솔은 FIDO2 재인증), 통과하면 SAML Assertion 또는 OIDC 토큰이 발급된다.</li><li>권한 변경이 필요하면 Okta Workflows 또는 ITSM 연동으로 승인 워크플로를 거쳐 그룹 멤버십이 변경된다.</li><li>퇴직이 HR에 반영되면 Okta가 사용자를 비활성화(DEPROVISIONED)하고 세션·토큰을 폐기하며 SCIM 연동 앱에 해지를 전파한다.</li><li>모든 이벤트(로그인, 그룹 변경, 정책 변경, 관리자 활동)가 System Log에 기록되고, Log Streaming으로 SIEM에 실시간 전달된다.</li></ol>",
+      "example": "<p>가상의 커머스 '쇼핑캐스트'는 Okta에 사용자 1,200명, 앱 42개를 운영한다. 그룹 규칙 28개가 부서·고용형태·직무 코드를 기준으로 기본 권한을 자동 부여하고, 운영 권한처럼 민감한 그룹 6개는 규칙이 아니라 <strong>Access Request(승인 워크플로)</strong>로만 가입되게 했다. Super Admin은 3명(정보보안팀 2, 플랫폼팀 1)뿐이고 모두 YubiKey 필수다. System Log는 Log Streaming으로 Splunk에 실시간 전송되어 2년 보관하며, SOX 감사 때는 Splunk에서 '분기 중 운영 그룹 멤버십 변경 전체'를 추출해 승인 티켓과 대사한다. 2026년 1분기 대사에서 승인 없이 추가된 1건이 발견돼 즉시 회수하고 예외 보고했다.</p><pre><code># 특정 그룹의 현재 구성원 추출 (권한 리뷰 증빙)\ncurl -s -H \"Authorization: SSWS ${OKTA_TOKEN}\" \\\n  \"https://shopcast.okta.com/api/v1/groups/00g1prodadmin/users?limit=200\" \\\n| jq -r '.[] | [.profile.login, .profile.department, .status] | @csv'\n\n# 그룹 규칙 예시 (자동 편입 조건)\nuser.department == \"정보보안\" AND user.employeeType == \"FULL_TIME\"\n\n# 관리자 활동만 골라 보기 (System Log API)\ncurl -s -H \"Authorization: SSWS ${OKTA_TOKEN}\" \\\n  \"https://shopcast.okta.com/api/v1/logs?since=2026-07-01T00:00:00Z&amp;filter=\\\n eventType eq \\\"group.user_membership.add\\\" or eventType eq \\\"user.account.privilege.grant\\\"\" \\\n| jq -r '.[] | [.published, .actor.alternateId, .target[0].alternateId, .eventType] | @csv'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='95' width='100' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='118' text-anchor='middle' fill='currentColor' font-size='12'>HR 시스템</text><text x='65' y='136' text-anchor='middle' fill='currentColor' font-size='11'>속성 원본</text><line x1='115' y1='122' x2='165' y2='122' stroke='currentColor' marker-end='url(#ar)'/><rect x='165' y='55' width='190' height='150' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='260' y='76' text-anchor='middle' fill='currentColor' font-size='12'>Okta</text><rect x='177' y='86' width='166' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='105' text-anchor='middle' fill='currentColor' font-size='11'>Universal Directory</text><rect x='177' y='120' width='166' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='139' text-anchor='middle' fill='currentColor' font-size='11'>그룹 규칙 (자동 편입)</text><rect x='177' y='154' width='166' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='173' text-anchor='middle' fill='currentColor' font-size='11'>인증 정책 · MFA</text><line x1='355' y1='90' x2='420' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='355' y1='130' x2='420' y2='130' stroke='currentColor' marker-end='url(#ar)'/><line x1='355' y1='170' x2='420' y2='200' stroke='currentColor' marker-end='url(#ar)'/><rect x='420' y='38' width='200' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='64' text-anchor='middle' fill='currentColor' font-size='12'>SSO (SAML/OIDC)</text><rect x='420' y='108' width='200' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='134' text-anchor='middle' fill='currentColor' font-size='12'>SCIM 프로비저닝</text><rect x='420' y='178' width='200' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='197' text-anchor='middle' fill='currentColor' font-size='12'>System Log</text><text x='520' y='214' text-anchor='middle' fill='currentColor' font-size='11'>→ SIEM 장기보관</text><text x='15' y='36' fill='currentColor' font-size='12'>Okta 4축: 디렉터리 · 앱통합 · 정책 · 라이프사이클</text><text x='15' y='185' fill='currentColor' font-size='11'>감사 핵심:</text><text x='15' y='203' fill='currentColor' font-size='11'>Super Admin 최소화</text><text x='15' y='221' fill='currentColor' font-size='11'>개인 직접할당 최소화</text><text x='15' y='239' fill='currentColor' font-size='11'>로그 보존기간 연장</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Universal Directory",
+          "meaning": "Okta의 사용자·속성 저장소. 모든 자동화의 기준 데이터"
+        },
+        {
+          "term": "Assignment(할당)",
+          "meaning": "앱에 사용자를 연결하는 것. 그룹 할당이 원칙, 개인 할당은 예외"
+        },
+        {
+          "term": "Group Rule(그룹 규칙)",
+          "meaning": "속성 조건으로 그룹 편입을 자동화하는 규칙. 변경관리 대상"
+        },
+        {
+          "term": "System Log",
+          "meaning": "모든 인증·관리 이벤트 기록. 기본 보존이 짧아 SIEM 반출 필요"
+        },
+        {
+          "term": "Lifecycle Management",
+          "meaning": "HR 이벤트에 따른 계정 생성·비활성화·해지 자동화 기능"
+        },
+        {
+          "term": "Super Administrator",
+          "meaning": "Okta 최상위 관리자. 사실상 전 연동 앱의 권한을 좌우"
+        },
+        {
+          "term": "OIN",
+          "meaning": "Okta Integration Network. 검증된 SaaS 연동 템플릿 모음"
+        },
+        {
+          "term": "Access Request",
+          "meaning": "민감 그룹 가입을 승인 워크플로로 통제하는 기능"
+        }
+      ],
+      "pitfalls": [
+        "앱 권한을 개인 직접 할당으로 운영해 권한 근거 설명과 자동 회수가 불가능해진다.",
+        "System Log 기본 보존기간(통상 90일)만 믿다가 SOX 감사 기간(1년) 증적을 제출하지 못한다.",
+        "Super Admin을 편의상 여러 명에게 부여. 사실상 전사 최고권한을 나눠 준 것과 같다.",
+        "그룹 규칙 수정을 단순 설정으로 보고 승인 없이 변경해 대량 권한 오부여가 발생한다.",
+        "SCIM 연동을 생성(Create)만 켜고 비활성화(Deactivate)는 꺼둬 퇴사자 계정이 앱에 남는다.",
+        "API 토큰(SSWS)을 장기·광범위 권한으로 발급해 놓고 회전·회수하지 않는다.",
+        "HR 속성 품질(부서코드 공백, 오타)이 나빠 그룹 규칙이 조용히 어긋난다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] Okta Super Admin 등 관리자 역할 보유자가 최소화되고 부여·회수에 승인 증적이 있는가",
+          "[접근] 앱 권한이 그룹 기반으로 부여되는가, 개인 직접 할당 건은 식별·승인·검토되는가",
+          "[변경] 그룹 규칙·인증 정책·앱 연동 설정 변경이 변경관리 절차를 거치고 System Log로 추적 가능한가",
+          "[접근] HR 연동과 라이프사이클 자동화가 퇴직자 즉시 차단으로 이어지는지 표본 검증되는가",
+          "[운영] System Log가 SIEM 등으로 반출되어 감사 기간 이상 보존되는가"
+        ],
+        "fss": [
+          "IdP를 SaaS로 이용함에 따라 전자금융감독규정 제14조의2 클라우드컴퓨팅서비스 이용절차(중요도 평가·안전성 확보조치)를 이행했는가",
+          "전자금융감독규정 제15조 접근통제 요건(권한 부여·변경·말소, 접속기록 보존)이 충족되는가",
+          "IdP 장애 시 업무연속성 확보 방안과 위탁사 관리 체계가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.6 접근권한 검토: 계정·권한의 생성·회수·정기검토가 운영되는가",
+          "2.5.5 특수 계정 및 권한 관리: 관리자 역할 보유자 통제와 모니터링이 이루어지는가",
+          "2.9.4 로그 및 접속기록 관리: 인증·권한변경 로그가 충분한 기간 안전하게 보존되는가",
+          "2.3.x 외부자 보안: SaaS IdP 공급자에 대한 보안 요구사항과 점검이 이루어지는가"
+        ],
+        "evidence": [
+          "Okta 관리자 역할 보유자 목록(Admin 유형별)과 부여 승인 기록",
+          "앱별 Assignment export(그룹 vs 개인 직접 할당 구분)",
+          "그룹 규칙 목록과 최근 변경 이력(System Log 이벤트)",
+          "퇴직자 표본의 상태 변경 로그(user.lifecycle.deactivate)와 SCIM 전파 결과",
+          "System Log → SIEM 스트리밍 설정 화면과 보존기간 정책",
+          "Okta API 토큰 목록과 최근 회전 이력"
+        ],
+        "auditorQuestions": [
+          "Super Admin 권한 보유자는 몇 명이며 언제 마지막으로 검토했습니까?",
+          "앱 권한 중 개인 직접 할당은 몇 건이며 그 사유는 무엇입니까?",
+          "그룹 규칙을 바꾸면 어떤 승인을 거칩니까? 최근 변경 사례를 보여줄 수 있습니까?",
+          "System Log는 얼마나 보관됩니까? 1년 전 권한 변경 이력을 지금 조회할 수 있습니까?",
+          "퇴직자가 Okta에서 비활성화된 뒤 각 SaaS 계정은 실제로 어떻게 되었습니까?"
+        ],
+        "controlExample": "Okta 관리자(Super Admin) 권한은 정보보호팀 2인, 플랫폼팀 1인으로 제한되며 FIDO2 인증이 강제된다. 애플리케이션 권한은 그룹 기반으로만 부여하고 민감 그룹 가입은 Access Request 승인 워크플로를 통해서만 처리되며, System Log는 SIEM으로 실시간 전송되어 2년간 보존되고 분기별 권한 리뷰 시 승인 기록과 대사한다."
+      },
+      "related": [
+        "sec-sso",
+        "sec-scim",
+        "sec-identity-lifecycle",
+        "sec-mfa",
+        "sec-uar",
+        "sec-saml",
+        "sec-oidc",
+        "sec-siem"
+      ],
+      "learnMore": [
+        "Okta Product Documentation - Universal Directory",
+        "Okta System Log API 문서",
+        "Okta Lifecycle Management 가이드"
+      ]
+    },
+    {
+      "id": "sec-keycloak",
+      "title": "Keycloak",
+      "titleEn": "Keycloak Open Source Identity and Access Management",
+      "aliases": [
+        "키클록",
+        "키클로크",
+        "Keycloak",
+        "오픈소스 IdP",
+        "Realm",
+        "Red Hat SSO"
+      ],
+      "tags": [
+        "iam",
+        "opensource",
+        "idp",
+        "sso"
+      ],
+      "level": "중급",
+      "oneLiner": "직접 설치해 운영하는 오픈소스 IdP. OIDC·SAML·사용자 페더레이션을 모두 지원",
+      "analogy": "Okta가 보안회사에 경비를 위탁하는 것이라면, Keycloak은 회사가 직접 경비실을 차리고 직원을 배치하는 것이다. 규정도 우리가 정하고 근무표도 우리가 짜니 자유롭지만, 경비실 건물 관리·야간 교대·비상 대응까지 전부 우리 책임이다. 경비실이 멈추면 모든 문이 안 열린다는 점도 똑같다.",
+      "explanation": "<p><strong>Keycloak</strong>은 레드햇이 주도하는 오픈소스 신원·접근 관리 솔루션이다. OIDC, OAuth 2.0, SAML 2.0을 모두 지원하고, 사용자 저장소를 자체 DB로 두거나 LDAP·Active Directory와 연동할 수 있으며, 소셜 로그인과 외부 IdP 브로커링도 가능하다. 라이선스 비용이 없고 데이터가 회사 내부에 남기 때문에, 국내 금융·공공에서 내부 시스템 SSO 용도로 널리 쓰인다.</p><p><strong>가장 먼저 이해할 개념은 Realm(렐름)</strong>이다. Realm은 서로 완전히 격리된 사용자·클라이언트·정책의 집합으로, '독립된 인증 세계' 하나를 뜻한다. 보통 <code>employees</code>(임직원)와 <code>customers</code>(고객)처럼 성격이 다른 집단을 분리하거나, 운영/개발 환경을 분리한다. 여기서 주의할 것은 <strong>master realm</strong>이다. master realm의 관리자는 다른 모든 realm을 관리할 수 있는 최상위 권한이므로, 계정 수를 극도로 제한하고 MFA를 강제해야 한다.</p><p><strong>클라이언트(Client)</strong>는 Keycloak에 연동된 애플리케이션이다. 공개 클라이언트(브라우저 SPA·모바일, 시크릿 보관 불가)와 기밀 클라이언트(서버 앱, 시크릿 보유)로 나뉜다. 클라이언트마다 허용 그랜트, 리다이렉트 URI, 토큰 수명, <strong>Client Scope와 Protocol Mapper</strong>를 설정한다. Protocol Mapper는 '사용자의 어떤 속성·그룹을 토큰의 어떤 클레임으로 넣을지'를 정하는 부분으로, 사실상 권한 전달 경로이므로 변경관리 대상이다.</p><p><strong>인증 흐름(Authentication Flow)</strong>은 Keycloak의 강력한 기능이자 위험 지점이다. 로그인 과정을 단계별로 조립할 수 있어서 '사내 IP면 비밀번호만, 외부면 OTP 추가' 같은 조건부 인증을 구현할 수 있다. 반대로 흐름을 잘못 편집하면 인증 단계를 통째로 우회시키는 구성이 만들어질 수 있으므로, 흐름 변경은 반드시 리뷰·승인·테스트를 거쳐야 한다.</p><p><strong>사용자 페더레이션(User Federation)</strong>으로 기존 AD/LDAP을 그대로 쓰면서 Keycloak을 앞단에 둘 수 있다. 이때 비밀번호 검증은 AD에 위임되고 Keycloak은 토큰만 발급한다. 국내 기업에서 AD는 그대로 두고 클라우드 앱만 SSO로 붙일 때 흔히 쓰는 구조다.</p><p><strong>운영 책임이 전부 회사에 있다는 점</strong>이 Okta와의 결정적 차이다. 고가용성 구성(다중 인스턴스 + 외부 DB + 세션 캐시 클러스터), 버전 업그레이드와 보안 패치(Keycloak은 CVE 대응이 잦다), 백업·복구, 인증서 갱신, 모니터링이 모두 회사 몫이다. 감사에서는 <strong>'IdP 자체의 가용성·패치·백업'</strong>을 반드시 묻는다. IdP가 죽으면 전 시스템 로그인이 멈추기 때문이다.</p><p><strong>감사 증적 확보</strong>도 직접 설계해야 한다. Keycloak은 로그인 이벤트(Login Events)와 관리 이벤트(Admin Events)를 켜야만 기록하며 기본 보존기간도 짧다. Admin Events에 'Include representation'을 켜면 무엇이 어떻게 바뀌었는지까지 남는다. 이 두 설정이 꺼져 있으면 권한 변경 이력을 증명할 방법이 없어 감사 결함으로 직결된다.</p>",
+      "howItWorks": "<ol><li>관리자가 Realm을 만들고, 사용자 저장소를 선택한다(내장 DB 또는 LDAP/AD 페더레이션).</li><li>연동할 애플리케이션을 Client로 등록하고 프로토콜(OIDC/SAML), 리다이렉트 URI, 그랜트 타입을 설정한다.</li><li>Protocol Mapper로 사용자 속성·그룹을 토큰 클레임(groups, roles 등)에 매핑한다.</li><li>Role(realm role, client role)과 Group을 만들고 사용자에게 부여한다. 보통 Group에 Role을 붙이고 사용자는 Group에만 넣는다.</li><li>Authentication Flow와 Required Action(최초 로그인 시 OTP 등록 등), 비밀번호 정책을 설정한다.</li><li>사용자가 앱 접속 → Keycloak으로 리다이렉트 → 흐름에 따라 인증(필요 시 LDAP에 비밀번호 검증 위임, OTP 요구).</li><li>Keycloak이 서명된 토큰을 발급하고 세션을 생성한다. 앱은 JWKS로 서명을 검증한다.</li><li>Login Events / Admin Events가 DB에 기록되고, 설정한 보존기간 후 삭제된다. 장기 보관이 필요하면 로그를 외부(SIEM)로 내보낸다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 사내 시스템 SSO에 Keycloak 26.x를 쓴다. Realm은 <code>corp</code>(임직원)와 <code>partner</code>(협력사) 둘이고, master realm 관리자는 2명뿐이며 FIDO2가 강제된다. 사용자 인증은 기존 AD에 위임(User Federation)하고, 그룹은 AD 그룹을 그대로 매핑한다. Keycloak은 EKS 위에 3개 Pod로 HA 구성하고 세션은 외부 Infinispan 캐시, 사용자 DB는 RDS PostgreSQL(Multi-AZ)로 둔다. Admin Events는 representation 포함으로 켜고 90일 보존하되, Loki/Splunk로 실시간 전송해 2년 보관한다. 2026년 2월 Keycloak CVE 긴급 패치 때는 무중단 롤링 업그레이드를 수행하고 변경관리 티켓에 검증 결과를 첨부했다.</p><pre><code># 관리 CLI 로그인 후 클라이언트 토큰 수명 확인\nkcadm.sh config credentials --server https://sso.paynow.example \\\n  --realm master --user svc-audit\nkcadm.sh get realms/corp --fields \\\n  accessTokenLifespan,ssoSessionIdleTimeout,ssoSessionMaxLifespan\n\n# 관리 이벤트(권한 변경 등) 조회 - 감사 증적\nkcadm.sh get admin-events -r corp \\\n  --query 'operationTypes=CREATE,UPDATE,DELETE' \\\n  --query 'resourceTypes=REALM_ROLE_MAPPING,GROUP_MEMBERSHIP' \\\n  --query 'dateFrom=2026-07-01'\n\n# 이벤트 설정 (감사 필수: 기본은 꺼져 있음)\nrealm 설정 &gt; Sessions/Events:\n  User events: ON, Expiration: 90 days\n  Admin events: ON, Include representation: ON</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='150' y='40' width='340' height='150' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='62' text-anchor='middle' fill='currentColor' font-size='12'>Keycloak (자체 운영)</text><rect x='165' y='74' width='145' height='36' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='237' y='97' text-anchor='middle' fill='currentColor' font-size='11'>Realm: corp</text><rect x='330' y='74' width='145' height='36' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='402' y='97' text-anchor='middle' fill='currentColor' font-size='11'>Realm: partner</text><rect x='165' y='118' width='145' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='237' y='138' text-anchor='middle' fill='currentColor' font-size='11'>Client · Mapper</text><rect x='330' y='118' width='145' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='402' y='138' text-anchor='middle' fill='currentColor' font-size='11'>인증 흐름 · 정책</text><rect x='165' y='154' width='310' height='28' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='173' text-anchor='middle' fill='currentColor' font-size='11'>master realm 관리자 = 최상위 권한 (최소화)</text><rect x='15' y='80' width='110' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='104' text-anchor='middle' fill='currentColor' font-size='12'>AD / LDAP</text><text x='70' y='122' text-anchor='middle' fill='currentColor' font-size='11'>페더레이션</text><line x1='125' y1='110' x2='148' y2='110' stroke='currentColor' marker-end='url(#ar)'/><rect x='515' y='45' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570' y='72' text-anchor='middle' fill='currentColor' font-size='12'>사내 앱</text><rect x='515' y='105' width='110' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570' y='132' text-anchor='middle' fill='currentColor' font-size='12'>Grafana/Argo</text><line x1='490' y1='80' x2='513' y2='70' stroke='currentColor' marker-end='url(#ar)'/><line x1='490' y1='120' x2='513' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='150' y='200' width='340' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='219' text-anchor='middle' fill='currentColor' font-size='11'>회사 책임: HA · 패치(CVE) · 백업 · 인증서 · 모니터링</text><text x='320' y='237' text-anchor='middle' fill='currentColor' font-size='11'>Login/Admin Events는 켜야 남는다 → SIEM 반출</text><text x='15' y='30' fill='currentColor' font-size='12'>직접 운영하는 IdP - 자유도만큼 책임도 우리 것</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Realm",
+          "meaning": "서로 격리된 사용자·클라이언트·정책의 집합. 독립된 인증 세계"
+        },
+        {
+          "term": "master realm",
+          "meaning": "다른 모든 realm을 관리하는 최상위 realm. 관리자 계정 최소화 필수"
+        },
+        {
+          "term": "Client",
+          "meaning": "Keycloak에 등록된 애플리케이션. 공개/기밀 유형으로 구분"
+        },
+        {
+          "term": "Protocol Mapper",
+          "meaning": "사용자 속성·그룹을 토큰 클레임으로 넣는 매핑 설정"
+        },
+        {
+          "term": "Authentication Flow",
+          "meaning": "로그인 단계를 조립하는 흐름. 잘못 편집하면 인증 우회 위험"
+        },
+        {
+          "term": "User Federation",
+          "meaning": "AD/LDAP 등 외부 사용자 저장소를 연동해 그대로 사용하는 기능"
+        },
+        {
+          "term": "Admin Events",
+          "meaning": "관리자 설정·권한 변경 기록. 기본 비활성이라 반드시 켜야 함"
+        },
+        {
+          "term": "Required Action",
+          "meaning": "최초 로그인 시 OTP 등록·비밀번호 변경 등을 강제하는 설정"
+        }
+      ],
+      "pitfalls": [
+        "Login/Admin Events를 켜지 않아 권한 변경 이력을 증명할 수 없다. 기본값이 비활성이라는 점을 놓친다.",
+        "master realm 관리자 계정을 여러 명에게 주거나 초기 admin 계정을 그대로 방치한다.",
+        "단일 인스턴스로 운영해 IdP 장애가 전사 로그인 중단으로 직결된다.",
+        "보안 패치를 미뤄 알려진 CVE에 노출된다. 오픈소스는 패치 책임이 전적으로 회사에 있다.",
+        "인증 흐름(Authentication Flow)을 검증 없이 편집해 특정 경로에서 MFA가 건너뛰어진다.",
+        "Protocol Mapper 변경을 설정 작업으로 취급해 승인 없이 권한 클레임이 바뀐다.",
+        "이벤트 보존기간이 짧아(기본 수십 일) 감사 기간 증적이 이미 삭제되어 있다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] master realm 및 realm 관리자 계정이 최소화되고 MFA·승인 절차가 적용되는가",
+          "[접근] Client 설정·Protocol Mapper·Role 매핑 변경이 승인되고 Admin Events로 추적 가능한가",
+          "[변경] Keycloak 버전 업그레이드·보안 패치가 변경관리 절차에 따라 수행·검증되는가",
+          "[운영] 이벤트 로깅(User/Admin Events)이 활성화되고 감사 기간 이상 보존되는가",
+          "[운영] IdP 이중화·백업·복구 절차가 정의되고 복구 테스트가 수행되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 접근통제 요건(권한 관리, 접속기록 보존)이 자체 운영 IdP에서도 충족되는가",
+          "정보처리시스템 이중화 요건에 따라 인증 시스템의 가용성이 확보되어 있는가",
+          "보안 패치 적용 절차와 취약점 점검이 정기적으로 수행되는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.5 특수 계정 및 권한 관리: 관리자 계정 통제가 이루어지는가",
+          "2.9.4 로그 및 접속기록 관리: 인증·관리 이벤트 로그의 생성·보존·검토가 이루어지는가",
+          "2.10.8 패치관리: 오픈소스 솔루션의 취약점·패치가 관리되는가",
+          "2.9.1 변경관리: 설정·버전 변경이 절차에 따라 통제되는가"
+        ],
+        "evidence": [
+          "Realm 목록과 realm별 관리자 계정 목록",
+          "Events 설정 화면(User/Admin Events 활성 여부, 보존기간, representation 포함)",
+          "Admin Events 추출 샘플(권한·역할 매핑 변경 이력)",
+          "Keycloak 버전 및 최근 패치 적용 이력, 변경관리 티켓",
+          "HA 구성도와 DB 백업·복구 테스트 결과",
+          "인증 흐름(Authentication Flow) 설정 export"
+        ],
+        "auditorQuestions": [
+          "master realm 관리자는 몇 명이며 어떻게 인증합니까?",
+          "권한 변경 이력을 6개월 전 것까지 조회할 수 있습니까? 보여주실 수 있습니까?",
+          "Keycloak 보안 패치는 누가 언제 적용합니까? 최근 CVE 대응 사례는?",
+          "IdP가 다운되면 어떤 시스템이 영향을 받고 복구 목표시간은 얼마입니까?",
+          "인증 흐름을 변경할 때 어떤 검증과 승인을 거칩니까?"
+        ],
+        "controlExample": "자체 운영 Keycloak의 master realm 관리자 계정은 2인으로 제한되고 FIDO2 인증이 강제된다. User·Admin Events는 representation 포함으로 활성화되어 SIEM에 실시간 전송·2년 보관되며, 버전 업그레이드 및 보안 패치는 변경관리 승인 후 스테이징 검증을 거쳐 롤링 방식으로 적용된다."
+      },
+      "related": [
+        "sec-oidc",
+        "sec-saml",
+        "sec-sso",
+        "sec-ldap",
+        "sec-ad",
+        "sec-jwt",
+        "sec-mfa",
+        "sec-patch-management"
+      ],
+      "learnMore": [
+        "Keycloak Server Administration Guide",
+        "Keycloak Securing Applications and Services Guide",
+        "Red Hat build of Keycloak 문서"
+      ]
+    }
+  ]
+}

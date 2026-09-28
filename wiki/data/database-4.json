@@ -1,0 +1,1368 @@
+{
+  "category": "database",
+  "categoryLabel": "데이터베이스·스토리지·메시징·백업",
+  "entries": [
+    {
+      "id": "db-hadoop-hive-impala",
+      "title": "Hadoop / Hive / Impala",
+      "titleEn": "Apache Hadoop, Hive and Impala",
+      "aliases": [
+        "하둡",
+        "Hadoop",
+        "HDFS",
+        "Hive",
+        "Impala",
+        "YARN",
+        "빅데이터",
+        "Ranger"
+      ],
+      "tags": [
+        "bigdata",
+        "analytics",
+        "onprem"
+      ],
+      "level": "중급",
+      "oneLiner": "대용량 파일을 여러 서버에 나눠 저장하고 SQL로 분석하는 전통적 빅데이터 스택",
+      "analogy": "Hadoop은 거대한 창고를 여러 건물에 나눠 쓰는 방식과 같다. 물건(파일)을 조각내 여러 건물에 3부씩 복사해 두고, 일이 생기면 물건이 있는 건물로 사람을 보내 그 자리에서 작업한다. Hive는 그 창고에 '표 이름과 칸 이름'을 붙여 SQL로 물어볼 수 있게 한 장부이고, Impala는 그 질문에 훨씬 빨리 답하는 전담 창구다.",
+      "explanation": "<p><strong>Hadoop</strong>은 대용량 데이터를 여러 대의 저가 서버에 분산 저장·처리하는 플랫폼이다. 두 축으로 이루어진다. <strong>HDFS</strong>는 파일을 블록으로 쪼개 여러 노드에 복제(기본 3벌) 저장하는 분산 파일시스템이고, <strong>YARN</strong>은 클러스터의 CPU·메모리를 작업에 배분하는 자원 관리자다. 클라우드 전환 이후 신규 구축은 줄었지만, 국내 금융·통신사의 <strong>기존 데이터 플랫폼은 여전히 Hadoop 기반</strong>인 곳이 많아 감사 현장에서 자주 만난다.</p><p><strong>Hive</strong>는 HDFS의 파일에 '테이블'이라는 이름과 컬럼 구조를 붙여 SQL(HiveQL)로 조회할 수 있게 한다. 실제 데이터는 그냥 파일이고, <strong>메타스토어(Metastore)</strong>라는 별도 DB가 '이 디렉터리는 이런 컬럼을 가진 테이블이다'라는 정보를 보관한다. 즉 Hive 테이블을 지워도 파일은 남을 수 있고(EXTERNAL 테이블), 반대로 파일을 지우면 테이블이 비어 보인다 — 이 이중 구조가 데이터 파기·접근통제에서 함정이 된다.</p><p><strong>Impala</strong>는 같은 데이터·같은 메타스토어를 쓰면서 <strong>대화형 질의</strong>에 특화된 엔진이다. Hive가 배치성(수 분~수 시간)이라면 Impala는 초 단위 응답을 목표로 한다. 그래서 분석가들이 실제로 손에 쥐고 쓰는 것은 대개 Impala다. 결과적으로 <strong>접근 권한 심사의 실질 대상도 Impala 접속 계정</strong>이 된다.</p><p><strong>권한 체계가 여러 겹</strong>이라 감사에서 가장 헷갈리는 부분이다. (1) <strong>HDFS 파일 권한</strong> — POSIX 권한과 ACL. (2) <strong>Hive/Impala 테이블 권한</strong> — Apache Ranger 또는 Sentry(구) 정책. (3) <strong>커버로스(Kerberos) 인증</strong> — 클러스터 전체의 사용자 인증. 셋 중 하나만 느슨해도 우회가 가능하다. 예를 들어 Ranger에서 테이블 조회를 막아도 사용자가 HDFS 파일을 직접 읽을 수 있으면 통제가 무력화된다. 그래서 <strong>'Ranger로 막았다'는 답변에는 반드시 HDFS 경로 권한도 함께 확인</strong>해야 한다.</p><p><strong>감사 로깅</strong>은 Ranger의 감사 기능이 핵심이다. 누가 어떤 테이블·컬럼에 접근했고 허용/거부됐는지가 기록된다. 이 로그를 Solr·Elasticsearch·HDFS에 저장하는데, 보존기간과 접근 제한을 확인해야 한다. 또 Ranger는 <strong>컬럼 마스킹과 행 필터</strong>를 지원해 주민번호 컬럼을 가리거나 지점별로 행을 제한할 수 있다.</p><p><strong>운영 리스크</strong>로는 네임노드(HDFS 메타데이터 관리자) 단일 장애점, 작은 파일이 수백만 개 쌓이는 small file 문제, 클러스터 자원 경합으로 인한 배치 지연이 대표적이다.</p>",
+      "howItWorks": "<ol><li>사용자가 Kerberos 티켓을 발급받아 신원을 인증한다(kinit).</li><li>Impala/Hive 클라이언트가 SQL을 제출한다.</li><li>엔진이 메타스토어에서 테이블의 스키마와 실제 HDFS 경로를 조회한다.</li><li>Ranger 플러그인이 해당 사용자에게 그 테이블·컬럼 접근 권한이 있는지 판정하고 감사 로그를 남긴다.</li><li>허용되면 마스킹·행 필터 정책이 질의에 자동 적용된다.</li><li>엔진이 HDFS에서 데이터 블록 위치를 확인하고, 데이터가 있는 노드에서 처리하도록 작업을 분배한다(데이터 지역성).</li><li>YARN이 자원(컨테이너)을 할당하고 각 노드가 부분 결과를 계산한다.</li><li>부분 결과가 병합되어 최종 결과가 반환된다.</li><li>Ranger 감사 로그가 별도 저장소에 축적되어 조회 이력 증빙으로 사용된다.</li></ol>",
+      "example": "<p>국내 통신 계열 금융사 'K-페이'는 온프레미스 Cloudera 클러스터(데이터노드 42대, HDFS 2.8PB)에서 고객 행동 데이터와 정산 원천 데이터를 관리한다. 분석가 60여 명이 Impala로 조회하며 권한은 Ranger로 관리한다. 2026년 감사에서 (1) Ranger 정책상 <code>cust_master</code> 테이블 조회가 제한된 분석가 11명이 HDFS 경로 <code>/warehouse/cust_master/</code>를 직접 읽을 수 있었던 점 (2) Ranger 감사 로그 보존이 30일뿐이라 분기 검토가 불가능했던 점이 지적됐다. 조치로 HDFS 권한을 서비스 계정만 접근 가능하도록 좁히고, 감사 로그를 S3 호환 스토리지에 1년 보관하도록 변경했으며, 주민번호 컬럼에 Ranger 마스킹 정책을 적용했다.</p><pre><code># Kerberos 인증 후 Impala 접속\nkinit eddie@CORP.PAYNOW.COM\nimpala-shell -k -i impala-coord-01.corp:21000\n\n-- 조회 (Ranger 정책과 마스킹이 자동 적용됨)\nSELECT region, COUNT(*) AS cnt, SUM(amount) AS total\n  FROM mart.payment_fact\n WHERE part_date BETWEEN '2026-08-01' AND '2026-08-31'\n GROUP BY region;\n\n# HDFS 경로 권한 확인 (Ranger만 보면 안 되는 이유)\nhdfs dfs -ls  /warehouse/tablespace/managed/hive/cust_master\nhdfs dfs -getfacl /warehouse/tablespace/managed/hive/cust_master\n\n# Ranger 감사 로그 (누가 무엇을 조회/거부당했는지)\n# Ranger Admin UI &gt; Audit &gt; Access : user, resource, access type, result, time\n\n# 테이블과 실제 파일 위치 확인 (파기 시 양쪽 모두 처리 필요)\nDESCRIBE FORMATTED mart.payment_fact;   -- Location 항목 확인</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='50' width='100' height='44' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='68' text-anchor='middle' fill='currentColor' font-size='12'>분석가</text><text x='70' y='85' text-anchor='middle' fill='currentColor' font-size='11'>Kerberos</text><line x1='120' y1='72' x2='170' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='170' y='48' width='120' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='230' y='68' text-anchor='middle' fill='currentColor' font-size='12'>Impala / Hive</text><text x='230' y='86' text-anchor='middle' fill='currentColor' font-size='11'>SQL 엔진</text><line x1='230' y1='96' x2='230' y2='124' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='124' width='140' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='230' y='148' text-anchor='middle' fill='currentColor' font-size='12'>메타스토어</text><line x1='290' y1='72' x2='340' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='340' y='40' width='130' height='64' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='405' y='60' text-anchor='middle' fill='currentColor' font-size='12'>Ranger 정책</text><text x='405' y='78' text-anchor='middle' fill='currentColor' font-size='11'>테이블·컬럼 권한</text><text x='405' y='95' text-anchor='middle' fill='currentColor' font-size='11'>마스킹 / 감사</text><line x1='470' y1='72' x2='520' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='500' y='48' width='120' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='68' text-anchor='middle' fill='currentColor' font-size='12'>HDFS</text><text x='560' y='86' text-anchor='middle' fill='currentColor' font-size='11'>블록 3벌 복제</text><line x1='120' y1='88' x2='500' y2='120' stroke='currentColor' marker-end='url(#ar)' stroke-dasharray='5 3'/><text x='300' y='196' text-anchor='middle' fill='currentColor' font-size='11'>우회 경로: hdfs dfs -cat 로 파일 직접 읽기</text><rect x='20' y='206' width='600' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='227' fill='currentColor' font-size='12'>Ranger 정책만 확인하면 부족 - HDFS 경로 권한까지 함께 통제해야 실질 차단</text></svg>",
+      "keyTerms": [
+        {
+          "term": "HDFS",
+          "meaning": "파일을 블록으로 쪼개 여러 노드에 복제 저장하는 분산 파일시스템"
+        },
+        {
+          "term": "YARN",
+          "meaning": "클러스터 자원을 작업에 배분하는 자원 관리자"
+        },
+        {
+          "term": "Hive 메타스토어",
+          "meaning": "테이블 스키마와 실제 파일 경로를 보관하는 메타데이터 DB"
+        },
+        {
+          "term": "Impala",
+          "meaning": "같은 데이터에 대해 초 단위 응답을 제공하는 대화형 SQL 엔진"
+        },
+        {
+          "term": "Apache Ranger",
+          "meaning": "테이블·컬럼 단위 권한과 마스킹·감사를 제공하는 중앙 권한 관리 도구"
+        },
+        {
+          "term": "Kerberos",
+          "meaning": "하둡 클러스터의 표준 인증 체계. 티켓 기반"
+        },
+        {
+          "term": "EXTERNAL 테이블",
+          "meaning": "테이블을 지워도 실제 파일은 남는 테이블 유형"
+        },
+        {
+          "term": "데이터 지역성",
+          "meaning": "데이터가 있는 노드에서 연산을 수행해 네트워크 이동을 줄이는 원리"
+        }
+      ],
+      "pitfalls": [
+        "Ranger 정책만 보고 통제됐다고 판단한다. HDFS 파일 직접 읽기로 우회될 수 있다.",
+        "Kerberos를 적용하지 않아 사용자명만 바꾸면 다른 사람으로 행세할 수 있다(simple 인증).",
+        "Ranger 감사 로그 보존기간이 짧아 분기·연간 검토 증빙을 제출하지 못한다.",
+        "Hive 테이블을 DROP했는데 EXTERNAL이라 파일이 남아 개인정보 파기가 완결되지 않는다.",
+        "분석가에게 데이터베이스 전체 조회 권한을 주고 개인정보 컬럼을 그대로 노출한다.",
+        "small file 문제로 네임노드 메모리가 고갈되어 클러스터 전체가 불안정해진다.",
+        "자원 큐 설정이 없어 분석가의 대형 쿼리가 야간 정산 배치를 밀어낸다.",
+        "네임노드 HA를 구성하지 않아 단일 장애점으로 남아 있다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 클러스터 인증(Kerberos)이 적용되고 사용자 식별이 가능한가",
+          "[접근] Ranger 등 권한 정책과 HDFS 파일 권한이 함께 통제되어 우회 경로가 없는가",
+          "[접근] 개인정보 컬럼에 마스킹·행 필터 정책이 적용되는가",
+          "[운영] 접근 허용·거부 감사 로그가 기록되고 감사 요구 기간 이상 보존·검토되는가",
+          "[운영] 데이터 파기 시 테이블과 HDFS 파일이 모두 제거되는지 확인되는가",
+          "[운영] 자원 큐 관리로 분석 질의가 업무 배치를 침해하지 않도록 통제되는가"
+        ],
+        "fss": [
+          "정보처리시스템 접근 시 이용자 식별·인증 및 접속기록 보존이 이루어지는가",
+          "대량의 이용자 정보를 다루는 분석 환경의 접근통제가 적절한가",
+          "정보처리시스템 이중화(네임노드 HA 등) 요건을 충족하는가"
+        ],
+        "isms": [
+          "2.5.2 사용자 식별: 계정 공유 금지 및 인증 체계",
+          "2.6.2 정보시스템 접근 / 2.6.3 응용프로그램 접근",
+          "2.9.4 로그 및 접속기록 관리: 감사 로그 보존기간",
+          "3.4.1 개인정보 파기: 분산 저장 파일까지 포함한 파기 완결성"
+        ],
+        "evidence": [
+          "Kerberos 적용 여부 설정과 사용자 계정(principal) 목록",
+          "Ranger 정책 export (테이블·컬럼 권한, 마스킹, 행 필터)",
+          "주요 데이터 디렉터리의 HDFS 권한·ACL 출력",
+          "Ranger 감사 로그 샘플과 보존기간 설정",
+          "분석가 계정 목록과 권한 리뷰 결과",
+          "테이블 DROP 및 HDFS 파일 삭제를 포함한 파기 처리 기록"
+        ],
+        "auditorQuestions": [
+          "클러스터에 접속하려면 어떤 인증을 거치는가? 계정 공유는 없는가?",
+          "특정 분석가가 고객 마스터 테이블을 조회할 수 없게 막았다면, 파일을 직접 읽는 것도 막았는가?",
+          "주민번호 같은 컬럼은 분석가에게 어떻게 보이는가?",
+          "누가 어떤 테이블을 조회했는지 기록이 남는가? 얼마나 보관하는가?",
+          "데이터를 파기할 때 HDFS 파일까지 삭제됐음을 어떻게 확인하는가?",
+          "분석 쿼리가 야간 배치에 영향을 준 사례가 있는가?"
+        ],
+        "controlExample": "하둡 클러스터는 Kerberos 인증을 통해 개인별로 식별되며, 데이터 접근 권한은 Ranger 정책으로 테이블·컬럼 단위로 부여되고 동일한 범위로 HDFS 경로 권한이 제한되어 파일 직접 접근이 차단된다. 개인정보 컬럼에는 마스킹 정책이 적용되고 모든 접근 허용·거부 이력은 감사 로그로 1년간 보존되어 분기별로 검토된다."
+      },
+      "related": [
+        "db-spark",
+        "db-lakehouse",
+        "db-data-warehouse",
+        "db-account-privilege",
+        "db-data-retention",
+        "db-batch-scheduler",
+        "onprem-sap-basis"
+      ],
+      "learnMore": [
+        "Apache Hadoop Documentation",
+        "Apache Ranger Documentation",
+        "Apache Impala Documentation"
+      ]
+    },
+    {
+      "id": "db-spark",
+      "title": "Apache Spark",
+      "titleEn": "Apache Spark",
+      "aliases": [
+        "스파크",
+        "Spark",
+        "분산처리",
+        "PySpark",
+        "EMR",
+        "Databricks",
+        "데이터프레임"
+      ],
+      "tags": [
+        "bigdata",
+        "processing",
+        "analytics"
+      ],
+      "level": "중급",
+      "oneLiner": "대용량 데이터를 여러 서버 메모리에서 병렬로 변환·집계하는 분산 처리 엔진",
+      "analogy": "Spark는 큰 회계 장부를 100명이 나눠 검산하는 방식과 같다. 한 사람이 100만 줄을 더하면 오래 걸리지만, 100명이 1만 줄씩 맡아 각자 합계를 내고 마지막에 그 합계들만 모으면 순식간이다. 중요한 건 '누가 어느 구간을 맡을지' 잘 나누는 것이고, 한 사람에게 90만 줄이 몰리면 전체가 그 사람을 기다리게 된다.",
+      "explanation": "<p><strong>Apache Spark</strong>는 대용량 데이터를 여러 노드에 나눠 <strong>메모리 중심으로</strong> 처리하는 분산 처리 엔진이다. Hadoop MapReduce보다 훨씬 빠르고, SQL(Spark SQL), 파이썬(PySpark), 스트리밍(Structured Streaming), 머신러닝(MLlib)을 하나의 엔진에서 다룰 수 있다. 실행 환경은 YARN, 쿠버네티스, AWS EMR, Databricks 등 다양하다.</p><p><strong>실행 구조.</strong> <strong>드라이버(Driver)</strong>가 작업 계획을 세우고, <strong>익스큐터(Executor)</strong>들이 실제 데이터를 나눠 처리한다. 데이터는 <strong>파티션</strong>으로 쪼개져 익스큐터에 분배된다. Spark는 <strong>지연 실행(lazy evaluation)</strong>을 쓴다 — 변환(map, filter, join)을 적어도 바로 실행하지 않고, <code>count()</code>, <code>write()</code> 같은 <strong>액션</strong>이 호출될 때 전체 계획을 최적화해 한 번에 실행한다.</p><p><strong>가장 큰 성능 변수는 셔플(shuffle)</strong>이다. groupBy나 join은 같은 키의 데이터를 한 익스큐터로 모아야 하므로 노드 간 대량 네트워크 전송이 일어난다. 여기서 <strong>데이터 스큐(skew)</strong> — 특정 키에 데이터가 몰리는 현상 — 가 생기면 한 태스크만 몇 시간씩 걸려 전체가 끝나지 않는다. 대형 가맹점 한 곳의 거래가 전체의 40%인 경우가 전형적이다.</p><p><strong>감사 관점에서 Spark는 '재무 데이터를 가공하는 처리 로직'</strong>이다. 정산 금액, 수수료, 리포트 수치가 Spark 잡의 계산 결과라면, 그 잡의 <strong>코드는 변경관리 대상</strong>이고 <strong>실행 결과는 완전성·정확성 검증 대상</strong>이다. 구체적으로 (1) 잡 소스가 형상관리되고 리뷰·승인을 거쳐 배포되는가 (2) 입력 건수·출력 건수·금액 합계가 검증되는가 (3) 잡 실패·부분 실패가 탐지되고 재실행 시 중복 적재가 방지되는가(멱등성) (4) 운영에서 노트북(Databricks/Jupyter)으로 <strong>임시 코드를 직접 실행</strong>하는 관행이 통제되는가가 핵심이다. 특히 (4)는 실무에서 매우 흔한데, 노트북에서 운영 데이터를 직접 수정하면 변경통제를 완전히 우회하는 것이므로 명확한 금지·승인 절차가 필요하다.</p><p><strong>접근통제</strong>는 Spark 자체보다 실행 주체의 권한이 중요하다. 클라우드에서는 잡이 사용하는 IAM 역할이 어떤 S3 버킷·테이블에 접근 가능한지가 실질 권한이고, 이 역할이 과도하면 잡 코드 한 줄로 전사 데이터를 읽을 수 있다.</p>",
+      "howItWorks": "<ol><li>스케줄러(Airflow 등)가 승인된 버전의 Spark 잡을 제출한다(spark-submit 또는 API).</li><li>드라이버가 시작되어 잡이 사용할 익스큐터 자원을 요청한다.</li><li>드라이버가 변환 연산들을 DAG(방향성 비순환 그래프)로 구성하고 최적화한다.</li><li>액션이 호출되면 DAG가 스테이지로 나뉘고, 각 스테이지가 태스크 단위로 익스큐터에 배분된다.</li><li>익스큐터가 자기 파티션의 데이터를 읽어 처리한다(S3, HDFS, JDBC 등).</li><li>groupBy·join 지점에서 셔플이 일어나 같은 키의 데이터가 같은 익스큐터로 모인다.</li><li>결과가 출력 저장소(테이블, 파케이 파일, DW)에 기록된다.</li><li>잡 완료 후 입력·출력 건수와 금액 합계가 검증 스텝에서 비교된다.</li><li>실패 시 스케줄러가 알람을 발생시키고, 재실행은 멱등하게(덮어쓰기 또는 파티션 교체) 수행된다.</li></ol>",
+      "example": "<p>'페이나우'의 일일 정산 집계는 EMR on EKS에서 PySpark 잡으로 수행된다. 입력은 S3의 전일 결제 파케이 파일(약 1.8억 행), 출력은 가맹점별 정산 테이블이다. 2026년 6월 대형 가맹점 한 곳의 거래가 전체의 38%를 차지하면서 데이터 스큐가 발생해 잡이 4시간에서 9시간으로 늘어 마감이 지연됐고, salting 기법으로 키를 분산해 1시간 20분으로 줄였다. 또 감사에서 데이터 엔지니어 3명이 Databricks 노트북으로 운영 정산 테이블을 직접 수정할 수 있던 점이 지적돼, 운영 클러스터의 노트북 실행을 조회 전용 역할로 제한하고 쓰기는 승인된 잡(Git 태그 기반 배포)만 가능하도록 IAM 역할을 분리했다.</p><pre><code># 정산 집계 잡 (입출력 검증 포함)\ndf = spark.read.parquet(\"s3://paynow-lake/payment/dt=2026-09-13/\")\nsrc_cnt, src_sum = df.count(), df.agg(F.sum(\"amount\")).first()[0]\n\nagg = (df.filter(F.col(\"status\") == \"PAID\")\n         .groupBy(\"merchant_id\")\n         .agg(F.sum(\"amount\").alias(\"sales\"),\n              F.count(\"*\").alias(\"cnt\")))\n\n# 멱등한 적재: 해당 파티션만 덮어쓰기 (재실행 시 중복 방지)\n(agg.withColumn(\"dt\", F.lit(\"2026-09-13\"))\n    .write.mode(\"overwrite\")\n    .option(\"partitionOverwriteMode\", \"dynamic\")\n    .partitionBy(\"dt\")\n    .saveAsTable(\"mart.settlement_daily\"))\n\n# 검증: 입력 합계와 출력 합계 대사 (불일치 시 잡 실패 처리)\nout_sum = spark.table(\"mart.settlement_daily\") \\\n    .filter(\"dt = '2026-09-13'\").agg(F.sum(\"sales\")).first()[0]\nassert abs(out_sum - paid_sum) &lt; 1, f\"합계 불일치: {out_sum} vs {paid_sum}\"\n\n# 데이터 스큐 완화 (salting)\ndf2 = df.withColumn(\"skey\", F.concat_ws(\"_\", \"merchant_id\",\n        (F.rand() * 20).cast(\"int\")))</code></pre>",
+      "diagram": "",
+      "keyTerms": [
+        {
+          "term": "드라이버 / 익스큐터",
+          "meaning": "계획을 세우는 프로세스 / 실제 데이터를 처리하는 프로세스"
+        },
+        {
+          "term": "파티션",
+          "meaning": "데이터를 나눈 처리 단위. 병렬도를 결정"
+        },
+        {
+          "term": "지연 실행",
+          "meaning": "액션이 호출될 때까지 변환을 실행하지 않고 계획만 쌓는 방식"
+        },
+        {
+          "term": "셔플",
+          "meaning": "같은 키를 한 곳에 모으기 위한 노드 간 데이터 재분배. 성능 핵심"
+        },
+        {
+          "term": "데이터 스큐",
+          "meaning": "특정 키에 데이터가 몰려 한 태스크만 오래 걸리는 현상"
+        },
+        {
+          "term": "멱등한 적재",
+          "meaning": "재실행해도 결과가 같도록 파티션 덮어쓰기 등으로 처리하는 방식"
+        },
+        {
+          "term": "PySpark",
+          "meaning": "파이썬으로 Spark를 사용하는 API"
+        },
+        {
+          "term": "Databricks",
+          "meaning": "Spark 기반 상용 데이터 플랫폼. 노트북 환경 제공"
+        }
+      ],
+      "pitfalls": [
+        "잡 실패 후 단순 재실행해 같은 데이터가 두 번 적재되고 금액이 두 배가 된다.",
+        "입력 건수·금액과 출력을 대사하지 않아 필터 실수로 데이터가 빠진 것을 모른다.",
+        "데이터 스큐를 고려하지 않아 특정 파티션 때문에 잡이 몇 배로 길어진다.",
+        "운영 노트북에서 임시 코드를 실행해 운영 테이블을 직접 수정한다(변경통제 우회).",
+        "잡이 사용하는 IAM 역할이 과도해 코드 한 줄로 전사 데이터에 접근 가능하다.",
+        "collect()로 대용량 결과를 드라이버로 끌어와 드라이버가 메모리 부족으로 죽는다.",
+        "잡 코드가 Git에 없고 서버나 노트북에만 존재해 변경 이력을 제시하지 못한다.",
+        "부분 실패(일부 태스크 실패 후 재시도 성공)를 성공으로만 기록해 데이터 품질 이슈를 놓친다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 재무 데이터를 처리하는 Spark 잡의 소스가 형상관리되고 리뷰·승인 후 배포되는가",
+          "[ITAC] 잡 실행 시 입력·출력 건수 및 금액 합계 검증이 수행되고 불일치 시 실패 처리되는가",
+          "[운영] 잡 실패·지연이 모니터링되고 재실행이 멱등하게 수행되는가",
+          "[접근] 운영 환경에서 노트북 등 임시 코드 실행이 통제되고 쓰기 권한이 분리되는가",
+          "[접근] 잡이 사용하는 실행 역할(IAM)의 권한이 필요 범위로 제한되는가",
+          "[운영] 잡 실행 이력(버전, 실행자, 입출력 건수)이 기록·보존되는가"
+        ],
+        "fss": [
+          "거래 데이터 가공·집계 과정의 정확성과 완전성이 검증되는가",
+          "처리 프로그램의 변경이 승인 절차를 거쳐 운영에 반영되는가",
+          "처리 지연이 마감 일정에 미치는 영향이 관리되는가"
+        ],
+        "isms": [
+          "2.9.1 변경관리: 데이터 처리 로직 변경 통제",
+          "2.8.x 개발 보안 및 운영환경 이관 통제",
+          "2.9.4 로그 및 접속기록 관리: 잡 실행 이력 기록"
+        ],
+        "evidence": [
+          "정산·집계 잡 소스 저장소와 배포 이력(태그, 승인자)",
+          "잡 실행 로그(입력 건수, 출력 건수, 합계 검증 결과)",
+          "잡 실패·재실행 이력과 중복 방지 방식 설명 문서",
+          "운영 클러스터의 노트북 실행 권한 설정과 쓰기 권한 분리 근거",
+          "잡 실행 IAM 역할 정책 export",
+          "마감 일정 대비 잡 수행시간 추이"
+        ],
+        "auditorQuestions": [
+          "정산 금액을 계산하는 코드는 어디에 있으며 변경 시 누가 승인하는가?",
+          "잡이 처리한 건수가 원본과 일치함을 어떻게 확인하는가?",
+          "잡이 실패해 다시 돌리면 데이터가 중복되지 않는가? 어떻게 보장하는가?",
+          "운영 환경에서 노트북으로 임의 코드를 실행할 수 있는 사람이 있는가?",
+          "잡이 사용하는 권한으로 접근 가능한 데이터 범위는 어디까지인가?",
+          "최근 잡 실패 사례와 그때 마감에 미친 영향은?"
+        ],
+        "controlExample": "재무 집계에 사용되는 Spark 잡은 형상관리 저장소의 승인된 태그로만 배포되며, 실행 시 입력 데이터 건수·금액 합계와 출력 결과를 대사하여 불일치 시 잡이 실패 처리되고 알람이 발송된다. 운영 클러스터에서는 대화형 노트북을 통한 쓰기 작업이 차단되고 조회 권한만 부여되며, 잡 실행 역할은 필요한 데이터 경로에 한정된 권한만 보유한다."
+      },
+      "related": [
+        "db-hadoop-hive-impala",
+        "db-lakehouse",
+        "db-data-warehouse",
+        "db-batch-scheduler",
+        "db-data-reconciliation",
+        "db-storage-types",
+        "cicd-github-actions"
+      ],
+      "learnMore": [
+        "Apache Spark Documentation",
+        "Amazon EMR Management Guide",
+        "Databricks Documentation - Access Control"
+      ]
+    },
+    {
+      "id": "db-lakehouse",
+      "title": "레이크하우스 (Iceberg / Delta Lake)",
+      "titleEn": "Lakehouse: Apache Iceberg and Delta Lake",
+      "aliases": [
+        "레이크하우스",
+        "Iceberg",
+        "Delta Lake",
+        "Hudi",
+        "테이블포맷",
+        "타임트래블",
+        "데이터레이크"
+      ],
+      "tags": [
+        "bigdata",
+        "analytics",
+        "storage"
+      ],
+      "level": "심화",
+      "oneLiner": "객체 스토리지의 파일에 트랜잭션·스키마·이력 기능을 더한 테이블 포맷",
+      "analogy": "레이크하우스는 창고에 쌓인 상자 더미(데이터 레이크)에 제대로 된 재고 장부를 붙인 것과 같다. 예전에는 상자를 넣고 빼는 도중에 재고를 세면 숫자가 틀렸는데, 장부가 '몇 시 몇 분 기준 재고는 이것'이라고 확정해 주니 언제 세도 정확하다. 게다가 지난주 재고 상태로 돌려볼 수도 있다.",
+      "explanation": "<p><strong>데이터 레이크</strong>는 S3 같은 객체 스토리지에 원본 데이터를 파일(주로 Parquet)로 쌓아두는 방식이다. 값싸고 유연하지만 치명적 약점이 있었다. (1) 파일을 쓰는 도중에 읽으면 <strong>반쪽 데이터가 보인다</strong>(원자성 없음). (2) 한 행만 고치려면 파일 전체를 다시 써야 한다(개인정보 삭제 요청 처리가 매우 어려움). (3) 스키마가 바뀌면 깨진다. (4) 과거 상태로 되돌릴 수 없다.</p><p><strong>테이블 포맷(Apache Iceberg, Delta Lake, Apache Hudi)</strong>이 이를 해결한다. 데이터 파일은 그대로 두고, 그 위에 <strong>메타데이터 계층</strong>을 얹어 '이 시점의 테이블은 이 파일들로 구성된다'는 스냅샷을 관리한다. 그 결과 객체 스토리지 위에서도 <strong>ACID 트랜잭션, 행 단위 UPDATE/DELETE, 스키마 진화, 타임 트래블</strong>이 가능해진다. 이렇게 데이터 레이크의 경제성과 웨어하우스의 신뢰성을 합친 구조를 <strong>레이크하우스</strong>라 부른다.</p><p><strong>감사 관점에서 세 가지가 특히 중요</strong>하다.</p><p><strong>첫째, 개인정보 삭제(파기)가 실행 가능해진다.</strong> 기존 데이터 레이크에서는 '고객 한 명의 데이터를 지워달라'는 요청에 수 테라바이트 파일을 재작성해야 했다. Iceberg/Delta에서는 <code>DELETE FROM ... WHERE customer_id = ?</code>가 동작한다. 다만 주의할 점이 있다 — <strong>타임 트래블 때문에 옛 스냅샷에는 삭제된 데이터가 남아 있다</strong>. 실제 물리 파기는 <code>VACUUM</code>(Delta) 또는 <code>expire_snapshots</code>(Iceberg)로 오래된 스냅샷을 정리해야 완료된다. <strong>파기 완결성 증빙을 만들 때 이 두 단계를 모두 확인해야 한다.</strong></p><p><strong>둘째, 타임 트래블이 감사 추적과 오류 복구에 유용하다.</strong> '어제 리포트를 뽑을 때의 데이터 상태'를 그대로 재현할 수 있어 수치 차이 조사가 쉬워진다. 잘못된 배치로 데이터가 망가졌을 때 이전 버전으로 되돌리는 것도 가능하다.</p><p><strong>셋째, 변경 이력이 남는다.</strong> 각 커밋에 누가·언제·어떤 연산을 했고 몇 행이 영향받았는지가 메타데이터에 기록된다(Delta의 <code>DESCRIBE HISTORY</code>, Iceberg의 snapshots 테이블). 이것이 데이터 레이크 영역의 변경 통제 증빙이 된다.</p><p><strong>주의할 운영 이슈</strong>로는 작은 파일 누적(compaction 필요), 스냅샷·메타데이터 폭증에 따른 저장 비용, 여러 엔진(Spark, Trino, Flink)이 동시에 쓸 때의 카탈로그 정합성이 있다.</p>",
+      "howItWorks": "<ol><li>데이터가 Parquet 파일로 객체 스토리지에 기록된다.</li><li>쓰기 작업이 끝나면 '이 버전의 테이블은 어떤 파일들로 구성되는지'를 담은 메타데이터 파일(스냅샷)이 새로 만들어진다.</li><li>카탈로그(AWS Glue, Hive Metastore, Nessie)의 테이블 포인터가 새 스냅샷을 가리키도록 원자적으로 교체된다. 이 교체가 커밋이다.</li><li>읽는 쪽은 현재 포인터가 가리키는 스냅샷만 보므로, 쓰기 도중에도 일관된 데이터만 읽는다.</li><li>UPDATE/DELETE는 대상 행을 제외한 새 파일을 쓰거나 삭제 벡터를 기록하고 새 스냅샷을 만든다.</li><li>타임 트래블 질의는 과거 스냅샷 ID나 타임스탬프를 지정해 그 시점 구성 파일들을 읽는다.</li><li>주기적인 compaction이 작은 파일을 병합해 조회 성능을 회복시킨다.</li><li>보존 기간이 지난 스냅샷을 만료시키면 더 이상 참조되지 않는 데이터 파일이 실제로 삭제된다.</li></ol>",
+      "example": "<p>'페이나우'의 데이터레이크는 S3 + Apache Iceberg + Glue 카탈로그로 구성되며 Spark와 Trino가 함께 사용한다. 개인정보 삭제 요청 처리 절차는 (1) <code>DELETE FROM lake.payment WHERE customer_id = ?</code> 실행 (2) 삭제 대상 건수 기록 (3) 30일 후 <code>expire_snapshots</code>로 과거 스냅샷 만료 (4) 참조되지 않는 파일이 실제 삭제됐는지 확인 (5) 파기 완료 대장에 기록 — 이 5단계로 문서화돼 있다. 2026년 5월에는 정산 배치 버그로 하루치 데이터가 잘못 적재됐는데, 타임 트래블로 이전 스냅샷의 값을 조회해 차이를 특정하고 해당 파티션만 재처리해 2시간 만에 복구했다.</p><pre><code>-- 행 단위 삭제 (기존 데이터레이크에서는 불가능했던 작업)\nDELETE FROM lake.payment WHERE customer_id = 10293;\n\n-- 변경 이력 확인 (누가 언제 무엇을 했는가 = 변경 통제 증빙)\nSELECT committed_at, snapshot_id, operation, summary\n  FROM lake.payment.snapshots ORDER BY committed_at DESC LIMIT 20;\n\n-- 타임 트래블: 어제 리포트 시점의 데이터 재현\nSELECT SUM(amount) FROM lake.payment\n  FOR TIMESTAMP AS OF TIMESTAMP '2026-09-13 23:59:59';\n\n-- 물리 파기 완료: 보존기간 지난 스냅샷 만료 → 미참조 파일 삭제\nCALL system.expire_snapshots(\n  table =&gt; 'lake.payment',\n  older_than =&gt; TIMESTAMP '2026-08-15 00:00:00',\n  retain_last =&gt; 3);\n\n-- 작은 파일 병합\nCALL system.rewrite_data_files(table =&gt; 'lake.payment');\n\n-- Delta Lake 등가 명령\n-- DESCRIBE HISTORY lake.payment;\n-- VACUUM lake.payment RETAIN 720 HOURS;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='36' width='104' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='60' text-anchor='middle' fill='currentColor' font-size='12'>Spark / Trino</text><line x1='124' y1='55' x2='174' y2='55' stroke='currentColor' marker-end='url(#ar)'/><rect x='174' y='30' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='239' y='50' text-anchor='middle' fill='currentColor' font-size='12'>카탈로그</text><text x='239' y='68' text-anchor='middle' fill='currentColor' font-size='11'>현재 스냅샷 포인터</text><line x1='239' y1='80' x2='239' y2='106' stroke='currentColor' marker-end='url(#ar)'/><rect x='150' y='106' width='180' height='44' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='240' y='125' text-anchor='middle' fill='currentColor' font-size='12'>메타데이터 (스냅샷)</text><text x='240' y='143' text-anchor='middle' fill='currentColor' font-size='11'>v1 / v2 / v3 ...</text><line x1='330' y1='128' x2='390' y2='128' stroke='currentColor' marker-end='url(#ar)'/><rect x='390' y='96' width='230' height='64' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='118' text-anchor='middle' fill='currentColor' font-size='12'>S3 데이터 파일 (Parquet)</text><text x='505' y='137' text-anchor='middle' fill='currentColor' font-size='11'>파일 자체는 그대로</text><text x='505' y='154' text-anchor='middle' fill='currentColor' font-size='11'>구성만 스냅샷이 결정</text><rect x='340' y='24' width='280' height='56' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='480' y='44' text-anchor='middle' fill='currentColor' font-size='12'>얻는 것: ACID / 행 UPDATE·DELETE</text><text x='480' y='62' text-anchor='middle' fill='currentColor' font-size='12'>스키마 진화 / 타임 트래블 / 변경이력</text><rect x='20' y='176' width='600' height='62' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='34' y='197' fill='currentColor' font-size='12'>파기는 2단계: DELETE 실행 → 옛 스냅샷 만료(expire/VACUUM) → 파일 물리 삭제</text><text x='34' y='217' fill='currentColor' font-size='12'>DELETE만 하고 스냅샷이 남아 있으면 타임 트래블로 삭제 데이터 조회 가능</text><text x='34' y='234' fill='currentColor' font-size='12'>→ 개인정보 파기 완결성 증빙에는 두 단계 모두 필요</text></svg>",
+      "keyTerms": [
+        {
+          "term": "테이블 포맷",
+          "meaning": "객체 스토리지 파일 위에 트랜잭션·스키마를 제공하는 메타데이터 계층"
+        },
+        {
+          "term": "Apache Iceberg",
+          "meaning": "엔진 중립적인 대표 오픈 테이블 포맷"
+        },
+        {
+          "term": "Delta Lake",
+          "meaning": "Databricks가 주도하는 테이블 포맷. 트랜잭션 로그 기반"
+        },
+        {
+          "term": "스냅샷",
+          "meaning": "특정 시점 테이블을 구성하는 파일 목록. 커밋 단위"
+        },
+        {
+          "term": "타임 트래블",
+          "meaning": "과거 시점의 테이블 상태를 그대로 조회하는 기능"
+        },
+        {
+          "term": "expire_snapshots / VACUUM",
+          "meaning": "오래된 스냅샷을 만료해 미참조 파일을 물리 삭제하는 작업"
+        },
+        {
+          "term": "compaction",
+          "meaning": "작은 파일들을 병합해 조회 성능을 회복시키는 유지관리 작업"
+        },
+        {
+          "term": "카탈로그",
+          "meaning": "테이블의 현재 스냅샷 위치를 관리하는 메타데이터 저장소"
+        }
+      ],
+      "pitfalls": [
+        "DELETE만 실행하고 스냅샷 만료를 하지 않아 타임 트래블로 삭제된 개인정보가 조회된다.",
+        "반대로 타임 트래블 보존기간을 너무 짧게 잡아 오류 복구 수단을 스스로 없앤다.",
+        "compaction을 안 해서 작은 파일이 수백만 개 쌓이고 조회가 극도로 느려진다.",
+        "여러 엔진이 서로 다른 카탈로그를 바라봐 테이블 정합성이 깨진다.",
+        "스냅샷·메타데이터가 계속 쌓여 저장 비용이 예상보다 커진다.",
+        "데이터레이크의 S3 버킷 권한만 보고 통제됐다고 판단한다. 카탈로그 권한도 함께 봐야 한다.",
+        "레이크하우스가 생겼으니 운영 DB 백업이 필요 없다고 여긴다. 용도가 다르다.",
+        "파기 완료 증빙을 DELETE 실행 로그만으로 제출해 실제 파일 잔존 여부를 설명하지 못한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 데이터 파기 시 삭제 실행과 스냅샷 만료(물리 삭제)가 모두 수행·확인되는가",
+          "[운영] 타임 트래블 보존기간이 정의되고 개인정보 보존정책과 정합적인가",
+          "[변경] 테이블 변경 이력(커밋 이력)이 보존되어 데이터 변경 추적이 가능한가",
+          "[접근] 객체 스토리지 버킷 권한과 카탈로그 권한이 함께 최소권한으로 통제되는가",
+          "[운영] compaction·스냅샷 만료 등 유지관리 작업이 정기 수행되고 실패가 탐지되는가",
+          "[ITAC] 잘못된 적재 발생 시 이전 버전 복구 절차가 정의되어 있는가"
+        ],
+        "fss": [
+          "이용자 정보가 저장된 데이터레이크의 접근통제·암호화가 적용되는가",
+          "데이터 보존기간과 파기 절차가 법규 요건에 부합하는가",
+          "분석 데이터의 정확성·완전성 확보 조치가 있는가"
+        ],
+        "isms": [
+          "3.4.1 개인정보 파기: 복구 불가능한 방법으로의 파기 완결성",
+          "2.6.2 정보시스템 접근: 스토리지·카탈로그 접근 통제",
+          "2.7.1 암호정책 적용: 저장 암호화",
+          "2.9.1 변경관리: 데이터 구조·적재 로직 변경 통제"
+        ],
+        "evidence": [
+          "테이블 스냅샷 이력 조회 결과(커밋 시각, 연산, 영향 행 수)",
+          "개인정보 삭제 처리 절차서와 실제 수행 기록(DELETE + expire_snapshots)",
+          "스냅샷 만료 후 미참조 파일 삭제 확인 결과",
+          "S3 버킷 정책·Glue 카탈로그 권한 export",
+          "compaction·만료 작업 스케줄과 실행 이력",
+          "타임 트래블 보존기간 설정과 보존정책 문서"
+        ],
+        "auditorQuestions": [
+          "고객이 삭제를 요청하면 데이터레이크에서 실제로 언제 사라지는가?",
+          "삭제 후에도 과거 시점 조회로 그 데이터를 볼 수 있는가? 어떻게 막는가?",
+          "테이블에 어떤 변경이 있었는지 이력을 보여줄 수 있는가?",
+          "데이터레이크에 접근할 수 있는 주체는 어떻게 제한되는가? 버킷과 카탈로그 양쪽 모두?",
+          "잘못 적재된 데이터를 되돌린 사례가 있는가? 절차는?",
+          "스냅샷 만료 작업은 언제 수행되며 실패하면 어떻게 아는가?"
+        ],
+        "controlExample": "데이터레이크 테이블은 Iceberg 테이블 포맷으로 관리되어 모든 데이터 변경이 스냅샷 이력으로 기록된다. 개인정보 파기 요청은 대상 행 삭제 후 정해진 보존기간 경과 시 스냅샷 만료 작업을 수행하여 물리 파일까지 제거하며, 삭제 건수와 파일 제거 확인 결과를 파기 대장에 기록한다."
+      },
+      "related": [
+        "db-spark",
+        "db-data-warehouse",
+        "db-hadoop-hive-impala",
+        "db-storage-types",
+        "db-data-retention",
+        "db-cdc-debezium",
+        "db-sharding-partitioning"
+      ],
+      "learnMore": [
+        "Apache Iceberg Documentation",
+        "Delta Lake Documentation",
+        "AWS Glue Data Catalog User Guide"
+      ]
+    },
+    {
+      "id": "db-storage-types",
+      "title": "객체 vs 블록 vs 파일 스토리지",
+      "titleEn": "Object, Block and File Storage",
+      "aliases": [
+        "객체스토리지",
+        "블록스토리지",
+        "파일스토리지",
+        "S3",
+        "EBS",
+        "EFS",
+        "NAS",
+        "SAN"
+      ],
+      "tags": [
+        "storage",
+        "infrastructure",
+        "cloud"
+      ],
+      "level": "기초",
+      "oneLiner": "데이터를 담는 세 가지 방식 — 통째 보관, 디스크처럼, 공유 폴더처럼",
+      "analogy": "블록 스토리지는 내 노트북에 꽂은 외장 하드다 — 나만 쓰고 빠르다. 파일 스토리지는 사무실 공유 폴더다 — 여러 명이 같은 폴더를 동시에 연다. 객체 스토리지는 물품 보관소다 — 물건을 통째로 맡기고 번호표(키)를 받으며, 무제한으로 맡길 수 있지만 맡긴 물건의 일부만 고쳐 넣을 수는 없다.",
+      "explanation": "<p>스토리지는 <strong>데이터를 어떤 단위로 다루는가</strong>에 따라 세 종류로 나뉜다.</p><p><strong>블록 스토리지(Block)</strong>는 디스크를 <strong>블록</strong> 단위로 제공한다. 서버에 붙이면 OS가 파일시스템을 만들어 쓴다. AWS의 <strong>EBS</strong>, 온프레미스의 <strong>SAN</strong>이 여기 해당한다. 특징은 (1) 지연이 가장 낮아 <strong>데이터베이스에 필수</strong> (2) 원칙적으로 <strong>한 서버에만 붙는다</strong>(멀티어태치는 예외적) (3) 용량을 미리 정해두고 쓴다.</p><p><strong>파일 스토리지(File)</strong>는 디렉터리와 파일 구조를 그대로 네트워크로 공유한다. <strong>NFS/SMB</strong> 프로토콜을 쓰며 AWS의 <strong>EFS/FSx</strong>, 온프레미스의 <strong>NAS</strong>가 해당한다. 여러 서버가 <strong>동시에 같은 파일</strong>을 읽고 쓸 수 있어 레거시 애플리케이션의 공유 디렉터리, 배치 결과 파일 교환에 많이 쓴다.</p><p><strong>객체 스토리지(Object)</strong>는 파일을 <strong>객체</strong>로 통째 저장하고 키로 꺼낸다. AWS <strong>S3</strong>가 대표다. 특징은 (1) 사실상 무제한 용량 (2) HTTP API로 접근 (3) <strong>부분 수정 불가</strong> — 한 바이트를 바꾸려면 전체를 다시 올려야 한다 (4) 저장 클래스로 비용을 크게 낮출 수 있다 (5) <strong>버전 관리·객체 잠금(Object Lock)</strong> 같은 강력한 보존 기능이 있다.</p><p><strong>선택 기준은 명확하다.</strong> DB 데이터 파일 → 블록. 여러 서버가 공유하는 첨부파일·배치 입출력 → 파일. 백업, 로그 아카이브, 데이터레이크, 정적 콘텐츠 → 객체.</p><p><strong>감사 관점에서 가장 중요한 것은 객체 스토리지</strong>다. 이유는 셋이다. (1) <strong>퍼블릭 노출 사고</strong>가 가장 흔한 클라우드 보안 사고다 — S3 버킷을 실수로 공개하면 인터넷 누구나 읽는다. Block Public Access 설정과 버킷 정책 점검이 필수다. (2) <strong>감사 로그·백업의 최종 보관소</strong>로 쓰이므로, 객체 잠금(WORM)으로 삭제 불가하게 만드는 것이 불변 백업(immutable backup)의 핵심 구현 수단이다. (3) <strong>접근 로그</strong>(S3 서버 액세스 로깅, CloudTrail 데이터 이벤트)를 켜야 '누가 어떤 파일을 다운로드했는지'를 알 수 있는데, 기본 비활성이라 사고 후 조사에서 아무것도 못 찾는 경우가 많다.</p><p><strong>파일 스토리지도 감사 포인트</strong>가 있다. 공유 폴더에는 개인정보가 담긴 엑셀·CSV가 쌓이기 쉽고, 권한이 부서 단위로 느슨하게 열려 있는 경우가 많다.</p>",
+      "howItWorks": "<ol><li>블록: 서버에 볼륨을 연결(attach)하면 OS가 디스크로 인식하고 파일시스템을 포맷해 마운트한다.</li><li>애플리케이션의 읽기·쓰기가 블록 단위로 볼륨에 전달되며 지연은 보통 1ms 미만이다.</li><li>파일: 서버가 NFS/SMB로 공유 경로를 마운트하면 여러 서버가 동일 경로를 본다.</li><li>파일 잠금·동시 접근 제어가 프로토콜 수준에서 처리된다.</li><li>객체: 클라이언트가 HTTPS로 PUT 요청을 보내 객체를 업로드하고 키를 지정한다.</li><li>서비스가 객체를 여러 시설에 복제 저장하고 무결성 체크섬을 관리한다.</li><li>GET 요청 시 키로 객체 전체(또는 범위)를 내려받는다.</li><li>수명주기 정책이 일정 기간 후 저비용 클래스로 이동시키거나 삭제한다.</li><li>객체 잠금이 설정돼 있으면 보존기간 동안 삭제·덮어쓰기가 거부된다.</li></ol>",
+      "example": "<p>'페이나우'의 스토리지 배치는 이렇다. Aurora의 데이터는 관리형 블록 계층(EBS 상당), 레거시 정산 서버들이 주고받는 전문 파일은 EFS, 백업·로그 아카이브·데이터레이크는 S3다. 2026년 보안 점검에서 (1) 개발용 S3 버킷 1개가 퍼블릭 읽기로 열려 있었고 마스킹 전 고객 CSV 3개가 들어 있던 점 (2) 감사 로그 버킷에 객체 잠금이 없어 관리자 권한으로 삭제 가능했던 점 (3) EFS 공유 폴더에 개인정보 엑셀 파일 1,200여 개가 부서 전체 읽기 권한으로 있던 점이 발견됐다. 조치로 계정 수준 Block Public Access를 강제하고, 로그·백업 버킷에 거버넌스 모드 객체 잠금(1년)을 적용했으며, EFS 접근 지점별 권한을 재설계했다.</p><pre><code># 퍼블릭 노출 점검 (계정 전체 차단이 기본이어야 함)\naws s3control get-public-access-block --account-id 123456789012\naws s3api get-bucket-policy-status --bucket paynow-dev-data\n\n# 감사 로그·백업 버킷에 객체 잠금 (삭제 불가 = 불변 보관)\naws s3api put-object-lock-configuration --bucket paynow-audit-logs \\\n  --object-lock-configuration '{\"ObjectLockEnabled\":\"Enabled\",\n    \"Rule\":{\"DefaultRetention\":{\"Mode\":\"GOVERNANCE\",\"Days\":365}}}'\n\n# 접근 기록 (기본 비활성 → 켜지 않으면 사후 조사 불가)\naws s3api put-bucket-logging --bucket paynow-lake \\\n  --bucket-logging-status '{\"LoggingEnabled\":{\"TargetBucket\":\"paynow-access-logs\",\n    \"TargetPrefix\":\"lake/\"}}'\n\n# 수명주기: 90일 후 저비용, 1년 후 아카이브, 5년 후 삭제\naws s3api put-bucket-lifecycle-configuration --bucket paynow-lake \\\n  --lifecycle-configuration file://lifecycle.json\n\n# 블록 스토리지 암호화 기본 적용 확인\naws ec2 get-ebs-encryption-by-default --region ap-northeast-2</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='190' height='130' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='115' y='52' text-anchor='middle' fill='currentColor' font-size='12'>블록 (EBS / SAN)</text><text x='115' y='76' text-anchor='middle' fill='currentColor' font-size='11'>서버 1대에 부착</text><text x='115' y='96' text-anchor='middle' fill='currentColor' font-size='11'>지연 최저 (1ms 미만)</text><text x='115' y='116' text-anchor='middle' fill='currentColor' font-size='11'>용도: DB 데이터파일</text><text x='115' y='140' text-anchor='middle' fill='currentColor' font-size='11'>점검: 암호화·스냅샷</text><rect x='224' y='30' width='190' height='130' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='319' y='52' text-anchor='middle' fill='currentColor' font-size='12'>파일 (EFS / NAS)</text><text x='319' y='76' text-anchor='middle' fill='currentColor' font-size='11'>여러 서버 동시 마운트</text><text x='319' y='96' text-anchor='middle' fill='currentColor' font-size='11'>NFS / SMB</text><text x='319' y='116' text-anchor='middle' fill='currentColor' font-size='11'>용도: 공유 폴더·배치 파일</text><text x='319' y='140' text-anchor='middle' fill='currentColor' font-size='11'>점검: 개인정보 파일 산재</text><rect x='428' y='30' width='192' height='130' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='524' y='52' text-anchor='middle' fill='currentColor' font-size='12'>객체 (S3)</text><text x='524' y='76' text-anchor='middle' fill='currentColor' font-size='11'>키로 통째 저장·조회</text><text x='524' y='96' text-anchor='middle' fill='currentColor' font-size='11'>무제한 용량 / HTTP API</text><text x='524' y='116' text-anchor='middle' fill='currentColor' font-size='11'>용도: 백업·로그·레이크</text><text x='524' y='140' text-anchor='middle' fill='currentColor' font-size='11'>점검: 퍼블릭노출·객체잠금</text><rect x='20' y='176' width='600' height='62' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='197' fill='currentColor' font-size='12'>객체 스토리지가 감사 핵심: 퍼블릭 노출 차단 / 객체 잠금(WORM) / 접근 로깅 활성화</text><text x='34' y='217' fill='currentColor' font-size='12'>접근 로깅은 기본 비활성 - 켜지 않으면 다운로드 이력을 사후에 찾을 수 없다</text><text x='34' y='234' fill='currentColor' font-size='12'>세 유형 모두 저장 암호화와 수명주기(보존·파기) 정책 적용 대상</text></svg>",
+      "keyTerms": [
+        {
+          "term": "블록 스토리지",
+          "meaning": "디스크처럼 서버에 붙여 쓰는 저지연 스토리지. DB용"
+        },
+        {
+          "term": "파일 스토리지",
+          "meaning": "NFS/SMB로 여러 서버가 공유하는 디렉터리 기반 스토리지"
+        },
+        {
+          "term": "객체 스토리지",
+          "meaning": "키로 객체를 통째 저장·조회하는 대용량 스토리지"
+        },
+        {
+          "term": "Block Public Access",
+          "meaning": "S3 버킷의 퍼블릭 노출을 계정 수준에서 차단하는 설정"
+        },
+        {
+          "term": "Object Lock",
+          "meaning": "지정 기간 삭제·변경을 금지하는 WORM 기능. 불변 백업의 수단"
+        },
+        {
+          "term": "수명주기 정책",
+          "meaning": "일정 기간 후 저비용 전환·삭제를 자동 수행하는 규칙"
+        },
+        {
+          "term": "스냅샷",
+          "meaning": "블록 볼륨의 특정 시점 사본. 백업·복제에 사용"
+        },
+        {
+          "term": "접근 로깅",
+          "meaning": "객체 접근 이력을 기록하는 기능. 기본 비활성"
+        }
+      ],
+      "pitfalls": [
+        "S3 버킷을 퍼블릭으로 열어두고 URL을 모르면 안전하다고 여긴다.",
+        "접근 로깅을 켜지 않아 유출 의심 시 누가 다운로드했는지 확인할 수 없다.",
+        "백업·감사 로그 버킷에 객체 잠금이 없어 권한자가 증거를 삭제할 수 있다.",
+        "공유 파일 스토리지에 개인정보 엑셀이 쌓이고 부서 전체 읽기 권한이 열려 있다.",
+        "객체 스토리지를 DB 데이터 저장용으로 쓰려 한다. 부분 수정이 안 되고 지연이 크다.",
+        "블록 볼륨 암호화를 기본값으로 강제하지 않아 일부 볼륨만 평문으로 남는다.",
+        "수명주기 정책이 없어 로그·임시 파일이 무한정 쌓여 비용과 보존정책 위반이 동시에 발생한다.",
+        "버전 관리를 켜고 삭제했는데 이전 버전이 남아 있어 파기가 완결되지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 객체 스토리지의 퍼블릭 접근이 계정 수준에서 차단되고 예외가 승인·관리되는가",
+          "[접근] 버킷·공유 폴더 권한이 최소권한으로 부여되고 주기적으로 검토되는가",
+          "[운영] 접근 로깅이 활성화되어 객체 접근 이력이 기록·보존되는가",
+          "[운영] 백업·감사 로그 저장소에 객체 잠금 등 불변 보관 조치가 적용되는가",
+          "[운영] 저장 데이터가 암호화되고 키 관리가 통제되는가",
+          "[운영] 수명주기 정책이 보존·파기 정책과 일치하며 버전·이전 버전까지 정리되는가"
+        ],
+        "fss": [
+          "이용자 정보가 저장되는 스토리지에 암호화 및 접근통제가 적용되는가",
+          "전자금융거래 기록의 보존 요건에 맞는 저장 매체와 보존기간을 운영하는가",
+          "클라우드 스토리지 이용 시 전자금융감독규정 제14조의2 절차를 이행했는가"
+        ],
+        "isms": [
+          "2.6.2 정보시스템 접근 / 2.6.4 데이터베이스 접근",
+          "2.7.1 암호정책 적용: 저장 암호화 및 키 관리",
+          "2.9.4 로그 및 접속기록 관리: 접근 로그 생성·보존",
+          "3.4.1 개인정보 파기: 이전 버전 포함 완전 삭제"
+        ],
+        "evidence": [
+          "계정 수준 Block Public Access 설정과 퍼블릭 버킷 점검 결과",
+          "주요 버킷의 버킷 정책·ACL export 및 권한 보유 주체 목록",
+          "접근 로깅 / CloudTrail 데이터 이벤트 설정과 로그 샘플",
+          "객체 잠금 설정(모드, 보존기간) 캡처",
+          "저장 암호화 설정(기본 암호화, KMS 키)과 키 접근 정책",
+          "수명주기 정책 정의와 실제 삭제 실행 이력",
+          "공유 파일 스토리지의 디렉터리별 권한 현황"
+        ],
+        "auditorQuestions": [
+          "인터넷에서 접근 가능한 스토리지 버킷이 있는가? 어떻게 점검하는가?",
+          "누가 어떤 파일을 다운로드했는지 확인할 수 있는가? 로깅이 켜져 있는가?",
+          "백업과 감사 로그를 저장한 곳은 관리자가 삭제할 수 있는가?",
+          "저장 데이터는 암호화되어 있는가? 키는 누가 관리하는가?",
+          "공유 폴더에 개인정보 파일이 있는가? 접근 권한은 어떻게 관리하는가?",
+          "보존기간이 지난 파일은 자동 삭제되는가? 이전 버전도 함께 삭제되는가?"
+        ],
+        "controlExample": "객체 스토리지는 계정 수준에서 퍼블릭 접근이 차단되며 버킷별 접근 권한은 IAM 정책으로 최소 범위로 부여되고 반기마다 검토된다. 백업 및 감사 로그가 저장되는 버킷에는 객체 잠금이 적용되어 보존기간 내 삭제가 불가능하며, 모든 버킷은 기본 암호화와 접근 로깅이 활성화되어 접근 이력이 보존된다."
+      },
+      "related": [
+        "db-storage-performance",
+        "db-backup-policy",
+        "db-lakehouse",
+        "db-data-retention",
+        "db-audit-log",
+        "awssec-kms",
+        "db-backup-types"
+      ],
+      "learnMore": [
+        "Amazon S3 User Guide - Security Best Practices",
+        "Amazon EBS User Guide",
+        "Amazon EFS User Guide"
+      ]
+    },
+    {
+      "id": "db-storage-performance",
+      "title": "스토리지 성능과 IOPS",
+      "titleEn": "Storage Performance: IOPS, Throughput, Latency",
+      "aliases": [
+        "IOPS",
+        "처리량",
+        "지연시간",
+        "throughput",
+        "latency",
+        "gp3",
+        "io2",
+        "버스트"
+      ],
+      "tags": [
+        "storage",
+        "performance",
+        "infrastructure"
+      ],
+      "level": "중급",
+      "oneLiner": "초당 입출력 횟수·전송량·응답시간으로 표현되는 저장장치 성능 지표",
+      "analogy": "스토리지 성능은 고속도로와 같다. IOPS는 1초에 통과하는 차량 대수, 처리량(throughput)은 1초에 실려 나가는 화물의 총 무게, 지연시간은 한 대가 입구에서 출구까지 걸리는 시간이다. 작은 차가 많이 다니는 도로(DB)는 대수가 중요하고, 대형 트럭이 다니는 도로(백업·로그 전송)는 무게가 중요하다.",
+      "explanation": "<p>스토리지 성능은 세 가지 지표로 본다. <strong>IOPS(Input/Output Operations Per Second)</strong>는 초당 처리하는 입출력 요청 수다. <strong>처리량(Throughput, MB/s)</strong>은 초당 전송되는 데이터 양이다. <strong>지연시간(Latency, ms)</strong>은 요청 하나가 완료되기까지 걸리는 시간이다. 이 셋의 관계는 대략 <strong>처리량 = IOPS × 요청 크기</strong>다.</p><p><strong>워크로드마다 중요한 지표가 다르다.</strong> OLTP 데이터베이스는 8~16KB짜리 작은 랜덤 I/O가 대량 발생하므로 <strong>IOPS와 지연시간</strong>이 핵심이다. 반면 백업, 대용량 배치, 데이터레이크 스캔은 큰 덩어리를 순차로 읽으므로 <strong>처리량</strong>이 핵심이다. 그래서 'IOPS가 높은데 왜 배치가 느리냐'는 질문은 대개 처리량 한계에 걸린 경우다.</p><p><strong>클라우드에서의 함정은 성능이 '상한선'으로 관리된다</strong>는 점이다. AWS EBS의 경우 <strong>gp3</strong>는 기본 3,000 IOPS·125MB/s이고 추가 구매로 늘린다. <strong>io2 Block Express</strong>는 훨씬 높은 IOPS를 제공한다. 중요한 것은 <strong>볼륨 성능뿐 아니라 인스턴스 타입의 EBS 대역폭 한계</strong>도 있다는 점이다 — 볼륨에 16,000 IOPS를 설정해도 인스턴스가 8,000까지만 지원하면 거기서 막힌다. 또 gp2 세대의 <strong>버스트 크레딧</strong>처럼 평소에는 빠르다가 크레딧이 소진되면 성능이 급락하는 모델은 '평소엔 괜찮은데 월마감 때만 느려지는' 전형적 장애를 만든다.</p><p><strong>DB 관점의 병목 신호</strong>는 명확하다. 대기 이벤트가 I/O 관련으로 몰리고(PostgreSQL의 IO wait, Oracle의 db file sequential read), 디스크 큐 길이가 길어지며, 커밋 지연이 늘어난다. 이때 인덱스 추가로 읽는 양 자체를 줄이는 것이 볼륨 IOPS를 올리는 것보다 효과적인 경우가 많다.</p><p><strong>감사 관점에서 스토리지 성능은 '용량·성능 관리(Capacity Management)' 통제</strong>에 해당한다. 확인 항목은 (1) 디스크 사용률·IOPS·지연시간이 모니터링되고 임계치 알람이 있는가 (2) 증설 판단 기준과 절차가 있는가 (3) 성능 저하로 배치가 마감을 넘긴 이력과 조치가 관리되는가 (4) 볼륨 유형·용량 변경이 변경관리를 거치는가다. 특히 <strong>디스크 full은 DB를 즉시 멈추게 하는 대표적 운영 사고</strong>이므로, 사용률 임계치 알람(보통 80%)은 거의 모든 감사에서 확인된다.</p>",
+      "howItWorks": "<ol><li>애플리케이션이 데이터를 요청하면 DB가 버퍼 캐시에서 먼저 찾는다.</li><li>캐시에 없으면 스토리지에 읽기 요청(I/O)이 발생한다.</li><li>요청이 스토리지 큐에 들어가고, 큐가 길면 대기 시간이 늘어 지연시간이 증가한다.</li><li>볼륨이 설정된 IOPS 한도에 도달하면 요청이 스로틀링되어 더 기다린다.</li><li>인스턴스의 EBS 대역폭 한계에 걸리면 볼륨 성능과 무관하게 추가 제한이 걸린다.</li><li>쓰기의 경우 트랜잭션 로그 기록이 커밋마다 발생하므로 로그 볼륨의 지연시간이 커밋 성능을 직접 좌우한다.</li><li>모니터링이 IOPS·처리량·큐 길이·지연시간·사용률을 수집해 대시보드와 알람으로 제공한다.</li><li>임계치 초과 시 볼륨 유형 변경·IOPS 증설·인스턴스 타입 상향 또는 쿼리·인덱스 개선으로 대응한다.</li></ol>",
+      "example": "<p>'페이나우'의 정산 DB는 gp3 볼륨(4TB, 12,000 IOPS, 500MB/s)을 쓴다. 2026년 8월 월마감 때 배치가 평소 3시간에서 7시간으로 늘었는데, 조사 결과 볼륨 IOPS는 여유가 있었지만 <strong>인스턴스의 EBS 처리량 한계 593MB/s</strong>에 걸려 있었다. 인스턴스 타입을 상향해 1,250MB/s로 늘리자 2시간 40분으로 복귀했다. 별개로 로그 볼륨의 디스크 사용률이 87%까지 올라 알람이 발생했는데, 아카이브 로그 정리 잡이 실패한 상태로 3일간 방치된 것이 원인이었다. 이후 잡 실패 알람과 사용률 80% 경고·90% 긴급 2단계 알람을 설정했다.</p><pre><code># 현재 볼륨 성능 설정 확인\naws ec2 describe-volumes --volume-ids vol-0a1b2c3d \\\n  --query 'Volumes[].[VolumeType,Size,Iops,Throughput]'\n\n# 실제 사용량 대비 한계 확인 (CloudWatch)\naws cloudwatch get-metric-statistics --namespace AWS/EBS \\\n  --metric-name VolumeReadOps --period 300 --statistics Sum \\\n  --dimensions Name=VolumeId,Value=vol-0a1b2c3d \\\n  --start-time 2026-08-31T00:00:00Z --end-time 2026-09-01T00:00:00Z\n\n# 리눅스에서 I/O 병목 관찰\niostat -xz 1 10        # %util, await, aqu-sz 확인\n\n-- PostgreSQL: I/O 대기가 병목인지 확인\nSELECT wait_event_type, wait_event, count(*)\n  FROM pg_stat_activity WHERE state='active' GROUP BY 1,2 ORDER BY 3 DESC;\n\n-- 디스크 사용률 (full 되면 DB가 즉시 멈춤)\nSELECT pg_size_pretty(pg_database_size(current_database()));\n# df -h /var/lib/postgresql</code></pre>",
+      "diagram": "",
+      "keyTerms": [
+        {
+          "term": "IOPS",
+          "meaning": "초당 입출력 요청 처리 수. OLTP DB 성능의 핵심 지표"
+        },
+        {
+          "term": "처리량(Throughput)",
+          "meaning": "초당 전송 데이터 양(MB/s). 배치·백업에서 중요"
+        },
+        {
+          "term": "지연시간(Latency)",
+          "meaning": "요청 하나가 완료되는 데 걸리는 시간"
+        },
+        {
+          "term": "큐 길이",
+          "meaning": "처리를 기다리는 I/O 요청 수. 병목의 직접 신호"
+        },
+        {
+          "term": "gp3 / io2",
+          "meaning": "범용 SSD / 고성능 프로비저닝 IOPS SSD 볼륨 유형"
+        },
+        {
+          "term": "인스턴스 EBS 대역폭",
+          "meaning": "서버 타입별 스토리지 대역폭 상한. 볼륨 성능과 별개 제약"
+        },
+        {
+          "term": "버스트 크레딧",
+          "meaning": "일시적으로 기준 성능을 초과할 수 있게 하는 적립분. 소진 시 성능 급락"
+        },
+        {
+          "term": "용량 관리",
+          "meaning": "사용률·성능 추이를 관리하고 증설을 계획하는 운영 통제"
+        }
+      ],
+      "pitfalls": [
+        "볼륨 IOPS만 올리고 인스턴스의 대역폭 한계를 확인하지 않아 성능이 그대로다.",
+        "버스트 크레딧 기반 볼륨을 운영 DB에 써서 월마감 때만 성능이 급락한다.",
+        "디스크 사용률 알람이 없어 디스크 full로 DB가 멈춘다.",
+        "I/O 병목을 하드웨어 문제로만 보고 비효율 쿼리·인덱스 부재를 방치한다.",
+        "트랜잭션 로그 볼륨을 데이터 볼륨과 같은 곳에 두어 커밋 지연이 커진다.",
+        "성능 지표를 수집만 하고 임계치·수신자를 정하지 않아 알람이 아무 의미가 없다.",
+        "평균값만 보고 p99 지연시간이 나쁜 것을 놓쳐 간헐적 타임아웃 원인을 못 찾는다.",
+        "볼륨 유형·크기 변경을 변경관리 없이 수행한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 스토리지 사용률·IOPS·지연시간이 모니터링되고 임계치 알람이 설정되어 있는가",
+          "[운영] 용량 증설 판단 기준과 절차가 정의되고 실행 이력이 관리되는가",
+          "[운영] 성능 저하로 인한 배치 지연이 기록되고 마감 영향이 평가되는가",
+          "[변경] 볼륨 유형·용량·IOPS 변경이 변경관리 승인을 거치는가",
+          "[운영] 디스크 공간 관련 정리 작업(로그·아카이브)의 실패가 탐지되는가"
+        ],
+        "fss": [
+          "정보처리시스템의 용량·성능을 상시 점검하고 증설 계획을 수립·이행하는가",
+          "처리 지연으로 인한 서비스 영향을 장애관리 절차에 따라 관리하는가",
+          "시스템 자원 부족으로 인한 거래 처리 실패 방지 조치가 있는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 자원 임계치 모니터링과 대응",
+          "2.9.3 백업 및 복구관리: 저장 공간 확보와 관리",
+          "2.9.1 변경관리: 인프라 자원 변경 통제"
+        ],
+        "evidence": [
+          "스토리지 모니터링 대시보드(사용률, IOPS, 지연시간) 캡처",
+          "임계치 알람 설정과 최근 발생·조치 이력",
+          "용량 관리 계획서 및 증설 실행 기록",
+          "볼륨 설정 변경 관련 변경관리 티켓",
+          "배치 수행시간 추이와 지연 발생 시 원인 분석 보고서"
+        ],
+        "auditorQuestions": [
+          "DB 서버의 디스크 사용률이 임계치를 넘으면 누가 언제 알게 되는가?",
+          "최근 1년간 디스크 부족으로 인한 장애가 있었는가?",
+          "용량 증설은 어떤 기준으로 판단하며 최근 사례는?",
+          "월마감 배치의 수행시간 추이를 보여줄 수 있는가?",
+          "볼륨 성능을 변경한 적이 있는가? 승인 기록은?"
+        ],
+        "controlExample": "데이터베이스 스토리지의 사용률·IOPS·지연시간은 모니터링 시스템에서 상시 수집되며 사용률 80% 경고, 90% 긴급 임계치 초과 시 담당자에게 자동 알람이 발송된다. 용량 증설은 정의된 기준에 따라 판단하여 변경관리 승인 후 수행하고, 성능 저하로 인한 배치 지연은 인시던트로 등록하여 원인 분석과 조치 결과를 기록한다."
+      },
+      "related": [
+        "db-storage-types",
+        "db-execution-plan",
+        "db-index",
+        "db-batch-scheduler",
+        "db-backup-types",
+        "obs-prometheus",
+        "db-postgresql"
+      ],
+      "learnMore": [
+        "Amazon EBS User Guide - Volume Types and Performance",
+        "PostgreSQL Documentation - Monitoring Database Activity",
+        "Brendan Gregg - Systems Performance"
+      ]
+    },
+    {
+      "id": "db-backup-types",
+      "title": "백업 유형 (전체·증분·차등)",
+      "titleEn": "Backup Types: Full, Incremental, Differential",
+      "aliases": [
+        "전체백업",
+        "증분백업",
+        "차등백업",
+        "full backup",
+        "incremental",
+        "스냅샷",
+        "PITR"
+      ],
+      "tags": [
+        "backup",
+        "operations",
+        "recovery"
+      ],
+      "level": "기초",
+      "oneLiner": "전체를 통째로, 마지막 백업 이후 변경만, 마지막 전체 이후 변경만 받는 세 방식",
+      "analogy": "전체 백업은 방 전체를 사진으로 찍는 것이다. 증분 백업은 '어제 사진 이후 바뀐 물건만' 찍는 것이고, 차등 백업은 '지난 일요일 전체 사진 이후 바뀐 물건 전부'를 찍는 것이다. 방을 복원할 때 증분은 일요일 사진 + 월·화·수 사진을 전부 순서대로 봐야 하고, 차등은 일요일 사진 + 수요일 사진 두 장만 보면 된다.",
+      "explanation": "<p>백업 방식은 <strong>무엇을 담는가</strong>에 따라 셋으로 나뉜다.</p><p><strong>전체 백업(Full)</strong>은 전체 데이터를 통째로 복사한다. 복구가 가장 단순하지만 시간과 저장 공간이 가장 많이 든다.</p><p><strong>증분 백업(Incremental)</strong>은 <strong>마지막 백업(전체든 증분이든) 이후</strong> 바뀐 것만 담는다. 백업은 가장 빠르고 작지만, 복구할 때 전체 백업 + 그 이후 모든 증분을 순서대로 적용해야 한다. <strong>중간 하나가 손상되면 그 이후를 복구할 수 없다</strong>는 것이 핵심 리스크다.</p><p><strong>차등 백업(Differential)</strong>은 <strong>마지막 전체 백업 이후</strong> 바뀐 것을 담는다. 날이 갈수록 크기가 커지지만, 복구는 전체 + 마지막 차등 <strong>두 개만</strong> 있으면 된다.</p><p><strong>DB 특유의 개념도 함께 이해해야 한다.</strong> <strong>로그 백업</strong>은 트랜잭션 로그(WAL, redo, 트랜잭션 로그)를 백업하는 것으로, 이것이 있어야 <strong>PITR(Point-In-Time Recovery, 특정 시점 복구)</strong>이 가능하다. 즉 '어제 새벽 2시 전체 백업 + 그 이후 로그'를 가지고 '오늘 오전 10시 32분 직전'으로 되돌릴 수 있다. 실수로 DELETE를 실행한 시점 직전으로 돌아가는 것이 바로 이 기능이다. 반대로 로그 백업이 없으면 <strong>마지막 전체 백업 시점으로만</strong> 복구 가능하고, 그 사이 데이터는 전부 사라진다.</p><p><strong>스냅샷</strong>은 또 다른 방식이다. 블록 스토리지 수준에서 특정 시점 상태를 저장하며 생성이 매우 빠르다. 다만 DB가 실행 중일 때 찍은 스냅샷은 <strong>정합성이 보장되지 않을 수 있어</strong> 복구 시 DB가 크래시 복구를 수행해야 한다. 그래서 정합성 있는 스냅샷을 위해 DB를 잠깐 일시정지하거나(백업 모드) 관리형 서비스의 자동 백업 기능을 쓴다.</p><p><strong>논리 백업 vs 물리 백업</strong>도 구분한다. 논리 백업(pg_dump, exp/expdp, mysqldump)은 SQL 문장 형태라 다른 버전·다른 서버로 옮기기 쉽지만 느리고 PITR이 안 된다. 물리 백업은 데이터 파일 자체를 복사해 빠르고 PITR이 가능하지만 같은 버전·구조여야 한다.</p><p><strong>감사 관점 핵심.</strong> '백업을 받는다'는 답변만으로는 부족하다. 감사인이 확인하는 것은 (1) <strong>주기와 유형의 조합</strong>이 RPO 목표를 실제로 충족하는가 (2) <strong>성공·실패 여부가 모니터링</strong>되는가 (3) <strong>보존기간</strong>이 정책과 일치하는가 (4) <strong>실제 복구가 되는지 테스트</strong>했는가다. 특히 (2)와 (4)가 가장 자주 지적된다.</p>",
+      "howItWorks": "<ol><li>백업 정책에 따라 주 1회 전체 백업(예: 일요일 새벽)이 수행된다.</li><li>평일에는 매일 증분 또는 차등 백업이 수행된다.</li><li>트랜잭션 로그는 훨씬 짧은 주기(예: 5~15분)로 백업되어 PITR 범위를 만든다.</li><li>각 백업 작업의 성공·실패와 소요시간·용량이 로그에 기록되고 모니터링 시스템으로 전달된다.</li><li>실패 시 알람이 발송되고 담당자가 원인을 조치한 뒤 재수행한다.</li><li>백업 파일은 원본과 분리된 저장소(다른 계정·다른 리전·오프사이트)로 복사된다.</li><li>보존기간 정책에 따라 오래된 백업이 자동 삭제되거나 아카이브 계층으로 이동한다.</li><li>복구 시에는 가장 최근 전체 백업을 복원하고, 증분/차등을 순서대로 적용한 뒤 로그를 원하는 시점까지 재생한다.</li><li>복구 후 건수·금액 등 정합성 확인을 수행하고 결과를 기록한다.</li></ol>",
+      "example": "<p>'페이나우'의 결제 DB(Aurora) 백업 구성은 자동 백업 보존 35일 + 매일 수동 스냅샷 + 5분 단위 PITR이다. 별도로 주 1회 논리 백업(pg_dump)을 다른 AWS 계정의 S3로 복사한다. 2026년 4월 배치 버그로 <code>settlement</code> 테이블의 12만 행이 잘못 UPDATE된 사고에서, 문제 발생 시각(03:14) 직전인 03:10 시점으로 복원한 별도 인스턴스를 띄워 정상 값을 추출한 뒤 운영에 반영해 40분 만에 복구했다. 반면 같은 해 사내 레거시 MSSQL 시스템은 복구 모델이 SIMPLE이라 로그 백업이 없었고, 전날 23시 전체 백업 시점으로만 복구 가능해 하루치 입력 데이터를 수작업 재입력해야 했다.</p><pre><code># Aurora: 특정 시점 복구 (PITR) - 별도 클러스터로 복원 후 검증\naws rds restore-db-cluster-to-point-in-time \\\n  --source-db-cluster-identifier paynow-prod \\\n  --db-cluster-identifier paynow-recovery-0414 \\\n  --restore-to-time 2026-04-14T03:10:00Z\n\n# PITR 가능 범위 확인 (RPO 실측 근거)\naws rds describe-db-clusters --db-cluster-identifier paynow-prod \\\n  --query 'DBClusters[].[EarliestRestorableTime,LatestRestorableTime,BackupRetentionPeriod]'\n\n-- PostgreSQL 자체 구성: 기본 백업 + WAL 아카이브\n-- postgresql.conf\narchive_mode = on\narchive_command = 'aws s3 cp %p s3://paynow-wal-archive/%f'\n-- 복구 시\nrestore_command = 'aws s3 cp s3://paynow-wal-archive/%f %p'\nrecovery_target_time = '2026-04-14 03:10:00+09'\n\n-- SQL Server: 로그 백업이 가능한지 여부의 근거\nSELECT name, recovery_model_desc FROM sys.databases;   -- FULL 이어야 PITR 가능\n\n# 백업 성공 이력 (증빙)\naws rds describe-db-cluster-snapshots --db-cluster-identifier paynow-prod \\\n  --query 'DBClusterSnapshots[].[DBClusterSnapshotIdentifier,SnapshotCreateTime,Status]'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='12'>증분 백업: 복구 시 전체 + 모든 증분 필요</text><rect x='20' y='30' width='72' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='56' y='52' text-anchor='middle' fill='currentColor' font-size='11'>전체 일</text><rect x='102' y='30' width='56' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='130' y='52' text-anchor='middle' fill='currentColor' font-size='11'>증분 월</text><rect x='168' y='30' width='56' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='196' y='52' text-anchor='middle' fill='currentColor' font-size='11'>증분 화</text><rect x='234' y='30' width='56' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='262' y='52' text-anchor='middle' fill='currentColor' font-size='11'>증분 수</text><line x1='56' y1='64' x2='262' y2='84' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='98' text-anchor='middle' fill='currentColor' font-size='11'>4개 모두 필요 (하나 손상 = 복구 불가)</text><text x='340' y='22' fill='currentColor' font-size='12'>차등 백업: 전체 + 마지막 차등만</text><rect x='340' y='30' width='72' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='376' y='52' text-anchor='middle' fill='currentColor' font-size='11'>전체 일</text><rect x='422' y='30' width='56' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='450' y='52' text-anchor='middle' fill='currentColor' font-size='11'>차등 월</text><rect x='488' y='30' width='56' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='516' y='52' text-anchor='middle' fill='currentColor' font-size='11'>차등 화</text><rect x='554' y='30' width='66' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='587' y='52' text-anchor='middle' fill='currentColor' font-size='11'>차등 수</text><line x1='376' y1='64' x2='587' y2='84' stroke='currentColor' marker-end='url(#ar)'/><text x='490' y='98' text-anchor='middle' fill='currentColor' font-size='11'>2개만 필요 (복구 단순)</text><rect x='20' y='116' width='600' height='54' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='34' y='137' fill='currentColor' font-size='12'>로그 백업(5~15분)이 있어야 PITR 가능: 실수로 DELETE한 직전 시점으로 복구</text><text x='34' y='158' fill='currentColor' font-size='12'>로그 백업 없음 = 마지막 전체 백업 시점으로만 복구 = 그 사이 데이터 전량 손실</text><rect x='20' y='182' width='600' height='56' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='202' fill='currentColor' font-size='12'>감사 확인: 주기·유형이 RPO 충족 / 성공·실패 모니터링 / 보존기간 / 복구 테스트</text><text x='34' y='224' fill='currentColor' font-size='12'>백업은 원본과 분리 보관 (다른 계정·리전·오프사이트)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "전체 백업",
+          "meaning": "전체 데이터를 통째로 복사하는 백업"
+        },
+        {
+          "term": "증분 백업",
+          "meaning": "마지막 백업 이후 변경분만 담는 백업. 작지만 복구가 복잡"
+        },
+        {
+          "term": "차등 백업",
+          "meaning": "마지막 전체 백업 이후 변경분을 담는 백업. 복구가 단순"
+        },
+        {
+          "term": "로그 백업",
+          "meaning": "트랜잭션 로그 백업. PITR의 필수 조건"
+        },
+        {
+          "term": "PITR",
+          "meaning": "특정 시점으로 되돌리는 복구. 실수·오류 복구의 핵심 수단"
+        },
+        {
+          "term": "스냅샷",
+          "meaning": "블록 수준 시점 사본. 빠르지만 정합성 고려 필요"
+        },
+        {
+          "term": "논리 백업",
+          "meaning": "SQL 형태 덤프. 이식성이 좋지만 느리고 PITR 불가"
+        },
+        {
+          "term": "물리 백업",
+          "meaning": "데이터 파일 자체 복사. 빠르고 PITR 가능"
+        }
+      ],
+      "pitfalls": [
+        "백업은 받는데 성공 여부를 아무도 확인하지 않아 몇 주째 실패 중인 것을 복구 시점에 안다.",
+        "로그 백업이 없는데 RPO를 15분으로 문서화한다. 실제로는 전체 백업 시점까지만 복구 가능하다.",
+        "증분 체인 중간이 손상되어 그 이후 복구가 전부 불가능해진다.",
+        "백업을 원본과 같은 계정·같은 스토리지에 두어 계정 침해 시 함께 사라진다.",
+        "복제본이 있으니 백업이 필요 없다고 여긴다. 논리적 삭제는 복제본에도 전파된다.",
+        "백업 파일 암호화를 안 해 백업 매체 유출이 곧 전체 데이터 유출이 된다.",
+        "보존기간이 법정 보존기간보다 짧거나, 반대로 무한 보관해 개인정보 파기 정책을 위반한다.",
+        "실제 복구 테스트를 한 번도 하지 않아 복구 절차가 실제로 동작하는지 모른다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 백업 주기·유형·보존기간이 정책으로 정의되고 RPO 목표를 충족하는가",
+          "[운영] 백업 작업의 성공·실패가 모니터링되고 실패 시 조치가 기록되는가",
+          "[운영] 백업 데이터가 원본과 분리된 위치에 보관되고 암호화되는가",
+          "[운영] 특정 시점 복구(PITR) 가능 범위가 정의되고 실제로 확보되는가",
+          "[접근] 백업 데이터에 대한 접근·복원 권한이 제한되고 수행 이력이 기록되는가",
+          "[운영] 주기적 복구 테스트가 수행되고 결과가 보고되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록 및 중요 데이터의 백업·보존 요건을 충족하는가",
+          "백업 매체의 안전한 보관 및 소산 보관 조치가 이루어지는가",
+          "재해복구 계획상 요구되는 복구 시점 목표를 백업 체계가 지원하는가"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리: 백업 대상·주기·보관·복구 절차 수립 및 시험",
+          "2.7.1 암호정책 적용: 백업 데이터 암호화",
+          "2.5.5 특수 계정 및 권한 관리: 백업·복원 권한 통제"
+        ],
+        "evidence": [
+          "백업 정책 문서(대상, 주기, 유형, 보존기간, 보관 위치)",
+          "최근 3~6개월 백업 작업 성공·실패 이력",
+          "백업 실패 시 알람 설정과 조치 티켓",
+          "백업 저장소의 위치·암호화·접근 권한 설정 캡처",
+          "PITR 가능 범위 조회 결과",
+          "복구 테스트 계획서와 수행 결과 보고서",
+          "복원 작업 수행 이력(누가 언제 무엇을 복원했는지)"
+        ],
+        "auditorQuestions": [
+          "어떤 시스템을 어떤 주기로 백업하는가? 정책 문서를 보여달라.",
+          "지난 3개월간 백업이 실패한 적이 있는가? 어떻게 알았고 어떻게 조치했는가?",
+          "특정 시점으로 복구가 가능한 범위는 언제부터 언제까지인가?",
+          "백업 데이터는 어디에 보관되며 원본과 분리되어 있는가?",
+          "백업을 복원할 수 있는 사람은 누구인가? 복원 이력이 남는가?",
+          "마지막 복구 테스트는 언제 했으며 결과는 어땠는가?"
+        ],
+        "controlExample": "운영 데이터베이스는 일 1회 전체 백업과 5분 주기 트랜잭션 로그 백업을 수행하여 35일간 보존하며, 백업 데이터는 운영과 분리된 계정의 암호화된 저장소에 복제 보관된다. 백업 작업의 성공 여부는 자동 모니터링되어 실패 시 당일 내 담당자가 조치하고 결과를 기록하며, 반기 1회 실제 복원 테스트를 통해 복구 가능성과 소요시간을 검증한다."
+      },
+      "related": [
+        "db-backup-policy",
+        "db-recovery-test-rpo-rto",
+        "db-storage-types",
+        "db-postgresql",
+        "db-mssql",
+        "db-oracle-ha",
+        "db-replication"
+      ],
+      "learnMore": [
+        "Amazon RDS User Guide - Backing Up and Restoring",
+        "PostgreSQL Documentation - Continuous Archiving and PITR",
+        "SQL Server Documentation - Backup Overview"
+      ]
+    },
+    {
+      "id": "db-backup-policy",
+      "title": "백업 정책 (3-2-1·보존·소산·불변백업)",
+      "titleEn": "Backup Policy: 3-2-1 Rule, Retention, Off-site, Immutable Backup",
+      "aliases": [
+        "3-2-1",
+        "백업정책",
+        "소산백업",
+        "불변백업",
+        "immutable",
+        "WORM",
+        "에어갭",
+        "랜섬웨어"
+      ],
+      "tags": [
+        "backup",
+        "policy",
+        "security",
+        "resilience"
+      ],
+      "level": "중급",
+      "oneLiner": "몇 벌을 어디에 얼마나 보관하고 누구도 지울 수 없게 할지 정한 규칙",
+      "analogy": "백업 정책은 중요한 계약서를 보관하는 규칙과 같다. 원본은 사무실 금고에, 사본 하나는 다른 층 캐비닛에, 또 하나는 아예 다른 건물 대여금고에 둔다. 그리고 대여금고는 '10년간은 본인도 꺼낼 수 없는' 조건으로 맡긴다. 불이 나도, 도둑이 들어도, 본인이 홧김에 찢으려 해도 계약서는 남는다.",
+      "explanation": "<p><strong>3-2-1 규칙</strong>은 백업 업계의 고전적 기준이다. <strong>3벌의 사본</strong>(원본 포함), <strong>2가지 다른 매체·저장 방식</strong>, <strong>1벌은 외부(off-site)</strong>에 둔다. 클라우드 시대에는 이를 <strong>3-2-1-1-0</strong>으로 확장하기도 한다 — 여기에 <strong>1벌은 불변(immutable) 또는 오프라인</strong>, <strong>복구 오류 0건(검증 완료)</strong>을 더한 것이다.</p><p><strong>소산 보관(off-site)</strong>은 국내 금융권에서 오래된 요구사항이다. 주 전산센터와 <strong>물리적으로 떨어진 곳</strong>에 백업을 보관해 화재·지진·정전 같은 광역 재해에도 데이터가 살아남게 한다. 과거에는 테이프를 차량으로 외부 보관소에 옮겼고, 지금은 다른 리전·다른 클라우드 계정으로 복제하는 형태가 일반적이다. 중요한 것은 <strong>'분리'의 실질</strong>이다 — 같은 리전의 다른 버킷은 소산이 아니고, 같은 계정의 다른 리전도 계정이 침해되면 함께 삭제될 수 있다.</p><p><strong>불변 백업(Immutable Backup)</strong>이 최근 가장 중요한 개념이다. 랜섬웨어 공격자는 침투 후 가장 먼저 <strong>백업부터 지운다</strong>. 관리자 권한을 탈취하면 스냅샷·백업 볼트를 모두 삭제할 수 있기 때문이다. 이를 막는 것이 <strong>WORM(Write Once Read Many)</strong> 방식이다. AWS의 S3 Object Lock(컴플라이언스 모드는 루트 계정도 삭제 불가), Backup Vault Lock, 테이프의 물리적 쓰기방지가 해당한다. 감사에서는 <strong>'귀사의 관리자 권한을 가진 사람이 백업을 지울 수 있는가'</strong>라는 질문으로 직결된다.</p><p><strong>보존기간(Retention)</strong>은 세 가지 요구를 동시에 만족해야 한다. (1) <strong>업무 복구 요구</strong> — 보통 최근 30~90일. (2) <strong>법정 보존</strong> — 전자금융거래법상 거래기록 5년(일부 1년), 상법상 상업장부 10년, 세법상 관련 서류 5년 등. (3) <strong>개인정보 최소보관</strong> — 목적 달성 시 지체 없이 파기. 문제는 (2)와 (3)이 충돌한다는 것이다. 실무 해법은 보존 대상 데이터의 항목을 분리하고(법정 보존 필요 항목만 남기고 그 외 개인정보는 파기), 백업 자체에 대해서도 보존 만료 시 파기 절차를 운영하는 것이다.</p><p><strong>정책 문서에 반드시 들어가야 할 항목</strong>은 대상 시스템 목록, 백업 유형·주기, 보존기간, 보관 위치(3-2-1 충족 근거), 암호화·키 관리, 접근 권한, 복구 절차, 복구 테스트 주기, 폐기 절차다. 감사인은 이 문서와 <strong>실제 설정을 대조</strong>한다 — 문서에는 35일인데 실제 설정이 7일인 경우가 흔한 지적 사항이다.</p>",
+      "howItWorks": "<ol><li>정보자산 목록에서 백업 대상 시스템과 데이터 중요도를 분류한다.</li><li>중요도별로 백업 유형·주기·보존기간·복구 목표(RPO/RTO)를 정한다.</li><li>1차 백업을 동일 리전·계정에 생성한다(빠른 복구용).</li><li>2차로 다른 리전 또는 다른 저장 방식으로 복제한다(광역 재해 대비).</li><li>3차로 별도 계정·별도 권한 체계의 볼트에 복제하고 객체 잠금·볼트 잠금을 적용한다(랜섬웨어·내부자 대비).</li><li>백업 데이터는 저장·전송 모두 암호화하며 키는 백업 계정과 분리된 KMS 정책으로 관리한다.</li><li>백업 삭제·정책 변경 권한을 운영 관리자와 분리해 별도 승인 체계를 둔다.</li><li>보존기간 만료 시 자동 삭제되며, 삭제 이력이 로그로 남는다.</li><li>정기적으로 복구 테스트를 수행하고 결과를 경영진에 보고한다.</li><li>연 1회 이상 정책과 실제 설정의 일치 여부를 점검한다.</li></ol>",
+      "example": "<p>'페이나우'의 백업 정책은 이렇다. 결제 DB는 (1) 동일 리전 자동 백업 35일 (2) 도쿄 리전 교차 리전 복제 90일 (3) 백업 전용 AWS 계정의 Backup Vault(Vault Lock, 컴플라이언스 모드 1년)로 3중 보관한다. 백업 전용 계정에는 운영 관리자 권한이 없고, 삭제는 CISO 승인 후 보안팀만 요청 가능하다. 2026년 2월 모의 랜섬웨어 훈련에서 운영 계정의 관리자 권한을 탈취한 시나리오를 가정했을 때, 운영 계정에서 삭제 가능한 백업은 1차뿐이고 2·3차는 보존됨을 확인했다. 한편 감사에서 사내 파일서버 백업은 정책상 1년 보존으로 문서화돼 있었지만 실제 테이프 순환 주기가 6개월이었던 불일치가 발견돼 시정했다.</p><pre><code># 3차 보관: 별도 계정 볼트에 복제 + 볼트 잠금(삭제 불가)\naws backup put-backup-vault-lock-configuration \\\n  --backup-vault-name paynow-immutable-vault \\\n  --min-retention-days 365 --max-retention-days 2555 \\\n  --changeable-for-days 3          # 3일 후 잠금 확정, 이후 해제 불가\n\n# 교차 리전·교차 계정 복사 규칙\naws backup create-backup-plan --backup-plan file://plan.json\n# plan.json 내 CopyActions:\n#   - DestinationBackupVaultArn: arn:aws:backup:ap-northeast-1:...:backup-vault:dr-vault\n#   - DestinationBackupVaultArn: arn:aws:backup:ap-northeast-2:999988887777:backup-vault:immutable\n\n# S3 로그·아카이브 불변 보관 (컴플라이언스 모드는 루트도 삭제 불가)\naws s3api put-object-retention --bucket paynow-archive --key ledger/2026/08.parquet \\\n  --retention '{\"Mode\":\"COMPLIANCE\",\"RetainUntilDate\":\"2031-09-01T00:00:00Z\"}'\n\n# 정책 대 실제 설정 대조 (감사 셀프 점검)\naws rds describe-db-clusters \\\n  --query 'DBClusters[].[DBClusterIdentifier,BackupRetentionPeriod]' --output table\naws backup list-backup-vaults --query 'BackupVaultList[].[BackupVaultName,Locked,MinRetentionDays]'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='56' width='110' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='75' y='77' text-anchor='middle' fill='currentColor' font-size='12'>운영 DB</text><text x='75' y='95' text-anchor='middle' fill='currentColor' font-size='11'>원본</text><line x1='130' y1='66' x2='186' y2='48' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='81' x2='186' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='96' x2='186' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='186' y='26' width='200' height='46' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='286' y='45' text-anchor='middle' fill='currentColor' font-size='12'>1차: 동일 리전 자동백업</text><text x='286' y='63' text-anchor='middle' fill='currentColor' font-size='11'>빠른 복구 / 35일</text><rect x='186' y='82' width='200' height='46' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='286' y='101' text-anchor='middle' fill='currentColor' font-size='12'>2차: 타 리전 복제 (소산)</text><text x='286' y='119' text-anchor='middle' fill='currentColor' font-size='11'>광역 재해 대비 / 90일</text><rect x='186' y='138' width='200' height='56' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='286' y='158' text-anchor='middle' fill='currentColor' font-size='12'>3차: 별도 계정 불변 볼트</text><text x='286' y='176' text-anchor='middle' fill='currentColor' font-size='11'>Vault Lock / WORM</text><text x='286' y='190' text-anchor='middle' fill='currentColor' font-size='11'>관리자도 삭제 불가</text><line x1='386' y1='166' x2='440' y2='166' stroke='currentColor' marker-end='url(#ar)'/><rect x='440' y='138' width='180' height='56' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='530' y='158' text-anchor='middle' fill='currentColor' font-size='12'>랜섬웨어·내부자</text><text x='530' y='176' text-anchor='middle' fill='currentColor' font-size='11'>공격해도 이 사본은</text><text x='530' y='190' text-anchor='middle' fill='currentColor' font-size='11'>남는다</text><rect x='400' y='26' width='220' height='102' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='48' text-anchor='middle' fill='currentColor' font-size='12'>3-2-1-1-0</text><text x='414' y='70' fill='currentColor' font-size='11'>3벌 사본 / 2가지 매체</text><text x='414' y='88' fill='currentColor' font-size='11'>1벌 외부(소산)</text><text x='414' y='106' fill='currentColor' font-size='11'>1벌 불변 / 복구오류 0</text><text x='20' y='226' fill='currentColor' font-size='12'>감사 질문의 핵심: 관리자 권한을 가진 사람이 백업 전부를 지울 수 있는가?</text></svg>",
+      "keyTerms": [
+        {
+          "term": "3-2-1 규칙",
+          "meaning": "사본 3벌, 매체 2종, 외부 보관 1벌의 백업 기본 원칙"
+        },
+        {
+          "term": "소산 보관",
+          "meaning": "주 전산센터와 물리적으로 분리된 장소에 백업을 두는 것"
+        },
+        {
+          "term": "불변 백업",
+          "meaning": "보존기간 동안 누구도 삭제·변경할 수 없게 만든 백업"
+        },
+        {
+          "term": "WORM",
+          "meaning": "한 번 쓰면 읽기만 가능한 저장 방식. 불변성의 기술적 구현"
+        },
+        {
+          "term": "Vault Lock",
+          "meaning": "AWS Backup 볼트의 보존 규칙을 잠가 변경 불가로 만드는 기능"
+        },
+        {
+          "term": "컴플라이언스 모드",
+          "meaning": "루트 계정조차 해제할 수 없는 가장 강한 객체 잠금 모드"
+        },
+        {
+          "term": "에어갭",
+          "meaning": "네트워크에서 완전히 분리된 백업. 오프라인 테이프가 대표"
+        },
+        {
+          "term": "보존기간",
+          "meaning": "백업을 유지하는 기간. 업무·법규·개인정보 요건을 함께 고려"
+        }
+      ],
+      "pitfalls": [
+        "백업을 원본과 같은 계정·같은 권한 체계에 두어 계정 침해 시 전부 함께 삭제된다.",
+        "소산 보관이라면서 같은 리전의 다른 버킷에 복사한다. 광역 재해를 못 막는다.",
+        "불변 백업이 없어 랜섬웨어 공격자가 백업부터 삭제한다.",
+        "정책 문서의 보존기간과 실제 시스템 설정이 다르다(가장 흔한 지적 사항).",
+        "법정 보존기간만 고려하고 개인정보 파기 의무를 놓쳐 백업에 개인정보가 무기한 남는다.",
+        "백업 암호화 키를 운영 계정에서 관리해 계정 침해 시 백업도 무용지물이 된다.",
+        "백업 삭제 권한이 운영 관리자에게 그대로 있어 내부자 위험이 통제되지 않는다.",
+        "복구 테스트 없이 정책만 문서화해 실제 복구 가능성이 검증되지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 백업 정책이 문서화되고 실제 시스템 설정과 일치하는가",
+          "[운영] 백업 사본이 원본과 분리된 위치·계정에 보관되는가(소산)",
+          "[운영] 최소 1벌 이상이 불변(WORM) 방식으로 보관되어 관리자도 삭제할 수 없는가",
+          "[접근] 백업 삭제·보존정책 변경 권한이 운영 권한과 분리되고 승인 절차가 있는가",
+          "[운영] 보존기간이 법정 요건과 개인정보 파기 의무를 함께 충족하는가",
+          "[운영] 백업 데이터가 암호화되고 키가 별도 통제되는가",
+          "[운영] 정책 준수 여부에 대한 정기 점검이 수행되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템 백업 및 소산 보관 요건을 충족하는가",
+          "전자금융거래 기록의 법정 보존기간(전자금융거래법 제22조)이 준수되는가",
+          "재해 발생 시 백업을 이용한 복구가 가능하도록 분리 보관되어 있는가",
+          "랜섬웨어 등 침해사고 대비 백업 보호 조치가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리: 백업 정책 수립, 분리 보관, 복구 시험",
+          "2.7.1 암호정책 적용: 백업 데이터 암호화 및 키 관리",
+          "2.11.x 사고 예방 및 대응: 랜섬웨어 대비 백업 보호",
+          "3.4.1 개인정보 파기: 백업본 내 개인정보의 보존기간 관리"
+        ],
+        "evidence": [
+          "백업 정책 문서(대상, 주기, 보존기간, 보관 위치, 암호화, 권한)",
+          "실제 백업 설정 export와 정책 대조표",
+          "불변 보관 설정 증빙(Vault Lock, Object Lock 모드·기간 캡처)",
+          "백업 전용 계정·볼트의 접근 권한 정책",
+          "백업 삭제 요청·승인 이력",
+          "교차 리전·교차 계정 복제 구성 캡처",
+          "보존기간 만료 백업의 자동 삭제 이력",
+          "연간 정책 준수 점검 결과"
+        ],
+        "auditorQuestions": [
+          "백업은 몇 벌이며 각각 어디에 보관되는가?",
+          "운영 관리자 권한을 가진 사람이 모든 백업을 삭제할 수 있는가?",
+          "랜섬웨어로 운영 환경이 전부 암호화되면 무엇으로 복구하는가?",
+          "정책 문서상 보존기간과 실제 설정이 같은가? 대조 결과를 보여달라.",
+          "백업 안에 있는 개인정보는 보존기간이 지나면 어떻게 처리되는가?",
+          "백업 데이터는 암호화되어 있으며 키는 누가 관리하는가?",
+          "소산 보관 요건을 어떻게 충족하고 있는가?"
+        ],
+        "controlExample": "운영 데이터베이스 백업은 동일 리전 자동 백업, 원격 리전 복제, 별도 AWS 계정의 잠금 설정된 백업 볼트 3중으로 보관된다. 백업 볼트는 Vault Lock 컴플라이언스 설정으로 최소 1년간 삭제가 불가능하며 해당 계정에는 운영 관리자 권한이 부여되지 않는다. 백업 정책과 실제 설정의 일치 여부는 반기별로 점검하여 결과를 보고한다."
+      },
+      "related": [
+        "db-backup-types",
+        "db-recovery-test-rpo-rto",
+        "db-data-retention",
+        "db-storage-types",
+        "db-oracle-ha",
+        "awssec-kms",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "AWS Backup Developer Guide - Vault Lock",
+        "NIST SP 800-34 Contingency Planning Guide",
+        "금융보안원 - 랜섬웨어 대응 가이드"
+      ]
+    },
+    {
+      "id": "db-recovery-test-rpo-rto",
+      "title": "복구 테스트와 RPO/RTO",
+      "titleEn": "Recovery Testing, RPO and RTO",
+      "aliases": [
+        "복구테스트",
+        "RPO",
+        "RTO",
+        "DR훈련",
+        "BCP",
+        "모의훈련",
+        "복구목표"
+      ],
+      "tags": [
+        "backup",
+        "dr",
+        "operations",
+        "bcp"
+      ],
+      "level": "중급",
+      "oneLiner": "얼마나 잃어도 되는지(RPO)와 얼마나 빨리 살려야 하는지(RTO)를 정하고 실제로 검증하는 활동",
+      "analogy": "RPO와 RTO는 소방 훈련의 두 기준과 같다. RPO는 '불이 났을 때 잃어도 감수할 수 있는 서류의 양', RTO는 '다시 업무를 시작하기까지 허용되는 시간'이다. 그리고 복구 테스트는 실제 대피 훈련이다 — 소화기를 사 두기만 하고 한 번도 안 뿌려봤다면, 정작 불이 났을 때 안전핀 뽑는 법을 모른다.",
+      "explanation": "<p><strong>RPO(Recovery Point Objective)</strong>는 <strong>얼마만큼의 데이터 손실을 감수할 것인가</strong>다. RPO 15분이면 장애 시 최대 15분치 데이터가 사라져도 된다는 뜻이고, 이는 <strong>백업·복제 주기</strong>가 결정한다. <strong>RTO(Recovery Time Objective)</strong>는 <strong>얼마나 빨리 서비스를 재개할 것인가</strong>다. RTO 1시간이면 장애 발생 후 1시간 안에 서비스가 정상화돼야 하며, 이는 <strong>복구 절차의 속도</strong>가 결정한다.</p><p><strong>두 값은 업무가 정한다.</strong> IT가 임의로 정하는 숫자가 아니라 <strong>업무영향분석(BIA, Business Impact Analysis)</strong>을 통해 '이 시스템이 멈추면 시간당 얼마의 손실과 어떤 규제 리스크가 있는가'를 평가해 결정한다. 그래서 감사인은 'RPO가 왜 15분인가'를 묻고, BIA 문서와 경영진 승인을 확인한다.</p><p><strong>가장 흔한 문제는 목표와 실제의 괴리</strong>다. 문서에는 RPO 0, RTO 30분이라고 써 있는데 실제 구성은 비동기 복제(RPO 수 초~수 분)에 수동 복구 절차(RTO 수 시간)인 경우다. 이것은 단순 문서 오류가 아니라 <strong>경영진이 잘못된 전제로 위험을 수용하고 있다</strong>는 뜻이라 심각한 지적이 된다.</p><p><strong>복구 테스트의 수준</strong>은 여러 단계가 있다. (1) <strong>문서 검토(walkthrough)</strong> — 절차서를 함께 읽어본다. (2) <strong>부분 복구 테스트</strong> — 백업에서 별도 인스턴스를 복원해 데이터가 정상인지 확인한다. (3) <strong>전환 훈련</strong> — 실제로 DR 사이트로 전환해 서비스를 운영해 본다. (4) <strong>전면 훈련</strong> — 실제 트래픽을 DR로 넘겨 일정 시간 운영한다. 낮은 단계만 하고 '훈련했다'고 하는 경우가 많으므로, <strong>어느 수준까지 했는지</strong>가 증빙의 질을 가른다.</p><p><strong>테스트 보고서에 반드시 들어가야 할 것</strong>은 (a) 시나리오와 범위 (b) 실제 소요 시간(각 단계별) (c) 목표 대비 달성 여부 (d) 복구 후 <strong>데이터 정합성 확인 결과</strong>(건수·합계 대사) (e) 발견된 문제와 개선 과제 (f) 개선 과제 완료 추적이다. 특히 (d)는 빠뜨리기 쉬운데, '서버는 떴지만 데이터가 맞는지'는 별개 문제다.</p><p><strong>규제 관점</strong>에서 금융회사는 전자금융감독규정에 따라 재해복구 체계를 갖추고 <strong>연 1회 이상 훈련</strong>을 실시하며 결과를 경영진에 보고해야 한다. ISMS-P도 재해 복구 시험과 개선을 요구한다.</p>",
+      "howItWorks": "<ol><li>업무영향분석(BIA)으로 시스템별 중단 허용 시간과 데이터 손실 허용 범위를 산정한다.</li><li>경영진이 RPO/RTO 목표를 승인하고 정보자산 등급과 연결한다.</li><li>목표를 충족하도록 백업 주기·복제 방식·DR 구성을 설계·구축한다.</li><li>복구 절차서를 작성한다(누가, 어떤 순서로, 어떤 명령으로, 누구에게 보고).</li><li>연간 훈련 계획을 수립하고 시나리오(DB 손상, 리전 장애, 랜섬웨어 등)를 정한다.</li><li>훈련 시 각 단계의 시작·종료 시각을 기록하며 실제 복구를 수행한다.</li><li>복구 완료 후 데이터 정합성을 검증한다(주요 테이블 건수·금액 대사, 최근 거래 존재 확인).</li><li>목표 대비 실제 RPO·RTO를 산출하고 미달 시 원인을 분석한다.</li><li>발견된 문제를 개선 과제로 등록하고 담당자·기한을 지정해 추적한다.</li><li>결과를 경영진·감사 부서에 보고하고 다음 훈련 계획에 반영한다.</li></ol>",
+      "example": "<p>'페이나우'는 시스템을 3등급으로 나눠 RPO/RTO를 정했다. 1등급(결제·계좌): RPO 0, RTO 30분. 2등급(정산·CS): RPO 15분, RTO 4시간. 3등급(내부 리포팅): RPO 24시간, RTO 3일. 2026년 상반기 훈련에서는 1등급 시스템에 대해 실제 리전 전환을 수행했고, DB 전환 22분·애플리케이션 정상화 14분으로 총 36분이 걸려 목표를 6분 초과했다. 원인은 DNS TTL이 300초로 설정돼 있던 것과 배치 서버 수동 기동이었고, TTL 60초 조정과 기동 자동화를 개선 과제로 등록해 3분기에 완료했다. 복구 후 <code>ledger</code> 테이블 건수와 금액 합계를 전환 전 스냅샷과 대조해 차이 0을 확인했다.</p><pre><code># 복구 테스트: 백업에서 검증용 인스턴스 복원\naws rds restore-db-cluster-to-point-in-time \\\n  --source-db-cluster-identifier paynow-prod \\\n  --db-cluster-identifier paynow-drtest-20260615 \\\n  --restore-to-time 2026-06-15T02:00:00Z\n\n-- 복구 후 데이터 정합성 검증 (보고서 필수 항목)\nSELECT 'ledger' tbl, COUNT(*) cnt, SUM(amount) sum_amt, MAX(created_at) latest\n  FROM ledger WHERE created_at &lt; TIMESTAMP '2026-06-15 02:00:00'\nUNION ALL\nSELECT 'account', COUNT(*), SUM(balance), MAX(updated_at) FROM account;\n\n-- 실제 RPO 측정: 복원 가능한 최신 시점과 장애 시점의 차이\n-- LatestRestorableTime 과 장애 발생 시각 비교\n\n# 훈련 후 정리 (비용·데이터 잔존 관리)\naws rds delete-db-cluster --db-cluster-identifier paynow-drtest-20260615 \\\n  --skip-final-snapshot</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><line x1='40' y1='90' x2='600' y2='90' stroke='currentColor' marker-end='url(#ar)'/><text x='610' y='94' fill='currentColor' font-size='11'>시간</text><line x1='230' y1='60' x2='230' y2='120' stroke='currentColor'/><text x='230' y='52' text-anchor='middle' fill='currentColor' font-size='12'>장애 발생</text><line x1='150' y1='70' x2='150' y2='110' stroke='currentColor' stroke-dasharray='4 3'/><text x='150' y='62' text-anchor='middle' fill='currentColor' font-size='11'>마지막 백업/복제</text><line x1='420' y1='70' x2='420' y2='110' stroke='currentColor' stroke-dasharray='4 3'/><text x='420' y='62' text-anchor='middle' fill='currentColor' font-size='11'>서비스 재개</text><rect x='150' y='118' width='80' height='28' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='190' y='137' text-anchor='middle' fill='currentColor' font-size='12'>RPO</text><text x='190' y='162' text-anchor='middle' fill='currentColor' font-size='11'>잃는 데이터 범위</text><text x='190' y='178' text-anchor='middle' fill='currentColor' font-size='11'>← 백업·복제 주기가 결정</text><rect x='230' y='118' width='190' height='28' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='325' y='137' text-anchor='middle' fill='currentColor' font-size='12'>RTO</text><text x='325' y='162' text-anchor='middle' fill='currentColor' font-size='11'>복구까지 걸리는 시간</text><text x='325' y='178' text-anchor='middle' fill='currentColor' font-size='11'>← 복구 절차 속도가 결정</text><rect x='450' y='110' width='170' height='76' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535' y='131' text-anchor='middle' fill='currentColor' font-size='12'>RTO에 포함되는 것</text><text x='464' y='151' fill='currentColor' font-size='11'>장애 인지 + 판단 시간</text><text x='464' y='168' fill='currentColor' font-size='11'>DB 전환 + 앱 재기동</text><text x='464' y='183' fill='currentColor' font-size='11'>DNS 전파 + 검증</text><rect x='20' y='200' width='600' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='220' fill='currentColor' font-size='12'>훈련 보고서 필수: 단계별 소요시간 / 목표 달성 여부 / 복구 후 데이터 정합성 대사 / 개선과제 추적</text><text x='34' y='236' fill='currentColor' font-size='12'>목표(문서)와 실제 구성의 괴리가 가장 흔하고 심각한 지적 사항</text></svg>",
+      "keyTerms": [
+        {
+          "term": "RPO",
+          "meaning": "허용 가능한 데이터 손실 범위. 백업·복제 주기가 결정"
+        },
+        {
+          "term": "RTO",
+          "meaning": "허용 가능한 서비스 중단 시간. 복구 절차 속도가 결정"
+        },
+        {
+          "term": "BIA",
+          "meaning": "업무영향분석. 중단 시 손실을 평가해 RPO/RTO 근거를 만드는 활동"
+        },
+        {
+          "term": "BCP / DRP",
+          "meaning": "업무연속성계획 / 재해복구계획"
+        },
+        {
+          "term": "walkthrough",
+          "meaning": "절차서를 함께 검토하는 가장 낮은 수준의 훈련"
+        },
+        {
+          "term": "전환 훈련",
+          "meaning": "실제로 DR 환경으로 전환해 운영해 보는 훈련"
+        },
+        {
+          "term": "정합성 검증",
+          "meaning": "복구된 데이터가 맞는지 건수·금액으로 확인하는 절차"
+        },
+        {
+          "term": "개선 과제 추적",
+          "meaning": "훈련에서 발견된 문제의 조치 완료를 관리하는 활동"
+        }
+      ],
+      "pitfalls": [
+        "RPO/RTO를 IT가 임의로 정하고 업무영향분석이나 경영진 승인 근거가 없다.",
+        "문서상 목표와 실제 구성(비동기 복제, 수동 절차)이 맞지 않는다.",
+        "RTO를 DB 전환 시간으로만 계산하고 장애 인지·판단·앱 기동·DNS 전파 시간을 빼먹는다.",
+        "복구 테스트를 절차서 검토로 갈음하고 실제 복원을 한 번도 안 한다.",
+        "복구는 했지만 데이터 정합성 검증(건수·금액 대사)을 하지 않는다.",
+        "훈련에서 문제를 발견하고도 개선 과제로 등록·추적하지 않는다.",
+        "훈련 결과를 경영진에 보고하지 않아 위험 수준이 공유되지 않는다.",
+        "테스트용으로 복원한 인스턴스를 삭제하지 않아 실데이터가 통제 밖에 방치된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 시스템별 RPO/RTO가 업무영향분석에 근거해 정의되고 승인되었는가",
+          "[운영] 실제 백업·복제·DR 구성이 정의된 목표를 충족하는가",
+          "[운영] 정기 복구 테스트가 계획·수행되고 실제 복원 수준까지 검증되는가",
+          "[ITAC] 복구 후 데이터 정합성 검증이 수행되고 결과가 기록되는가",
+          "[운영] 훈련에서 발견된 문제가 개선 과제로 등록·추적·완료되는가",
+          "[운영] 훈련 결과가 경영진에 보고되는가",
+          "[접근] 테스트용으로 복원된 환경의 접근이 통제되고 종료 후 삭제되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따른 재해복구센터 구축 및 비상대응훈련(연 1회 이상) 요건을 충족하는가",
+          "비상대책 수립·훈련 결과가 경영진에 보고되고 개선에 반영되는가",
+          "복구 목표가 업무 중요도에 부합하며 실제 검증되었는가"
+        ],
+        "isms": [
+          "2.12.1 재해·재난 대비 안전조치: BCP/DRP 수립, 복구 목표 정의",
+          "2.12.2 재해 복구 시험 및 개선: 정기 시험 수행과 결과 반영",
+          "2.9.3 백업 및 복구관리: 복구 절차의 유효성 검증"
+        ],
+        "evidence": [
+          "업무영향분석(BIA) 결과와 시스템별 RPO/RTO 정의 문서(승인 포함)",
+          "실제 백업·복제 설정과 목표 대비 충족 여부 분석 자료",
+          "복구 테스트 계획서(시나리오, 범위, 일정)",
+          "훈련 수행 로그(단계별 시작·종료 시각)와 실측 RPO/RTO",
+          "복구 후 데이터 정합성 검증 결과(건수·합계 대사표)",
+          "훈련 결과 보고서와 경영진 보고 증빙",
+          "개선 과제 목록과 완료 추적 현황",
+          "테스트 환경 삭제 확인 기록"
+        ],
+        "auditorQuestions": [
+          "주요 시스템의 RPO와 RTO는 각각 얼마이며 누가 승인했는가?",
+          "그 목표가 나온 근거(업무영향분석)를 보여줄 수 있는가?",
+          "현재 구성으로 그 목표를 실제로 달성할 수 있는가? 검증한 적이 있는가?",
+          "최근 복구 테스트는 언제 어떤 수준으로 했는가? 보고서를 보여달라.",
+          "복구된 데이터가 정확한지 어떻게 확인했는가?",
+          "훈련에서 발견된 문제는 무엇이었고 지금 어떻게 됐는가?",
+          "테스트로 복원한 환경은 어떻게 처리했는가?"
+        ],
+        "controlExample": "정보시스템별 목표 복구시점(RPO)과 목표 복구시간(RTO)은 업무영향분석 결과에 따라 정의되어 경영진의 승인을 받았으며, 연 1회 이상 실제 복원을 포함한 복구 테스트를 수행한다. 테스트 시 단계별 소요시간을 측정하여 목표 달성 여부를 평가하고 복구된 데이터의 건수·금액 정합성을 검증하며, 발견된 개선사항은 과제로 등록해 완료까지 추적하고 결과를 경영진에 보고한다."
+      },
+      "related": [
+        "db-backup-policy",
+        "db-backup-types",
+        "db-ha-failover",
+        "db-oracle-ha",
+        "db-replication",
+        "db-data-reconciliation",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "NIST SP 800-34 Rev.1 - Contingency Planning Guide",
+        "ISO 22301 Business Continuity Management",
+        "전자금융감독규정 - 재해복구 관련 조항"
+      ]
+    },
+    {
+      "id": "db-data-retention",
+      "title": "데이터 보존·파기 정책",
+      "titleEn": "Data Retention and Disposal Policy",
+      "aliases": [
+        "보존기간",
+        "파기",
+        "데이터 라이프사이클",
+        "개인정보 파기",
+        "아카이빙",
+        "TTL"
+      ],
+      "tags": [
+        "governance",
+        "privacy",
+        "compliance"
+      ],
+      "level": "중급",
+      "oneLiner": "데이터를 언제까지 보관하고 언제 어떻게 없앨지를 정하고 실제로 집행하는 체계",
+      "analogy": "보존·파기 정책은 서류 캐비닛 관리 규칙과 같다. 세금 관련 서류는 5년, 계약서는 10년, 지원자 이력서는 채용 종료 후 즉시 파기. 규칙만 벽에 붙여두고 아무도 실행하지 않으면 캐비닛은 20년치 서류로 가득 차고, 그중 누군가의 주민등록번호가 계속 남아 있게 된다.",
+      "explanation": "<p>데이터 보존·파기는 <strong>서로 반대 방향의 두 의무</strong>를 동시에 지켜야 하는 영역이다. 한쪽에는 <strong>보존 의무</strong>가 있다 — 전자금융거래법상 전자금융거래 기록은 원칙적으로 5년(건당 1만원 이하 소액 등 일부는 1년), 상법상 상업장부·영업 서류는 10년, 세법상 관련 증빙은 5년. 다른 쪽에는 <strong>파기 의무</strong>가 있다 — 개인정보보호법은 보유 목적을 달성하면 <strong>지체 없이(원칙적으로 5일 이내)</strong> 파기하도록 한다.</p><p><strong>충돌 해법은 항목 분리</strong>다. 거래기록 전체를 5년 보관하되, 그 안에서 법정 보존이 필요 없는 개인정보 항목(예: 마케팅 수신 동의 이력, 상세 주소)은 목적 달성 시 별도로 파기하거나 비식별 처리한다. 즉 <strong>'테이블 단위'가 아니라 '항목 단위'로 보존기간을 설계</strong>하는 것이 실무의 핵심이다.</p><p><strong>정책이 실제로 집행되는지가 감사의 초점</strong>이다. 문서에 보존기간 표가 있어도, 실제로는 (1) 운영 DB에 10년치가 그대로 있고 (2) 백업본에는 더 오래 남아 있고 (3) 데이터레이크·검색엔진·로그 시스템·개발 DB 등 <strong>복제된 곳들은 아예 대상에서 빠져 있는</strong> 경우가 대부분이다. 그래서 파기 통제를 볼 때는 반드시 <strong>데이터가 흘러간 모든 저장소 목록</strong>을 함께 확인해야 한다.</p><p><strong>기술적 집행 수단</strong>은 저장소마다 다르다. RDBMS는 파티션 DROP(가장 깔끔하고 증빙도 명확), NoSQL은 TTL 인덱스, Elasticsearch는 ILM 정책, S3는 수명주기 규칙, Kafka는 토픽 보존기간, 레이크하우스는 DELETE + 스냅샷 만료다. 각각 <strong>자동화하고 실행 결과를 로그로 남기는 것</strong>이 핵심이다.</p><p><strong>파기의 완결성</strong>도 확인 대상이다. 논리적 삭제(플래그만 변경)는 파기가 아니다. 백업본에 남아 있으면 완결되지 않은 것이고, 복구 시 되살아난다. 실무적으로는 '백업 보존기간 만료와 함께 파기 완결'로 정의하고, 그 기간을 정책에 명시하는 방식이 일반적이다.</p><p><strong>파기 기록</strong>은 ISMS-P와 개인정보보호법이 요구한다. 무엇을(항목·건수), 언제, 어떤 방법으로, 누가 파기했는지를 남긴 <strong>파기 대장</strong>이 있어야 한다. 실제 감사에서 '파기했다'는 주장을 뒷받침할 유일한 증거가 이것이다.</p>",
+      "howItWorks": "<ol><li>보유 중인 데이터를 인벤토리로 식별한다(시스템, 테이블, 항목, 개인정보 포함 여부).</li><li>항목별로 보존 근거(법령·계약·업무 필요)와 보존기간을 정의하고 승인받는다.</li><li>데이터가 복제되어 존재하는 모든 저장소를 데이터 흐름도로 식별한다.</li><li>각 저장소에 맞는 자동 파기 수단을 구성한다(파티션 DROP, TTL, 수명주기 정책 등).</li><li>정기 배치가 보존기간 경과 데이터를 선별해 필요 시 아카이브한 뒤 삭제한다.</li><li>삭제 실행 결과(대상 건수, 실행 시각, 결과)가 로그로 기록된다.</li><li>파기 대장에 항목·건수·방법·수행자·확인자가 기록된다.</li><li>백업본의 보존기간 만료로 최종 파기가 완결된다.</li><li>연 1회 이상 정책과 실제 데이터 보유 현황을 대조 점검하고 초과 보유분을 조치한다.</li></ol>",
+      "example": "<p>'페이나우'는 데이터 항목별 보존기간 표를 운영한다. 거래원장 5년(전자금융거래법), 회계 증빙 10년(상법), 접속기록 1년, CS 상담 녹취 3년, 마케팅 동의 이력은 동의 철회 시 즉시 파기다. 집행은 <code>payment</code>·<code>ledger</code>의 월별 파티션 DROP, S3 수명주기, OpenSearch ILM, Kafka 토픽 보존 7일, Iceberg 스냅샷 만료로 자동화돼 있다. 2026년 개인정보 실태 점검에서 <strong>개발 DB와 CS팀 공유 폴더에 5년 초과 데이터가 남아 있던 것</strong>이 발견돼, 데이터 흐름도에 두 저장소를 추가하고 파기 대상에 포함시켰다. 파기 대장에는 분기마다 '거래원장 2021년 3분기 파티션 4개, 1억 1,200만 건, 파티션 DROP, 수행 DBA, 확인 정보보호팀' 형태로 기록된다.</p><pre><code>-- 파티션 DROP: 파기 증빙이 가장 명확한 방식\n-- 1) 파기 전 대상 확인 (건수 기록)\nSELECT COUNT(*) FROM payment_2021_08;\n\n-- 2) 필요 시 법정보존 항목만 아카이브\nINSERT INTO archive.payment_min\nSELECT payment_id, merchant_id, amount, paid_at FROM payment_2021_08;\n\n-- 3) 파기 실행\nALTER TABLE payment DETACH PARTITION payment_2021_08;\nDROP TABLE payment_2021_08;\n\n-- 4) 파기 후 확인\nSELECT inhrelid::regclass FROM pg_inherits WHERE inhparent='payment'::regclass;\n\n# 다른 저장소의 동일 데이터도 함께 처리해야 완결\n# S3 수명주기\naws s3api put-bucket-lifecycle-configuration --bucket paynow-lake \\\n  --lifecycle-configuration '{\"Rules\":[{\"ID\":\"expire-5y\",\"Status\":\"Enabled\",\n    \"Filter\":{\"Prefix\":\"payment/\"},\"Expiration\":{\"Days\":1825},\n    \"NoncurrentVersionExpiration\":{\"NoncurrentDays\":30}}]}'\n\n# OpenSearch ILM / MongoDB TTL / Kafka retention.ms 도 동일 기준 적용</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='36' width='130' height='48' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='85' y='56' text-anchor='middle' fill='currentColor' font-size='12'>운영 DB</text><text x='85' y='74' text-anchor='middle' fill='currentColor' font-size='11'>파티션 DROP</text><line x1='150' y1='44' x2='210' y2='34' stroke='currentColor' marker-end='url(#ar)'/><line x1='150' y1='60' x2='210' y2='84' stroke='currentColor' marker-end='url(#ar)'/><line x1='150' y1='76' x2='210' y2='134' stroke='currentColor' marker-end='url(#ar)'/><rect x='210' y='20' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='40' text-anchor='middle' fill='currentColor' font-size='11'>데이터레이크 (수명주기)</text><rect x='210' y='70' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='90' text-anchor='middle' fill='currentColor' font-size='11'>검색엔진 (ILM)</text><rect x='210' y='120' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='140' text-anchor='middle' fill='currentColor' font-size='11'>Kafka (retention)</text><rect x='210' y='170' width='150' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='190' text-anchor='middle' fill='currentColor' font-size='11'>개발 DB / 공유폴더</text><line x1='150' y1='80' x2='210' y2='182' stroke='currentColor' marker-end='url(#ar)' stroke-dasharray='4 3'/><text x='128' y='140' fill='currentColor' font-size='10'>흔히 누락</text><line x1='360' y1='90' x2='420' y2='90' stroke='currentColor' marker-end='url(#ar)'/><rect x='420' y='58' width='200' height='64' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='520' y='80' text-anchor='middle' fill='currentColor' font-size='12'>백업본</text><text x='520' y='99' text-anchor='middle' fill='currentColor' font-size='11'>보존기간 만료 시점에</text><text x='520' y='114' text-anchor='middle' fill='currentColor' font-size='11'>파기 최종 완결</text><rect x='400' y='142' width='220' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='163' text-anchor='middle' fill='currentColor' font-size='12'>파기 대장</text><text x='510' y='181' text-anchor='middle' fill='currentColor' font-size='11'>항목·건수·방법·수행자</text><text x='510' y='196' text-anchor='middle' fill='currentColor' font-size='11'>= 유일한 파기 증거</text><text x='20' y='226' fill='currentColor' font-size='12'>보존 의무(전금법 5년·상법 10년)와 파기 의무(목적달성 시 지체없이)는 항목 단위 설계로 양립시킨다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "보존기간",
+          "meaning": "법령·업무 필요에 따라 데이터를 보관해야 하는 기간"
+        },
+        {
+          "term": "파기 의무",
+          "meaning": "보유 목적 달성 시 개인정보를 지체 없이 없애야 하는 의무"
+        },
+        {
+          "term": "항목 단위 설계",
+          "meaning": "테이블이 아닌 데이터 항목별로 보존기간을 정하는 방식"
+        },
+        {
+          "term": "파기 대장",
+          "meaning": "무엇을 언제 어떻게 누가 파기했는지 기록한 문서. 핵심 증빙"
+        },
+        {
+          "term": "논리적 삭제",
+          "meaning": "플래그만 변경하는 방식. 파기로 인정되지 않음"
+        },
+        {
+          "term": "아카이빙",
+          "meaning": "활성 시스템에서 분리해 저비용 저장소로 옮기는 것. 파기와 구분"
+        },
+        {
+          "term": "데이터 흐름도",
+          "meaning": "데이터가 복제·전파되는 모든 저장소를 표현한 문서"
+        },
+        {
+          "term": "비식별 처리",
+          "meaning": "개인을 알아볼 수 없게 만들어 보존 가능하게 하는 대안"
+        }
+      ],
+      "pitfalls": [
+        "보존기간 표만 만들고 실제 삭제를 자동화하지 않아 데이터가 계속 쌓인다.",
+        "운영 DB만 파기하고 데이터레이크·검색엔진·로그·개발 DB의 사본은 그대로 남긴다.",
+        "논리적 삭제(플래그 변경)를 파기로 간주한다.",
+        "백업본에 남아 있는 개인정보를 고려하지 않아 파기가 완결되지 않는다.",
+        "법정 보존기간을 이유로 모든 개인정보 항목을 함께 장기 보관한다.",
+        "파기 대장이 없어 '파기했다'는 주장을 증명하지 못한다.",
+        "보존기간이 법정 기간보다 짧게 설정돼 있어 감사 요구 시점의 데이터가 이미 없다.",
+        "삭제 배치가 실패했는데 알람이 없어 몇 달간 파기가 안 된 상태로 방치된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 데이터 항목별 보존기간이 법적 근거와 함께 정의되고 승인되었는가",
+          "[운영] 데이터가 복제된 모든 저장소가 식별되고 파기 대상에 포함되는가",
+          "[운영] 보존기간 경과 데이터의 파기가 자동화되고 실행 결과가 기록되는가",
+          "[운영] 파기 배치의 실패가 모니터링되고 조치되는가",
+          "[운영] 파기 대장이 작성·보관되며 수행자와 확인자가 구분되는가",
+          "[운영] 백업본에 대한 파기 완결 시점이 정의되어 있는가",
+          "[운영] 정책 대비 실제 보유 현황의 정기 점검이 수행되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록의 법정 보존기간(전자금융거래법 제22조)이 준수되는가",
+          "보존 대상 기록이 훼손·변조되지 않도록 관리되는가",
+          "보존기간 경과 기록의 처리 절차가 마련되어 있는가"
+        ],
+        "isms": [
+          "3.4.1 개인정보 파기: 보유 목적 달성 시 지체 없는 파기와 복구 불가능한 방법",
+          "3.4.2 처리목적 달성 후 보유 시 조치: 분리 보관 및 접근 제한",
+          "2.1.3 정보자산 관리: 보유 데이터 식별과 분류"
+        ],
+        "evidence": [
+          "데이터 항목별 보존기간 정의표와 법적 근거, 승인 문서",
+          "데이터 흐름도(복제 저장소 포함 전체 목록)",
+          "각 저장소의 자동 파기 설정(파티션 정책, TTL, 수명주기, ILM 등)",
+          "파기 배치 실행 이력과 실패 알람 설정",
+          "파기 대장(항목, 건수, 방법, 일시, 수행자, 확인자)",
+          "백업 보존기간 설정과 파기 완결 정의 문서",
+          "정책 대비 실제 보유 현황 점검 결과와 초과 보유분 조치 내역"
+        ],
+        "auditorQuestions": [
+          "데이터별 보존기간은 어떻게 정해져 있으며 법적 근거는 무엇인가?",
+          "5년이 지난 거래 데이터는 지금 어디에 남아 있는가? 실제로 조회해 보여달라.",
+          "운영 DB 외에 같은 데이터가 있는 곳은 어디인가? 거기도 파기되는가?",
+          "파기는 자동인가 수동인가? 최근 파기 기록을 보여달라.",
+          "백업에 남아 있는 개인정보는 어떻게 처리되는가?",
+          "파기 배치가 실패하면 누가 알게 되는가?",
+          "정책과 실제 보유 현황을 대조해 본 적이 있는가?"
+        ],
+        "controlExample": "데이터 항목별 보존기간은 관련 법령 근거와 함께 정의·승인되어 있으며, 보존기간이 경과한 데이터는 운영 데이터베이스·데이터레이크·검색엔진·로그 저장소 각각의 자동 파기 수단을 통해 정기적으로 삭제된다. 파기 실행 결과는 대상 건수와 함께 파기 대장에 기록되어 수행 부서와 정보보호 부서가 각각 확인하며, 연 1회 정책 대비 실제 보유 현황을 점검한다."
+      },
+      "related": [
+        "db-backup-policy",
+        "db-sharding-partitioning",
+        "db-masked-dev-db",
+        "db-lakehouse",
+        "db-elasticsearch",
+        "db-audit-log",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "개인정보보호위원회 - 개인정보 파기 가이드라인",
+        "전자금융거래법 제22조 (전자금융거래기록의 생성·보존 및 파기)",
+        "ISMS-P 인증기준 안내서 - 3.4 개인정보 파기"
+      ]
+    },
+    {
+      "id": "db-batch-scheduler",
+      "title": "배치 스케줄러와 배치 실패 통제",
+      "titleEn": "Batch Scheduling and Batch Failure Control",
+      "aliases": [
+        "배치",
+        "스케줄러",
+        "Airflow",
+        "Control-M",
+        "cron",
+        "잡",
+        "DAG",
+        "마감배치"
+      ],
+      "tags": [
+        "operations",
+        "batch",
+        "itgc",
+        "automation"
+      ],
+      "level": "중급",
+      "oneLiner": "정해진 시각에 작업을 순서대로 실행하고 실패를 탐지·조치하는 체계",
+      "analogy": "배치 스케줄러는 공장의 야간 생산 일정표와 같다. 1번 라인이 끝나야 2번이 시작되고, 2번이 멈추면 3번도 못 돈다. 중요한 건 라인이 멈췄을 때 경보가 울리고 누군가 달려오는 것이다. 경보 없이 아침에 출근해서야 '어제 밤 생산이 안 됐네'를 알면 그날 출하가 통째로 밀린다.",
+      "explanation": "<p><strong>배치(Batch)</strong>는 정해진 시각에 대량 데이터를 한꺼번에 처리하는 작업이다. 금융·커머스에서 <strong>일마감, 월마감, 정산, 이자 계산, 통계 집계, 대외기관 전송</strong>이 모두 배치로 돌아간다. 재무제표 숫자의 상당 부분이 배치의 산출물이므로, <strong>배치는 ITGC에서 가장 중요한 운영 통제 영역 중 하나</strong>다.</p><p><strong>스케줄러의 계보.</strong> 가장 단순한 것은 OS의 <strong>cron</strong>이다. 시각만 지정할 수 있고 의존관계·재실행·이력 관리가 없어 소규모에만 적합하다. 기업용으로는 <strong>Control-M, JobScheduler, Tivoli</strong> 같은 상용 스케줄러가 오래 쓰였고, 데이터 파이프라인 영역에서는 <strong>Apache Airflow</strong>가 표준이 됐다. Airflow는 작업 간 의존관계를 <strong>DAG</strong>로 정의하고, 실행 이력·재시도·알림·백필(과거 구간 재실행)을 제공한다.</p><p><strong>배치 통제의 핵심 질문은 다섯 가지</strong>다. (1) <strong>실행됐는가</strong> — 스케줄이 걸려 있어도 서버가 죽어 있으면 안 돈다. (2) <strong>성공했는가</strong> — 종료 코드만 0이고 실제로는 0건 처리한 경우가 있다. (3) <strong>실패를 인지했는가</strong> — 알람 수신자가 퇴사자 메일이면 아무도 모른다. (4) <strong>조치했는가</strong> — 재실행 시 중복 처리가 나지 않는가. (5) <strong>마감에 영향이 있었는가</strong> — 지연이 재무보고 적시성에 미친 영향.</p><p><strong>가장 위험한 것은 '조용한 실패'</strong>다. 배치가 예외 없이 끝났지만 입력 파일이 비어 있었거나 조건 오류로 0건을 처리한 경우, 스케줄러는 성공으로 기록한다. 그래서 <strong>건수·금액 기반 검증(sanity check)</strong>을 배치 안에 넣어야 한다 — '처리 건수가 전일 대비 ±30% 범위를 벗어나면 실패로 처리' 같은 규칙이다.</p><p><strong>재실행 시 중복 방지</strong>도 필수다. 정산 배치를 두 번 돌려 수수료가 두 번 계산되는 사고는 실제로 흔하다. 해결책은 <strong>멱등한 설계</strong>다 — 해당 일자 파티션을 지우고 다시 쓰거나(overwrite), 처리 이력 테이블로 이미 처리한 구간을 건너뛴다.</p><p><strong>감사 증빙</strong>으로는 배치 목록(잡 이름, 용도, 실행 주기, 담당자), 지정 기간의 실행 이력(성공/실패/소요시간), 실패 건의 알람·조치 티켓, 재실행 승인 기록, 마감 지연 발생 시 영향 평가 문서를 요구한다. 또 <strong>배치 잡의 등록·변경이 변경관리를 거치는지</strong>도 확인한다 — 누군가 crontab을 직접 수정해 잡을 추가·삭제할 수 있다면 통제되지 않는 것이다.</p>",
+      "howItWorks": "<ol><li>스케줄러에 잡(또는 DAG)이 등록되고 실행 시각·선행 조건·재시도 정책이 정의된다.</li><li>정해진 시각이 되면 스케줄러가 선행 잡의 성공 여부를 확인한 뒤 잡을 실행한다.</li><li>잡이 원천 데이터를 읽어 처리하고 결과를 대상 테이블에 적재한다.</li><li>검증 스텝이 처리 건수·금액을 기준값과 비교해 이상 여부를 판단한다.</li><li>정상이면 성공으로 기록하고 후행 잡이 트리거된다.</li><li>실패하거나 검증에 걸리면 재시도 정책에 따라 재실행하거나 즉시 실패 처리한다.</li><li>실패 시 지정된 수신자(당번, 담당 조직)에게 알람이 발송된다.</li><li>담당자가 원인을 분석해 조치하고, 재실행이 필요하면 승인 후 멱등하게 재수행한다.</li><li>실행 이력(시작·종료 시각, 상태, 처리 건수)이 저장되어 감사 증빙으로 사용된다.</li><li>마감 기준 시각을 초과한 경우 지연 보고와 업무 영향 평가가 이루어진다.</li></ol>",
+      "example": "<p>'페이나우'의 일마감 파이프라인은 Airflow DAG로 구성돼 있다. 01:00 원장 마감 → 02:00 가맹점 정산 → 03:00 수수료 계산 → 04:00 회계 전표 생성 → 05:00 대외기관 전송 순이며, 앞 단계 실패 시 뒤 단계는 실행되지 않는다. 각 태스크에는 건수 검증(전일 대비 ±40% 이탈 시 실패)과 금액 대사가 포함된다. 2026년 7월 원천 파일 지연으로 정산이 3시간 밀려 회계 마감 기준(08:00)을 초과했고, 지연 보고서가 재무팀·감사팀에 공유됐다. 재실행은 파티션 덮어쓰기 방식이라 중복이 발생하지 않았다. DAG 코드는 Git으로 관리되며 배포는 PR 승인 후 CI가 수행해, 사람이 스케줄러에서 직접 잡을 수정할 수 없다.</p><pre><code># Airflow DAG: 의존관계 + 검증 + 알림\nwith DAG(\"daily_settlement\",\n         schedule=\"0 1 * * *\", catchup=False,\n         default_args={\"retries\": 2, \"retry_delay\": timedelta(minutes=10),\n                       \"on_failure_callback\": notify_oncall}) as dag:\n\n    close_ledger = SparkSubmitOperator(task_id=\"close_ledger\", ...)\n\n    settle = SparkSubmitOperator(task_id=\"settle_merchants\", ...)\n\n    # 조용한 실패 방지: 건수 검증\n    verify = SQLCheckOperator(\n        task_id=\"verify_counts\",\n        sql=\"\"\"SELECT CASE WHEN cnt BETWEEN prev*0.6 AND prev*1.4\n                           THEN 1 ELSE 0 END\n                 FROM (SELECT (SELECT COUNT(*) FROM settlement WHERE dt='{{ ds }}') cnt,\n                              (SELECT COUNT(*) FROM settlement WHERE dt='{{ prev_ds }}') prev) t\"\"\")\n\n    make_voucher = PythonOperator(task_id=\"make_voucher\", ...)\n\n    close_ledger &gt;&gt; settle &gt;&gt; verify &gt;&gt; make_voucher\n\n# 실행 이력 조회 (감사 증빙)\nairflow dags list-runs -d daily_settlement --state failed\n\n# cron 직접 등록 여부 점검 (통제 밖 배치 탐지)\nfor u in $(cut -f1 -d: /etc/passwd); do crontab -l -u $u 2&gt;/dev/null; done</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='36' width='104' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='52' text-anchor='middle' fill='currentColor' font-size='12'>01:00 원장마감</text><text x='72' y='68' text-anchor='middle' fill='currentColor' font-size='11'>선행</text><line x1='124' y1='55' x2='156' y2='55' stroke='currentColor' marker-end='url(#ar)'/><rect x='156' y='36' width='104' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='208' y='60' text-anchor='middle' fill='currentColor' font-size='12'>02:00 정산</text><line x1='260' y1='55' x2='292' y2='55' stroke='currentColor' marker-end='url(#ar)'/><rect x='292' y='30' width='114' height='50' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='349' y='50' text-anchor='middle' fill='currentColor' font-size='12'>건수·금액 검증</text><text x='349' y='68' text-anchor='middle' fill='currentColor' font-size='11'>이탈 시 실패 처리</text><line x1='406' y1='55' x2='438' y2='55' stroke='currentColor' marker-end='url(#ar)'/><rect x='438' y='36' width='104' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='490' y='60' text-anchor='middle' fill='currentColor' font-size='12'>04:00 전표</text><line x1='542' y1='55' x2='574' y2='55' stroke='currentColor' marker-end='url(#ar)'/><text x='600' y='59' text-anchor='middle' fill='currentColor' font-size='11'>대외전송</text><line x1='349' y1='80' x2='349' y2='108' stroke='currentColor' marker-end='url(#ar)'/><rect x='260' y='108' width='180' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='350' y='133' text-anchor='middle' fill='currentColor' font-size='12'>실패 → 알람 → 당번 조치</text><line x1='260' y1='128' x2='200' y2='128' stroke='currentColor' marker-end='url(#ar)'/><rect x='40' y='108' width='160' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='120' y='133' text-anchor='middle' fill='currentColor' font-size='12'>멱등 재실행 (덮어쓰기)</text><rect x='20' y='166' width='600' height='72' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='188' fill='currentColor' font-size='12'>조용한 실패 주의: 종료코드 0 이지만 0건 처리 → 건수·금액 검증을 배치 안에 내장</text><text x='34' y='210' fill='currentColor' font-size='12'>재실행 중복 주의: 정산 두 번 실행 = 수수료 이중 계산 → 파티션 덮어쓰기·처리이력으로 방지</text><text x='34' y='230' fill='currentColor' font-size='12'>잡 등록·변경은 형상관리 + 변경승인 (crontab 직접 수정 금지)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "배치",
+          "meaning": "정해진 시각에 대량 데이터를 일괄 처리하는 작업"
+        },
+        {
+          "term": "DAG",
+          "meaning": "작업 간 선후 의존관계를 표현한 방향성 비순환 그래프"
+        },
+        {
+          "term": "Airflow",
+          "meaning": "DAG 기반의 대표적 오픈소스 워크플로 스케줄러"
+        },
+        {
+          "term": "Control-M",
+          "meaning": "금융권에서 널리 쓰이는 상용 엔터프라이즈 배치 스케줄러"
+        },
+        {
+          "term": "조용한 실패",
+          "meaning": "오류 없이 끝났지만 실제로는 처리되지 않은 상태"
+        },
+        {
+          "term": "sanity check",
+          "meaning": "처리 건수·금액이 정상 범위인지 확인하는 검증 스텝"
+        },
+        {
+          "term": "멱등 재실행",
+          "meaning": "다시 돌려도 결과가 같도록 설계해 중복 처리를 막는 방식"
+        },
+        {
+          "term": "백필(backfill)",
+          "meaning": "과거 구간을 소급해 재실행하는 기능"
+        }
+      ],
+      "pitfalls": [
+        "배치 성공 여부만 보고 처리 건수를 확인하지 않아 0건 처리(조용한 실패)를 놓친다.",
+        "실패 알람 수신자가 퇴사자이거나 공용 메일함이라 아무도 확인하지 않는다.",
+        "재실행 시 중복 방지 설계가 없어 정산·수수료가 이중 계산된다.",
+        "cron으로 개인이 등록한 잡이 있어 스케줄러 목록에 없는 통제 밖 배치가 존재한다.",
+        "배치 코드가 서버에만 있고 형상관리되지 않아 변경 이력을 제시하지 못한다.",
+        "선후 의존관계 없이 시각만으로 실행해, 앞 단계가 늦어지면 뒤 단계가 빈 데이터로 돈다.",
+        "마감 기준 시각이 정의돼 있지 않아 지연이 문제인지 판단할 기준이 없다.",
+        "장기 실행 잡의 타임아웃이 없어 멈춘 채 다음 날까지 물려 있다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 운영 배치 목록(용도, 주기, 담당자)이 관리되고 스케줄러 밖의 배치가 없는가",
+          "[운영] 배치 실행 결과가 기록되고 실패가 즉시 탐지·알람되는가",
+          "[운영] 실패 시 조치 및 재실행이 승인·기록되며 중복 처리가 방지되는가",
+          "[ITAC] 배치 내 처리 건수·금액 검증 로직이 구현되어 조용한 실패를 탐지하는가",
+          "[변경] 배치 잡의 등록·변경·삭제가 형상관리와 변경관리 승인을 거치는가",
+          "[운영] 마감 기준 시각이 정의되고 지연 시 보고·영향 평가가 이루어지는가",
+          "[접근] 스케줄러 접근 권한과 배치 실행 계정의 권한이 통제되는가"
+        ],
+        "fss": [
+          "정보처리 업무의 일괄처리 결과가 검증되고 오류 시 재처리 절차가 있는가",
+          "대외기관 전송 등 기한이 정해진 처리의 지연이 관리·보고되는가",
+          "자동화된 처리의 정확성 확인을 위한 통제가 운영되는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 배치 실패·지연 탐지와 대응",
+          "2.9.1 변경관리: 배치 프로그램·스케줄 변경 통제",
+          "2.9.4 로그 및 접속기록 관리: 배치 실행 이력 보존"
+        ],
+        "evidence": [
+          "운영 배치 목록(잡 이름, 용도, 주기, 담당자, 마감 기준 시각)",
+          "감사 대상 기간의 배치 실행 이력(성공·실패·소요시간·처리 건수)",
+          "실패 알람 설정과 수신자 목록, 실패 건 조치 티켓",
+          "재실행 승인 기록과 중복 방지 설계 설명 자료",
+          "배치 코드 형상관리 이력과 배포 승인 기록",
+          "스케줄러 접근 권한 목록과 배치 실행 계정 권한",
+          "서버별 crontab 점검 결과(통제 밖 배치 부재 확인)",
+          "마감 지연 발생 시 보고서와 업무 영향 평가"
+        ],
+        "auditorQuestions": [
+          "운영 배치는 몇 개이며 목록을 보여줄 수 있는가?",
+          "스케줄러에 등록되지 않고 crontab으로 도는 배치가 있는가? 어떻게 확인했는가?",
+          "배치가 실패하면 누구에게 알림이 가는가? 최근 실패 사례와 조치를 보여달라.",
+          "처리 건수가 0인데 성공으로 끝나는 경우를 어떻게 탐지하는가?",
+          "배치를 다시 돌리면 데이터가 중복되지 않는가? 어떻게 보장하는가?",
+          "배치 프로그램을 수정하려면 어떤 절차를 거치는가?",
+          "마감 시각을 넘긴 적이 있는가? 그때 어떤 보고가 이루어졌는가?"
+        ],
+        "controlExample": "운영 배치는 스케줄러에 등록된 잡으로만 수행되며 잡의 등록·변경은 형상관리 저장소의 코드 변경과 변경관리 승인을 통해서만 이루어진다. 각 배치는 처리 건수·금액 검증 단계를 포함하여 비정상 결과 시 실패로 처리되고, 실패 발생 시 당번 담당자에게 즉시 알람이 발송되어 원인 조치와 멱등한 재실행이 수행되며 그 내역이 인시던트로 기록된다. 마감 기준 시각을 초과한 경우 지연 보고서를 작성해 업무 부서와 공유한다."
+      },
+      "related": [
+        "db-data-reconciliation",
+        "db-spark",
+        "db-execution-plan",
+        "db-message-queue",
+        "db-data-warehouse",
+        "plat-change-management",
+        "obs-prometheus"
+      ],
+      "learnMore": [
+        "Apache Airflow Documentation - Best Practices",
+        "BMC Control-M Documentation",
+        "ISACA - Batch Processing Controls"
+      ]
+    },
+    {
+      "id": "db-data-reconciliation",
+      "title": "데이터 정합성 검증과 재무 대사",
+      "titleEn": "Data Reconciliation and Financial Matching",
+      "aliases": [
+        "대사",
+        "reconciliation",
+        "정합성검증",
+        "차이조정",
+        "미결제",
+        "수불대사",
+        "정산대사"
+      ],
+      "tags": [
+        "itgc",
+        "itac",
+        "financial-reporting",
+        "operations"
+      ],
+      "level": "심화",
+      "oneLiner": "서로 다른 곳의 숫자를 맞춰보고 차이를 설명·조치하는 통제 활동",
+      "analogy": "대사는 가계부와 통장을 맞춰보는 일과 같다. 가계부에 적은 지출 합계와 통장 잔액 변동이 같아야 한다. 다르면 (1) 적는 걸 빠뜨렸거나 (2) 카드 결제가 아직 안 빠졌거나 (3) 누군가 내 카드를 썼거나 셋 중 하나다. 중요한 건 '다르다'를 발견하는 것이 아니라 '왜 다른지 설명하고 맞추는 것'이다.",
+      "explanation": "<p><strong>대사(Reconciliation)</strong>는 서로 독립적으로 관리되는 두 개 이상의 데이터를 비교해 일치 여부를 확인하고, 차이가 있으면 원인을 규명해 조치하는 활동이다. 재무보고 신뢰성의 <strong>마지막 안전망</strong>이며, 자동화 통제(ITAC)와 수동 통제가 결합된 대표적 영역이다.</p><p><strong>금융·커머스에서의 주요 대사 유형.</strong> (1) <strong>시스템 간 대사</strong> — 결제 시스템 합계 vs 회계 시스템 전표 합계. (2) <strong>대외기관 대사</strong> — 카드사·PG·은행이 보내온 정산 파일 vs 내부 원장. (3) <strong>계층 간 대사</strong> — 운영 DB vs 데이터웨어하우스 vs 리포트. (4) <strong>실물-장부 대사</strong> — 실제 은행 계좌 잔액 vs 장부상 잔액. (5) <strong>이관·복구 후 대사</strong> — 마이그레이션이나 복구 후 원본과 대조.</p><p><strong>대사의 4단계.</strong> ① <strong>추출</strong> — 양쪽에서 같은 기준(기간, 상태, 통화)으로 데이터를 뽑는다. ② <strong>매칭</strong> — 거래 ID·금액·일자 등 키로 짝을 맞춘다. ③ <strong>차이 식별</strong> — 한쪽에만 있는 건, 금액이 다른 건, 중복 건을 분류한다. ④ <strong>조정·조치</strong> — 차이 원인을 규명하고 정정하거나 미결로 이월한다.</p><p><strong>차이에는 '정상 차이'와 '이상 차이'가 있다.</strong> 결제 시각과 정산 시각의 시차, 환율 반영 시점 차이, 미결제 건 같은 것은 설명 가능한 정상 차이이므로 <strong>조정 항목</strong>으로 기록한다. 반면 설명되지 않는 차이는 프로그램 오류, 처리 누락, 이중 처리, 또는 <strong>부정(fraud)</strong>의 신호일 수 있다.</p><p><strong>감사에서 가장 중요하게 보는 것</strong>은 대사 자체보다 <strong>차이의 처리</strong>다. 구체적으로 (1) <strong>누가 대사를 수행하는가</strong> — 거래를 처리하는 사람과 대사하는 사람이 같으면 직무분리 위반이다. (2) <strong>언제까지 미결을 해소하는가</strong> — 차이 건이 몇 달째 '조사 중'으로 쌓여 있으면 통제 실패다. (3) <strong>누가 검토·승인하는가</strong> — 대사 결과를 상급자가 검토한 증거(서명, 시스템 승인 기록)가 있는가. (4) <strong>임계금액 기준</strong> — 얼마 이상 차이를 에스컬레이션하는지 기준이 정의돼 있는가. (5) <strong>대사 로직 자체의 변경통제</strong> — 대사 SQL이나 프로그램이 바뀌면 통제의 강도가 달라지므로 변경관리 대상이다.</p><p><strong>ITAC 관점</strong>에서 자동 대사가 구현돼 있다면, 그 자동 대사가 (a) 모든 대상 건을 포함하는지(완전성) (b) 차이 임계치가 적절한지 (c) 차이 발생 시 실제로 알람이 가고 처리되는지를 테스트한다. 자동 대사가 '차이 0'만 출력하도록 잘못 구현된 사례도 실제로 있다.</p>",
+      "howItWorks": "<ol><li>대사 정책에서 대상·주기·기준시점·허용 오차·에스컬레이션 기준을 정의한다.</li><li>정해진 시각에 양쪽 시스템에서 동일 기준으로 데이터를 추출한다.</li><li>대사 엔진(또는 SQL)이 키(거래ID, 승인번호)로 양쪽을 조인해 매칭한다.</li><li>매칭 결과를 일치/한쪽만 존재/금액 불일치/중복으로 분류한다.</li><li>사전 정의된 정상 차이 유형(시차, 미결제 등)은 조정 항목으로 자동 분류된다.</li><li>남은 차이가 임계금액·건수를 초과하면 알람이 발생하고 담당자에게 배정된다.</li><li>담당자가 원인을 조사해 정정 처리하거나 미결로 등록하고 사유·예상 해소일을 기재한다.</li><li>대사 결과(총 건수, 일치 건수, 차이 건수·금액, 조치 현황)가 보고서로 생성된다.</li><li>업무 책임자가 결과를 검토·승인하고 서명 또는 시스템 승인을 남긴다.</li><li>미결 차이는 연령 분석(aging)으로 추적되어 장기 미결이 별도 보고된다.</li></ol>",
+      "example": "<p>'페이나우'는 매일 06:00에 세 가지 대사를 자동 수행한다. (1) <strong>PG 대사</strong> — 카드사 정산 파일 vs 내부 <code>payment</code> 테이블. (2) <strong>회계 대사</strong> — <code>settlement</code> 합계 vs ERP 전표 합계. (3) <strong>계좌 대사</strong> — 은행 API 잔액 vs 내부 <code>account_balance</code> 합계. 임계 기준은 건당 1만원 또는 총액 10만원이며, 초과 시 정산팀과 재무팀에 알람이 간다. 2026년 8월 21일 대사에서 수수료율 오적용으로 312건, 총 84만원 차이가 발견돼 정정 요청서(FIX-2026-0821)로 처리됐다. 대사 수행은 정산팀이 아닌 <strong>재무팀</strong>이 담당해 직무분리를 확보했고, 결과 보고서는 재무팀장이 일 단위로 승인한다. 미결 차이 연령 분석에서 30일 초과 건은 매월 CFO에게 보고된다.</p><pre><code>-- 일일 PG 대사 (외부 파일 vs 내부 원장)\nWITH ext AS (\n  SELECT approval_no, amount, approved_at FROM staging.pg_settlement_file\n   WHERE file_date = DATE '2026-08-21'\n), inn AS (\n  SELECT approval_no, amount, paid_at FROM pay.payment\n   WHERE status = 'PAID' AND paid_at::date = DATE '2026-08-20'\n)\nSELECT COALESCE(e.approval_no, i.approval_no) AS approval_no,\n       e.amount AS ext_amt, i.amount AS int_amt,\n       CASE WHEN i.approval_no IS NULL THEN '내부누락'\n            WHEN e.approval_no IS NULL THEN '외부누락'\n            WHEN e.amount &lt;&gt; i.amount THEN '금액상이'\n            ELSE '일치' END AS result\n  FROM ext e FULL OUTER JOIN inn i ON e.approval_no = i.approval_no\n WHERE e.approval_no IS NULL OR i.approval_no IS NULL OR e.amount &lt;&gt; i.amount;\n\n-- 요약 (보고서 기재 항목)\nSELECT COUNT(*) AS total, SUM(CASE WHEN result='일치' THEN 1 ELSE 0 END) matched,\n       SUM(CASE WHEN result&lt;&gt;'일치' THEN 1 ELSE 0 END) diff_cnt,\n       SUM(CASE WHEN result&lt;&gt;'일치' THEN ABS(COALESCE(ext_amt,0)-COALESCE(int_amt,0))\n           ELSE 0 END) diff_amt FROM recon_result;\n\n-- 미결 차이 연령 분석 (장기 미결 탐지)\nSELECT CASE WHEN CURRENT_DATE - opened_at &lt;= 7 THEN '7일이내'\n            WHEN CURRENT_DATE - opened_at &lt;= 30 THEN '30일이내'\n            ELSE '30일초과' END AS aging,\n       COUNT(*), SUM(diff_amount)\n  FROM recon_open_item WHERE status = 'OPEN' GROUP BY 1;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='36' width='130' height='44' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='56' text-anchor='middle' fill='currentColor' font-size='12'>내부 원장</text><text x='85' y='73' text-anchor='middle' fill='currentColor' font-size='11'>payment 테이블</text><rect x='20' y='102' width='130' height='44' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='122' text-anchor='middle' fill='currentColor' font-size='12'>외부 정산 파일</text><text x='85' y='139' text-anchor='middle' fill='currentColor' font-size='11'>카드사 / 은행</text><line x1='150' y1='58' x2='210' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='150' y1='124' x2='210' y2='102' stroke='currentColor' marker-end='url(#ar)'/><rect x='210' y='62' width='140' height='58' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='280' y='84' text-anchor='middle' fill='currentColor' font-size='12'>매칭 (승인번호)</text><text x='280' y='102' text-anchor='middle' fill='currentColor' font-size='11'>FULL OUTER JOIN</text><text x='280' y='116' text-anchor='middle' fill='currentColor' font-size='11'>동일 기준·기간</text><line x1='350' y1='76' x2='400' y2='46' stroke='currentColor' marker-end='url(#ar)'/><line x1='350' y1='91' x2='400' y2='91' stroke='currentColor' marker-end='url(#ar)'/><line x1='350' y1='106' x2='400' y2='136' stroke='currentColor' marker-end='url(#ar)'/><rect x='400' y='28' width='220' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='50' text-anchor='middle' fill='currentColor' font-size='12'>일치 → 종료</text><rect x='400' y='74' width='220' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='96' text-anchor='middle' fill='currentColor' font-size='12'>정상 차이 → 조정항목 기록</text><rect x='400' y='120' width='220' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='510' y='142' text-anchor='middle' fill='currentColor' font-size='12'>이상 차이 → 알람·조사</text><rect x='20' y='170' width='600' height='68' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='191' fill='currentColor' font-size='12'>감사 초점은 차이의 처리: 직무분리(처리자 ≠ 대사자) / 임계금액 기준 / 미결 연령 관리</text><text x='34' y='212' fill='currentColor' font-size='12'>결과에 대한 업무 책임자 검토·승인 기록 / 대사 로직 자체의 변경통제</text><text x='34' y='232' fill='currentColor' font-size='12'>설명되지 않는 차이는 프로그램 오류·처리 누락·이중처리 또는 부정의 신호</text></svg>",
+      "keyTerms": [
+        {
+          "term": "대사(Reconciliation)",
+          "meaning": "독립된 두 데이터를 비교해 일치 여부를 확인하는 통제"
+        },
+        {
+          "term": "조정 항목",
+          "meaning": "시차 등으로 설명 가능한 정상 차이. 기록해 두고 관리"
+        },
+        {
+          "term": "미결 항목(open item)",
+          "meaning": "아직 해소되지 않은 차이. 연령 분석으로 추적"
+        },
+        {
+          "term": "임계금액",
+          "meaning": "이 금액을 넘는 차이는 에스컬레이션한다는 기준"
+        },
+        {
+          "term": "연령 분석(aging)",
+          "meaning": "미결 항목이 얼마나 오래됐는지 기간별로 분류하는 분석"
+        },
+        {
+          "term": "직무분리",
+          "meaning": "거래 처리자와 대사 수행자를 다른 사람으로 두는 원칙"
+        },
+        {
+          "term": "완전성 검증",
+          "meaning": "대사 대상에서 빠진 건이 없는지 확인하는 절차"
+        },
+        {
+          "term": "ITAC",
+          "meaning": "애플리케이션에 내장된 자동 통제. 자동 대사가 대표적"
+        }
+      ],
+      "pitfalls": [
+        "대사를 거래 처리 담당 부서가 직접 수행해 직무분리가 깨진다.",
+        "차이를 발견해도 조사·조치 없이 다음 달로 이월해 미결이 계속 쌓인다.",
+        "정상 차이와 이상 차이를 구분하지 않아 진짜 문제가 묻힌다.",
+        "대사 결과에 대한 상급자 검토·승인 기록이 없어 통제 수행을 증명하지 못한다.",
+        "임계금액 기준이 없어 담당자 재량으로 차이를 넘기게 된다.",
+        "대사 대상 추출 조건이 한쪽에만 필터가 걸려 애초에 비교 대상이 다르다.",
+        "자동 대사 로직이 잘못 구현돼 항상 차이 0을 출력하는데 아무도 검증하지 않는다.",
+        "대사 SQL을 변경관리 없이 수정해 통제 강도가 조용히 약해진다.",
+        "차이가 부정의 신호일 수 있다는 관점 없이 단순 시스템 오류로만 처리한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 시스템 간·대외기관 간 대사가 정의된 주기로 수행되고 결과가 기록되는가",
+          "[ITAC] 대사 대상 추출 기준이 양측 동일하며 누락 없이 완전한가",
+          "[운영] 차이 임계 기준과 에스컬레이션 절차가 정의되어 있는가",
+          "[운영] 미결 차이가 연령 분석으로 추적되고 장기 미결이 보고되는가",
+          "[접근] 대사 수행 주체가 거래 처리 주체와 분리되어 있는가(직무분리)",
+          "[운영] 대사 결과가 업무 책임자에 의해 검토·승인되고 기록이 남는가",
+          "[변경] 대사 로직(SQL·프로그램)의 변경이 변경관리 승인을 거치는가"
+        ],
+        "fss": [
+          "전자금융거래의 처리 결과가 대외기관 자료와 대사되어 정확성이 확인되는가",
+          "거래 오류·누락·이중처리를 탐지하고 정정하는 절차가 운영되는가",
+          "이상 징후 발견 시 보고 및 조사 절차가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 처리 결과 이상 탐지",
+          "2.9.4 로그 및 접속기록 관리: 대사 수행 및 정정 이력 기록",
+          "2.11.x 사고 예방 및 대응: 이상 징후 대응 절차"
+        ],
+        "evidence": [
+          "대사 정책·절차서(대상, 주기, 기준, 임계금액, 에스컬레이션)",
+          "감사 대상 기간의 일·월 대사 결과 보고서(총건수, 일치, 차이 건수·금액)",
+          "차이 건의 원인 분석 및 정정 처리 기록",
+          "미결 항목 목록과 연령 분석 자료, 장기 미결 보고 증빙",
+          "대사 수행자·검토자·승인자 구분을 보여주는 조직·권한 자료",
+          "대사 로직 소스와 변경 이력",
+          "자동 대사의 완전성 테스트 결과(표본 재수행 등)"
+        ],
+        "auditorQuestions": [
+          "어떤 대사를 얼마나 자주 수행하는가? 목록과 최근 결과를 보여달라.",
+          "대사를 수행하는 부서와 거래를 처리하는 부서가 같은가?",
+          "차이가 발생하면 얼마 이상일 때 상급자에게 보고하는가?",
+          "현재 미결 상태인 차이는 몇 건이며 가장 오래된 것은 언제 것인가?",
+          "대사 결과를 누가 검토·승인하는가? 승인 기록을 보여달라.",
+          "대사 로직이 모든 거래를 포함한다는 것을 어떻게 확인했는가?",
+          "최근 대사에서 발견된 차이 중 시스템 오류로 밝혀진 사례가 있는가?"
+        ],
+        "controlExample": "결제 시스템과 대외기관 정산 자료 간 대사는 매일 자동 수행되며, 거래 처리 부서와 분리된 재무 부서가 결과를 검토한다. 건당 1만원 또는 총액 10만원을 초과하는 차이는 알람이 발송되어 원인 조사와 정정 처리가 이루어지고, 미해소 차이는 미결 항목으로 등록되어 연령 분석을 통해 관리되며 30일을 초과한 항목은 월 단위로 재무 책임자에게 보고된다. 일별 대사 결과 보고서는 재무 책임자의 승인을 거쳐 보관된다."
+      },
+      "related": [
+        "db-batch-scheduler",
+        "db-critical-table-dml",
+        "db-message-queue",
+        "db-data-migration",
+        "db-data-warehouse",
+        "db-acid-transaction",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "COSO Internal Control - Integrated Framework",
+        "ISACA - IT Application Controls Audit Program",
+        "금융감독원 - 전산 대사 및 내부통제 관련 지침"
+      ]
+    }
+  ]
+}

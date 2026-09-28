@@ -1,0 +1,1386 @@
+{
+  "category": "database",
+  "categoryLabel": "데이터베이스·스토리지·메시징·백업",
+  "entries": [
+    {
+      "id": "db-rdbms-basics",
+      "title": "관계형 데이터베이스 기본",
+      "titleEn": "Relational Database Management System (RDBMS)",
+      "aliases": [
+        "RDBMS",
+        "관계형DB",
+        "테이블",
+        "스키마",
+        "정규화",
+        "디비"
+      ],
+      "tags": [
+        "database",
+        "rdbms",
+        "fundamental"
+      ],
+      "level": "기초",
+      "oneLiner": "데이터를 행과 열의 표로 저장하고 키로 연결해 관리하는 데이터베이스",
+      "analogy": "관계형 데이터베이스는 잘 정리된 엑셀 파일 묶음과 같다. '고객' 시트와 '주문' 시트가 따로 있고, 주문 시트에는 고객 이름 대신 고객번호만 적어둔다. 고객 이름이 바뀌어도 고객 시트 한 줄만 고치면 모든 주문에 자동으로 반영된다. 다만 엑셀과 달리 수천 명이 동시에 고쳐도 서로 꼬이지 않도록 지키는 규칙(트랜잭션)이 내장돼 있다.",
+      "explanation": "<p><strong>관계형 데이터베이스(RDBMS)</strong>는 데이터를 <strong>테이블(table)</strong>이라는 표에 저장한다. 표의 가로 한 줄이 <strong>행(row, 레코드)</strong>이고 세로 한 칸이 <strong>열(column, 컬럼)</strong>이다. 예를 들어 <code>customer</code> 테이블은 고객번호·이름·가입일 컬럼을 갖고, 고객 한 명이 한 행이 된다. 1970년 E.F.Codd의 관계 모델에서 출발했고, 지금도 금융·회계 시스템의 사실상 표준이다.</p><p><strong>왜 필요한가.</strong> 데이터를 파일에 그냥 쌓으면 (1) 같은 정보가 여기저기 중복되고 (2) 한쪽만 고쳐져 앞뒤가 안 맞고 (3) 여러 프로그램이 동시에 쓰면 서로 덮어쓰고 (4) 원하는 조건으로 찾기가 느리다. RDBMS는 이 네 가지를 <strong>정규화·제약조건·트랜잭션·인덱스</strong>로 해결한다.</p><p><strong>핵심 구성요소.</strong> <strong>기본키(Primary Key, PK)</strong>는 행을 유일하게 식별하는 컬럼이다(고객번호). <strong>외래키(Foreign Key, FK)</strong>는 다른 테이블의 PK를 가리켜 '관계'를 만든다(주문 테이블의 고객번호). <strong>제약조건(Constraint)</strong>은 NOT NULL, UNIQUE, CHECK처럼 잘못된 데이터가 아예 들어오지 못하게 막는 규칙이다. <strong>스키마(Schema)</strong>는 테이블들을 담는 논리적 폴더이자 권한 부여 단위다.</p><p><strong>정규화(Normalization)</strong>는 중복을 없애기 위해 테이블을 쪼개는 설계 기법이다. 주문 테이블에 고객 이름·주소를 매번 적는 대신 고객번호만 두면, 고객이 이사해도 한 곳만 고치면 된다. 쉽게 말하면 '같은 사실은 딱 한 군데에만 적는다'는 원칙이다. 다만 너무 잘게 쪼개면 조회할 때 테이블을 여러 개 합쳐야(JOIN) 해서 느려지므로, 조회 전용 테이블은 일부러 중복을 허용하는 <strong>반정규화(Denormalization)</strong>를 쓰기도 한다.</p><p><strong>동작 구조.</strong> 애플리케이션은 SQL이라는 언어로 '무엇을 원하는지'만 보낸다. DB 엔진 안의 <strong>옵티마이저(Optimizer)</strong>가 '어떻게 찾을지'를 스스로 정하고(실행계획), 스토리지 엔진이 디스크와 메모리 버퍼를 오가며 실제 데이터를 읽는다. 변경 내용은 먼저 <strong>로그(WAL/redo log)</strong>에 기록된 뒤 데이터 파일에 반영되므로, 정전이 나도 복구가 가능하다.</p><p><strong>감사 관점에서 RDBMS는 회사의 '전산 원장'</strong>이다. 재무제표 수치가 최종적으로 어느 테이블의 어느 컬럼에서 나오는지(데이터 흐름), 그 테이블을 누가 읽고 고칠 수 있는지(권한), 고친 기록이 어디 남는지(감사로그)가 ITGC 심사의 출발점이다.</p>",
+      "howItWorks": "<ol><li>애플리케이션이 커넥션을 열고 계정(예: <code>app_user</code>)으로 인증한다.</li><li>SQL 문장을 보내면 파서(Parser)가 문법을 검사하고 테이블·컬럼이 실제로 있는지 확인한다.</li><li>권한 검사: 이 계정이 해당 테이블에 SELECT/INSERT 권한이 있는지 확인하고 없으면 거부한다.</li><li>옵티마이저가 통계정보(행 수, 값 분포)를 보고 인덱스를 탈지 전체를 훑을지 실행계획을 만든다.</li><li>스토리지 엔진이 버퍼 풀(메모리)에서 데이터를 찾고, 없으면 디스크에서 블록을 읽어 올린다.</li><li>변경(INSERT/UPDATE/DELETE)이면 먼저 트랜잭션 로그에 기록하고 메모리의 데이터를 바꾼다.</li><li>COMMIT 시점에 로그가 디스크에 강제 기록(fsync)되어 영속성이 보장된다.</li><li>결과가 클라이언트로 반환되고, 커넥션은 커넥션 풀로 반납된다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 PostgreSQL에 <code>customer</code>(320만 행), <code>payment</code>(하루 180만 행 증가), <code>settlement</code>(정산) 테이블을 둔다. 결제 한 건은 <code>payment</code>에 1행으로 남고 <code>customer_id</code> 외래키로 고객과 연결된다. 정산 배치는 매일 새벽 2시에 전날 <code>payment</code>를 고객별로 합쳐 <code>settlement</code>에 기록하며, 이 <code>settlement</code> 테이블의 금액 합계가 그대로 회계 시스템 매출 전표로 넘어가기 때문에 <strong>중요 테이블(key report source)</strong>로 지정돼 있다.</p><pre><code>-- 테이블 정의: 제약조건이 곧 데이터 품질 통제다\nCREATE TABLE payment (\n  payment_id   BIGSERIAL PRIMARY KEY,\n  customer_id  BIGINT      NOT NULL REFERENCES customer(customer_id),\n  amount       NUMERIC(15,2) NOT NULL CHECK (amount &gt; 0),\n  status       VARCHAR(20) NOT NULL CHECK (status IN ('READY','PAID','CANCELED')),\n  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\n-- 고객별 전일 결제 합계 (JOIN + 집계)\nSELECT c.customer_id, c.name, SUM(p.amount) AS total\nFROM payment p\nJOIN customer c ON c.customer_id = p.customer_id\nWHERE p.status = 'PAID'\n  AND p.created_at &gt;= DATE '2026-09-13'\n  AND p.created_at &lt;  DATE '2026-09-14'\nGROUP BY c.customer_id, c.name\nHAVING SUM(p.amount) &gt; 1000000;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='60' text-anchor='middle' fill='currentColor'>애플리케이션</text><line x1='140' y1='55' x2='200' y2='55' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='48' text-anchor='middle' fill='currentColor' font-size='11'>SQL</text><rect x='200' y='20' width='420' height='120' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='410' y='38' text-anchor='middle' fill='currentColor' font-size='12'>DB 엔진</text><rect x='215' y='48' width='90' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='68' text-anchor='middle' fill='currentColor' font-size='12'>파서/권한</text><rect x='315' y='48' width='90' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='360' y='68' text-anchor='middle' fill='currentColor' font-size='12'>옵티마이저</text><rect x='415' y='48' width='90' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='460' y='68' text-anchor='middle' fill='currentColor' font-size='12'>버퍼 풀</text><rect x='515' y='48' width='90' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='68' text-anchor='middle' fill='currentColor' font-size='12'>트랜잭션로그</text><text x='215' y='105' fill='currentColor' font-size='12'>SELECT / INSERT / UPDATE / DELETE 처리</text><text x='215' y='125' fill='currentColor' font-size='12'>COMMIT 시 로그 디스크 기록</text><line x1='300' y1='140' x2='300' y2='175' stroke='currentColor' marker-end='url(#ar)'/><line x1='520' y1='140' x2='520' y2='175' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='175' width='200' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='300' y='198' text-anchor='middle' fill='currentColor' font-size='12'>customer (PK: id)</text><text x='300' y='222' text-anchor='middle' fill='currentColor' font-size='12'>고객 320만 행</text><rect x='420' y='175' width='200' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='198' text-anchor='middle' fill='currentColor' font-size='12'>payment (FK: customer_id)</text><text x='520' y='222' text-anchor='middle' fill='currentColor' font-size='12'>결제 1.8M/일</text><line x1='420' y1='207' x2='400' y2='207' stroke='currentColor' marker-end='url(#ar)'/><text x='60' y='190' fill='currentColor' font-size='12'>데이터 파일</text><text x='60' y='210' fill='currentColor' font-size='12'>(디스크)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "테이블(Table)",
+          "meaning": "행과 열로 이루어진 데이터 저장 단위. 엑셀 시트와 유사"
+        },
+        {
+          "term": "기본키(Primary Key)",
+          "meaning": "행을 유일하게 식별하는 컬럼. 중복·NULL 불가"
+        },
+        {
+          "term": "외래키(Foreign Key)",
+          "meaning": "다른 테이블의 PK를 참조해 관계를 만드는 컬럼"
+        },
+        {
+          "term": "스키마(Schema)",
+          "meaning": "테이블·뷰를 묶는 논리 그룹이자 권한 부여 단위"
+        },
+        {
+          "term": "정규화(Normalization)",
+          "meaning": "중복을 없애려 테이블을 쪼개는 설계 기법"
+        },
+        {
+          "term": "제약조건(Constraint)",
+          "meaning": "NOT NULL·UNIQUE·CHECK 등 잘못된 데이터 입력을 막는 규칙"
+        },
+        {
+          "term": "옵티마이저(Optimizer)",
+          "meaning": "SQL을 어떤 순서·방법으로 수행할지 정하는 DB 내부 엔진"
+        },
+        {
+          "term": "뷰(View)",
+          "meaning": "저장된 SELECT 문. 원본 테이블을 숨기고 일부만 보여줄 때 사용"
+        }
+      ],
+      "pitfalls": [
+        "DB를 '데이터를 담는 통'으로만 보고 제약조건을 안 걸고 애플리케이션 코드로만 검증. 배치나 수동 DML이 우회하면 불량 데이터가 그대로 들어간다.",
+        "정규화를 절대선으로 믿고 과도하게 쪼개 조회 성능이 무너지거나, 반대로 전부 한 테이블에 몰아 데이터 정합성이 깨진다.",
+        "개발·운영이 같은 DB 인스턴스에 스키마만 다르게 있는 구성. 개발 계정 실수 하나가 운영 데이터를 건드릴 수 있다.",
+        "재무제표에 쓰이는 수치가 어느 테이블에서 나오는지 문서가 없어, 감사 때 데이터 흐름을 설명하지 못한다.",
+        "NUMERIC 대신 FLOAT로 금액을 저장해 소수점 오차가 누적되고 대사(reconciliation)에서 1원 차이가 발생한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 DB의 계정 목록과 각 계정의 권한(스키마·테이블 단위)이 문서화되고 주기적으로 리뷰되는가",
+          "[변경] 테이블 구조 변경(DDL)이 변경관리 절차를 거쳐 승인·배포되는가, 직접 DDL 수행이 통제되는가",
+          "[운영] 재무 보고에 사용되는 중요 테이블(전산 원장)이 식별되고 목록이 관리되는가",
+          "[ITAC] 금액·상태 컬럼에 대한 제약조건·유효성 검증이 애플리케이션과 DB 양쪽에 구현되어 있는가"
+        ],
+        "fss": [
+          "전자금융거래 기록의 보존(전자금융거래법 제22조 전자금융거래기록의 생성·보존)이 가능한 테이블 설계·보존기간을 갖추고 있는가",
+          "전자금융기반시설 자산 목록에 DB 인스턴스와 중요 테이블이 식별되어 있는가",
+          "거래정보의 무결성 확보를 위한 제약조건·검증 로직이 운영 중인가"
+        ],
+        "isms": [
+          "2.1.3 정보자산 관리: DB 인스턴스와 저장 데이터의 중요도가 분류되어 있는가",
+          "3.1.x 개인정보 수집·저장: 개인정보가 저장되는 컬럼이 식별되고 암호화 대상이 지정되어 있는가",
+          "2.9.1 변경관리: 스키마 변경이 절차에 따라 승인·기록되는가"
+        ],
+        "evidence": [
+          "운영 DB 인스턴스 목록과 용도·담당자 기재 자산 대장",
+          "중요 테이블(재무 데이터 소스) 목록 및 데이터 흐름도(ERD 포함)",
+          "DB 계정별 권한 export (Oracle DBA_ROLE_PRIVS, PostgreSQL \\dp 등)",
+          "테이블 DDL 스크립트와 제약조건 정의서",
+          "최근 분기 DB 권한 리뷰 결과 및 승인 서명"
+        ],
+        "auditorQuestions": [
+          "재무제표 매출 수치는 어느 DB의 어느 테이블에서 최종 산출되는가?",
+          "운영 DB에 접속 가능한 계정은 몇 개이고 각각 누구 소유인가?",
+          "테이블 구조를 바꾸려면 어떤 절차를 거치는가? 최근 3개월 변경 내역을 보여줄 수 있는가?",
+          "애플리케이션을 거치지 않고 직접 데이터를 수정한 사례가 있는가? 그 기록은 어디에 남는가?",
+          "개발 환경에서 운영 데이터를 그대로 쓰는 경우가 있는가?"
+        ],
+        "controlExample": "운영 데이터베이스의 테이블 목록 중 재무보고에 사용되는 중요 테이블은 별도 대장으로 식별·관리되며, 해당 테이블에 대한 구조 변경(DDL)은 변경관리 시스템의 승인을 거친 스크립트로만 배포되고 변경 이력은 감사로그로 보관된다."
+      },
+      "related": [
+        "db-acid-transaction",
+        "db-index",
+        "db-sql-basics",
+        "db-postgresql",
+        "db-account-privilege",
+        "db-critical-table-dml",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "PostgreSQL Documentation - Data Definition",
+        "Oracle Database Concepts Guide",
+        "ISO/IEC 9075 SQL Standard 개요"
+      ]
+    },
+    {
+      "id": "db-acid-transaction",
+      "title": "트랜잭션과 ACID",
+      "titleEn": "Transaction and ACID Properties",
+      "aliases": [
+        "ACID",
+        "트랜잭션",
+        "커밋",
+        "롤백",
+        "격리수준",
+        "isolation level",
+        "락"
+      ],
+      "tags": [
+        "database",
+        "transaction",
+        "consistency"
+      ],
+      "level": "중급",
+      "oneLiner": "여러 작업을 한 덩어리로 묶어 전부 되거나 전부 안 되게 보장하는 장치",
+      "analogy": "트랜잭션은 계좌 이체를 할 때의 '출금 + 입금' 한 쌍과 같다. 출금만 되고 입금이 안 되면 돈이 공중에서 사라진다. 트랜잭션은 두 동작을 하나의 봉투에 넣고, 봉투 전체가 성공해야만 개봉을 인정한다. 중간에 정전이 나면 봉투를 통째로 버려 원래 상태로 되돌린다.",
+      "explanation": "<p><strong>트랜잭션(Transaction)</strong>은 '더 이상 쪼갤 수 없는 작업 묶음'이다. <code>BEGIN</code>으로 시작해 <code>COMMIT</code>하면 확정되고, <code>ROLLBACK</code>하면 시작 전 상태로 되돌아간다. 금융 시스템에서 트랜잭션이 없으면 출금은 됐는데 입금은 실패하는 사고가 그대로 데이터에 남는다.</p><p><strong>ACID</strong>는 트랜잭션이 지켜야 할 네 가지 성질이다. <strong>원자성(Atomicity)</strong>은 전부 되거나 전부 안 되거나. <strong>일관성(Consistency)</strong>은 트랜잭션 전후로 제약조건이 항상 지켜짐. <strong>격리성(Isolation)</strong>은 동시에 도는 트랜잭션끼리 서로의 중간 상태를 보지 못함. <strong>지속성(Durability)</strong>은 COMMIT된 결과는 정전이 나도 사라지지 않음. 지속성은 변경을 데이터 파일보다 먼저 로그에 쓰는 <strong>WAL(Write-Ahead Logging)</strong> 방식으로 구현된다.</p><p><strong>격리수준(Isolation Level)</strong>은 격리성을 얼마나 엄격히 지킬지 정하는 다이얼이다. 엄격할수록 안전하지만 느리다. 네 단계는 READ UNCOMMITTED(커밋 안 된 남의 값도 읽음), READ COMMITTED(커밋된 값만 읽음), REPEATABLE READ(같은 트랜잭션 안에서 같은 행을 읽으면 항상 같은 값), SERIALIZABLE(줄 세워 실행한 것과 동일한 결과)이다. 기본값은 PostgreSQL·Oracle·SQL Server가 READ COMMITTED, MySQL(InnoDB)이 REPEATABLE READ다.</p><p><strong>이상 현상.</strong> 격리수준이 낮으면 <strong>더티 리드(Dirty Read, 롤백될 값을 읽음)</strong>, <strong>논리피터블 리드(Non-repeatable Read, 같은 행을 두 번 읽었는데 값이 달라짐)</strong>, <strong>팬텀 리드(Phantom Read, 같은 조건으로 두 번 조회했는데 행 개수가 달라짐)</strong>가 발생한다. 쉽게 말하면 '남이 고치는 중인 장부를 어깨너머로 보는 정도'를 조절하는 것이다.</p><p><strong>동시성 제어</strong>는 두 방식이 있다. <strong>락(Lock)</strong> 기반은 읽거나 쓰는 행에 자물쇠를 건다. <strong>MVCC(Multi-Version Concurrency Control)</strong>는 값을 고칠 때 새 버전을 만들고 읽는 쪽은 예전 버전을 보게 해서 '읽기가 쓰기를 막지 않게' 한다. PostgreSQL·Oracle·MySQL InnoDB 모두 MVCC를 쓴다. 두 트랜잭션이 서로가 가진 락을 기다리면 <strong>데드락(Deadlock)</strong>이 되고, DB가 한쪽을 강제 롤백시켜 푼다.</p><p><strong>감사 관점.</strong> 재무 데이터의 무결성은 결국 트랜잭션 설계에 달려 있다. 결제와 원장 기록이 서로 다른 트랜잭션으로 쪼개져 있다면 한쪽만 남는 사고가 가능하고, 이는 ITAC(자동통제) 결함으로 본다. 반대로 배치가 수십만 건을 한 트랜잭션으로 묶으면 실패 시 전부 롤백되어 마감이 지연된다.</p>",
+      "howItWorks": "<ol><li>애플리케이션이 <code>BEGIN</code>(또는 autocommit 해제)으로 트랜잭션을 연다.</li><li>UPDATE 실행 시 해당 행에 배타 락(X-lock)을 걸고, 변경 전 이미지를 undo 영역에 남긴다.</li><li>변경 내용은 먼저 WAL/redo 로그 버퍼에 기록된다(데이터 파일은 아직 그대로).</li><li>다른 트랜잭션이 같은 행을 읽으면 MVCC가 undo의 이전 버전을 보여주므로 대기 없이 읽힌다.</li><li>같은 행을 수정하려 하면 락 대기에 걸리고, 타임아웃 또는 데드락 감지 시 한쪽이 롤백된다.</li><li><code>COMMIT</code>이 오면 WAL이 디스크에 fsync 되고, 그 시점부터 지속성이 보장된다.</li><li>실패·예외면 <code>ROLLBACK</code>으로 undo를 적용해 원래 값으로 되돌리고 락을 해제한다.</li><li>장애 후 재기동 시 DB는 WAL을 재생(redo)해 커밋된 것은 반영하고, 미완 트랜잭션은 undo로 되돌린다.</li></ol>",
+      "example": "<p>'페이나우'의 송금 기능은 출금 계좌 차감, 입금 계좌 증액, 거래원장 1행 기록을 <strong>한 트랜잭션</strong>으로 처리한다. 초기에는 원장 기록만 별도 트랜잭션이었는데, 2026년 3월 장애 때 계좌 잔액은 바뀌었지만 원장이 빠진 건이 412건 발생해 수작업 대사가 필요했다. 이후 세 동작을 한 트랜잭션으로 묶고, 정산 배치는 1만 건 단위 청크 커밋으로 바꿔 실패 시 재처리 지점을 명확히 했다.</p><pre><code>-- PostgreSQL: 송금 한 건을 원자적으로 처리\nBEGIN;\n  UPDATE account SET balance = balance - 50000\n   WHERE account_id = 1001 AND balance &gt;= 50000;\n  -- 영향 행이 0이면 잔액 부족 → 애플리케이션이 ROLLBACK\n  UPDATE account SET balance = balance + 50000 WHERE account_id = 2002;\n  INSERT INTO transfer_ledger(from_id, to_id, amount, created_at)\n       VALUES (1001, 2002, 50000, now());\nCOMMIT;\n\n-- 현재 격리수준 확인 / 변경\nSHOW transaction_isolation;            -- read committed\nBEGIN ISOLATION LEVEL REPEATABLE READ; -- 마감 집계용 일관 스냅샷\n\n-- 락 대기 확인 (운영 장애 조사 시)\nSELECT pid, wait_event_type, wait_event, query\n  FROM pg_stat_activity WHERE wait_event_type = 'Lock';</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='12'>트랜잭션 1건 (송금)</text><rect x='20' y='32' width='110' height='36' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='75' y='55' text-anchor='middle' fill='currentColor' font-size='12'>BEGIN</text><line x1='75' y1='68' x2='75' y2='92' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='92' width='110' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='114' text-anchor='middle' fill='currentColor' font-size='12'>출금 -5만</text><line x1='75' y1='126' x2='75' y2='148' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='148' width='110' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='170' text-anchor='middle' fill='currentColor' font-size='12'>입금 +5만</text><line x1='75' y1='182' x2='75' y2='204' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='204' width='110' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='75' y='226' text-anchor='middle' fill='currentColor' font-size='12'>COMMIT</text><line x1='130' y1='110' x2='200' y2='110' stroke='currentColor' marker-end='url(#ar)'/><text x='165' y='103' text-anchor='middle' fill='currentColor' font-size='11'>먼저 기록</text><rect x='200' y='85' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='275' y='106' text-anchor='middle' fill='currentColor' font-size='12'>WAL / redo 로그</text><text x='275' y='124' text-anchor='middle' fill='currentColor' font-size='11'>지속성(D) 보장</text><line x1='275' y1='135' x2='275' y2='170' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='170' width='150' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='275' y='199' text-anchor='middle' fill='currentColor' font-size='12'>데이터 파일 반영</text><rect x='380' y='30' width='240' height='210' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='500' y='52' text-anchor='middle' fill='currentColor' font-size='12'>격리수준 다이얼</text><text x='396' y='80' fill='currentColor' font-size='12'>READ UNCOMMITTED - 더티리드</text><text x='396' y='108' fill='currentColor' font-size='12'>READ COMMITTED - 기본값</text><text x='396' y='136' fill='currentColor' font-size='12'>REPEATABLE READ - 팬텀 가능</text><text x='396' y='164' fill='currentColor' font-size='12'>SERIALIZABLE - 가장 엄격</text><line x1='396' y1='180' x2='600' y2='180' stroke='currentColor'/><text x='396' y='202' fill='currentColor' font-size='11'>아래로 갈수록 안전 / 느림</text><text x='396' y='224' fill='currentColor' font-size='11'>MVCC: 읽기가 쓰기를 막지 않음</text></svg>",
+      "keyTerms": [
+        {
+          "term": "원자성(Atomicity)",
+          "meaning": "트랜잭션 내 모든 작업이 전부 성공하거나 전부 취소됨"
+        },
+        {
+          "term": "지속성(Durability)",
+          "meaning": "COMMIT된 데이터는 장애가 나도 유실되지 않음"
+        },
+        {
+          "term": "WAL",
+          "meaning": "데이터 파일보다 먼저 변경을 기록하는 로그. 복구·복제의 원천"
+        },
+        {
+          "term": "MVCC",
+          "meaning": "여러 버전을 유지해 읽기와 쓰기가 서로 막지 않게 하는 기법"
+        },
+        {
+          "term": "격리수준",
+          "meaning": "동시 트랜잭션이 서로의 중간 상태를 얼마나 볼 수 있는지 정하는 설정"
+        },
+        {
+          "term": "데드락(Deadlock)",
+          "meaning": "두 트랜잭션이 서로의 락을 기다려 영원히 멈춘 상태"
+        },
+        {
+          "term": "롤백(Rollback)",
+          "meaning": "트랜잭션 시작 전 상태로 되돌리는 동작"
+        },
+        {
+          "term": "2PC",
+          "meaning": "두 개 이상의 DB를 하나의 트랜잭션으로 묶는 2단계 커밋 프로토콜"
+        }
+      ],
+      "pitfalls": [
+        "애플리케이션이 autocommit 상태인 줄 모르고 여러 UPDATE를 순서대로 날려, 중간 실패 시 반쪽 데이터가 남는다.",
+        "트랜잭션을 너무 길게 열어두고 그 안에서 외부 API를 호출. 락이 오래 유지돼 전체 서비스가 대기에 걸린다.",
+        "배치에서 100만 건을 한 트랜잭션으로 처리. 실패하면 전부 롤백되고 undo 영역이 폭발한다.",
+        "REPEATABLE READ면 팬텀 리드가 없다고 오해(표준상 발생 가능, MySQL InnoDB는 갭 락으로 대부분 차단).",
+        "데드락을 DB 버그로 생각해 재시도 로직 없이 방치. 정상적인 동시성 현상이므로 앱에서 재시도 설계가 필요하다.",
+        "여러 마이크로서비스에 걸친 작업을 DB 트랜잭션으로 묶을 수 있다고 가정. 분산 환경에서는 Saga·보상 트랜잭션이 필요하다."
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 금전적 영향이 있는 처리(이체·정산)가 단일 트랜잭션으로 원자성 있게 구현되어 있는가",
+          "[운영] 배치 중단·실패 시 부분 반영된 데이터를 식별·재처리하는 절차가 정의되어 있는가",
+          "[운영] 데드락·락 대기 등 트랜잭션 이상이 모니터링되고 임계치 초과 시 알람이 발생하는가",
+          "[변경] 격리수준·타임아웃 등 트랜잭션 관련 DB 파라미터 변경이 승인 절차를 거치는가"
+        ],
+        "fss": [
+          "전자금융거래의 거래기록이 누락 없이 생성·보존되는 구조인가(전자금융거래법 제22조)",
+          "거래 처리 중 장애 발생 시 이중처리·미처리 건을 식별하고 정정하는 절차가 마련되어 있는가",
+          "정보처리시스템의 데이터 무결성 확보 조치가 운영 중인가"
+        ],
+        "isms": [
+          "2.10.x 시스템 운영: 장애 발생 시 데이터 정합성 확인 및 복구 절차가 수립되어 있는가",
+          "2.9.4 로그 및 접속기록 관리: 트랜잭션 실패·롤백 이력이 기록·보존되는가",
+          "2.11.x 사고 대응: 데이터 불일치 사고 발생 시 대응·보고 절차가 있는가"
+        ],
+        "evidence": [
+          "핵심 거래 처리 로직의 트랜잭션 경계가 드러나는 소스코드 또는 설계문서",
+          "DB 파라미터 export (default_transaction_isolation, lock_timeout 등)",
+          "최근 6개월 데드락/롤백 발생 통계 및 대응 티켓",
+          "배치 실패 시 부분 반영 건 재처리 절차서와 실제 재처리 기록",
+          "장애 사후보고서 중 데이터 정합성 확인 결과"
+        ],
+        "auditorQuestions": [
+          "송금·정산처럼 여러 테이블을 바꾸는 처리는 어떻게 원자성을 보장하는가?",
+          "배치가 중간에 실패하면 이미 반영된 데이터는 어떻게 처리하는가?",
+          "최근 데드락이나 장기 락 대기로 인한 장애가 있었는가? 조치 내역은?",
+          "격리수준은 무엇이며 변경한 적이 있는가? 변경 승인 기록은?",
+          "서로 다른 시스템 간 데이터 불일치를 탐지하는 대사 절차가 있는가?"
+        ],
+        "controlExample": "자금이동 거래는 출금·입금·원장기록을 단일 데이터베이스 트랜잭션으로 처리하여 부분 반영을 방지하며, 트랜잭션 실패 및 데드락 발생은 모니터링 시스템에서 일 단위로 집계되어 임계치 초과 시 인시던트로 등록·조치된다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-index",
+        "db-postgresql",
+        "db-oracle",
+        "db-data-reconciliation",
+        "db-batch-scheduler",
+        "app-msa"
+      ],
+      "learnMore": [
+        "PostgreSQL Documentation - Transaction Isolation",
+        "MySQL Reference Manual - InnoDB Locking and Transaction Model",
+        "Oracle Database Concepts - Data Concurrency and Consistency"
+      ]
+    },
+    {
+      "id": "db-index",
+      "title": "인덱스",
+      "titleEn": "Database Index",
+      "aliases": [
+        "인덱스",
+        "index",
+        "B-tree",
+        "색인",
+        "복합인덱스",
+        "커버링 인덱스"
+      ],
+      "tags": [
+        "database",
+        "performance",
+        "index"
+      ],
+      "level": "중급",
+      "oneLiner": "데이터를 빨리 찾기 위해 별도로 정렬해 둔 찾아보기 구조",
+      "analogy": "인덱스는 두꺼운 법전 뒤에 붙은 '찾아보기'와 같다. '전자금융'이라는 단어가 몇 페이지에 있는지 알려면 1,000쪽을 다 넘길 수도 있고, 가나다순 색인에서 단어를 찾아 페이지 번호로 바로 펼칠 수도 있다. 대신 색인을 만들려면 종이가 더 들고, 법 조문이 바뀔 때마다 색인도 고쳐야 한다.",
+      "explanation": "<p><strong>인덱스(Index)</strong>는 특정 컬럼 값을 정렬해 저장하고 그 값이 실제 행의 어디에 있는지 주소를 함께 담아둔 별도 구조다. 인덱스가 없으면 DB는 테이블 전체를 처음부터 끝까지 훑는 <strong>풀 스캔(Full Table Scan)</strong>을 해야 한다. 300만 행 테이블에서 한 건을 찾을 때 풀 스캔은 300만 번 비교하지만, B-tree 인덱스는 3~4번 만에 도달한다.</p><p><strong>가장 흔한 구조는 B-tree</strong>다. 위에서 아래로 내려가며 범위를 좁히는 균형 잡힌 트리로, 등호 검색(=)과 범위 검색(&gt;, BETWEEN), 정렬(ORDER BY)에 모두 쓸 수 있다. 그 외에 해시(Hash, 등호만 가능), 비트맵(Bitmap, 값 종류가 적은 컬럼·Oracle DW에서 유용), GIN/GiST(PostgreSQL의 JSON·전문검색·공간 데이터용) 같은 유형이 있다.</p><p><strong>복합 인덱스(Composite Index)</strong>는 여러 컬럼을 묶은 인덱스다. 핵심은 <strong>선두 컬럼 규칙</strong>이다. <code>(status, created_at)</code> 인덱스는 status 조건이 있을 때만 제대로 쓰이고, created_at만으로 조회하면 거의 못 쓴다. 전화번호부가 '성 → 이름' 순으로 정렬돼 있으면 성을 모른 채 이름만으로 찾기 어려운 것과 같다. <strong>커버링 인덱스(Covering Index)</strong>는 SELECT에 필요한 컬럼까지 인덱스 안에 다 들어 있어 테이블 본체를 읽지 않고 끝나는 경우로, 가장 빠른 형태다.</p><p><strong>인덱스의 비용.</strong> 인덱스는 공짜가 아니다. INSERT/UPDATE/DELETE 때마다 인덱스도 같이 갱신되므로 쓰기가 느려지고, 디스크 공간을 더 쓴다. 인덱스가 10개 달린 테이블에 대량 적재를 하면 적재 시간이 몇 배로 늘어난다. 그래서 대량 마이그레이션 때는 인덱스를 지웠다가 적재 후 다시 만드는 전략을 쓴다.</p><p><strong>인덱스가 무시되는 경우</strong>도 알아둬야 한다. 컬럼에 함수를 씌우면(<code>WHERE DATE(created_at)='2026-09-13'</code>) 인덱스를 못 탄다. 앞에 와일드카드를 붙인 LIKE('%pay')도 마찬가지다. 타입이 다르면 암묵적 형변환이 일어나 인덱스가 깨진다. 또 조회 대상이 테이블의 20~30%를 넘으면 옵티마이저가 일부러 풀 스캔을 고른다(그게 실제로 더 빠르다).</p><p><strong>감사 관점.</strong> 인덱스 자체는 보안 통제가 아니지만, 운영 DB에 인덱스를 추가·삭제하는 것은 <strong>DDL 변경</strong>이다. 대형 테이블에 인덱스를 거는 작업은 락을 유발해 서비스 장애로 번질 수 있으므로 변경관리 승인·작업시간대·롤백 계획이 필요하다. 또 성능 저하로 배치가 마감 시간을 넘기면 재무보고 적시성 이슈가 된다.</p>",
+      "howItWorks": "<ol><li>사용자가 <code>WHERE status='PAID' AND created_at &gt;= '2026-09-13'</code> 조건의 SELECT를 실행한다.</li><li>옵티마이저가 통계정보에서 status='PAID'가 전체의 몇 %인지(선택도, selectivity) 확인한다.</li><li>선택도가 충분히 낮으면 <code>(status, created_at)</code> 인덱스를 사용하기로 결정한다.</li><li>B-tree 루트 블록 → 브랜치 블록 → 리프 블록 순으로 3~4단계 내려가 조건에 맞는 첫 항목을 찾는다.</li><li>리프 블록은 정렬돼 있고 옆으로 연결돼 있어, 범위 조건에 맞는 항목을 순차적으로 읽는다.</li><li>각 인덱스 항목이 가진 행 주소(ROWID/CTID)로 테이블 블록에 접근해 나머지 컬럼을 읽는다(random access).</li><li>SELECT에 필요한 컬럼이 인덱스에 모두 있으면 6단계를 생략한다(커버링 인덱스, Index Only Scan).</li><li>이후 INSERT가 들어오면 새 값이 들어갈 리프 위치를 찾아 인덱스에도 항목을 추가한다.</li></ol>",
+      "example": "<p>'페이나우'의 <code>payment</code> 테이블은 1억 2천만 행이다. 고객센터 화면에서 '특정 고객의 최근 3개월 결제내역'을 조회하는 SQL이 평균 8초 걸려 민원이 생겼다. 실행계획을 보니 <code>customer_id</code> 단독 인덱스만 있어 해당 고객의 결제 4만 건을 전부 읽은 뒤 날짜로 걸러내고 있었다. <code>(customer_id, created_at DESC)</code> 복합 인덱스를 추가하자 0.04초로 줄었다. 단, 인덱스 생성 시 테이블 락을 피하기 위해 <code>CREATE INDEX CONCURRENTLY</code>를 사용했고, 변경관리 티켓 CHG-2026-0412로 승인 후 새벽 3시에 작업했다.</p><pre><code>-- 락 없이 인덱스 생성 (PostgreSQL)\nCREATE INDEX CONCURRENTLY idx_payment_cust_created\n    ON payment (customer_id, created_at DESC);\n\n-- 인덱스를 못 타는 나쁜 예 (컬럼에 함수 적용)\nSELECT * FROM payment WHERE DATE(created_at) = '2026-09-13';\n-- 고친 예 (범위 조건으로 변경 → 인덱스 사용)\nSELECT * FROM payment\n WHERE created_at &gt;= '2026-09-13' AND created_at &lt; '2026-09-14';\n\n-- 안 쓰이는 인덱스 찾기 (쓰기 성능을 갉아먹는 죽은 인덱스)\nSELECT relname, indexrelname, idx_scan, pg_size_pretty(pg_relation_size(indexrelid))\n  FROM pg_stat_user_indexes WHERE idx_scan = 0 ORDER BY 4 DESC;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 270' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='12'>B-tree 인덱스 탐색</text><rect x='240' y='34' width='140' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='310' y='56' text-anchor='middle' fill='currentColor' font-size='12'>루트 블록</text><line x1='280' y1='68' x2='150' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='340' y1='68' x2='450' y2='100' stroke='currentColor' marker-end='url(#ar)'/><rect x='80' y='100' width='140' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='150' y='122' text-anchor='middle' fill='currentColor' font-size='12'>브랜치 A~M</text><rect x='390' y='100' width='140' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='460' y='122' text-anchor='middle' fill='currentColor' font-size='12'>브랜치 N~Z</text><line x1='150' y1='134' x2='110' y2='162' stroke='currentColor' marker-end='url(#ar)'/><line x1='460' y1='134' x2='430' y2='162' stroke='currentColor' marker-end='url(#ar)'/><rect x='40' y='162' width='120' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='100' y='184' text-anchor='middle' fill='currentColor' font-size='12'>리프 + 주소</text><rect x='180' y='162' width='120' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='184' text-anchor='middle' fill='currentColor' font-size='12'>리프 + 주소</text><rect x='320' y='162' width='120' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='380' y='184' text-anchor='middle' fill='currentColor' font-size='12'>리프 + 주소</text><rect x='460' y='162' width='120' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='184' text-anchor='middle' fill='currentColor' font-size='12'>리프 + 주소</text><line x1='160' y1='179' x2='180' y2='179' stroke='currentColor'/><line x1='300' y1='179' x2='320' y2='179' stroke='currentColor'/><line x1='440' y1='179' x2='460' y2='179' stroke='currentColor'/><line x1='240' y1='196' x2='240' y2='222' stroke='currentColor' marker-end='url(#ar)'/><rect x='120' y='222' width='400' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='244' text-anchor='middle' fill='currentColor' font-size='12'>테이블 본체 (행 주소로 직접 접근)</text><text x='20' y='184' fill='currentColor' font-size='11'>정렬됨</text><text x='20' y='244' fill='currentColor' font-size='11'>1.2억 행</text></svg>",
+      "keyTerms": [
+        {
+          "term": "B-tree 인덱스",
+          "meaning": "가장 널리 쓰이는 균형 트리 인덱스. 등호·범위·정렬에 모두 사용"
+        },
+        {
+          "term": "풀 스캔(Full Scan)",
+          "meaning": "인덱스 없이 테이블 전체를 읽는 방식"
+        },
+        {
+          "term": "복합 인덱스",
+          "meaning": "두 개 이상 컬럼을 묶은 인덱스. 선두 컬럼 조건이 있어야 효율적"
+        },
+        {
+          "term": "커버링 인덱스",
+          "meaning": "필요한 컬럼이 인덱스에 다 있어 테이블을 안 읽는 인덱스"
+        },
+        {
+          "term": "선택도(Selectivity)",
+          "meaning": "조건에 맞는 행이 전체에서 차지하는 비율. 낮을수록 인덱스가 유리"
+        },
+        {
+          "term": "통계정보(Statistics)",
+          "meaning": "옵티마이저가 판단 근거로 쓰는 행 수·값 분포 정보"
+        },
+        {
+          "term": "CONCURRENTLY",
+          "meaning": "PostgreSQL에서 서비스 중단 없이 인덱스를 만드는 옵션"
+        },
+        {
+          "term": "클러스터링 인덱스",
+          "meaning": "데이터 자체가 인덱스 순서로 저장되는 구조(MySQL InnoDB의 PK)"
+        }
+      ],
+      "pitfalls": [
+        "느리면 무조건 인덱스를 추가. 인덱스가 늘면 INSERT/UPDATE가 느려지고 야간 배치가 마감을 넘길 수 있다.",
+        "WHERE 절 컬럼에 함수나 연산을 씌워(TO_CHAR, SUBSTR, DATE) 인덱스를 스스로 무력화한다.",
+        "복합 인덱스 컬럼 순서를 아무렇게나 정해 사실상 안 쓰이는 인덱스를 만든다.",
+        "운영 중 대형 테이블에 그냥 CREATE INDEX를 실행해 테이블 락으로 서비스 장애를 낸다.",
+        "통계정보가 오래돼 옵티마이저가 잘못된 실행계획을 고르는데 인덱스 탓으로 오해한다.",
+        "인덱스 추가를 '설정 변경'으로 보고 변경관리 없이 반영. 운영 DDL은 변경통제 대상이다."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 DB에 대한 인덱스 생성·삭제 등 DDL이 변경관리 승인을 거쳐 수행되는가",
+          "[운영] 성능 저하로 인한 배치 지연이 모니터링되고 마감 일정에 미치는 영향이 관리되는가",
+          "[변경] DDL 작업 시 서비스 영향(락) 평가와 롤백 계획이 문서화되는가",
+          "[운영] DB 성능 지표(슬로우 쿼리, 대기 이벤트)가 주기적으로 검토되는가"
+        ],
+        "fss": [
+          "정보처리시스템의 성능·용량 관리 체계를 갖추고 처리 지연을 모니터링하는가",
+          "운영 중 성능 개선 작업이 변경관리 절차와 작업시간 통제하에 수행되는가"
+        ],
+        "isms": [
+          "2.9.1 변경관리: 데이터베이스 구조 변경이 승인·기록되는가",
+          "2.9.2 성능 및 장애관리: 성능 지표 임계치와 대응 절차가 정의되어 있는가"
+        ],
+        "evidence": [
+          "인덱스 생성·삭제 관련 변경관리 티켓 및 승인 기록 (최근 6개월)",
+          "운영 DB 인덱스 목록 export 및 사용 통계(pg_stat_user_indexes 등)",
+          "슬로우 쿼리 로그 및 성능 리뷰 회의록",
+          "DDL 작업 계획서(작업시간, 영향도, 롤백 방안)"
+        ],
+        "auditorQuestions": [
+          "운영 DB에 인덱스를 추가하려면 어떤 승인을 받는가? 최근 사례를 보여줄 수 있는가?",
+          "DDL 작업으로 서비스에 영향을 준 사례가 있는가?",
+          "슬로우 쿼리는 누가 언제 검토하며 개선 이력은 어디에 남는가?",
+          "야간 배치가 마감 시간을 넘긴 적이 있는가? 원인과 조치는?"
+        ],
+        "controlExample": "운영 데이터베이스의 인덱스 생성·삭제를 포함한 모든 DDL은 변경관리 시스템에 등록되어 DBA와 서비스 담당자의 승인을 받은 후 지정된 작업시간대에 수행되며, 작업 전후 성능 지표와 수행 로그를 증빙으로 보관한다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-execution-plan",
+        "db-sql-basics",
+        "db-schema-migration",
+        "db-sharding-partitioning",
+        "db-postgresql",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "PostgreSQL Documentation - Indexes",
+        "Use The Index, Luke! (SQL 인덱스 가이드)",
+        "Oracle Database SQL Tuning Guide"
+      ]
+    },
+    {
+      "id": "db-sql-basics",
+      "title": "SQL 기초",
+      "titleEn": "Structured Query Language",
+      "aliases": [
+        "SQL",
+        "쿼리",
+        "질의어",
+        "DDL",
+        "DML",
+        "DCL",
+        "조인"
+      ],
+      "tags": [
+        "database",
+        "sql",
+        "fundamental"
+      ],
+      "level": "기초",
+      "oneLiner": "데이터베이스에 원하는 데이터를 요청하고 바꾸는 표준 언어",
+      "analogy": "SQL은 도서관 사서에게 건네는 주문서와 같다. '서가 3층 왼쪽 다섯 번째 칸에서 꺼내와'라고 경로를 지시하는 게 아니라 '2026년에 나온 경제서적 중 대출 가능한 것만 제목순으로'라고 조건만 적어준다. 어떻게 찾아올지는 사서(옵티마이저)가 알아서 정한다.",
+      "explanation": "<p><strong>SQL</strong>은 관계형 데이터베이스에 말을 거는 표준 언어다. 특징은 <strong>선언형(declarative)</strong>이라는 점이다. '무엇을 원하는지'만 쓰고 '어떻게 가져올지'는 DB가 정한다. 그래서 같은 결과를 내는 SQL도 작성 방식에 따라 성능이 100배 차이 날 수 있다.</p><p><strong>SQL은 역할에 따라 네 갈래</strong>로 나뉜다. <strong>DDL(Data Definition Language)</strong>은 구조를 만들고 바꾼다 — CREATE, ALTER, DROP, TRUNCATE. <strong>DML(Data Manipulation Language)</strong>은 데이터를 다룬다 — SELECT, INSERT, UPDATE, DELETE, MERGE. <strong>DCL(Data Control Language)</strong>은 권한을 다룬다 — GRANT, REVOKE. <strong>TCL</strong>은 트랜잭션을 다룬다 — COMMIT, ROLLBACK, SAVEPOINT. 감사에서 이 구분은 매우 중요하다. DDL은 '변경관리', DML은 '데이터 무결성', DCL은 '접근통제' 영역에 각각 걸린다.</p><p><strong>SELECT의 논리적 처리 순서</strong>는 우리가 적는 순서와 다르다. 실제로는 FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → ORDER BY → LIMIT 순으로 처리된다. 그래서 SELECT 절에서 만든 별칭을 WHERE에서 못 쓰고, 집계 결과로 거를 때는 WHERE가 아니라 HAVING을 써야 한다.</p><p><strong>JOIN</strong>은 여러 테이블을 연결한다. <strong>INNER JOIN</strong>은 양쪽에 다 있는 것만, <strong>LEFT OUTER JOIN</strong>은 왼쪽은 다 남기고 오른쪽은 없으면 NULL로 채운다. 결제 건수를 세는데 INNER JOIN을 쓰면 고객정보가 삭제된 결제 건이 통째로 빠져 금액이 틀어진다 — 재무 수치 오류의 흔한 원인이다.</p><p><strong>NULL은 '값이 없음'이지 0이나 빈 문자열이 아니다.</strong> <code>WHERE amount != 1000</code>은 amount가 NULL인 행을 포함하지 않는다. NULL 비교는 반드시 <code>IS NULL</code>/<code>IS NOT NULL</code>을 써야 하고, <code>SUM()</code>은 NULL을 무시하지만 <code>COUNT(*)</code>는 NULL 행도 센다. 쉽게 말하면 NULL은 '모름'이라서 어떤 비교를 해도 참이 아니다.</p><p><strong>실무에서 자주 쓰는 확장</strong>으로는 CTE(WITH 절, 쿼리를 단계로 쪼개 가독성 향상), 윈도우 함수(ROW_NUMBER, SUM OVER — 그룹을 묶지 않고 순위·누적합 계산), UPSERT(있으면 UPDATE 없으면 INSERT)가 있다. 정산·대사 SQL은 대부분 CTE + 윈도우 함수 조합으로 작성된다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 SQL 문자열을 커넥션을 통해 DB 서버로 보낸다.</li><li>파서가 문법을 검사하고 참조된 테이블·컬럼이 존재하는지 확인한다(구문 분석 + 의미 분석).</li><li>권한 검사: 접속 계정이 해당 객체에 대해 SELECT/INSERT/UPDATE 권한을 가졌는지 확인한다.</li><li>옵티마이저가 통계정보를 이용해 여러 실행 방법의 비용을 계산하고 가장 싼 실행계획을 고른다.</li><li>실행 엔진이 FROM/JOIN으로 데이터 원본을 결합하고 WHERE로 행을 걸러낸다.</li><li>GROUP BY로 묶고 집계함수를 계산한 뒤 HAVING으로 그룹을 걸러낸다.</li><li>SELECT 목록의 컬럼·표현식을 계산하고 ORDER BY로 정렬, LIMIT으로 잘라낸다.</li><li>결과 집합을 클라이언트에 전송한다. DML이었다면 변경 건수를 반환하고 트랜잭션은 COMMIT까지 열려 있다.</li></ol>",
+      "example": "<p>'페이나우' 정산팀은 매월 초 전월 가맹점별 매출과 수수료를 산출한다. 가맹점 정보가 마스터에서 삭제된 경우에도 매출은 집계돼야 하므로 LEFT JOIN을 쓴다. 2026년 4월에는 INNER JOIN으로 작성된 쿼리 때문에 폐업 가맹점 37곳의 매출 2억 1천만 원이 누락돼 월마감 대사에서 차이가 발견됐고, 이후 정산 SQL은 코드 리뷰 대상에 포함됐다.</p><pre><code>-- 가맹점별 전월 매출·수수료 (CTE + 윈도우 함수)\nWITH monthly AS (\n  SELECT m.merchant_id,\n         COALESCE(m.name, '(폐업)') AS merchant_name,\n         SUM(p.amount)              AS sales,\n         SUM(p.amount * 0.023)      AS fee,\n         COUNT(*)                   AS cnt\n    FROM payment p\n    LEFT JOIN merchant m ON m.merchant_id = p.merchant_id\n   WHERE p.status = 'PAID'\n     AND p.paid_at &gt;= DATE '2026-08-01'\n     AND p.paid_at &lt;  DATE '2026-09-01'\n   GROUP BY m.merchant_id, m.name\n)\nSELECT merchant_id, merchant_name, sales, fee, cnt,\n       RANK() OVER (ORDER BY sales DESC) AS sales_rank\n  FROM monthly\n WHERE sales &gt; 0\n ORDER BY sales_rank;\n\n-- DDL / DCL 예 (변경관리·접근통제 대상)\nALTER TABLE payment ADD COLUMN refund_reason VARCHAR(100);\nGRANT SELECT ON payment TO role_settlement_reader;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='12'>SELECT 논리적 처리 순서</text><rect x='20' y='34' width='86' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='63' y='55' text-anchor='middle' fill='currentColor' font-size='12'>FROM/JOIN</text><line x1='106' y1='50' x2='134' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='136' y='34' width='78' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='175' y='55' text-anchor='middle' fill='currentColor' font-size='12'>WHERE</text><line x1='214' y1='50' x2='242' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='244' y='34' width='92' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='290' y='55' text-anchor='middle' fill='currentColor' font-size='12'>GROUP BY</text><line x1='336' y1='50' x2='364' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='366' y='34' width='80' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='406' y='55' text-anchor='middle' fill='currentColor' font-size='12'>HAVING</text><line x1='446' y1='50' x2='474' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='476' y='34' width='78' height='32' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='515' y='55' text-anchor='middle' fill='currentColor' font-size='12'>SELECT</text><line x1='515' y1='66' x2='515' y2='88' stroke='currentColor' marker-end='url(#ar)'/><rect x='466' y='88' width='98' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='515' y='109' text-anchor='middle' fill='currentColor' font-size='12'>ORDER/LIMIT</text><text x='20' y='150' fill='currentColor' font-size='12'>SQL 갈래와 통제 영역</text><rect x='20' y='162' width='140' height='66' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='90' y='184' text-anchor='middle' fill='currentColor' font-size='12'>DDL</text><text x='90' y='204' text-anchor='middle' fill='currentColor' font-size='11'>CREATE/ALTER</text><text x='90' y='220' text-anchor='middle' fill='currentColor' font-size='11'>→ 변경관리</text><rect x='176' y='162' width='140' height='66' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='246' y='184' text-anchor='middle' fill='currentColor' font-size='12'>DML</text><text x='246' y='204' text-anchor='middle' fill='currentColor' font-size='11'>INSERT/UPDATE</text><text x='246' y='220' text-anchor='middle' fill='currentColor' font-size='11'>→ 데이터 무결성</text><rect x='332' y='162' width='140' height='66' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='402' y='184' text-anchor='middle' fill='currentColor' font-size='12'>DCL</text><text x='402' y='204' text-anchor='middle' fill='currentColor' font-size='11'>GRANT/REVOKE</text><text x='402' y='220' text-anchor='middle' fill='currentColor' font-size='11'>→ 접근통제</text><rect x='488' y='162' width='130' height='66' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='553' y='184' text-anchor='middle' fill='currentColor' font-size='12'>TCL</text><text x='553' y='204' text-anchor='middle' fill='currentColor' font-size='11'>COMMIT</text><text x='553' y='220' text-anchor='middle' fill='currentColor' font-size='11'>→ 원자성</text></svg>",
+      "keyTerms": [
+        {
+          "term": "DDL",
+          "meaning": "CREATE/ALTER/DROP 등 구조를 바꾸는 SQL. 변경관리 대상"
+        },
+        {
+          "term": "DML",
+          "meaning": "SELECT/INSERT/UPDATE/DELETE 등 데이터를 다루는 SQL"
+        },
+        {
+          "term": "DCL",
+          "meaning": "GRANT/REVOKE 등 권한을 부여·회수하는 SQL"
+        },
+        {
+          "term": "JOIN",
+          "meaning": "두 테이블을 연결 조건으로 결합. INNER/LEFT OUTER가 대표적"
+        },
+        {
+          "term": "NULL",
+          "meaning": "값이 없음(모름). 어떤 비교 연산도 참이 되지 않음"
+        },
+        {
+          "term": "CTE (WITH)",
+          "meaning": "쿼리를 단계로 쪼개 이름 붙이는 임시 결과 집합"
+        },
+        {
+          "term": "윈도우 함수",
+          "meaning": "행을 묶지 않고 순위·누적합을 계산하는 함수(ROW_NUMBER, SUM OVER)"
+        },
+        {
+          "term": "TRUNCATE",
+          "meaning": "테이블 전체를 즉시 비우는 DDL. 롤백이 어렵고 DELETE보다 위험"
+        }
+      ],
+      "pitfalls": [
+        "INNER JOIN을 써서 마스터에 없는 건이 집계에서 통째로 빠지고, 재무 수치가 틀어진다.",
+        "NULL을 0이나 빈 문자열로 여겨 조건식에서 행이 조용히 누락된다.",
+        "WHERE 절에서 집계 결과를 거르려다 오류가 나고, HAVING과의 차이를 모른 채 쿼리를 뒤튼다.",
+        "DELETE 대신 TRUNCATE를 써서 롤백이 불가능해지거나, WHERE 없는 UPDATE로 전체 행을 날린다.",
+        "SELECT * 를 관행적으로 사용해 불필요한 컬럼(개인정보 포함)까지 조회·로그에 남는다.",
+        "운영에서 SQL을 직접 실행하며 '조회만 한다'고 말하지만 실제로는 DML이 섞여 있어 통제 밖 변경이 발생한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 DB에 직접 SQL을 실행할 수 있는 주체와 도구(SQL 클라이언트, DB 접근제어 솔루션)가 통제되는가",
+          "[변경] DDL은 변경관리 승인 후 배포되며 임의 실행이 차단·탐지되는가",
+          "[운영] 운영 DML 수행 시 사전 승인·수행자·수행 SQL·영향 건수가 기록·보관되는가",
+          "[ITAC] 재무 수치를 산출하는 SQL(정산·대사)이 코드 리뷰와 테스트를 거쳐 반영되는가"
+        ],
+        "fss": [
+          "전자금융기반시설 접근 시 접근통제 솔루션을 통해 명령어 수준의 통제·기록이 이루어지는가",
+          "거래정보를 조회·변경하는 질의 수행 기록이 보존되고 사후 점검되는가"
+        ],
+        "isms": [
+          "2.6.3 응용프로그램 접근: 데이터 조회·출력 범위가 업무상 필요 최소한으로 제한되는가",
+          "2.9.4 로그 및 접속기록 관리: DB 질의 수행 기록이 생성·보존·검토되는가",
+          "3.2.x 개인정보 이용: 개인정보 조회 SQL의 수행 기록이 관리되는가"
+        ],
+        "evidence": [
+          "운영 DB 접근제어 솔루션의 SQL 수행 로그 샘플 (기간 지정 export)",
+          "정산·마감 SQL 소스와 형상관리 커밋 이력·리뷰 기록",
+          "DDL 수행 관련 변경관리 티켓과 승인 화면",
+          "운영 DML 수행 요청서(사전 승인) 및 실행 결과 보고 샘플"
+        ],
+        "auditorQuestions": [
+          "운영 DB에서 SQL을 직접 실행할 수 있는 사람은 누구이며 어떤 경로로 접속하는가?",
+          "조회 SQL과 변경 SQL을 구분해 통제하는가? 어떻게 구분하는가?",
+          "정산 SQL이 바뀔 때 누가 검토·승인하는가?",
+          "SELECT로 개인정보를 대량 조회한 기록은 어디서 확인할 수 있는가?",
+          "운영에서 WHERE 없는 UPDATE 같은 위험 SQL을 차단하는 장치가 있는가?"
+        ],
+        "controlExample": "운영 데이터베이스에 대한 모든 SQL 수행은 DB 접근제어 솔루션을 경유하며, DDL 및 데이터 변경(DML)은 사전 승인된 요청서에 첨부된 스크립트에 한해 허용되고, 수행 로그는 1년 이상 보관되어 월 단위로 표본 점검한다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-execution-plan",
+        "db-index",
+        "db-account-privilege",
+        "db-critical-table-dml",
+        "db-audit-log",
+        "db-data-reconciliation"
+      ],
+      "learnMore": [
+        "PostgreSQL Documentation - SQL Language",
+        "Oracle SQL Language Reference",
+        "MySQL Reference Manual - SQL Statements"
+      ]
+    },
+    {
+      "id": "db-execution-plan",
+      "title": "실행계획과 SQL 튜닝",
+      "titleEn": "Execution Plan and SQL Tuning",
+      "aliases": [
+        "실행계획",
+        "EXPLAIN",
+        "플랜",
+        "쿼리 튜닝",
+        "슬로우 쿼리",
+        "옵티마이저"
+      ],
+      "tags": [
+        "database",
+        "performance",
+        "tuning"
+      ],
+      "level": "중급",
+      "oneLiner": "DB가 SQL을 어떤 순서·방법으로 처리할지 정한 계획서와 그 개선 활동",
+      "analogy": "실행계획은 내비게이션이 제시한 경로와 같다. 목적지(SQL 결과)는 같아도 고속도로로 갈지 골목길로 갈지에 따라 소요 시간이 완전히 달라진다. 내비게이션은 현재 교통정보(통계정보)를 근거로 경로를 고르는데, 그 정보가 몇 달 전 것이면 엉뚱한 길로 안내한다.",
+      "explanation": "<p><strong>실행계획(Execution Plan)</strong>은 옵티마이저가 SQL 한 문장을 처리하기 위해 세운 단계별 작업 지시서다. 어떤 테이블을 먼저 읽을지, 인덱스를 탈지 풀 스캔할지, 조인은 어떤 알고리즘으로 할지가 트리 형태로 표현된다. <code>EXPLAIN</code>(PostgreSQL/MySQL), <code>EXPLAIN PLAN</code>/AUTOTRACE(Oracle), 실행계획 표시(SQL Server)로 볼 수 있다.</p><p><strong>핵심 접근 방식</strong>은 세 가지다. <strong>Seq Scan / Full Table Scan</strong>은 테이블 전체를 순차로 읽는다 — 많은 행을 가져올 때는 오히려 빠르다. <strong>Index Scan</strong>은 인덱스를 타고 들어가 행 주소로 테이블에 접근한다 — 적은 행을 콕 집을 때 유리하다. <strong>Index Only Scan</strong>은 테이블을 아예 안 읽는다 — 가장 빠르다.</p><p><strong>조인 알고리즘</strong>도 세 가지다. <strong>Nested Loop</strong>는 바깥 테이블 한 행마다 안쪽을 인덱스로 찾는다 — 바깥이 작을 때 유리. <strong>Hash Join</strong>은 한쪽을 메모리에 해시 테이블로 올리고 다른 쪽을 흘려보낸다 — 대용량 배치에 유리. <strong>Merge Join</strong>은 양쪽을 정렬해 나란히 맞춰간다 — 이미 정렬된 경우 유리. 쉽게 말하면 명단 대조할 때 한 명씩 전화하느냐(NL), 명단을 통째로 표로 만들어 놓고 훑느냐(Hash)의 차이다.</p><p><strong>EXPLAIN vs EXPLAIN ANALYZE.</strong> 그냥 EXPLAIN은 '예상'만 보여주고 실제 실행은 안 한다. <code>EXPLAIN ANALYZE</code>는 실제로 실행해서 예상 행 수(rows)와 실제 행 수(actual rows)를 같이 보여준다. 이 둘의 차이가 100배 이상이면 <strong>통계정보가 낡았다</strong>는 신호다. 주의: EXPLAIN ANALYZE로 UPDATE/DELETE를 실행하면 실제로 데이터가 바뀌므로 트랜잭션으로 감싸고 롤백해야 한다.</p><p><strong>튜닝의 일반 순서</strong>는 (1) 슬로우 쿼리 로그·pg_stat_statements로 병목 SQL을 찾고 (2) 실행계획을 보고 (3) 통계정보를 갱신하고(ANALYZE) (4) 인덱스를 추가하거나 SQL을 고치고 (5) 개선 전후를 측정한다. 마지막으로 파라미터(work_mem, shared_buffers)를 만지는데, 이건 전체 시스템에 영향을 주므로 가장 마지막 수단이다.</p><p><strong>감사 관점.</strong> 성능은 재무보고 <strong>적시성</strong>과 직결된다. 월마감 배치가 4시간 걸리다 12시간으로 늘면 마감 일정이 깨진다. 또 성능 개선을 이유로 힌트를 넣거나 파라미터를 바꾸는 것은 운영 변경이므로 승인·기록이 필요하며, 개발자가 운영 DB에서 EXPLAIN ANALYZE를 직접 돌리는 관행은 접근통제 이슈가 된다.</p>",
+      "howItWorks": "<ol><li>SQL이 들어오면 파서가 구문 트리를 만들고, 다시쓰기(rewrite) 단계에서 뷰를 펼치는 등 변형한다.</li><li>옵티마이저가 가능한 접근 경로(인덱스 A, 인덱스 B, 풀스캔)와 조인 순서 조합을 나열한다.</li><li>각 조합에 대해 통계정보(테이블 행 수, 컬럼별 고유값 수, 히스토그램)를 기반으로 비용(cost)을 추정한다.</li><li>비용이 가장 낮은 계획을 선택해 실행계획 트리로 확정한다(필요 시 플랜 캐시에 저장).</li><li>실행 엔진이 트리의 아래(리프)부터 위로 데이터를 흘려보내며 처리한다.</li><li>운영자가 <code>EXPLAIN ANALYZE</code>로 예상치와 실제치를 비교해 오차가 큰 노드를 찾는다.</li><li><code>ANALYZE</code>로 통계를 갱신하거나 인덱스를 추가해 옵티마이저 판단을 바로잡는다.</li><li>개선 후 동일 SQL을 재측정하고 결과를 변경 티켓에 첨부한다.</li></ol>",
+      "example": "<p>'페이나우'의 월마감 정산 배치가 2026년 7월 갑자기 3시간에서 11시간으로 늘었다. 원인 조사 결과 <code>payment</code> 테이블이 급증했는데 자동 통계수집(autovacuum/ANALYZE)이 대형 테이블에서 지연돼, 옵티마이저가 실제 4,200만 건인 결과를 3,000건으로 추정하고 Nested Loop를 선택하고 있었다. 통계를 수동 갱신하자 Hash Join으로 바뀌며 42분으로 줄었다. 이후 마감 대상 테이블은 배치 시작 전 ANALYZE를 수행하도록 잡(job) 스텝을 추가했다.</p><pre><code>-- 실제 수행 통계까지 확인 (PostgreSQL)\nEXPLAIN (ANALYZE, BUFFERS)\nSELECT m.merchant_id, SUM(p.amount)\n  FROM payment p JOIN merchant m ON m.merchant_id = p.merchant_id\n WHERE p.paid_at &gt;= DATE '2026-08-01'\n GROUP BY m.merchant_id;\n\n-- 출력 해석 포인트\n--  Hash Join  (cost=..)  rows=3000  actual rows=42000000   ← 추정 오차 1만배\n--  Seq Scan on payment   Buffers: shared read=1.2M         ← 디스크 읽기 과다\n\n-- 통계 갱신 후 재측정\nANALYZE payment;\n\n-- 누적 부하가 큰 SQL Top 10 찾기\nSELECT substr(query,1,60), calls, round(total_exec_time) ms, round(mean_exec_time,1) avg_ms\n  FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='110' height='36' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='53' text-anchor='middle' fill='currentColor' font-size='12'>SQL 문장</text><line x1='130' y1='48' x2='170' y2='48' stroke='currentColor' marker-end='url(#ar)'/><rect x='170' y='30' width='110' height='36' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='225' y='53' text-anchor='middle' fill='currentColor' font-size='12'>파서/재작성</text><line x1='280' y1='48' x2='320' y2='48' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='22' width='130' height='52' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='385' y='44' text-anchor='middle' fill='currentColor' font-size='12'>옵티마이저</text><text x='385' y='62' text-anchor='middle' fill='currentColor' font-size='11'>비용 비교</text><line x1='385' y1='90' x2='385' y2='74' stroke='currentColor' marker-end='url(#ar)'/><rect x='320' y='90' width='130' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='385' y='112' text-anchor='middle' fill='currentColor' font-size='12'>통계정보</text><line x1='450' y1='48' x2='490' y2='48' stroke='currentColor' marker-end='url(#ar)'/><rect x='490' y='30' width='130' height='36' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='555' y='53' text-anchor='middle' fill='currentColor' font-size='12'>실행계획</text><text x='20' y='150' fill='currentColor' font-size='12'>실행계획 트리 (아래에서 위로)</text><rect x='230' y='160' width='180' height='32' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='181' text-anchor='middle' fill='currentColor' font-size='12'>HashAggregate (GROUP BY)</text><line x1='320' y1='210' x2='320' y2='192' stroke='currentColor' marker-end='url(#ar)'/><rect x='240' y='210' width='160' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='230' text-anchor='middle' fill='currentColor' font-size='12'>Hash Join</text><line x1='150' y1='225' x2='240' y2='225' stroke='currentColor' marker-end='url(#ar)'/><line x1='500' y1='225' x2='400' y2='225' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='210' width='130' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='230' text-anchor='middle' fill='currentColor' font-size='12'>Seq Scan payment</text><rect x='500' y='210' width='130' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='565' y='230' text-anchor='middle' fill='currentColor' font-size='12'>Index Scan merchant</text></svg>",
+      "keyTerms": [
+        {
+          "term": "EXPLAIN",
+          "meaning": "SQL의 예상 실행계획을 보여주는 명령"
+        },
+        {
+          "term": "EXPLAIN ANALYZE",
+          "meaning": "실제 실행하며 예상치와 실제치를 함께 보여줌"
+        },
+        {
+          "term": "Seq Scan / Full Scan",
+          "meaning": "테이블 전체를 순차로 읽는 접근 방식"
+        },
+        {
+          "term": "Nested Loop Join",
+          "meaning": "바깥 행마다 안쪽을 찾아 붙이는 조인. 소량에 유리"
+        },
+        {
+          "term": "Hash Join",
+          "meaning": "한쪽을 해시 테이블로 올려 대조하는 조인. 대용량에 유리"
+        },
+        {
+          "term": "통계정보(Statistics)",
+          "meaning": "행 수·값 분포 등 옵티마이저 판단 근거 데이터"
+        },
+        {
+          "term": "pg_stat_statements",
+          "meaning": "PostgreSQL의 SQL별 누적 수행 통계 뷰"
+        },
+        {
+          "term": "힌트(Hint)",
+          "meaning": "옵티마이저 판단을 강제로 바꾸는 지시. 최후 수단"
+        }
+      ],
+      "pitfalls": [
+        "EXPLAIN의 cost 숫자를 초 단위 시간으로 오해. cost는 상대적 비용 단위일 뿐이다.",
+        "예상 행 수와 실제 행 수의 차이를 안 보고 인덱스만 계속 추가한다. 대개 통계정보 문제다.",
+        "운영에서 EXPLAIN ANALYZE로 UPDATE를 돌려 실제 데이터를 바꿔버린다.",
+        "개발 DB에서 튜닝한 계획이 운영에서도 같을 거라 가정. 데이터량·분포가 달라 계획이 달라진다.",
+        "힌트를 남발해 옵티마이저를 고정시키고, 데이터가 늘어난 뒤 오히려 더 느려진다.",
+        "슬로우 쿼리 임계치를 10초로 잡아, 0.3초짜리가 하루 500만 번 도는 진짜 병목을 놓친다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 배치·마감 처리 시간이 모니터링되고 지연 시 에스컬레이션 절차가 있는가",
+          "[변경] 성능 개선을 위한 SQL 수정·인덱스 추가·파라미터 변경이 변경관리를 거치는가",
+          "[접근] 개발자가 운영 DB에서 직접 쿼리를 수행하는 경우 통제·기록되는가",
+          "[운영] 슬로우 쿼리 및 부하 상위 SQL이 주기적으로 검토되고 조치 결과가 기록되는가"
+        ],
+        "fss": [
+          "정보처리시스템의 용량·성능을 주기적으로 점검하고 증설 계획을 수립하는가",
+          "처리 지연으로 인한 서비스 영향이 장애관리 절차에 따라 관리되는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 성능 지표 수집·임계치·대응 절차가 정의·운영되는가",
+          "2.9.1 변경관리: 성능 관련 설정 변경이 승인·기록되는가"
+        ],
+        "evidence": [
+          "월마감 배치 수행시간 추이 그래프 및 지연 발생 시 대응 티켓",
+          "슬로우 쿼리 로그 설정값과 로그 샘플, 성능 리뷰 회의록",
+          "SQL 튜닝·인덱스 추가 관련 변경 티켓과 개선 전후 측정 결과",
+          "DB 파라미터 변경 이력 (shared_buffers, work_mem 등)"
+        ],
+        "auditorQuestions": [
+          "월마감 배치가 지연된 적이 있는가? 마감 일정에 영향은 없었는가?",
+          "SQL 성능 문제를 누가 발견하고 누가 수정하는가? 수정 승인 절차는?",
+          "운영 DB에서 실행계획을 확인하는 사람은 누구이며 어떤 권한으로 접속하는가?",
+          "DB 파라미터를 최근 변경한 적이 있는가? 근거와 승인 기록은?"
+        ],
+        "controlExample": "월마감 배치의 수행시간은 모니터링 대시보드에서 자동 수집되어 기준시간(4시간) 초과 시 담당자에게 알람이 발송되며, 성능 개선을 위한 SQL 변경 및 인덱스 추가는 변경관리 승인 후 개선 전후 측정 결과를 첨부하여 종결한다."
+      },
+      "related": [
+        "db-index",
+        "db-sql-basics",
+        "db-postgresql",
+        "db-oracle",
+        "db-batch-scheduler",
+        "obs-prometheus",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "PostgreSQL Documentation - Using EXPLAIN",
+        "Oracle Database SQL Tuning Guide",
+        "MySQL Reference Manual - Optimization"
+      ]
+    },
+    {
+      "id": "db-mysql",
+      "title": "MySQL / MariaDB",
+      "titleEn": "MySQL and MariaDB",
+      "aliases": [
+        "MySQL",
+        "MariaDB",
+        "InnoDB",
+        "마이에스큐엘",
+        "마리아DB",
+        "Aurora MySQL"
+      ],
+      "tags": [
+        "database",
+        "rdbms",
+        "opensource"
+      ],
+      "level": "중급",
+      "oneLiner": "웹 서비스에서 가장 널리 쓰이는 오픈소스 관계형 데이터베이스",
+      "analogy": "MySQL은 동네에서 가장 많이 팔린 국민 승용차와 같다. 부품(운영 노하우, 튜닝 자료, 사람)이 흔해서 고치기 쉽고 값도 싸다. 다만 고급 기능이 필요한 순간에는 옵션을 추가로 사거나(엔터프라이즈, Aurora) 다른 차종(PostgreSQL, Oracle)을 봐야 한다. MariaDB는 같은 설계도를 바탕으로 갈라져 나온 자매 모델이다.",
+      "explanation": "<p><strong>MySQL</strong>은 1995년 등장해 웹 서비스의 표준 데이터베이스가 된 오픈소스 RDBMS다. 2010년 오라클이 인수하자 원 개발자들이 갈라져 만든 것이 <strong>MariaDB</strong>로, SQL 문법과 프로토콜이 거의 호환되어 실무에서는 사실상 같은 계열로 다룬다. 클라우드에서는 AWS RDS for MySQL, Aurora MySQL, GCP Cloud SQL 형태로 많이 쓴다.</p><p><strong>스토리지 엔진 구조</strong>가 MySQL의 특징이다. SQL 처리부와 실제 저장부가 분리돼 있어 테이블마다 엔진을 고를 수 있다. 현재 표준은 <strong>InnoDB</strong>로 트랜잭션·외래키·MVCC·행 단위 락을 지원한다. 예전의 MyISAM은 트랜잭션이 없어 금융 데이터에는 절대 쓰면 안 된다. InnoDB는 <strong>클러스터형 인덱스</strong> 구조라 데이터가 기본키 순서로 물리 저장되며, 그래서 기본키를 UUID처럼 무작위 값으로 잡으면 삽입 성능이 크게 떨어진다.</p><p><strong>계정 개념이 독특하다.</strong> MySQL의 계정은 <code>'user'@'host'</code> 형태로, 접속 출발지 IP까지 계정 식별자의 일부다. <code>app@10.0.1.%</code>와 <code>app@%</code>는 다른 계정이다. <code>%</code>(어디서나)로 열어둔 계정은 감사에서 지적 1순위다. 권한은 전역(*.*), 스키마(db.*), 테이블, 컬럼 단위로 부여할 수 있고 <code>SHOW GRANTS FOR</code>로 확인한다.</p><p><strong>복제(Replication)</strong>는 바이너리 로그(binlog) 기반이다. 소스(구 명칭 마스터)가 변경을 binlog에 적고 레플리카(구 명칭 슬레이브)가 그것을 받아 재생한다. GTID(Global Transaction ID)를 켜면 페일오버 후 복제 재구성이 쉬워진다. Aurora MySQL은 로그 대신 공유 스토리지 계층으로 복제해 지연이 보통 수십 밀리초 수준이다.</p><p><strong>감사 로그는 별도 설정이 필요하다.</strong> 커뮤니티 MySQL은 기본 감사 플러그인이 없어 general_log(성능 부담 큼)나 MariaDB Audit Plugin, Percona Audit Plugin, 혹은 RDS의 Advanced Auditing을 켜야 한다. '누가 언제 어떤 SQL을 실행했는가'를 남기지 않으면 ITGC의 DB 변경 통제 증빙을 만들 수 없다.</p><p><strong>감사 관점 요약.</strong> (1) root 및 전역 권한 계정 목록, (2) <code>%</code> 호스트 허용 계정, (3) 애플리케이션 계정에 과도한 DDL/DROP 권한이 없는지, (4) 감사 플러그인 활성화 여부와 보존기간, (5) binlog 보존기간(PITR 복구 가능 범위)이 핵심 확인 항목이다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 3306 포트로 접속하면 서버가 <code>user@host</code> 조합으로 계정을 식별하고 인증한다(caching_sha2_password 등).</li><li>SQL이 파서를 거쳐 옵티마이저에서 실행계획이 만들어진다.</li><li>InnoDB 엔진이 버퍼 풀(innodb_buffer_pool_size, 보통 물리 메모리의 50~70%)에서 페이지를 찾는다.</li><li>변경은 redo 로그(ib_logfile)에 먼저 쓰이고 버퍼 풀의 페이지가 수정된다(더티 페이지).</li><li>COMMIT 시 redo 로그가 디스크에 flush되고, 동시에 복제용 binlog에도 기록된다.</li><li>레플리카의 I/O 스레드가 binlog를 받아 relay log에 저장하고, SQL 스레드가 이를 재생한다.</li><li>감사 플러그인이 켜져 있으면 접속·질의 이벤트가 audit 로그 파일 또는 CloudWatch Logs로 전송된다.</li><li>백그라운드에서 더티 페이지가 데이터 파일(.ibd)로 비동기 기록된다(checkpoint).</li></ol>",
+      "example": "<p>커머스 '쇼핑나우'는 Aurora MySQL 8.0 클러스터(Writer 1 + Reader 2)를 서울 리전에서 운영한다. 주문 API는 Writer 엔드포인트에, 상품 목록·검색은 Reader 엔드포인트에 붙는다. 2026년 초 감사에서 애플리케이션 계정 <code>shop_app@%</code>가 <code>ALL PRIVILEGES ON *.*</code>를 갖고 있던 것이 지적돼, 스키마 한정 CRUD 권한으로 축소하고 접속 IP를 VPC 대역으로 제한했다.</p><pre><code>-- 계정과 권한 점검 (감사 증빙용)\nSELECT user, host, account_locked, password_expired FROM mysql.user;\nSHOW GRANTS FOR 'shop_app'@'10.0.%';\n\n-- 최소 권한으로 재부여\nREVOKE ALL PRIVILEGES ON *.* FROM 'shop_app'@'%';\nDROP USER 'shop_app'@'%';\nCREATE USER 'shop_app'@'10.0.%' IDENTIFIED BY '&lt;secret-from-vault&gt;';\nGRANT SELECT, INSERT, UPDATE, DELETE ON shopdb.* TO 'shop_app'@'10.0.%';\n\n-- 복제 상태와 지연 확인\nSHOW REPLICA STATUS\\G   -- Seconds_Behind_Source, Replica_SQL_Running\n\n-- binlog 보존기간(PITR 가능 범위)\nSHOW VARIABLES LIKE 'binlog_expire_logs_seconds';</code></pre>",
+      "diagram": "",
+      "keyTerms": [
+        {
+          "term": "InnoDB",
+          "meaning": "MySQL의 표준 스토리지 엔진. 트랜잭션·행 락·MVCC 지원"
+        },
+        {
+          "term": "binlog",
+          "meaning": "모든 변경을 기록하는 바이너리 로그. 복제와 시점복구(PITR)의 근거"
+        },
+        {
+          "term": "user@host",
+          "meaning": "MySQL 계정 식별자. 접속 출발지까지 계정의 일부"
+        },
+        {
+          "term": "GTID",
+          "meaning": "트랜잭션에 전역 고유 ID를 부여해 복제 전환을 쉽게 하는 기능"
+        },
+        {
+          "term": "버퍼 풀",
+          "meaning": "데이터·인덱스 페이지를 캐시하는 InnoDB 메모리 영역"
+        },
+        {
+          "term": "MariaDB",
+          "meaning": "MySQL에서 분기된 호환 오픈소스 DB. 감사 플러그인 기본 제공"
+        },
+        {
+          "term": "Aurora MySQL",
+          "meaning": "AWS의 MySQL 호환 관리형 DB. 공유 스토리지로 복제 지연이 작음"
+        },
+        {
+          "term": "sql_mode",
+          "meaning": "데이터 검증 엄격도 설정. 느슨하면 잘못된 값이 조용히 저장됨"
+        }
+      ],
+      "pitfalls": [
+        "계정 호스트를 '%'로 열어두고 방화벽만 믿는다. DB 계정 자체의 접근 범위도 통제 대상이다.",
+        "애플리케이션 계정에 DROP·ALTER·GRANT 권한까지 줘, 앱 취약점 하나가 스키마 파괴로 이어진다.",
+        "MyISAM 테이블이 남아 있어 해당 테이블만 트랜잭션·복구가 안 되는 줄 모른다.",
+        "감사 플러그인을 안 켜고 general_log도 꺼둔 채 '누가 고쳤는지'를 사후에 찾으려 한다.",
+        "binlog 보존기간이 1일인데 RPO를 7일로 문서화해 실제 시점복구가 불가능하다.",
+        "레플리카 지연(Seconds_Behind_Source)을 모니터링하지 않아, 읽기 전용 화면에서 옛 데이터가 보인다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] MySQL 계정 목록(user@host)과 권한이 최소권한 원칙에 따라 부여·주기 리뷰되는가",
+          "[접근] root 및 전역 권한(*.*) 보유 계정이 식별되고 사용이 통제·기록되는가",
+          "[변경] 스키마 변경(DDL)이 변경관리 절차와 배포 도구를 통해서만 수행되는가",
+          "[운영] 감사 플러그인 또는 RDS Advanced Auditing이 활성화되어 접속·질의 로그가 보존되는가"
+        ],
+        "fss": [
+          "전자금융기반시설 DB에 대한 접근은 접근통제 솔루션을 통하고 계정별 식별·기록이 가능한가",
+          "전자금융감독규정 제14조의2에 따라 클라우드 관리형 DB(RDS/Aurora) 이용 시 안전성 확보조치를 평가했는가",
+          "거래기록 보존을 위한 binlog·백업 보존기간이 법정 보존기간과 정합적인가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리: DB 계정 생성·변경·삭제가 승인 절차를 거치는가",
+          "2.5.5 특수 계정 및 권한 관리: root 등 관리자 계정이 별도 관리·점검되는가",
+          "2.9.4 로그 및 접속기록 관리: DB 접속·질의 기록이 생성·보존·검토되는가"
+        ],
+        "evidence": [
+          "mysql.user 테이블 export (계정·호스트·잠금상태)",
+          "주요 계정별 SHOW GRANTS 결과 캡처",
+          "감사 플러그인/Advanced Auditing 설정값과 로그 샘플",
+          "binlog 보존기간 및 자동백업 보존기간 설정 화면",
+          "최근 분기 DB 계정 권한 리뷰 결과 및 승인 기록"
+        ],
+        "auditorQuestions": [
+          "운영 MySQL의 계정은 몇 개이며 개인 계정과 애플리케이션 계정은 어떻게 구분하는가?",
+          "root 계정 비밀번호는 어디에 보관되며 최근 사용 이력은?",
+          "애플리케이션 계정에 DDL 권한이 있는가? 없다면 스키마 변경은 어떤 계정으로 하는가?",
+          "DB 감사로그는 어디에 얼마나 보관하며 누가 검토하는가?",
+          "특정 시점으로 복구(PITR)가 가능한 최대 과거 시점은 언제까지인가?"
+        ],
+        "controlExample": "운영 MySQL(Aurora) 계정은 애플리케이션 계정과 개인 계정을 분리하여 관리하며, 전역 권한 및 DDL 권한은 DBA 계정에만 부여되고, 애플리케이션 계정은 지정된 스키마에 대한 DML 권한과 VPC 내부 IP 대역으로 접속이 제한된다. 계정·권한 현황은 분기별로 리뷰·승인된다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-acid-transaction",
+        "db-replication",
+        "db-account-privilege",
+        "db-audit-log",
+        "db-ha-failover",
+        "db-connection-pool"
+      ],
+      "learnMore": [
+        "MySQL 8.0 Reference Manual",
+        "MariaDB Server Documentation",
+        "Amazon Aurora User Guide"
+      ]
+    },
+    {
+      "id": "db-postgresql",
+      "title": "PostgreSQL",
+      "titleEn": "PostgreSQL",
+      "aliases": [
+        "포스트그레",
+        "PG",
+        "포스트그레SQL",
+        "Aurora PostgreSQL",
+        "psql"
+      ],
+      "tags": [
+        "database",
+        "rdbms",
+        "opensource"
+      ],
+      "level": "중급",
+      "oneLiner": "표준 준수와 확장성이 강점인 엔터프라이즈급 오픈소스 데이터베이스",
+      "analogy": "PostgreSQL은 기본 성능도 좋으면서 개조 부품이 잘 갖춰진 수제 자동차와 같다. JSON을 다루는 부품, 지도 좌표를 다루는 부품(PostGIS), 시계열 데이터를 다루는 부품(TimescaleDB)을 끼워 넣으면 전용 장비 없이도 그 일을 해낸다. 대신 부품을 아무거나 끼우면 정비(업그레이드) 때 발목을 잡는다.",
+      "explanation": "<p><strong>PostgreSQL</strong>은 SQL 표준 준수도가 가장 높은 오픈소스 RDBMS로, 라이선스 비용 없이 Oracle에 근접한 기능을 제공해 최근 금융권 Oracle 탈피(down-sizing)의 주 목적지가 되고 있다. AWS에서는 RDS for PostgreSQL, Aurora PostgreSQL로 제공된다.</p><p><strong>구조.</strong> 클라이언트 접속마다 별도 프로세스가 뜨는 <strong>프로세스 기반</strong> 구조라 커넥션 하나의 비용이 크다. 그래서 PgBouncer 같은 커넥션 풀러가 사실상 필수다. 메모리는 공유 버퍼(shared_buffers)와 세션별 작업 메모리(work_mem)로 나뉜다.</p><p><strong>MVCC와 VACUUM.</strong> PostgreSQL은 UPDATE를 '기존 행을 죽은 것으로 표시하고 새 행을 추가'하는 방식으로 처리한다. 그래서 죽은 행(dead tuple)이 쌓이고, 이를 청소하는 것이 <strong>VACUUM</strong>이다. autovacuum이 자동으로 돌지만 대량 갱신 테이블에서는 따라가지 못해 테이블이 부풀고(bloat) 성능이 떨어진다. 또 트랜잭션 ID 고갈(wraparound)을 막는 것도 VACUUM의 역할이라, 방치하면 DB가 쓰기를 거부하는 사태가 난다 — 운영 리스크 항목으로 반드시 모니터링해야 한다.</p><p><strong>권한 모델은 롤(ROLE) 하나로 통일</strong>돼 있다. 사용자와 그룹의 구분이 없고, 로그인 가능한 롤이 사용자, 다른 롤을 멤버로 갖는 롤이 그룹처럼 쓰인다. 그래서 '조회 전용 롤'을 만들어 사람들에게 부여하는 구조를 만들기 쉽다. <strong>행 수준 보안(Row Level Security, RLS)</strong>을 켜면 같은 테이블이라도 계정에 따라 보이는 행을 다르게 할 수 있어, 지점별·법인별 데이터 격리에 유용하다.</p><p><strong>확장(extension)</strong>은 PostgreSQL의 최대 강점이다. <code>pgaudit</code>(감사로그), <code>pg_stat_statements</code>(SQL 통계), <code>pgcrypto</code>(암호화), <code>PostGIS</code>(공간), <code>pglogical</code>/logical replication(CDC)이 대표적이다. 감사 대응에서는 pgaudit 활성화 여부가 거의 항상 질문된다.</p><p><strong>백업·복구.</strong> 물리 백업은 <code>pg_basebackup</code>+WAL 아카이브 조합으로 특정 시점 복구(PITR)가 가능하고, 논리 백업은 <code>pg_dump</code>다. WAL 아카이브가 끊기면 PITR 범위가 사라지므로 아카이브 실패 알람이 중요하다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 5432 포트로 접속하면 postmaster가 전용 백엔드 프로세스를 fork한다.</li><li><code>pg_hba.conf</code>가 '어느 IP에서 어느 DB에 어느 사용자가 어떤 방식(scram-sha-256, cert)으로 접속 가능한지'를 판정한다.</li><li>SQL이 파싱·재작성·계획 수립을 거쳐 실행된다.</li><li>UPDATE는 기존 튜플을 dead로 표시하고 새 튜플을 추가하며, 변경은 WAL에 먼저 기록된다.</li><li>COMMIT 시 WAL이 fsync되고, 아카이브 모드면 WAL 세그먼트가 S3 등으로 복사된다.</li><li>스트리밍 복제 시 스탠바이가 WAL을 실시간 수신해 재생하며 읽기 전용으로 서비스한다.</li><li>autovacuum 워커가 주기적으로 dead tuple을 회수하고 통계정보를 갱신한다.</li><li>pgaudit가 설정된 클래스(READ, WRITE, DDL, ROLE)의 문장을 서버 로그에 감사 항목으로 기록한다.</li></ol>",
+      "example": "<p>'페이나우'는 Oracle에서 Aurora PostgreSQL 16으로 이전하며 감사 요건을 맞추기 위해 <code>pgaudit</code>로 DDL·ROLE·WRITE 클래스를 기록하고 CloudWatch Logs로 1년 보관하도록 구성했다. 또 고객 테이블에 RLS를 적용해 CS 상담원 롤은 자신이 배정된 지점 고객만 조회되게 했다. 2026년 6월에는 대량 UPDATE 배치 후 <code>payment</code> 테이블이 1.8TB까지 부풀어 autovacuum 튜닝(scale_factor 0.02)과 수동 VACUUM으로 1.1TB로 줄였다.</p><pre><code>-- 감사 로깅 설정 (postgresql.conf / RDS 파라미터 그룹)\nshared_preload_libraries = 'pgaudit,pg_stat_statements'\npgaudit.log = 'ddl, role, write'      -- 조회까지 남기려면 read 추가\npgaudit.log_parameter = on\n\n-- 조회 전용 롤 설계\nCREATE ROLE role_readonly NOLOGIN;\nGRANT USAGE ON SCHEMA pay TO role_readonly;\nGRANT SELECT ON ALL TABLES IN SCHEMA pay TO role_readonly;\nCREATE ROLE eddie LOGIN PASSWORD '&lt;vault&gt;' IN ROLE role_readonly;\n\n-- 권한 현황 / 부풀음(bloat) 점검\n\\du                                   -- 롤 목록과 속성\nSELECT relname, n_dead_tup, last_autovacuum\n  FROM pg_stat_user_tables ORDER BY n_dead_tup DESC LIMIT 10;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='100' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='65' text-anchor='middle' fill='currentColor' font-size='12'>앱 / psql</text><line x1='120' y1='60' x2='160' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='40' width='100' height='40' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='210' y='58' text-anchor='middle' fill='currentColor' font-size='12'>pg_hba.conf</text><text x='210' y='74' text-anchor='middle' fill='currentColor' font-size='11'>접속 인가</text><line x1='260' y1='60' x2='300' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='300' y='30' width='150' height='60' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='375' y='52' text-anchor='middle' fill='currentColor' font-size='12'>백엔드 프로세스</text><text x='375' y='72' text-anchor='middle' fill='currentColor' font-size='11'>롤 권한 / RLS 적용</text><line x1='450' y1='60' x2='490' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='490' y='40' width='130' height='40' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='555' y='65' text-anchor='middle' fill='currentColor' font-size='12'>pgaudit 로그</text><line x1='375' y1='90' x2='375' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='300' y='120' width='150' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='375' y='144' text-anchor='middle' fill='currentColor' font-size='12'>WAL (선기록)</text><line x1='450' y1='139' x2='520' y2='139' stroke='currentColor' marker-end='url(#ar)'/><rect x='520' y='120' width='100' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='570' y='144' text-anchor='middle' fill='currentColor' font-size='12'>WAL 아카이브</text><line x1='300' y1='139' x2='230' y2='139' stroke='currentColor' marker-end='url(#ar)'/><rect x='110' y='120' width='120' height='38' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='170' y='144' text-anchor='middle' fill='currentColor' font-size='12'>스탠바이 복제</text><line x1='375' y1='158' x2='375' y2='186' stroke='currentColor' marker-end='url(#ar)'/><rect x='280' y='186' width='190' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='375' y='203' text-anchor='middle' fill='currentColor' font-size='12'>데이터 파일 (MVCC)</text><text x='375' y='219' text-anchor='middle' fill='currentColor' font-size='11'>dead tuple → VACUUM</text><text x='30' y='200' fill='currentColor' font-size='11'>PITR: 기본백업 + WAL</text></svg>",
+      "keyTerms": [
+        {
+          "term": "WAL",
+          "meaning": "변경을 먼저 기록하는 로그. 복구·복제·PITR의 기반"
+        },
+        {
+          "term": "VACUUM",
+          "meaning": "MVCC로 생긴 죽은 행을 회수하고 통계를 갱신하는 관리 작업"
+        },
+        {
+          "term": "롤(ROLE)",
+          "meaning": "사용자와 그룹을 통합한 권한 주체. LOGIN 속성 유무로 구분"
+        },
+        {
+          "term": "pg_hba.conf",
+          "meaning": "어느 IP·사용자·DB·인증방식으로 접속 가능한지 정의하는 파일"
+        },
+        {
+          "term": "pgaudit",
+          "meaning": "DDL/ROLE/READ/WRITE 문장을 감사 형식으로 기록하는 확장"
+        },
+        {
+          "term": "RLS(행 수준 보안)",
+          "meaning": "계정에 따라 같은 테이블에서 보이는 행을 제한하는 기능"
+        },
+        {
+          "term": "PITR",
+          "meaning": "기본백업 + WAL 재생으로 특정 시점까지 복구하는 기법"
+        },
+        {
+          "term": "PgBouncer",
+          "meaning": "PostgreSQL 앞단 커넥션 풀러. 접속 비용 문제를 완화"
+        }
+      ],
+      "pitfalls": [
+        "autovacuum을 방치해 테이블이 부풀고, 최악의 경우 트랜잭션 ID wraparound로 쓰기가 중단된다.",
+        "pgaudit를 설치만 하고 shared_preload_libraries에 넣지 않거나 log 클래스를 비워둬 실제로는 아무 기록도 남지 않는다.",
+        "커넥션을 수천 개 열어 프로세스 폭증으로 메모리가 고갈된다. 풀러 없이 운영하면 흔한 사고다.",
+        "superuser 계정을 애플리케이션에 그대로 사용해 RLS·권한 통제가 전부 무력화된다(superuser는 RLS를 우회).",
+        "WAL 아카이브 실패를 모니터링하지 않아 PITR 가능 구간이 며칠씩 비어 있는 것을 복구 시점에 발견한다.",
+        "확장(extension)을 무분별하게 설치해 메이저 버전 업그레이드 때 호환성 문제로 발이 묶인다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 롤 기반 권한 설계와 superuser 보유자 목록이 문서화되고 분기 리뷰되는가",
+          "[접근] pg_hba.conf의 접속 허용 범위가 필요 최소로 제한되고 변경이 통제되는가",
+          "[운영] pgaudit 등 감사 로깅이 활성화되어 DDL·권한변경·데이터변경이 기록·보존되는가",
+          "[변경] 스키마 변경과 확장(extension) 설치가 변경관리 승인을 거치는가",
+          "[운영] WAL 아카이브·백업 성공 여부와 PITR 가능 구간이 모니터링되는가"
+        ],
+        "fss": [
+          "전자금융기반시설의 데이터베이스 접근통제와 접속기록 보존이 이루어지는가",
+          "중요 거래정보의 암호화(pgcrypto/스토리지 암호화) 및 키 관리 방안이 수립되어 있는가",
+          "관리형 DB 이용 시 전자금융감독규정 제14조의2 클라우드 이용절차 이행 근거가 있는가"
+        ],
+        "isms": [
+          "2.5.5 특수 계정 및 권한 관리: superuser 등 특권 롤이 최소화·주기 점검되는가",
+          "2.9.4 로그 및 접속기록 관리: pgaudit 로그가 위·변조 방지되어 보존되는가",
+          "2.7.1 암호정책 적용: 개인정보 컬럼에 대한 암호화 방식과 키 관리가 정의되어 있는가"
+        ],
+        "evidence": [
+          "\\du 출력(롤 목록·속성) 및 superuser 보유자 목록",
+          "postgresql.conf/파라미터 그룹의 pgaudit 설정값 캡처와 로그 샘플",
+          "pg_hba.conf 전문 또는 RDS 보안그룹·파라미터 설정",
+          "자동백업·스냅샷 설정 화면과 최근 복구 테스트 결과",
+          "분기 권한 리뷰 결과표와 승인자 서명"
+        ],
+        "auditorQuestions": [
+          "superuser 권한을 가진 계정은 누구인가? 애플리케이션이 superuser로 접속하지는 않는가?",
+          "pgaudit는 어떤 클래스를 기록하도록 설정돼 있으며 로그는 어디에 얼마나 보관되는가?",
+          "조회 전용 롤과 변경 가능한 롤을 어떻게 구분해 부여하는가?",
+          "특정 시점 복구가 가능한 범위는? 마지막 복구 테스트는 언제인가?",
+          "VACUUM 상태와 wraparound 위험을 모니터링하는가?"
+        ],
+        "controlExample": "운영 PostgreSQL의 권한은 업무별 롤(조회 전용, 운영, DBA)로 설계되어 개인 계정에 롤을 부여하는 방식으로만 관리되며, superuser 권한은 DBA 2인으로 제한된다. pgaudit로 DDL·권한변경·데이터변경 이벤트를 기록해 1년간 보존하고 월 단위로 표본 검토한다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-acid-transaction",
+        "db-audit-log",
+        "db-account-privilege",
+        "db-replication",
+        "db-backup-types",
+        "db-index"
+      ],
+      "learnMore": [
+        "PostgreSQL 16 Documentation",
+        "pgaudit 공식 문서",
+        "Amazon RDS for PostgreSQL User Guide"
+      ]
+    },
+    {
+      "id": "db-oracle",
+      "title": "Oracle Database",
+      "titleEn": "Oracle Database",
+      "aliases": [
+        "오라클",
+        "Oracle",
+        "리스너",
+        "테이블스페이스",
+        "SYSDBA",
+        "tnsnames",
+        "SID"
+      ],
+      "tags": [
+        "database",
+        "rdbms",
+        "enterprise"
+      ],
+      "level": "중급",
+      "oneLiner": "금융·기간계 시스템의 전통적 표준인 상용 관계형 데이터베이스",
+      "analogy": "Oracle은 은행 본점 금고와 같다. 문이 여러 겹이고(리스너 → 인스턴스 → 스키마 → 객체), 금고 안 공간은 구역별로 나뉘어 있으며(테이블스페이스), 금고를 통째로 여는 마스터키(SYSDBA)는 따로 보관된다. 일반 직원은 자기 구역만 열 수 있고, 마스터키를 쓴 기록은 금고와 별개의 장부에 남는다.",
+      "explanation": "<p><strong>Oracle Database</strong>는 국내 금융권 기간계(계정계)에서 여전히 가장 많이 쓰이는 상용 RDBMS다. ITGC 감사에서 Oracle 관련 질문이 나오는 비중이 높은 이유는, 권한 체계가 복잡하고 <strong>특권 접속(SYSDBA)</strong>이라는 별도 통로가 존재하기 때문이다.</p><p><strong>접속 경로부터 이해해야 한다.</strong> 클라이언트는 서버의 <strong>리스너(Listener, 기본 1521 포트)</strong>에 먼저 말을 건다. 리스너는 요청된 서비스 이름(service_name)에 맞는 DB 인스턴스로 연결을 넘겨준다. 클라이언트 쪽 <code>tnsnames.ora</code>에는 '어느 호스트의 어느 서비스로 갈지'가 적혀 있다. 리스너 로그(listener.log)에는 접속 시도의 출발지 IP·프로그램명이 남아 비인가 접속 조사에 쓰인다.</p><p><strong>저장 구조는 논리와 물리로 나뉜다.</strong> 논리적으로는 <strong>테이블스페이스(Tablespace)</strong>가 있고, 물리적으로는 <strong>데이터파일(datafile)</strong>이 있다. 테이블스페이스는 '어느 서랍에 넣을지'이고 데이터파일은 실제 파일이다. SYSTEM(딕셔너리), SYSAUX, UNDO(롤백용 이전 이미지), TEMP(정렬 작업공간), 그리고 업무용 테이블스페이스로 구성한다. 테이블스페이스가 꽉 차면 INSERT가 실패하므로 사용률 모니터링이 운영 필수 항목이다.</p><p><strong>스키마와 사용자가 동일 개념</strong>인 점이 Oracle의 특징이다. 사용자 <code>PAYAPP</code>을 만들면 <code>PAYAPP</code> 스키마가 함께 생기고 그 안에 테이블이 들어간다. 다른 사용자가 접근하려면 GRANT를 받아야 한다. 권한은 <strong>시스템 권한</strong>(CREATE TABLE, CREATE SESSION 같은 '할 수 있는 일')과 <strong>객체 권한</strong>(특정 테이블 SELECT)으로 나뉘고, 이를 묶은 것이 <strong>롤(Role)</strong>이다.</p><p><strong>가장 중요한 감사 포인트는 DBA 롤과 SYSDBA다.</strong> DBA 롤은 사실상 전권이고, SYSDBA는 DB가 닫혀 있어도 접속해 기동·종료·복구를 할 수 있는 최상위 권한이다. SYSDBA 접속은 OS 인증(dba 그룹 소속 OS 계정) 또는 비밀번호 파일로 이루어지는데, OS 인증을 쓰면 DB 계정 없이도 들어올 수 있어 '누가 들어왔는지' 추적이 어렵다. 그래서 SYSDBA 접속은 반드시 <strong>Unified Audit</strong>과 접근통제 솔루션(DB 방화벽) 양쪽으로 기록해야 한다.</p><p><strong>구조 변화도 알아두자.</strong> 12c 이후 <strong>멀티테넌트(CDB/PDB)</strong> 구조가 표준이 되어, 하나의 컨테이너 DB(CDB) 안에 여러 개의 플러그형 DB(PDB)가 들어간다. 계정도 CDB 전체에 통하는 공통 사용자(C##으로 시작)와 특정 PDB에만 있는 로컬 사용자로 나뉘므로, 권한 리뷰 시 어느 층의 계정인지 구분해야 한다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 tnsnames.ora에 정의된 호스트:1521로 접속해 서비스 이름을 요청한다.</li><li>리스너가 요청을 받아 listener.log에 기록하고, 해당 서비스의 인스턴스로 연결을 넘긴다(핸드오프).</li><li>인스턴스가 서버 프로세스를 생성하고 사용자 인증을 수행한다(DB 인증/OS 인증/외부 인증).</li><li>SQL이 들어오면 공유 풀(Shared Pool)에서 동일 SQL의 실행계획을 재사용하거나 새로 파싱한다.</li><li>데이터는 버퍼 캐시에서 찾고 없으면 데이터파일에서 읽어 올린다.</li><li>변경 전 이미지는 UNDO 테이블스페이스에, 변경 내역은 redo 로그 버퍼에 기록된다.</li><li>COMMIT 시 LGWR 프로세스가 redo 로그를 온라인 리두 로그 파일에 기록하고, 아카이브 모드면 ARCH가 아카이브 로그로 복사한다.</li><li>Unified Audit이 설정된 정책에 따라 접속·권한사용·DDL·DML 이벤트를 AUDSYS 감사 테이블에 남긴다.</li></ol>",
+      "example": "<p>'페이나우' 기간계는 Oracle 19c CDB 1개에 PDB 3개(여신/수신/공통)를 운영한다. 2026년 정기 감사에서 (1) DBA 롤 보유 계정이 11개로 과다하고 (2) 개발자 3명이 운영 PDB에 개인 계정으로 직접 접속 가능했으며 (3) Unified Audit이 '접속'만 기록하고 DDL은 빠져 있던 점이 지적됐다. 조치로 DBA 롤은 4명으로 축소, 개발자 접속은 DB 접근제어 솔루션 경유·승인 기반 임시권한으로 전환, 감사 정책에 DDL·권한변경·중요 테이블 DML을 추가했다.</p><pre><code>-- DBA 롤·시스템 권한 보유자 확인 (감사 증빙 단골 쿼리)\nSELECT grantee, granted_role, admin_option\n  FROM dba_role_privs WHERE granted_role IN ('DBA','IMP_FULL_DATABASE');\nSELECT grantee, privilege FROM dba_sys_privs\n WHERE privilege IN ('SELECT ANY TABLE','ALTER ANY TABLE','CREATE ANY PROCEDURE');\n\n-- 테이블스페이스 사용률 (운영 모니터링)\nSELECT tablespace_name,\n       ROUND(used_space*8192/1024/1024) used_mb,\n       ROUND(tablespace_size*8192/1024/1024) total_mb,\n       ROUND(used_percent,1) pct\n  FROM dba_tablespace_usage_metrics ORDER BY used_percent DESC;\n\n-- 감사 정책 생성·활성화 (Unified Audit)\nCREATE AUDIT POLICY pol_ddl_dml\n  ACTIONS CREATE TABLE, ALTER TABLE, DROP TABLE, GRANT, REVOKE,\n          DELETE ON PAYAPP.LEDGER, UPDATE ON PAYAPP.LEDGER;\nAUDIT POLICY pol_ddl_dml;\n\n-- 리스너 상태 (OS 측)\nlsnrctl status</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='36' width='96' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='68' y='53' text-anchor='middle' fill='currentColor' font-size='12'>클라이언트</text><text x='68' y='69' text-anchor='middle' fill='currentColor' font-size='11'>tnsnames</text><line x1='116' y1='56' x2='156' y2='56' stroke='currentColor' marker-end='url(#ar)'/><rect x='156' y='36' width='96' height='40' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='204' y='53' text-anchor='middle' fill='currentColor' font-size='12'>리스너 1521</text><text x='204' y='69' text-anchor='middle' fill='currentColor' font-size='11'>listener.log</text><line x1='252' y1='56' x2='292' y2='56' stroke='currentColor' marker-end='url(#ar)'/><rect x='292' y='26' width='328' height='108' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='456' y='44' text-anchor='middle' fill='currentColor' font-size='12'>CDB (컨테이너 DB)</text><rect x='304' y='54' width='96' height='32' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='352' y='75' text-anchor='middle' fill='currentColor' font-size='12'>PDB 여신</text><rect x='408' y='54' width='96' height='32' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='456' y='75' text-anchor='middle' fill='currentColor' font-size='12'>PDB 수신</text><rect x='512' y='54' width='96' height='32' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='560' y='75' text-anchor='middle' fill='currentColor' font-size='12'>PDB 공통</text><text x='304' y='108' fill='currentColor' font-size='11'>공통계정 C## / 로컬계정 구분</text><text x='304' y='126' fill='currentColor' font-size='11'>SYSDBA = 최상위 특권 통로</text><line x1='380' y1='134' x2='380' y2='164' stroke='currentColor' marker-end='url(#ar)'/><line x1='540' y1='134' x2='540' y2='164' stroke='currentColor' marker-end='url(#ar)'/><rect x='292' y='164' width='176' height='76' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='380' y='186' text-anchor='middle' fill='currentColor' font-size='12'>테이블스페이스</text><text x='380' y='206' text-anchor='middle' fill='currentColor' font-size='11'>SYSTEM/UNDO/TEMP</text><text x='380' y='224' text-anchor='middle' fill='currentColor' font-size='11'>업무 TS → 데이터파일</text><rect x='480' y='164' width='140' height='76' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='186' text-anchor='middle' fill='currentColor' font-size='12'>redo / 아카이브</text><text x='550' y='206' text-anchor='middle' fill='currentColor' font-size='11'>복구·Data Guard</text><text x='550' y='224' text-anchor='middle' fill='currentColor' font-size='11'>원천 로그</text><rect x='20' y='164' width='250' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='145' y='189' text-anchor='middle' fill='currentColor' font-size='12'>Unified Audit (AUDSYS)</text><line x1='292' y1='184' x2='270' y2='184' stroke='currentColor' marker-end='url(#ar)'/><text x='20' y='226' fill='currentColor' font-size='11'>접속·DDL·권한변경·중요DML 기록</text></svg>",
+      "keyTerms": [
+        {
+          "term": "리스너(Listener)",
+          "meaning": "클라이언트 접속 요청을 받아 인스턴스로 넘기는 네트워크 프로세스"
+        },
+        {
+          "term": "테이블스페이스",
+          "meaning": "테이블·인덱스를 담는 논리 저장 단위. 데이터파일에 대응"
+        },
+        {
+          "term": "SYSDBA",
+          "meaning": "기동·종료·복구까지 가능한 최상위 특권 접속. 최우선 감사 대상"
+        },
+        {
+          "term": "DBA 롤",
+          "meaning": "거의 모든 시스템 권한을 묶은 롤. 보유자 최소화 필요"
+        },
+        {
+          "term": "CDB / PDB",
+          "meaning": "12c 이후 멀티테넌트 구조. 컨테이너 DB 안의 플러그형 DB"
+        },
+        {
+          "term": "UNDO",
+          "meaning": "변경 전 이미지를 보관해 롤백·읽기 일관성을 제공하는 영역"
+        },
+        {
+          "term": "아카이브 로그",
+          "meaning": "보관된 redo 로그. 시점복구와 Data Guard 복제의 원천"
+        },
+        {
+          "term": "Unified Audit",
+          "meaning": "11g 이전 방식을 대체한 통합 감사 기능. 정책 기반으로 기록"
+        }
+      ],
+      "pitfalls": [
+        "DBA 롤을 '편의상' 개발자·배치 계정에 부여하고 그대로 방치한다. 감사 최대 지적 항목이다.",
+        "SYSDBA OS 인증(dba 그룹)을 열어둬, 서버 OS 계정만 있으면 DB 계정 없이 전권 접속이 가능하다.",
+        "SELECT ANY TABLE 같은 ANY 권한을 부여해놓고 '조회 권한일 뿐'이라 여긴다. 사실상 전체 데이터 열람 권한이다.",
+        "11g 스타일 AUD$ 감사만 켜져 있고 Unified Audit 정책은 비활성인데 감사로그가 있다고 답한다.",
+        "테이블스페이스 자동확장(AUTOEXTEND)을 무제한으로 두고 디스크가 가득 차 DB가 멈춘다.",
+        "아카이브 로그 모드가 꺼져 있어 전체 백업 시점으로만 복구 가능한데 RPO를 15분으로 문서화한다.",
+        "공용 계정(예: PAYAPP)을 사람들이 공유해 접속해, 감사로그에 개인 식별이 남지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] DBA 롤·SYSDBA·ANY 계열 시스템 권한 보유자가 식별되고 최소화·주기 리뷰되는가",
+          "[접근] 운영 DB 직접 접속이 접근통제 솔루션을 경유하며 개인 식별이 가능한가(공용 계정 공유 금지)",
+          "[변경] 운영 스키마에 대한 DDL과 중요 테이블 DML이 승인 절차를 거쳐 수행·기록되는가",
+          "[운영] Unified Audit 정책이 활성화되고 감사 레코드가 정해진 기간 보존·검토되는가",
+          "[운영] 테이블스페이스 사용률·아카이브 로그 영역이 모니터링되고 임계치 알람이 있는가"
+        ],
+        "fss": [
+          "전자금융기반시설 DB에 대한 접근 시 이용자 식별·인증 및 접속기록 보존이 이루어지는가",
+          "전산원장 등 중요 데이터의 변경이 기록되고 사후 점검되는가",
+          "정보처리시스템 이중화 및 재해복구 체계(Data Guard 등)가 구축·시험되는가"
+        ],
+        "isms": [
+          "2.5.5 특수 계정 및 권한 관리: SYSDBA·DBA 롤 등 특권이 별도 승인·기록·점검되는가",
+          "2.6.2 정보시스템 접근: DB 서버·리스너에 대한 네트워크 접근이 제한되는가",
+          "2.9.4 로그 및 접속기록 관리: 감사 레코드의 위·변조 방지 및 보존기간이 준수되는가"
+        ],
+        "evidence": [
+          "DBA_ROLE_PRIVS / DBA_SYS_PRIVS / DBA_USERS export (계정·권한·상태)",
+          "AUDIT_UNIFIED_ENABLED_POLICIES 및 UNIFIED_AUDIT_TRAIL 샘플 조회 결과",
+          "listener.ora / sqlnet.ora 설정과 listener.log 샘플",
+          "DB 접근제어 솔루션의 접속·SQL 수행 로그 export",
+          "테이블스페이스 사용률 모니터링 화면 및 알람 설정",
+          "SYSDBA 사용 승인 요청서와 실제 수행 로그 대조 자료"
+        ],
+        "auditorQuestions": [
+          "DBA 롤을 가진 계정은 누구누구인가? 최근 부여·회수 이력은?",
+          "SYSDBA로 접속한 기록은 어디에 남는가? OS 인증을 허용하는가?",
+          "개발자가 운영 DB에 접속해야 할 때 어떤 절차를 거치는가?",
+          "Unified Audit 정책에 DDL과 중요 테이블 DML이 포함돼 있는가? 정책 목록을 보여달라.",
+          "감사 레코드는 얼마나 보관하며 DBA가 삭제할 수 없도록 어떻게 보호하는가?",
+          "아카이브 로그 모드인가? 시점복구가 가능한 범위는?"
+        ],
+        "controlExample": "운영 Oracle 데이터베이스의 DBA 롤 및 SYSDBA 권한은 DBA 팀 3인으로 제한되며, 모든 운영 DB 접속은 DB 접근제어 솔루션을 경유해 개인 계정으로 식별된다. Unified Audit 정책으로 접속·DDL·권한변경 및 중요 테이블 DML을 기록하고, 감사 레코드는 DBA가 삭제할 수 없는 별도 저장소로 전송하여 1년간 보존한다."
+      },
+      "related": [
+        "db-oracle-ha",
+        "db-account-privilege",
+        "db-dba-access-control",
+        "db-audit-log",
+        "db-critical-table-dml",
+        "db-backup-types",
+        "onprem-sap-basis",
+        "sec-pam"
+      ],
+      "learnMore": [
+        "Oracle Database Concepts 19c",
+        "Oracle Database Security Guide - Auditing",
+        "Oracle Net Services Administrator's Guide"
+      ]
+    },
+    {
+      "id": "db-oracle-ha",
+      "title": "Oracle RAC와 Data Guard",
+      "titleEn": "Oracle RAC and Data Guard",
+      "aliases": [
+        "RAC",
+        "Data Guard",
+        "DG",
+        "재해복구",
+        "DR",
+        "스탠바이",
+        "Active Data Guard"
+      ],
+      "tags": [
+        "database",
+        "ha",
+        "dr",
+        "oracle"
+      ],
+      "level": "심화",
+      "oneLiner": "같은 DB를 여러 서버가 함께 돌리는 RAC와, 원격지에 복제본을 두는 Data Guard",
+      "analogy": "RAC는 한 개의 금고를 여러 창구 직원이 동시에 여닫는 구조다. 창구 한 명이 쓰러져도 나머지가 계속 응대한다. Data Guard는 다른 도시에 똑같은 장부를 실시간으로 베껴 쓰는 지점이다. 본점 건물이 무너져도 그 지점이 장부를 이어받아 영업을 계속한다. RAC는 '고장 대비', Data Guard는 '재해 대비'로 목적이 다르다.",
+      "explanation": "<p><strong>Oracle RAC(Real Application Clusters)</strong>는 여러 대의 서버(노드)가 <strong>하나의 공유 스토리지</strong>에 있는 동일한 데이터베이스를 동시에 서비스하는 구조다. 노드가 2대면 둘 다 읽고 쓸 수 있고, 한 대가 죽으면 세션이 다른 노드로 넘어간다(TAF/FAN). 스토리지는 보통 ASM(Automatic Storage Management)으로 구성한다.</p><p><strong>RAC가 막아주는 것과 못 막는 것을 구분해야 한다.</strong> RAC는 서버(노드) 장애를 막아준다. 그러나 스토리지가 하나이므로 <strong>스토리지 고장, 데이터센터 화재, 논리적 오류(실수로 DELETE)</strong>는 전혀 막지 못한다. 감사에서 'RAC가 있으니 재해복구도 된다'는 답변은 오답이다.</p><p><strong>Data Guard</strong>가 바로 그 나머지를 담당한다. 운영 DB(Primary)의 <strong>redo 로그</strong>를 원격지 스탠바이(Standby)로 실시간 전송해 동일한 DB를 유지한다. 재해 시 스탠바이를 Primary로 승격(switchover/failover)한다. 보호 모드는 세 가지다. <strong>Maximum Protection</strong>은 스탠바이에 기록이 확인돼야 커밋(RPO=0, 대신 원격 장애 시 운영도 멈춤), <strong>Maximum Availability</strong>는 가능하면 동기, 안 되면 비동기로 자동 전환, <strong>Maximum Performance</strong>는 비동기(기본, 약간의 데이터 손실 가능).</p><p><strong>Active Data Guard</strong> 옵션을 사면 스탠바이를 읽기 전용으로 열어 조회·리포트에 활용할 수 있다(별도 라이선스). <strong>스냅샷 스탠바이</strong>는 잠깐 읽기/쓰기로 열어 테스트한 뒤 다시 되돌릴 수 있어, DR 복구 훈련이나 패치 검증에 쓴다.</p><p><strong>전환 용어 구분이 중요하다.</strong> <strong>Switchover</strong>는 계획된 전환(무손실, 훈련·점검용), <strong>Failover</strong>는 계획되지 않은 장애 시 강제 전환(데이터 손실 가능, 원래 Primary는 재구성 필요). 감사에서 '재해복구 훈련을 했다'고 말할 때 실제로 switchover까지 수행했는지, 아니면 스탠바이 상태만 확인했는지가 증빙의 질을 가른다.</p><p><strong>감사 관점.</strong> 금융권은 전자금융감독규정에 따라 재해복구센터 구축과 정기 훈련이 요구된다. 확인할 것은 (1) RPO/RTO 목표가 문서화되고 실제 구성(보호 모드, 전송 지연)과 정합적인가 (2) 최근 1년 내 실제 전환 훈련 기록이 있는가 (3) 스탠바이 적용 지연(apply lag)이 모니터링되는가 (4) 훈련 후 원복 절차와 데이터 정합성 확인이 이루어졌는가다.</p>",
+      "howItWorks": "<ol><li>RAC: 각 노드의 인스턴스가 공유 스토리지(ASM 디스크그룹)의 동일 데이터파일을 바라본다.</li><li>노드 간에는 전용 인터커넥트 네트워크로 Cache Fusion이 동작해, 한 노드의 메모리 블록을 다른 노드가 직접 받아 간다.</li><li>클라이언트는 SCAN(Single Client Access Name) 리스너에 접속하고, 부하가 적은 노드로 분배된다.</li><li>노드 장애 시 클러스터웨어가 이를 감지하고 남은 노드가 해당 노드의 redo를 복구(instance recovery)한 뒤 서비스를 이어받는다.</li><li>Data Guard: Primary의 LGWR/LNS 프로세스가 redo를 스탠바이의 RFS 프로세스로 전송한다.</li><li>스탠바이는 받은 redo를 standby redo log에 저장하고 MRP 프로세스가 데이터파일에 적용한다.</li><li>보호 모드가 동기면 스탠바이 수신 확인 후에야 Primary가 커밋을 완료한다.</li><li>재해 시 <code>ALTER DATABASE FAILOVER TO ...</code> 또는 Fast-Start Failover(Observer 자동 판단)로 스탠바이가 Primary로 승격되고, 애플리케이션은 DNS/서비스 이름을 통해 새 Primary로 재접속한다.</li></ol>",
+      "example": "<p>'페이나우' 기간계는 서울 IDC에 Oracle 19c RAC 2노드, 부산 DR센터에 물리 스탠바이 1대를 Maximum Availability 모드로 운영한다. 목표는 RPO 0, RTO 30분이다. 2026년 5월 정기 DR 훈련에서 switchover를 수행해 부산으로 전환하는 데 18분, 원복에 22분이 걸렸고, 전환 중 계정계 거래 2건이 타임아웃돼 재처리한 내역이 훈련 보고서에 기록됐다. 훈련 전후 주요 테이블 건수·합계 대사를 수행해 정합성을 확인했다.</p><pre><code>-- Data Guard 구성·모드 확인\nSELECT database_role, protection_mode, open_mode, switchover_status FROM v$database;\n\n-- 전송/적용 지연 확인 (RPO 실측의 근거)\nSELECT name, value, time_computed FROM v$dataguard_stats\n WHERE name IN ('transport lag','apply lag','apply finish time');\n\n-- 계획된 전환 (훈련)\nALTER DATABASE SWITCHOVER TO paynow_dr VERIFY;\n\n-- Data Guard Broker로 상태 점검\ndgmgrl sys@paynow_pri\n  DGMGRL&gt; show configuration verbose;\n  DGMGRL&gt; show database paynow_dr;\n\n-- RAC 서비스/노드 상태\nsrvctl status database -d paynowdb\ncrsctl status resource -t</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>서울 IDC (Primary, RAC 2노드)</text><rect x='20' y='30' width='280' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><rect x='34' y='44' width='114' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='91' y='66' text-anchor='middle' fill='currentColor' font-size='12'>노드1 인스턴스</text><rect x='166' y='44' width='114' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='223' y='66' text-anchor='middle' fill='currentColor' font-size='12'>노드2 인스턴스</text><line x1='148' y1='61' x2='166' y2='61' stroke='currentColor'/><text x='157' y='38' text-anchor='middle' fill='currentColor' font-size='10'>인터커넥트</text><line x1='91' y1='78' x2='91' y2='96' stroke='currentColor' marker-end='url(#ar)'/><line x1='223' y1='78' x2='223' y2='96' stroke='currentColor' marker-end='url(#ar)'/><rect x='34' y='96' width='246' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='157' y='117' text-anchor='middle' fill='currentColor' font-size='12'>공유 스토리지 (ASM) - 단일 실패지점</text><line x1='300' y1='85' x2='360' y2='85' stroke='currentColor' marker-end='url(#ar)'/><text x='330' y='78' text-anchor='middle' fill='currentColor' font-size='11'>redo 전송</text><text x='360' y='20' fill='currentColor' font-size='12'>부산 DR (Standby)</text><rect x='360' y='30' width='260' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><rect x='374' y='44' width='232' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='490' y='66' text-anchor='middle' fill='currentColor' font-size='12'>스탠바이 인스턴스 (MRP 적용)</text><rect x='374' y='96' width='232' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='490' y='117' text-anchor='middle' fill='currentColor' font-size='12'>스탠바이 데이터파일</text><rect x='20' y='166' width='600' height='78' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='188' fill='currentColor' font-size='12'>RAC: 서버 장애 대비 (스토리지·재해는 못 막음)</text><text x='34' y='210' fill='currentColor' font-size='12'>Data Guard: 재해·논리오류 대비. Switchover=계획전환, Failover=강제전환</text><text x='34' y='232' fill='currentColor' font-size='12'>보호모드: Max Protection(RPO 0) / Max Availability / Max Performance(비동기)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "RAC",
+          "meaning": "여러 노드가 공유 스토리지의 같은 DB를 동시에 서비스하는 클러스터"
+        },
+        {
+          "term": "Cache Fusion",
+          "meaning": "RAC 노드 간 메모리 블록을 인터커넥트로 직접 주고받는 기술"
+        },
+        {
+          "term": "SCAN",
+          "meaning": "RAC 클러스터 대표 접속 이름. 노드 변경 시에도 접속 정보 유지"
+        },
+        {
+          "term": "Data Guard",
+          "meaning": "redo를 원격 스탠바이로 전송해 복제본을 유지하는 DR 기능"
+        },
+        {
+          "term": "Switchover",
+          "meaning": "계획된 무손실 역할 전환. 훈련·점검 시 사용"
+        },
+        {
+          "term": "Failover",
+          "meaning": "장애 시 강제 승격. 데이터 손실 가능, 원 Primary 재구성 필요"
+        },
+        {
+          "term": "apply lag",
+          "meaning": "스탠바이가 아직 적용하지 못한 시간 지연. 실질 RPO 지표"
+        },
+        {
+          "term": "Active Data Guard",
+          "meaning": "스탠바이를 읽기 전용으로 개방하는 유료 옵션"
+        }
+      ],
+      "pitfalls": [
+        "RAC가 있으니 재해복구도 된다고 답한다. 공유 스토리지·데이터센터 단일 장애는 못 막는다.",
+        "Data Guard가 있으니 백업이 필요 없다고 여긴다. 실수로 한 DELETE는 스탠바이에도 그대로 복제된다.",
+        "보호 모드는 Max Performance(비동기)인데 RPO 0으로 문서화해 실제와 목표가 어긋난다.",
+        "DR 훈련을 '스탠바이 상태 조회'로 갈음하고 실제 switchover를 한 번도 안 해본다.",
+        "훈련 후 원복 과정에서 스탠바이 재구성이 누락돼 몇 주간 DR 보호가 없는 상태로 운영된다.",
+        "apply lag 모니터링이 없어 전송이 며칠째 끊긴 것을 재해 시점에 발견한다.",
+        "DR 전환 시 애플리케이션 접속 정보(TNS/DNS) 변경 절차가 없어 DB는 살았는데 서비스가 안 붙는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 재해복구 목표(RPO/RTO)가 정의되고 실제 구성(보호 모드, 복제 방식)과 일치하는가",
+          "[운영] 정기 DR 전환 훈련이 수행되고 결과·개선사항이 보고·승인되는가",
+          "[운영] 복제 지연(transport/apply lag)과 클러스터 노드 상태가 상시 모니터링되고 알람이 있는가",
+          "[변경] DR 구성 변경(보호 모드, 스탠바이 추가/제거)이 승인 절차를 거치는가",
+          "[접근] DR 환경의 계정·권한이 운영과 동일 수준으로 통제되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 재해복구센터 구축 및 비상대책 수립·훈련 요건을 충족하는가",
+          "주요 전산센터와 재해복구센터 간 거리·복제 방식이 업무 연속성 계획에 부합하는가",
+          "비상대응훈련을 연 1회 이상 실시하고 결과를 경영진에 보고하는가"
+        ],
+        "isms": [
+          "2.12.1 재해·재난 대비 안전조치: BCP/DRP 수립 및 복구 목표시간 정의 여부",
+          "2.12.2 재해 복구 시험 및 개선: 정기 시험 수행과 결과 반영 여부",
+          "2.9.2 성능 및 장애관리: 복제 지연·노드 장애 모니터링 체계"
+        ],
+        "evidence": [
+          "v$database / v$dataguard_stats 조회 결과(역할, 보호 모드, lag)",
+          "DR 전환 훈련 계획서·수행 로그·결과 보고서(소요시간, 문제점, 개선조치)",
+          "BCP/DRP 문서 중 DB 복구 목표(RPO/RTO)와 복구 절차서",
+          "복제 지연 모니터링 대시보드 및 알람 설정 화면",
+          "훈련 전후 데이터 정합성 대사 결과"
+        ],
+        "auditorQuestions": [
+          "기간계 DB의 RPO와 RTO는 각각 얼마이며 근거는 무엇인가?",
+          "Data Guard 보호 모드는 무엇인가? 그 모드에서 이론적 데이터 손실은 얼마인가?",
+          "최근 1년 내 실제 switchover 훈련을 했는가? 소요 시간과 발견된 문제는?",
+          "복제가 끊기면 누가 언제 알게 되는가? 최근 지연 발생 사례는?",
+          "DR로 전환했을 때 애플리케이션 접속 전환은 어떻게 이루어지는가?",
+          "DR 환경의 DBA 권한은 운영과 동일하게 통제되는가?"
+        ],
+        "controlExample": "기간계 데이터베이스는 Oracle RAC 2노드와 원격지 물리 스탠바이(Data Guard, Maximum Availability)로 구성되며, 복제 전송·적용 지연은 5분 임계치로 상시 모니터링된다. 연 1회 이상 실제 switchover 방식의 재해복구 훈련을 수행하고 RPO/RTO 달성 여부와 데이터 정합성 확인 결과를 포함한 훈련 보고서를 경영진에 보고한다."
+      },
+      "related": [
+        "db-oracle",
+        "db-ha-failover",
+        "db-replication",
+        "db-recovery-test-rpo-rto",
+        "db-backup-policy",
+        "onprem-sap-basis",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "Oracle Data Guard Concepts and Administration",
+        "Oracle Real Application Clusters Administration Guide",
+        "Oracle Maximum Availability Architecture (MAA) Best Practices"
+      ]
+    },
+    {
+      "id": "db-mssql",
+      "title": "MS SQL Server",
+      "titleEn": "Microsoft SQL Server",
+      "aliases": [
+        "MSSQL",
+        "SQL Server",
+        "엠에스에스큐엘",
+        "T-SQL",
+        "SSMS",
+        "Always On"
+      ],
+      "tags": [
+        "database",
+        "rdbms",
+        "microsoft"
+      ],
+      "level": "중급",
+      "oneLiner": "윈도우·닷넷 환경과 통합된 마이크로소프트의 상용 관계형 데이터베이스",
+      "analogy": "MS SQL Server는 회사 사원증(윈도우 도메인 계정)으로 바로 들어갈 수 있는 사무실과 같다. 별도 출입카드를 만들 필요가 없어 편하지만, 사원증 관리가 허술하면 사무실 보안도 같이 무너진다. 그래서 '누가 사원증으로 들어왔고 누가 별도 카드로 들어왔는지'를 구분해 보는 것이 중요하다.",
+      "explanation": "<p><strong>MS SQL Server</strong>는 ERP·그룹웨어·사내 업무시스템에서 널리 쓰이는 상용 RDBMS다. 국내에서는 인사·회계 패키지, 원가 시스템, 리포팅 서버가 SQL Server 위에 올라간 경우가 많아 SOX 범위에 자주 들어온다. 클라우드에서는 Azure SQL Database, AWS RDS for SQL Server로 제공된다.</p><p><strong>인증 방식이 두 갈래</strong>인 것이 감사에서 가장 중요한 특징이다. <strong>Windows 인증</strong>은 액티브 디렉터리(AD) 계정을 그대로 쓴다. <strong>SQL 인증</strong>은 DB 안에만 존재하는 별도 계정(<code>sa</code> 등)이다. 혼합 모드(Mixed Mode)를 쓰면 둘 다 가능한데, SQL 인증 계정은 AD의 퇴사자 처리·비밀번호 정책 밖에 있으므로 별도 관리 대장과 주기 점검이 필요하다. <code>sa</code> 계정은 최고 권한이라 비활성화하거나 이름을 바꾸고 사용을 금지하는 것이 표준 권고다.</p><p><strong>권한 계층은 두 단계</strong>다. 인스턴스 수준의 <strong>로그인(Login)</strong>과 데이터베이스 수준의 <strong>사용자(User)</strong>가 매핑된다. 인스턴스 권한은 서버 롤(<code>sysadmin</code>, <code>securityadmin</code> 등), DB 권한은 데이터베이스 롤(<code>db_owner</code>, <code>db_datareader</code>, <code>db_datawriter</code>)로 부여한다. <code>sysadmin</code>은 모든 것을 우회하는 권한이라 Oracle의 DBA 롤과 같은 수준으로 관리해야 한다.</p><p><strong>고가용성</strong>은 <strong>Always On 가용성 그룹(Availability Group)</strong>이 표준이다. 여러 복제본을 두고 동기/비동기 커밋을 선택하며, 리스너 이름으로 접속하면 장애 시 자동으로 새 주 복제본에 붙는다. 읽기 가능한 보조 복제본으로 리포트 부하를 분리할 수도 있다.</p><p><strong>감사 기능</strong>은 <strong>SQL Server Audit</strong>이 내장돼 있다. 서버 감사(Server Audit) 객체를 만들고 감사 사양(Audit Specification)으로 무엇을 기록할지 지정한 뒤 파일·보안 이벤트 로그로 출력한다. 추가로 <strong>TDE(투명 데이터 암호화)</strong>로 데이터 파일을, <strong>Always Encrypted</strong>로 특정 컬럼을 애플리케이션 단에서 암호화할 수 있고, <strong>동적 데이터 마스킹</strong>으로 조회 시 주민번호·계좌번호를 가릴 수 있다.</p><p><strong>백업 모델</strong>도 이해해야 한다. 복구 모델이 <strong>SIMPLE</strong>이면 트랜잭션 로그 백업이 불가능해 시점복구가 안 되고, <strong>FULL</strong>이어야 로그 백업으로 특정 시점까지 되돌릴 수 있다. 운영 DB가 SIMPLE로 되어 있는데 RPO를 15분으로 문서화한 사례가 실제로 흔한 감사 지적이다.</p>",
+      "howItWorks": "<ol><li>클라이언트가 1433 포트로 접속하면 인증 모드에 따라 AD 티켓 또는 SQL 로그인 비밀번호로 인증한다.</li><li>로그인이 인스턴스 수준 권한(서버 롤)을 확인하고, 접속 대상 DB의 사용자로 매핑된다.</li><li>T-SQL 문장이 파싱되고 쿼리 옵티마이저가 실행계획을 생성해 플랜 캐시에 저장한다.</li><li>데이터는 버퍼 풀에서 찾고 없으면 데이터 파일(.mdf/.ndf)에서 읽는다.</li><li>변경은 트랜잭션 로그(.ldf)에 먼저 기록되고(WAL) 커밋 시 디스크에 확정된다.</li><li>Always On 구성이면 로그 블록이 보조 복제본으로 전송되어 재생된다(동기 모드면 확인 후 커밋).</li><li>SQL Server Audit이 지정된 액션 그룹(로그인 실패, 권한 변경, 스키마 변경, 특정 테이블 SELECT 등)을 감사 파일에 기록한다.</li><li>백업 작업(SQL Server Agent 잡)이 전체/차등/로그 백업을 일정에 따라 수행하고 결과를 msdb에 남긴다.</li></ol>",
+      "example": "<p>커머스 '쇼핑나우'의 원가·정산 시스템은 SQL Server 2022 Always On(주 1 + 보조 2)에서 운영된다. 2026년 감사에서 (1) <code>sa</code> 계정이 활성 상태이고 애플리케이션 연결문자열에 사용 중이었으며 (2) 운영 DB 복구 모델이 SIMPLE이라 로그 백업이 없었고 (3) SQL Server Audit이 구성돼 있지 않은 점이 지적됐다. 조치 후 애플리케이션은 최소권한 SQL 로그인으로 교체, 복구 모델을 FULL로 변경하고 15분 주기 로그 백업을 설정, 감사 사양에 로그인·권한변경·DDL을 추가했다.</p><pre><code>-- 서버 롤(sysadmin) 보유자와 sa 상태 점검\nSELECT sp.name AS login_name, sp.type_desc, sp.is_disabled\n  FROM sys.server_role_members rm\n  JOIN sys.server_principals r  ON r.principal_id = rm.role_principal_id\n  JOIN sys.server_principals sp ON sp.principal_id = rm.member_principal_id\n WHERE r.name = 'sysadmin';\n\n-- 복구 모델 확인 (시점복구 가능 여부의 근거)\nSELECT name, recovery_model_desc, state_desc FROM sys.databases;\nALTER DATABASE CostDB SET RECOVERY FULL;\n\n-- 감사 구성\nCREATE SERVER AUDIT aud_main TO FILE (FILEPATH='E:\\audit\\');\nALTER SERVER AUDIT aud_main WITH (STATE = ON);\nCREATE SERVER AUDIT SPECIFICATION spec_main FOR SERVER AUDIT aud_main\n  ADD (FAILED_LOGIN_GROUP),\n  ADD (SERVER_ROLE_MEMBER_CHANGE_GROUP),\n  ADD (SCHEMA_OBJECT_CHANGE_GROUP) WITH (STATE = ON);\n\n-- 최근 백업 이력 (증빙)\nSELECT database_name, type, backup_finish_date\n  FROM msdb.dbo.backupset ORDER BY backup_finish_date DESC;</code></pre>",
+      "diagram": "",
+      "keyTerms": [
+        {
+          "term": "Windows 인증",
+          "meaning": "AD 계정으로 DB에 접속하는 방식. 계정 수명주기를 AD와 공유"
+        },
+        {
+          "term": "SQL 인증",
+          "meaning": "DB 내부에만 존재하는 계정. 별도 대장·점검 필요"
+        },
+        {
+          "term": "sa 계정",
+          "meaning": "SQL Server의 기본 최고 권한 계정. 비활성화 권고"
+        },
+        {
+          "term": "sysadmin",
+          "meaning": "모든 권한 검사를 우회하는 서버 롤. Oracle DBA 롤에 해당"
+        },
+        {
+          "term": "Always On 가용성 그룹",
+          "meaning": "복제본을 두어 자동 장애 조치를 제공하는 HA 구성"
+        },
+        {
+          "term": "복구 모델(Recovery Model)",
+          "meaning": "SIMPLE/FULL/BULK_LOGGED. FULL이어야 시점복구 가능"
+        },
+        {
+          "term": "SQL Server Audit",
+          "meaning": "내장 감사 기능. 액션 그룹 단위로 이벤트 기록"
+        },
+        {
+          "term": "TDE",
+          "meaning": "데이터·백업 파일을 투명하게 암호화하는 기능"
+        }
+      ],
+      "pitfalls": [
+        "sa 계정을 애플리케이션 연결문자열에 그대로 사용해 앱 침해가 곧 DB 전권 탈취로 이어진다.",
+        "SQL 인증 계정이 AD 밖에 있어 퇴사자·이동자 정리 대상에서 누락된다.",
+        "복구 모델이 SIMPLE인데 시점복구가 가능하다고 답한다. 로그 백업 자체가 불가능하다.",
+        "FULL 모델로 바꾸고 로그 백업을 설정하지 않아 트랜잭션 로그 파일이 디스크를 가득 채운다.",
+        "db_owner 롤을 개발자에게 부여하고 '읽기 권한만 줬다'고 오해한다.",
+        "Always On 보조 복제본을 백업 대체로 여긴다. 논리적 삭제는 복제본에도 전파된다.",
+        "SQL Server Agent 잡의 실패를 아무도 안 보고 있어 백업이 몇 주째 실패 중인 것을 모른다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] sysadmin 서버 롤 및 db_owner 보유자가 식별·최소화되고 주기적으로 리뷰되는가",
+          "[접근] SQL 인증 계정 목록이 관리되고 퇴사자·미사용 계정이 정리되는가",
+          "[운영] SQL Server Audit이 구성되어 로그인·권한변경·스키마변경이 기록·보존되는가",
+          "[운영] 백업 잡의 성공·실패가 모니터링되고 복구 모델이 RPO 목표와 정합적인가",
+          "[변경] 데이터베이스 스키마 변경이 승인된 스크립트로 배포되는가"
+        ],
+        "fss": [
+          "정보처리시스템 접근 시 이용자 식별·인증 및 접속기록 보존이 이루어지는가",
+          "중요 정보의 암호화(TDE/컬럼 암호화) 및 키 관리 절차가 수립되어 있는가",
+          "정보처리시스템의 이중화 및 백업 요건을 충족하는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.5 특수 계정 및 권한 관리: sa·sysadmin 통제",
+          "2.7.1 암호정책 적용: 저장 데이터 암호화 및 마스킹 적용 여부",
+          "2.9.4 로그 및 접속기록 관리: 감사 로그 보존기간과 접근 제한"
+        ],
+        "evidence": [
+          "sys.server_principals / sys.server_role_members 조회 결과",
+          "sys.databases의 recovery_model_desc 목록",
+          "SQL Server Audit 사양 정의와 감사 파일 샘플",
+          "msdb.dbo.backupset 기반 최근 3개월 백업 성공 이력",
+          "SQL Server Agent 잡 실패 알림 설정 화면"
+        ],
+        "auditorQuestions": [
+          "sa 계정은 활성 상태인가? 사용하는 시스템이 있는가?",
+          "sysadmin 권한을 가진 로그인은 누구인가?",
+          "SQL 인증 계정은 몇 개이며 소유자와 용도가 문서화돼 있는가?",
+          "운영 DB의 복구 모델은 무엇이며 로그 백업 주기는?",
+          "백업 잡이 실패하면 누가 언제 알게 되는가?",
+          "감사 로그는 어떤 이벤트를 기록하며 얼마나 보관하는가?"
+        ],
+        "controlExample": "운영 SQL Server의 sa 계정은 비활성화되어 있으며 sysadmin 서버 롤은 DBA 2인으로 제한된다. 모든 운영 데이터베이스는 FULL 복구 모델로 운영되어 전체 백업(일 1회)과 트랜잭션 로그 백업(15분)이 수행되고, 백업 잡 실패 시 자동 알림이 발송되어 당일 내 조치된다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-account-privilege",
+        "db-audit-log",
+        "db-backup-types",
+        "db-ha-failover",
+        "db-masked-dev-db",
+        "sec-sso-oidc"
+      ],
+      "learnMore": [
+        "SQL Server Documentation - Security Center",
+        "SQL Server Audit (Database Engine)",
+        "Always On availability groups 개요"
+      ]
+    },
+    {
+      "id": "db-sap-hana",
+      "title": "SAP HANA",
+      "titleEn": "SAP HANA In-Memory Database",
+      "aliases": [
+        "HANA",
+        "하나DB",
+        "인메모리",
+        "S/4HANA",
+        "HDB",
+        "칼럼스토어"
+      ],
+      "tags": [
+        "database",
+        "inmemory",
+        "sap",
+        "erp"
+      ],
+      "level": "심화",
+      "oneLiner": "SAP ERP를 위한 컬럼 기반 인메모리 데이터베이스",
+      "analogy": "SAP HANA는 창고 물건을 전부 책상 위에 펼쳐 놓고 일하는 방식과 같다. 창고(디스크)에 갔다 오는 시간이 없으니 계산이 순식간이다. 다만 책상이 아주 커야 하고(대용량 메모리), 정전에 대비해 책상 위 내용을 수시로 창고에 옮겨 적어야 한다(로그·세이브포인트). 또 물건을 품목별 세로줄로 쌓아 두어(컬럼 저장) '이번 달 전체 매출 합계' 같은 계산이 특히 빠르다.",
+      "explanation": "<p><strong>SAP HANA</strong>는 SAP가 만든 인메모리(In-Memory) 데이터베이스로, S/4HANA ERP의 기반이다. 전통 ERP가 Oracle·DB2 위에서 돌던 것과 달리, HANA는 데이터를 메모리에 상주시키고 <strong>컬럼 스토어(Column Store)</strong>로 저장해 집계 연산을 수십~수백 배 빠르게 만든다. 그 결과 별도의 집계 테이블·요약 인덱스를 없애고 실시간으로 원장에서 바로 리포트를 뽑는 구조가 가능해졌다.</p><p><strong>컬럼 저장의 원리.</strong> 행 기반 DB는 한 건의 전표를 가로로 이어 저장하지만, 컬럼 스토어는 '금액' 값들끼리, '계정코드' 값들끼리 세로로 모아 저장한다. 매출 합계를 낼 때 금액 컬럼만 읽으면 되니 읽는 양이 확 줄고, 같은 값이 반복되니 압축률도 높다(보통 3~7배). 대신 한 건 전체를 자주 읽고 쓰는 트랜잭션에는 불리해서, HANA는 로우 스토어와 컬럼 스토어를 함께 제공한다.</p><p><strong>영속성(Persistence).</strong> 메모리는 전원이 꺼지면 사라지므로 HANA도 디스크를 쓴다. 변경은 <strong>리두 로그(redo log)</strong>에 즉시 기록되고, 주기적으로(기본 5분) 메모리 전체 이미지를 <strong>세이브포인트(savepoint)</strong>로 데이터 볼륨에 기록한다. 장애 시 마지막 세이브포인트를 올린 뒤 그 이후 로그를 재생해 복구한다. 그래서 HANA 백업은 데이터 백업 + 로그 백업 세트로 관리한다.</p><p><strong>권한 구조는 다층적</strong>이라 감사에서 특히 까다롭다. HANA 자체 권한은 시스템 권한(예: <code>USER ADMIN</code>, <code>DATA ADMIN</code>, <code>BACKUP ADMIN</code>), 객체 권한, 분석 권한, 패키지 권한으로 나뉘고 롤로 묶인다. 그런데 그 위에 <strong>SAP ABAP 애플리케이션 계층의 권한(role/profile, SU01·PFCG)</strong>이 또 있다. 즉 '앱을 통한 접근'과 'DB에 직접 접근' 두 경로가 있고, 후자가 통제 사각지대가 되기 쉽다. <code>SYSTEM</code> 계정은 HANA의 최고 권한 계정으로, 잠금 후 비상 시에만 승인 하에 사용하는 것이 표준이다.</p><p><strong>ERP 특유의 감사 포인트.</strong> SAP 환경에서 회계 데이터(BKPF/BSEG 등)는 원칙적으로 ABAP 트랜잭션 코드를 통해서만 변경돼야 한다. HANA에 직접 SQL로 UPDATE를 날리면 ERP의 검증·승인 로직을 전부 우회하게 되므로, 이는 재무보고 신뢰성에 직결되는 중대한 통제 결함이다. HANA는 <strong>Audit Policy</strong> 기능으로 특정 테이블 DML, 권한 부여, SYSTEM 접속 등을 기록할 수 있으며 이를 활성화해 두는 것이 사실상 필수다.</p><p><strong>운영 측면</strong>에서는 메모리 사용량(HANA는 메모리가 곧 용량 한계), 델타 머지(변경분을 메인 스토어에 병합하는 작업) 지연, 라이선스 메모리 한도 초과가 주요 모니터링 항목이다.</p>",
+      "howItWorks": "<ol><li>SAP 애플리케이션 서버(ABAP)가 HANA의 인덱스 서버에 SQL을 보낸다(기본 포트 3&lt;인스턴스&gt;15).</li><li>인덱스 서버가 SQL을 파싱하고 컬럼 엔진/로우 엔진 중 적합한 실행 경로를 고른다.</li><li>조회는 메모리에 상주한 컬럼 데이터를 직접 스캔하며, 압축된 상태에서 연산을 수행한다.</li><li>변경은 델타 스토리지(쓰기 최적화 구조)에 먼저 기록되고 리두 로그가 디스크에 기록된다.</li><li>COMMIT 시 로그가 디스크에 확정되어 지속성이 보장된다.</li><li>주기적인 델타 머지가 델타 스토리지의 변경분을 메인 컬럼 스토어로 병합해 조회 성능을 회복시킨다.</li><li>세이브포인트가 메모리 이미지를 데이터 볼륨에 기록하고, 장애 시 세이브포인트 + 이후 로그로 복구한다.</li><li>Audit Policy에 해당하는 이벤트는 감사 로그(테이블 또는 syslog)로 기록된다.</li></ol>",
+      "example": "<p>제조사 'K-머티리얼'은 S/4HANA 2023을 HANA 2.0 스케일업 서버(메모리 3TB)에서 운영한다. 2026년 SOX 감사에서 (1) BASIS 팀원 6명이 <code>SYSTEM</code> 계정 비밀번호를 공유해 사용 중이고 (2) HANA Audit Policy가 비활성 상태여서 DB 직접 변경 이력을 제시하지 못했으며 (3) 회계 마감 기간 중 HANA Studio로 직접 접속한 기록이 있는 점이 문제가 됐다. 조치로 SYSTEM 계정은 잠그고 비상용 비밀번호를 봉인 보관, BASIS 담당자는 개인 계정 + 필요 권한 롤로 전환, Audit Policy에 재무 테이블 DML과 권한부여·SYSTEM 접속을 추가하고 로그를 SIEM으로 전송했다.</p><pre><code>-- 강력 권한 보유자 점검 (감사 증빙)\nSELECT grantee, privilege, grantor FROM SYS.GRANTED_PRIVILEGES\n WHERE privilege IN ('DATA ADMIN','USER ADMIN','BACKUP ADMIN','CATALOG READ');\nSELECT user_name, user_deactivated, last_successful_connect\n  FROM SYS.USERS ORDER BY last_successful_connect DESC;\n\n-- 감사 정책 생성 (재무 테이블 직접 변경 추적)\nCREATE AUDIT POLICY pol_fi_dml\n  AUDITING ALL INSERT, UPDATE, DELETE ON SAPHANADB.BKPF, SAPHANADB.BSEG\n  LEVEL CRITICAL;\nALTER AUDIT POLICY pol_fi_dml ENABLE;\n\nCREATE AUDIT POLICY pol_priv\n  AUDITING ALL GRANT PRIVILEGE, REVOKE PRIVILEGE, CONNECT LEVEL CRITICAL;\nALTER AUDIT POLICY pol_priv ENABLE;\n\n-- 메모리 사용량 / 백업 이력\nSELECT HOST, ROUND(USED_PHYSICAL_MEMORY/1024/1024/1024) used_gb,\n       ROUND(ALLOCATION_LIMIT/1024/1024/1024) limit_gb FROM M_HOST_RESOURCE_UTILIZATION;\nSELECT ENTRY_TYPE_NAME, STATE_NAME, SYS_START_TIME FROM M_BACKUP_CATALOG\n ORDER BY SYS_START_TIME DESC LIMIT 20;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='28' width='130' height='44' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='46' text-anchor='middle' fill='currentColor' font-size='12'>SAP ABAP 앱</text><text x='85' y='63' text-anchor='middle' fill='currentColor' font-size='11'>PFCG 권한</text><line x1='150' y1='50' x2='210' y2='50' stroke='currentColor' marker-end='url(#ar)'/><text x='180' y='43' text-anchor='middle' fill='currentColor' font-size='10'>정상 경로</text><rect x='20' y='96' width='130' height='44' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='85' y='114' text-anchor='middle' fill='currentColor' font-size='12'>HANA Studio</text><text x='85' y='131' text-anchor='middle' fill='currentColor' font-size='11'>직접 SQL</text><line x1='150' y1='118' x2='210' y2='96' stroke='currentColor' marker-end='url(#ar)'/><text x='180' y='135' text-anchor='middle' fill='currentColor' font-size='10'>통제 사각</text><rect x='210' y='24' width='410' height='118' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='415' y='42' text-anchor='middle' fill='currentColor' font-size='12'>HANA 인덱스 서버 (메모리)</text><rect x='224' y='54' width='180' height='34' rx='5' fill='var(--dg-accent)' stroke='currentColor'/><text x='314' y='76' text-anchor='middle' fill='currentColor' font-size='12'>컬럼 스토어 (메인)</text><rect x='416' y='54' width='190' height='34' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='511' y='76' text-anchor='middle' fill='currentColor' font-size='12'>델타 스토어 (쓰기)</text><line x1='416' y1='71' x2='404' y2='71' stroke='currentColor' marker-end='url(#ar)'/><text x='410' y='104' text-anchor='middle' fill='currentColor' font-size='11'>델타 머지</text><rect x='224' y='106' width='382' height='26' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='415' y='124' text-anchor='middle' fill='currentColor' font-size='12'>Audit Policy: 재무테이블 DML / 권한부여 / SYSTEM 접속</text><line x1='330' y1='142' x2='330' y2='172' stroke='currentColor' marker-end='url(#ar)'/><line x1='500' y1='142' x2='500' y2='172' stroke='currentColor' marker-end='url(#ar)'/><rect x='240' y='172' width='180' height='52' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='330' y='194' text-anchor='middle' fill='currentColor' font-size='12'>데이터 볼륨</text><text x='330' y='212' text-anchor='middle' fill='currentColor' font-size='11'>세이브포인트(5분)</text><rect x='430' y='172' width='180' height='52' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='194' text-anchor='middle' fill='currentColor' font-size='12'>로그 볼륨</text><text x='520' y='212' text-anchor='middle' fill='currentColor' font-size='11'>리두 로그(즉시)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "컬럼 스토어",
+          "meaning": "같은 컬럼 값을 세로로 모아 저장. 집계·압축에 유리"
+        },
+        {
+          "term": "델타 머지",
+          "meaning": "쓰기용 델타 스토어의 변경분을 메인 스토어로 병합하는 작업"
+        },
+        {
+          "term": "세이브포인트",
+          "meaning": "메모리 이미지를 디스크 데이터 볼륨에 기록하는 주기 작업"
+        },
+        {
+          "term": "SYSTEM 계정",
+          "meaning": "HANA 최고 권한 계정. 잠금 후 비상 시에만 승인 사용 권고"
+        },
+        {
+          "term": "Audit Policy",
+          "meaning": "특정 테이블 DML·권한부여·접속 등을 기록하는 HANA 감사 설정"
+        },
+        {
+          "term": "분석 권한",
+          "meaning": "뷰 조회 시 볼 수 있는 데이터 범위(회사코드 등)를 제한하는 HANA 권한"
+        },
+        {
+          "term": "S/4HANA",
+          "meaning": "HANA 전용으로 재설계된 SAP ERP 제품군"
+        },
+        {
+          "term": "Allocation Limit",
+          "meaning": "HANA가 사용할 수 있는 메모리 상한. 라이선스와 연동"
+        }
+      ],
+      "pitfalls": [
+        "SYSTEM 계정 비밀번호를 BASIS 팀이 공유해 사용, 감사로그에 개인 식별이 남지 않는다.",
+        "ABAP 권한(PFCG)만 리뷰하고 HANA DB 직접 접근 권한은 리뷰 범위에서 빠뜨린다.",
+        "Audit Policy를 만들기만 하고 ENABLE 하지 않아 실제로는 아무 기록도 남지 않는다.",
+        "인메모리라서 백업이 필요 없다고 오해. 로그·데이터 백업 세트가 없으면 복구가 불가능하다.",
+        "델타 머지 지연을 방치해 조회 성능이 서서히 나빠지고 마감 처리가 늦어진다.",
+        "메모리 여유를 보지 않고 테이블을 늘려 Allocation Limit을 넘기며 OOM으로 시스템이 멈춘다.",
+        "회계 마감 중 DB 직접 UPDATE로 데이터를 '보정'하고 ERP 전표 이력은 남기지 않는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] HANA DB 직접 접근 계정과 강력 권한(DATA ADMIN, USER ADMIN 등) 보유자가 식별·최소화되는가",
+          "[접근] SYSTEM 계정이 잠금 상태이며 사용 시 사전 승인·사후 검토가 이루어지는가",
+          "[변경] 회계 등 중요 테이블에 대한 DB 직접 DML이 금지되고 예외 시 승인·기록되는가",
+          "[운영] HANA Audit Policy가 활성화되어 중요 이벤트가 기록되고 별도 저장소로 보존되는가",
+          "[접근] ABAP 애플리케이션 권한(PFCG)과 DB 권한이 함께 리뷰 범위에 포함되는가"
+        ],
+        "fss": [
+          "전자금융기반시설 또는 중요 정보처리시스템으로서 접근통제·접속기록 보존 요건을 충족하는가",
+          "중요 데이터의 백업·복구 체계와 재해복구 계획이 수립·시험되는가",
+          "외부 위탁(SAP 유지보수 업체) 인력의 접근이 통제·기록되는가"
+        ],
+        "isms": [
+          "2.5.5 특수 계정 및 권한 관리: SYSTEM 등 최고권한 계정의 사용 통제",
+          "2.6.3 응용프로그램 접근: ERP 권한과 DB 권한의 이중 경로 통제",
+          "2.9.4 로그 및 접속기록 관리: 감사 로그 생성·보존·검토 및 위변조 방지"
+        ],
+        "evidence": [
+          "SYS.USERS / SYS.GRANTED_PRIVILEGES / GRANTED_ROLES export",
+          "SYS.AUDIT_POLICIES 조회 결과(정책 목록과 활성 상태) 및 감사 로그 샘플",
+          "SYSTEM 계정 잠금 상태 캡처와 비상 사용 승인 요청서",
+          "재무 테이블 직접 DML 발생 내역 조회 결과(해당 기간)",
+          "M_BACKUP_CATALOG 기반 데이터·로그 백업 성공 이력",
+          "SAP PFCG 권한 리뷰 결과와 DB 권한 리뷰 결과 대조표"
+        ],
+        "auditorQuestions": [
+          "HANA에 직접 접속할 수 있는 계정은 누구이며 어떤 권한을 갖는가?",
+          "SYSTEM 계정은 잠겨 있는가? 최근 사용 이력과 승인 근거는?",
+          "재무 테이블을 ERP 화면이 아닌 SQL로 직접 변경한 사례가 있는가? 어떻게 탐지하는가?",
+          "HANA Audit Policy는 어떤 이벤트를 기록하며 로그는 어디에 보관하는가?",
+          "SAP 유지보수 업체 인력이 DB에 직접 접속하는가? 어떤 절차와 기록이 있는가?",
+          "데이터·로그 백업 주기와 최근 복구 테스트 결과는?"
+        ],
+        "controlExample": "SAP HANA의 SYSTEM 계정은 잠금 상태로 유지되며 비상 사용 시 사전 승인과 사후 수행 로그 검토를 거친다. 재무 관련 테이블에 대한 데이터베이스 직접 DML은 원칙적으로 금지되고, HANA Audit Policy를 통해 해당 테이블 DML·권한부여·관리자 접속을 기록하여 SIEM으로 전송·보존하며 월 단위로 검토한다."
+      },
+      "related": [
+        "db-rdbms-basics",
+        "db-account-privilege",
+        "db-dba-access-control",
+        "db-audit-log",
+        "db-critical-table-dml",
+        "onprem-sap-basis",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "SAP HANA Security Guide",
+        "SAP HANA Administration Guide",
+        "SAP Note - HANA Auditing 설정 가이드"
+      ]
+    },
+    {
+      "id": "db-connection-pool",
+      "title": "커넥션 풀",
+      "titleEn": "Database Connection Pool",
+      "aliases": [
+        "커넥션풀",
+        "connection pool",
+        "HikariCP",
+        "DBCP",
+        "PgBouncer",
+        "커넥션 누수"
+      ],
+      "tags": [
+        "database",
+        "application",
+        "performance"
+      ],
+      "level": "중급",
+      "oneLiner": "DB 접속을 미리 만들어 두고 빌려 쓰고 반납하는 재사용 창고",
+      "analogy": "커넥션 풀은 회사 공용 노트북 대여함과 같다. 매번 새 노트북을 사고 세팅하면(접속 생성) 시간이 오래 걸리니, 미리 20대를 세팅해 두고 필요할 때 빌려 쓰고 돌려놓는다. 문제는 사람들이 다 쓰고도 반납을 안 하면(커넥션 누수) 대여함이 비어 다음 사람이 무한정 기다리게 된다는 것이다.",
+      "explanation": "<p><strong>커넥션 풀(Connection Pool)</strong>은 애플리케이션이 DB 접속을 미리 여러 개 만들어 두고 요청마다 빌려 쓰고 반납하게 하는 구조다. DB 접속 생성은 TCP 핸드셰이크, TLS 협상, 인증, 세션 초기화까지 포함해 보통 수십~수백 밀리초가 걸린다. 초당 수천 건을 처리하는 API가 매번 접속을 만들면 그 비용만으로 시스템이 무너진다.</p><p><strong>주요 설정값</strong>은 네 가지만 이해하면 된다. <strong>최대 풀 크기(maximum-pool-size)</strong>는 이 애플리케이션 인스턴스가 열 수 있는 최대 접속 수. <strong>커넥션 타임아웃</strong>은 풀이 비었을 때 빌리기를 기다리는 시간(초과하면 예외). <strong>유휴 타임아웃/최대 수명(max-lifetime)</strong>은 오래된 접속을 주기적으로 버리고 새로 만드는 설정으로, DB나 로드밸런서가 먼저 끊어버리는 죽은 접속을 잡아준다. <strong>검증 쿼리(validation)</strong>는 빌려주기 전 접속이 살아 있는지 확인한다.</p><p><strong>풀 크기는 크다고 좋은 게 아니다.</strong> DB 서버의 동시 처리 능력은 CPU 코어 수와 디스크에 좌우되므로, 접속만 늘리면 DB에서 대기·컨텍스트 스위칭만 늘어 오히려 느려진다. 또 중요한 함정은 <strong>전체 접속 수 = 풀 크기 × 애플리케이션 인스턴스 수</strong>라는 점이다. 풀 크기 20에 Pod가 30개면 600개다. DB의 <code>max_connections</code>가 500이면 배포 중 접속 거부로 장애가 난다. 쿠버네티스에서 오토스케일링을 쓸 때 반드시 함께 계산해야 한다.</p><p><strong>커넥션 누수(leak)</strong>는 가장 흔한 장애 원인이다. 예외가 발생했는데 <code>close()</code>를 호출하지 않아 반납되지 않은 접속이 쌓이다가, 어느 순간 풀이 고갈되어 전체 API가 타임아웃된다. HikariCP의 <code>leakDetectionThreshold</code>를 켜면 오래 빌려간 접속을 로그로 알려준다.</p><p><strong>PostgreSQL은 별도 풀러가 추가로 필요</strong>한 경우가 많다. 접속마다 프로세스가 뜨는 구조라 접속이 많으면 메모리가 폭증하기 때문에, 애플리케이션 풀 앞이 아니라 DB 앞에 <strong>PgBouncer</strong>를 두어 수천 개의 클라이언트 접속을 수십 개의 실제 DB 접속으로 줄인다.</p><p><strong>감사 관점.</strong> 커넥션 풀은 성능 이슈로 보이지만 실제로는 두 가지 통제 이슈를 안고 있다. 첫째, 풀이 사용하는 <strong>DB 계정 정보(비밀번호)</strong>가 어디에 저장되는가 — 설정 파일이나 컨테이너 환경변수에 평문으로 있으면 접근통제 결함이다. 둘째, 애플리케이션이 <strong>단일 공용 계정</strong>으로 접속하므로 DB 감사로그에는 개인이 남지 않는다 — 그래서 '누가 이 데이터를 바꿨나'는 애플리케이션 로그로 보완해야 한다.</p>",
+      "howItWorks": "<ol><li>애플리케이션 기동 시 풀이 최소 개수만큼 DB 접속을 미리 생성해 보관한다(warm-up).</li><li>요청 스레드가 <code>getConnection()</code>을 호출하면 풀에서 유휴 접속 하나를 빌려준다.</li><li>유휴 접속이 없으면 최대 크기까지 새로 만들고, 그마저 없으면 커넥션 타임아웃까지 대기한다.</li><li>타임아웃을 넘기면 예외가 발생하고 API는 500/타임아웃으로 실패한다.</li><li>쿼리 수행이 끝나면 애플리케이션이 <code>close()</code>를 호출하는데, 실제로는 접속을 끊지 않고 풀에 반납한다.</li><li>풀은 반납된 접속의 상태를 정리한다(열린 트랜잭션 롤백, 세션 변수 초기화).</li><li>max-lifetime이 지난 접속은 폐기하고 새로 만들어, DB/LB가 끊은 죽은 접속을 잡는다.</li><li>PgBouncer를 쓰면 여기서 한 번 더 다중화되어 수많은 클라이언트 접속이 소수의 실제 DB 접속을 공유한다.</li></ol>",
+      "example": "<p>'페이나우' 결제 API는 EKS에서 Pod 24개로 운영되고 각 Pod의 HikariCP 최대 풀 크기가 20이었다. 이벤트로 HPA가 Pod를 60개까지 늘리자 필요한 접속이 1,200개가 되어 Aurora의 max_connections(1,000)를 초과, 신규 Pod가 기동 직후 접속 실패로 죽는 장애가 발생했다. 조치로 풀 크기를 8로 줄이고 PgBouncer를 도입해 실제 DB 접속을 200개 이하로 유지했으며, 접속 정보는 환경변수 평문에서 AWS Secrets Manager 연동으로 전환했다.</p><pre><code># Spring Boot (HikariCP) 설정 예\nspring:\n  datasource:\n    url: jdbc:postgresql://pgbouncer.paynow.svc:6432/paydb\n    username: ${DB_USER}          # Secrets Manager → 환경변수 주입\n    password: ${DB_PASSWORD}\n    hikari:\n      maximum-pool-size: 8         # Pod 수 × 8 ≤ DB max_connections\n      minimum-idle: 2\n      connection-timeout: 3000     # 3초 안에 못 빌리면 실패(빠른 실패)\n      max-lifetime: 1500000        # 25분 (DB/LB 타임아웃보다 짧게)\n      leak-detection-threshold: 20000   # 20초 이상 미반납 시 경고 로그\n\n-- DB 쪽에서 현재 접속 현황 확인\nSELECT usename, application_name, state, count(*)\n  FROM pg_stat_activity GROUP BY 1,2,3 ORDER BY 4 DESC;\nSHOW max_connections;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='12'>앱 Pod (여러 개)</text><rect x='20' y='32' width='120' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='52' text-anchor='middle' fill='currentColor' font-size='12'>Pod 1 풀 8</text><rect x='20' y='70' width='120' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='90' text-anchor='middle' fill='currentColor' font-size='12'>Pod 2 풀 8</text><rect x='20' y='108' width='120' height='30' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='128' text-anchor='middle' fill='currentColor' font-size='12'>Pod N 풀 8</text><line x1='140' y1='85' x2='200' y2='85' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='78' text-anchor='middle' fill='currentColor' font-size='10'>수백 접속</text><rect x='200' y='55' width='140' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270' y='80' text-anchor='middle' fill='currentColor' font-size='12'>PgBouncer</text><text x='270' y='100' text-anchor='middle' fill='currentColor' font-size='11'>접속 다중화</text><line x1='340' y1='85' x2='400' y2='85' stroke='currentColor' marker-end='url(#ar)'/><text x='370' y='78' text-anchor='middle' fill='currentColor' font-size='10'>수십 접속</text><rect x='400' y='40' width='220' height='90' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='64' text-anchor='middle' fill='currentColor' font-size='12'>데이터베이스</text><text x='510' y='86' text-anchor='middle' fill='currentColor' font-size='11'>max_connections = 1000</text><text x='510' y='108' text-anchor='middle' fill='currentColor' font-size='11'>초과 시 접속 거부 = 장애</text><rect x='20' y='160' width='600' height='72' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='34' y='182' fill='currentColor' font-size='12'>필요 접속 = 풀 크기 X 인스턴스 수  (오토스케일링 시 함께 증가)</text><text x='34' y='204' fill='currentColor' font-size='12'>누수: close() 미호출 → 풀 고갈 → 전체 API 타임아웃</text><text x='34' y='226' fill='currentColor' font-size='12'>접속 계정 비밀번호는 시크릿 저장소에서 주입 (평문 설정 금지)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "HikariCP",
+          "meaning": "자바/스프링의 기본 커넥션 풀 구현체"
+        },
+        {
+          "term": "maximum-pool-size",
+          "meaning": "인스턴스 하나가 열 수 있는 최대 DB 접속 수"
+        },
+        {
+          "term": "커넥션 누수",
+          "meaning": "반납되지 않은 접속이 쌓여 풀이 고갈되는 현상"
+        },
+        {
+          "term": "max-lifetime",
+          "meaning": "접속을 주기적으로 폐기·재생성하는 수명 설정"
+        },
+        {
+          "term": "PgBouncer",
+          "meaning": "PostgreSQL 앞단에서 접속을 다중화하는 경량 풀러"
+        },
+        {
+          "term": "max_connections",
+          "meaning": "DB 서버가 허용하는 전체 동시 접속 상한"
+        },
+        {
+          "term": "공용 애플리케이션 계정",
+          "meaning": "앱이 DB에 접속할 때 쓰는 단일 계정. 개인 식별은 앱 로그로 보완"
+        },
+        {
+          "term": "fail-fast",
+          "meaning": "풀이 없으면 빨리 실패시켜 장애 전파를 줄이는 전략"
+        }
+      ],
+      "pitfalls": [
+        "풀 크기를 크게 잡으면 빨라진다고 생각. DB 코어 수를 넘는 접속은 대기만 늘린다.",
+        "Pod 수 × 풀 크기를 계산하지 않아 오토스케일링 중 DB 최대 접속을 초과해 장애가 난다.",
+        "커넥션 타임아웃을 30초로 길게 잡아, 장애 시 스레드가 전부 대기에 물려 서비스 전체가 멈춘다.",
+        "DB 계정 비밀번호를 application.yml이나 컨테이너 환경변수에 평문으로 넣고 Git에 커밋한다.",
+        "max-lifetime이 DB/로드밸런서 유휴 타임아웃보다 길어 죽은 접속을 빌려주고 간헐적 오류가 난다.",
+        "앱이 공용 계정으로만 접속해 DB 감사로그로는 행위자를 특정할 수 없는데 이를 보완할 앱 로그가 없다.",
+        "트랜잭션을 열어둔 채 반납해 다음 사용자가 열린 트랜잭션을 물려받는다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 애플리케이션 DB 계정의 비밀번호가 시크릿 관리 체계(Vault/Secrets Manager)로 보관·주입되는가",
+          "[접근] 애플리케이션 계정 권한이 필요한 스키마·DML로 한정되어 있는가",
+          "[운영] 커넥션 풀 고갈·접속 실패가 모니터링되고 임계치 알람이 설정되어 있는가",
+          "[ITAC] 공용 계정 접속으로 인한 행위자 식별 한계를 애플리케이션 로그(사용자 ID 기록)로 보완하는가",
+          "[변경] 풀 크기·타임아웃 등 성능 관련 설정 변경이 형상관리·승인 절차를 거치는가"
+        ],
+        "fss": [
+          "정보처리시스템 접속에 사용되는 계정 정보가 안전하게 보관·관리되는가",
+          "시스템 용량(동시 접속 수) 관리와 증설 기준이 수립되어 있는가",
+          "거래 처리 실패·지연이 모니터링되고 장애관리 절차에 따라 처리되는가"
+        ],
+        "isms": [
+          "2.7.1 암호정책 적용: 접속 비밀번호 등 비밀정보의 암호화 저장",
+          "2.5.4 비밀번호 관리: 애플리케이션 계정 비밀번호 주기 변경과 보관 방식",
+          "2.9.2 성능 및 장애관리: 커넥션 고갈 등 자원 임계치 모니터링"
+        ],
+        "evidence": [
+          "애플리케이션 설정(application.yml/ConfigMap)과 시크릿 주입 방식 캡처",
+          "Secrets Manager/Vault의 DB 시크릿 접근 정책과 접근 로그",
+          "DB max_connections 설정값과 최근 접속 수 추이 그래프",
+          "커넥션 풀 관련 알람 설정과 최근 발생 이력",
+          "애플리케이션 계정의 DB 권한 GRANT 내역"
+        ],
+        "auditorQuestions": [
+          "애플리케이션이 DB에 접속할 때 쓰는 계정은 무엇이며 비밀번호는 어디에 저장되는가?",
+          "그 비밀번호를 볼 수 있는 사람은 누구인가? 마지막 변경은 언제인가?",
+          "앱을 통해 데이터가 변경됐을 때 '누가' 했는지는 어떻게 확인하는가?",
+          "DB 최대 접속 수와 현재 피크 접속 수는? 오토스케일링 시 초과 위험을 어떻게 관리하는가?",
+          "커넥션 풀 고갈로 인한 장애가 있었는가? 재발 방지 조치는?"
+        ],
+        "controlExample": "애플리케이션의 데이터베이스 접속 계정 정보는 AWS Secrets Manager에 저장되어 IRSA 기반으로 런타임에 주입되며 설정 파일이나 소스코드에 평문으로 포함되지 않는다. 애플리케이션 계정은 지정 스키마에 대한 DML 권한만 보유하고, 데이터 변경 시 애플리케이션 로그에 실제 수행자 ID를 기록하여 DB 감사로그와 대조 가능하도록 한다."
+      },
+      "related": [
+        "db-orm-jpa",
+        "db-postgresql",
+        "db-mysql",
+        "db-read-write-split",
+        "db-account-privilege",
+        "sec-vault",
+        "app-msa"
+      ],
+      "learnMore": [
+        "HikariCP 공식 문서 (About Pool Sizing)",
+        "PgBouncer Documentation",
+        "Spring Boot Reference - Data Access"
+      ]
+    }
+  ]
+}

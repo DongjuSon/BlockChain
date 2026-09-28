@@ -1,0 +1,1498 @@
+{
+  "category": "onprem",
+  "categoryLabel": "온프레미스·엔터프라이즈 시스템·하이브리드",
+  "entries": [
+    {
+      "id": "onprem-datacenter",
+      "title": "데이터센터/IDC",
+      "titleEn": "Data Center / Internet Data Center",
+      "aliases": [
+        "IDC",
+        "전산실",
+        "상면",
+        "코로케이션",
+        "센터",
+        "Data Center"
+      ],
+      "tags": [
+        "facility",
+        "datacenter",
+        "physical"
+      ],
+      "level": "기초",
+      "oneLiner": "서버·네트워크 장비를 전기·냉방·보안이 갖춰진 공간에 모아 운영하는 시설",
+      "analogy": "데이터센터는 은행 금고가 있는 대형 빌딩과 같다. 아무 건물에나 금고를 두지 않고, 정전이 나도 불이 꺼지지 않고, 온도가 일정하며, 아무나 못 들어오는 전용 건물을 쓴다. 서버도 마찬가지로 사무실 구석이 아니라 전기·냉방·출입통제가 설계된 전용 공간에 모아 둔다. 회사가 그 건물을 직접 짓기도 하고(자체 센터), 남의 건물 한 칸을 빌리기도 한다(코로케이션).",
+      "explanation": "<p><strong>데이터센터(Data Center)</strong>는 서버, 스토리지, 네트워크 장비를 한곳에 모아 24시간 안정적으로 돌리기 위한 전용 시설이다. 한국에서는 통신사·호스팅 사업자가 운영하는 상업용 센터를 <strong>IDC(Internet Data Center)</strong>라고 부르는 관행이 있어 두 말이 섞여 쓰인다. 클라우드도 결국 AWS가 소유한 거대한 데이터센터이므로, 온프레미스 데이터센터를 이해하면 클라우드의 리전(Region)·가용영역(AZ) 개념도 자연스럽게 이해된다.</p><p><strong>왜 필요한가.</strong> 서버는 사무실 PC와 다르다. 꺼지면 안 되고, 열이 많이 나고, 훔쳐 가면 회사 데이터 전체가 유출된다. 그래서 (1) 정전에도 견디는 전원, (2) 열을 빼내는 냉방, (3) 아무나 못 들어오는 출입통제, (4) 화재 대응, (5) 굵은 회선이 한 번에 갖춰진 공간이 필요하다. 쉽게 말하면 데이터센터는 '서버가 살기 좋은 환경을 돈 주고 산 것'이다.</p><p><strong>운영 형태는 크게 세 가지다.</strong> <strong>자체 구축(On-premise, 사옥 전산실)</strong>은 회사 건물 안에 전산실을 두는 형태로 통제는 쉽지만 전력·냉방 확장에 한계가 있다. <strong>코로케이션(Colocation, 상면 임대)</strong>은 IDC 사업자에게 랙 단위 공간(상면)과 전력을 빌리고 서버는 회사 자산으로 두는 형태로, 한국 금융·제조 대기업에서 가장 흔하다. <strong>호스팅/클라우드</strong>는 장비까지 사업자 것을 빌려 쓰는 형태다.</p><p><strong>핵심 용어인 '상면(床面)'</strong>은 데이터센터에서 빌리는 바닥 공간을 말한다. 보통 랙(Rack) 단위로 계약하며 '42U 랙 10개, 랙당 4kW'처럼 공간과 전력을 함께 계약한다. 전력이 부족하면 랙에 자리가 남아도 서버를 더 못 넣는다. 실무에서 '상면이 없다'는 말은 대개 공간이 아니라 전력·냉방 한계를 뜻한다.</p><p><strong>등급 체계</strong>로는 Uptime Institute의 <strong>Tier</strong>가 널리 쓰인다. Tier I(기본)부터 Tier IV(무중단 유지보수 가능, 연간 허용 중단 약 26분)까지 전원·냉방 경로의 이중화 수준으로 나뉜다. 국내 금융권은 통상 Tier III 이상, 주센터와 재해복구센터를 지리적으로 분리(일반적으로 수십 km 이상)해 운영한다.</p><p><strong>감사 관점에서 데이터센터는 '물리적 접근통제'의 출발점</strong>이다. ITGC의 접근통제는 논리적 계정만이 아니라 서버를 물리적으로 만질 수 있는 사람까지 포함한다. 감사인은 센터 출입자 명단, 출입 이력, 방문자 동행 여부, 위탁(IDC 사업자) 관리 계약과 그 사업자의 인증서(ISO 27001, ISMS 등)를 확인한다. 클라우드로 옮기면 이 영역은 AWS의 SOC 2 보고서로 대체되지만, 온프레미스가 남아 있는 한 회사의 직접 책임으로 남는다.</p>",
+      "howItWorks": "<ol><li>사업 부서가 신규 시스템을 요청하면 인프라팀이 필요한 랙 수·전력(kW)·회선 대역폭을 산정한다.</li><li>IDC 사업자와 상면 계약을 맺고 랙 위치(존, 열, 랙 번호)를 배정받는다.</li><li>장비를 반입할 때 반입 신청서를 제출하고, 자산 태그를 부착해 자산관리(CMDB)에 등록한다.</li><li>랙에 서버를 마운트하고 전원(A/B 두 계통)과 네트워크(이중 스위치)를 연결한다.</li><li>운영자는 평소 원격(SSH·BMC·VPN)으로 접근하고, 물리 작업이 필요할 때만 출입을 신청한다.</li><li>출입 신청은 승인권자 결재 후 사업자에게 전달되고, 출입 시 카드·생체인증과 CCTV로 기록된다.</li><li>장비 폐기·반출 시 디스크 완전삭제(또는 천공·파쇄) 후 반출 확인서를 남기고 자산 대장에서 폐기 처리한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 서울 상암 IDC에 코로케이션으로 42U 랙 12개(랙당 5kW)를 임대해 코어뱅킹 연계 서버, DB 서버, 백업 서버를 운영하고, 부산 IDC에 재해복구센터 랙 6개를 둔다. 운영팀은 평소 전용선 VPN으로만 접근하고, 디스크 교체 같은 물리 작업이 있을 때만 출입을 신청한다. 2026년 3월 감사에서 '퇴사자 A의 IDC 출입카드가 3개월간 살아 있었다'는 결함이 나와, 인사 퇴직 처리와 IDC 출입권한 회수를 연동하는 절차를 신설했다.</p><pre><code># 상면 계약 요약 (자산대장 발췌)\n센터: 상암IDC ZoneB / 랙 B-07 ~ B-18 (12랙)\n랙 사양: 42U, 계약전력 5kW/랙 (A/B 이중 전원)\n회선: 1Gbps x2 (이중화, 서로 다른 통신사)\n출입권한자: 인프라팀 6명 + 위탁운영사 3명 (반기 재승인)\n\n# 출입 이력 추출 예시 (IDC 사업자 포털 CSV)\ndate,name,company,zone,in_time,out_time,approver,work_order\n2026-03-04,김운영,페이나우,ZoneB,09:12,11:40,박팀장,WO-2026-0312</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>데이터센터(IDC) 구성</text><rect x='20' y='30' width='150' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='55' text-anchor='middle' fill='currentColor'>한전 수전 2계통</text><text x='95' y='75' text-anchor='middle' fill='currentColor' font-size='11'>+ 비상발전기</text><line x1='170' y1='60' x2='230' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='230' y='30' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='290' y='65' text-anchor='middle' fill='currentColor'>UPS</text><line x1='350' y1='60' x2='410' y2='60' stroke='currentColor' marker-end='url(#ar)'/><rect x='410' y='30' width='210' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='515' y='55' text-anchor='middle' fill='currentColor'>랙 전원 분전(PDU) A/B</text><text x='515' y='75' text-anchor='middle' fill='currentColor' font-size='11'>이중 전원 경로</text><rect x='60' y='130' width='120' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='120' y='155' text-anchor='middle' fill='currentColor'>랙 B-07</text><text x='120' y='180' text-anchor='middle' fill='currentColor' font-size='11'>서버 8대</text><text x='120' y='205' text-anchor='middle' fill='currentColor' font-size='11'>42U</text><rect x='200' y='130' width='120' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='155' text-anchor='middle' fill='currentColor'>랙 B-08</text><text x='260' y='180' text-anchor='middle' fill='currentColor' font-size='11'>스토리지</text><rect x='340' y='130' width='120' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='400' y='155' text-anchor='middle' fill='currentColor'>랙 B-09</text><text x='400' y='180' text-anchor='middle' fill='currentColor' font-size='11'>네트워크</text><line x1='515' y1='90' x2='420' y2='128' stroke='currentColor' marker-end='url(#ar)'/><rect x='480' y='130' width='140' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550' y='155' text-anchor='middle' fill='currentColor'>출입통제</text><text x='550' y='178' text-anchor='middle' fill='currentColor' font-size='11'>카드+생체+CCTV</text><text x='550' y='200' text-anchor='middle' fill='currentColor' font-size='11'>출입이력 보관</text><text x='20' y='250' fill='currentColor' font-size='11'>항온항습(CRAC) · 소화설비 · 누수감지는 전 구역 공통</text></svg>",
+      "keyTerms": [
+        {
+          "term": "상면",
+          "meaning": "데이터센터에서 랙 단위로 빌리는 바닥 공간과 계약 전력"
+        },
+        {
+          "term": "랙(Rack)",
+          "meaning": "서버를 층층이 꽂는 표준 캐비닛. 높이 단위는 U(1U=4.45cm), 보통 42U"
+        },
+        {
+          "term": "코로케이션(Colocation)",
+          "meaning": "공간·전력·회선만 빌리고 장비는 회사 자산으로 두는 형태"
+        },
+        {
+          "term": "Tier 등급",
+          "meaning": "Uptime Institute의 데이터센터 가용성 등급(I~IV). 전원·냉방 이중화 수준"
+        },
+        {
+          "term": "존(Zone)/케이지(Cage)",
+          "meaning": "센터 내 구역. 케이지는 회사 전용으로 펜스를 친 독립 구역"
+        },
+        {
+          "term": "반입·반출",
+          "meaning": "장비를 센터에 들이고 빼는 절차. 신청·승인·자산등록이 따른다"
+        },
+        {
+          "term": "MDF/IDF",
+          "meaning": "회선이 모이는 주배선반/중간배선반. 외부 회선 인입 지점"
+        }
+      ],
+      "pitfalls": [
+        "랙에 공간(U)만 보고 서버를 추가하다 계약 전력(kW)을 초과해 차단기가 내려가는 사고. 공간보다 전력·냉방이 먼저 한계에 닿는다.",
+        "IDC 출입권한을 '한 번 받으면 끝'으로 두는 것. 인사이동·퇴사와 연동되지 않으면 ITGC 물리접근 결함으로 직결된다.",
+        "위탁운영사(상주 인력)의 출입·작업을 회사 통제 밖으로 간주. 위탁이라도 통제 책임은 회사에 남는다.",
+        "주센터와 DR센터를 같은 전력·통신 공급 구역에 두어 동시 장애에 노출.",
+        "장비 폐기 시 디스크 삭제 증빙을 남기지 않아 정보 파기 통제 미비로 지적."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 데이터센터 출입권한자 목록이 최신인가, 부여·회수가 승인 절차를 거치며 퇴직·인사이동 시 즉시 회수되는가",
+          "[접근] 출입 이력(카드·생체)과 CCTV가 정해진 기간 보관되고, 비인가 출입 시도가 검토되는가",
+          "[운영] 장비 반입·반출이 신청·승인되고 자산대장(CMDB)에 반영되는가",
+          "[운영] IDC 위탁 사업자에 대한 계약·SLA·보안요구사항이 존재하고 연 1회 이상 점검되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 전산실(정보처리시스템 설치 장소)의 출입통제·CCTV·이중 전원 등 물리적 보호조치 요건을 충족하는가",
+          "주전산센터와 재해복구센터를 물리적으로 분리해 동시 피해 가능성을 낮췄는가",
+          "전산센터 위탁 시 외부주문 관리(제3자 위탁) 절차와 보고 요건을 이행했는가"
+        ],
+        "isms": [
+          "2.4.1 보호구역 지정 / 2.4.2 출입통제: 전산실을 보호구역으로 지정하고 출입을 승인·기록하는가",
+          "2.4.4 보호설비 운영: 항온항습·UPS·소화설비·누수감지 설비가 갖춰지고 점검되는가",
+          "2.4.6 반출입 기기 통제: 장비·저장매체 반출입이 통제·기록되는가"
+        ],
+        "evidence": [
+          "IDC 상면 계약서 및 SLA, 사업자 보안인증서(ISO 27001/ISMS) 사본",
+          "출입권한자 명단과 최근 반기 재승인 결재 문서",
+          "감사 대상 기간 출입 이력 CSV(이름·일시·구역·작업지시번호)",
+          "장비 반입·반출 신청서 및 폐기 시 디스크 파기 확인서",
+          "센터 배치도(랙 번호별 장비 목록)와 자산대장 대사 결과"
+        ],
+        "auditorQuestions": [
+          "현재 데이터센터에 출입 가능한 인원은 몇 명이며 명단을 언제 마지막으로 검토했는가?",
+          "퇴사자의 출입카드는 며칠 안에 회수되며 그 증빙은 무엇인가?",
+          "위탁운영 인력의 작업은 어떻게 승인·감독되는가?",
+          "출입 이력과 작업 요청서(WO)를 서로 대사해 본 적이 있는가?",
+          "랙별 계약 전력과 현재 사용량은 어떻게 모니터링하는가?"
+        ],
+        "controlExample": "데이터센터 출입권한은 인프라팀장의 승인 후 부여되고 반기 1회 전체 재검토되며, 퇴직·부서이동 발생 시 인사시스템 연동으로 5영업일 내 회수된다. 출입 이력은 1년 이상 보관하고 월 1회 작업지시서와 대사한다."
+      },
+      "related": [
+        "onprem-power-cooling",
+        "onprem-physical-security",
+        "onprem-server-hardware",
+        "onprem-dr-center",
+        "onprem-hybrid-cloud",
+        "comp-sox-itgc",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "Uptime Institute Tier Standard: Topology",
+        "ISMS-P 인증기준 안내서 - 물리보안",
+        "전자금융감독규정 해설서"
+      ]
+    },
+    {
+      "id": "onprem-power-cooling",
+      "title": "전원·항온항습",
+      "titleEn": "Power (UPS) and HVAC in Data Centers",
+      "aliases": [
+        "UPS",
+        "무정전전원장치",
+        "항온항습기",
+        "CRAC",
+        "비상발전기",
+        "PDU"
+      ],
+      "tags": [
+        "facility",
+        "power",
+        "cooling"
+      ],
+      "level": "기초",
+      "oneLiner": "정전과 발열로부터 서버를 지키는 데이터센터의 생명유지 장치",
+      "analogy": "UPS는 노트북 배터리와 같다. 벽 전기가 끊겨도 즉시 배터리로 넘어가 화면이 꺼지지 않는다. 다만 노트북 배터리가 몇 시간 가는 것과 달리 데이터센터 UPS는 보통 10~20분만 버틴다. 그 사이에 디젤 비상발전기가 시동을 걸어 장기전을 맡는다. 항온항습기는 큰 에어컨 겸 제습기로, 서버실을 사람 사는 방이 아니라 '기계가 살기 좋은 온도·습도'로 유지한다.",
+      "explanation": "<p>데이터센터에서 서버가 죽는 가장 흔한 원인은 해킹이 아니라 <strong>전기와 열</strong>이다. 그래서 전원과 냉방은 설비이면서 동시에 가용성 통제의 핵심이다.</p><p><strong>전원 경로</strong>는 보통 이렇게 구성된다. 한전에서 들어오는 수전(가능하면 서로 다른 변전소에서 2계통) → 수변전 설비 → <strong>UPS(Uninterruptible Power Supply, 무정전전원장치)</strong> → <strong>PDU(Power Distribution Unit, 전원분배장치)</strong> → 서버의 이중 파워서플라이. UPS는 배터리(납축 또는 리튬이온)를 품고 있어 정전 순간 0초의 끊김도 없이 전력을 공급하지만, 지속 시간은 보통 10~20분이다. 그 동안 <strong>비상발전기</strong>가 기동(보통 10~30초)해 연료가 있는 한 계속 공급한다. 그래서 감사에서는 UPS 배터리 교체 주기와 발전기 연료 보유량·무부하/부하 시험 기록을 본다.</p><p><strong>A/B 이중 전원</strong>은 서버에 파워서플라이를 2개 달아 서로 다른 UPS·분전반 계통에서 전기를 받는 방식이다. 한쪽 계통을 점검하거나 차단기가 내려가도 서버는 살아 있다. 실무에서 흔한 실수는 A/B 두 케이블을 모두 같은 PDU에 꽂아 두어 이중화가 무의미해진 경우다.</p><p><strong>냉방</strong>은 <strong>항온항습기(CRAC/CRAH)</strong>가 담당한다. 권장 온도는 ASHRAE 기준 대략 18~27도, 습도는 결로와 정전기를 모두 피하는 범위로 유지한다. 효율을 위해 랙을 마주보게 배치해 <strong>핫아일/콜드아일(Hot Aisle/Cold Aisle)</strong>을 만들고, 찬 공기가 서버 앞면으로 들어가 뒷면으로 더운 공기가 나가도록 유도한다. 빈 U 공간에는 <strong>블랭킹 패널</strong>을 끼워 더운 공기가 앞으로 돌아오는 것을 막는다.</p><p><strong>부대 설비</strong>로 소화설비(서버에 물을 뿌릴 수 없으므로 가스계 소화설비), 누수감지 센서, 지진 대비 랙 고정, 환경 모니터링(온습도 센서와 경보)이 따라온다. 쉽게 말하면 데이터센터의 절반은 IT 장비가 아니라 이 설비들이다.</p><p><strong>감사 관점</strong>에서 이 영역은 ITGC의 '운영' 도메인과 ISMS-P 물리보안(2.4.4 보호설비 운영)에 직결된다. 핵심 질문은 세 가지다. 설비가 있는가, 정기적으로 점검·시험하는가, 이상 시 누구에게 어떻게 알려지고 조치되는가. 코로케이션이면 이 설비는 IDC 사업자 책임이므로 <strong>계약서와 사업자의 점검 리포트</strong>를 증빙으로 확보해야 한다.</p>",
+      "howItWorks": "<ol><li>평상시 한전 전력이 UPS를 거쳐 PDU, 서버로 공급된다(UPS는 상시 배터리를 충전).</li><li>정전이 발생하면 UPS가 순간적으로 배터리 방전으로 전환해 무중단 공급을 유지한다.</li><li>동시에 비상발전기가 자동 기동하고 10~30초 내 정격 출력에 도달한다.</li><li>ATS(자동절체스위치)가 전원을 발전기 계통으로 절체하고 UPS는 다시 충전 모드로 돌아간다.</li><li>한전 전력이 복구되면 역순으로 절체하고 발전기는 냉각 후 정지한다.</li><li>이 모든 이벤트는 전력 감시 시스템(BMS)에 기록되고 인프라팀에 경보(SMS·메신저)로 통지된다.</li><li>항온항습기는 온습도 센서 값을 보며 냉방을 제어하고, 임계치 초과 시 경보 후 예비기가 가동된다.</li></ol>",
+      "example": "<p>커머스 기업 '샵나우'는 자체 전산실에 UPS 2대(각 100kVA, N+1 구성)와 디젤 발전기 1대(연료 8시간분)를 두고 있다. 2026년 2월 인근 공사로 한전 전력이 12분간 끊겼을 때 UPS가 즉시 받아내고 18초 후 발전기가 기동해 서비스 중단은 없었다. 다만 사후 점검에서 랙 C-04의 서버 3대가 A/B 케이블을 모두 A계통 PDU에 꽂아 두어, 만약 A계통 차단기가 내려갔다면 정지했을 것이라는 사실이 발견되어 배선 전수 점검을 실시했다.</p><pre><code># 환경 모니터링 임계치 설정 예시 (Zabbix)\n항목: rack.temp.inlet[B-07]\n경고(Warning): &gt; 27 °C\n심각(High)  : &gt; 32 °C  → 인프라팀 SMS + 당직자 호출\n습도       : 40~60 %RH 벗어나면 경고\n\n# 설비 점검 주기(예시)\nUPS 배터리 육안·전압 점검 : 월 1회\nUPS 배터리 교체          : 3~5년 (제조사 권고)\n발전기 무부하 시험        : 월 1회 (10분)\n발전기 부하 시험          : 연 1회\n가스계 소화설비 점검      : 반기 1회 (소방 법정점검 포함)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='40' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='62' y='70' text-anchor='middle' fill='currentColor'>한전 수전</text><line x1='110' y1='65' x2='160' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='40' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='207' y='70' text-anchor='middle' fill='currentColor'>수변전/ATS</text><rect x='15' y='130' width='95' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='62' y='160' text-anchor='middle' fill='currentColor'>비상발전기</text><line x1='110' y1='155' x2='195' y2='95' stroke='currentColor' marker-end='url(#ar)'/><line x1='255' y1='65' x2='305' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='305' y='40' width='95' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='352' y='70' text-anchor='middle' fill='currentColor'>UPS</text><line x1='400' y1='55' x2='450' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='400' y1='78' x2='450' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='450' y='25' width='80' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='490' y='50' text-anchor='middle' fill='currentColor'>PDU A</text><rect x='450' y='105' width='80' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='490' y='130' text-anchor='middle' fill='currentColor'>PDU B</text><line x1='530' y1='45' x2='565' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='530' y1='125' x2='565' y2='95' stroke='currentColor' marker-end='url(#ar)'/><rect x='560' y='60' width='70' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='595' y='83' text-anchor='middle' fill='currentColor' font-size='11'>서버</text><text x='595' y='103' text-anchor='middle' fill='currentColor' font-size='11'>PSU x2</text><rect x='305' y='150' width='325' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='467' y='173' text-anchor='middle' fill='currentColor'>항온항습(CRAC) 18~27도</text><text x='467' y='195' text-anchor='middle' fill='currentColor' font-size='11'>핫아일/콜드아일 · 누수감지 · 가스소화</text><text x='15' y='215' fill='currentColor' font-size='11'>정전 → UPS 즉시 → 발전기 20초</text></svg>",
+      "keyTerms": [
+        {
+          "term": "UPS",
+          "meaning": "정전 시 배터리로 무중단 전력을 공급하는 장치. 통상 10~20분 지속"
+        },
+        {
+          "term": "PDU",
+          "meaning": "랙 안에서 서버들에 전기를 나눠주는 멀티탭 형태의 전원분배장치"
+        },
+        {
+          "term": "ATS",
+          "meaning": "자동절체스위치. 한전↔발전기 전원 경로를 자동으로 바꾼다"
+        },
+        {
+          "term": "N+1 구성",
+          "meaning": "필요 대수(N)보다 1대 더 두어 1대 고장·점검에도 용량을 유지"
+        },
+        {
+          "term": "CRAC/CRAH",
+          "meaning": "전산실 전용 항온항습기. 온도와 습도를 함께 제어"
+        },
+        {
+          "term": "핫아일/콜드아일",
+          "meaning": "찬 공기 통로와 더운 공기 통로를 분리해 냉방 효율을 높이는 랙 배치"
+        },
+        {
+          "term": "PUE",
+          "meaning": "전력사용효율. 전체 전력÷IT장비 전력. 1에 가까울수록 효율적"
+        },
+        {
+          "term": "블랭킹 패널",
+          "meaning": "랙의 빈 U를 막아 더운 공기 역류를 방지하는 판"
+        }
+      ],
+      "pitfalls": [
+        "A/B 이중 전원 서버의 케이블을 같은 계통 PDU에 꽂아 이중화가 실제로는 없는 경우.",
+        "UPS 배터리 교체 주기를 놓쳐 정작 정전 때 2분도 못 버티는 사례. 배터리는 소모품이다.",
+        "발전기를 무부하 시험만 하고 부하 시험을 안 해, 실제 부하에서 기동 실패.",
+        "환경 경보를 이메일로만 보내 야간·주말에 아무도 못 보는 구성.",
+        "코로케이션이라는 이유로 설비 증빙을 전혀 보유하지 않는 것. 사업자 점검 리포트를 정기적으로 받아 보관해야 한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] UPS·발전기·항온항습 설비의 정기 점검·시험이 계획대로 수행되고 기록이 보관되는가",
+          "[운영] 온습도·전력 임계치 경보가 설정되어 있고 담당자에게 실시간 통지되는가",
+          "[운영] 정전·냉방 장애 발생 시 인시던트로 등록·조치·사후검토(RCA)가 이루어지는가",
+          "[운영] 코로케이션의 경우 사업자 설비 점검 리포트를 정기적으로 수령·검토하는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 전산실의 무정전전원장치·비상발전기·항온항습 등 전산설비 보호 요건 충족 여부",
+          "정보처리시스템의 비상 전원 공급 시간과 연료 확보량이 업무연속성계획(BCP) 가정과 일치하는가",
+          "전산센터 설비 장애가 전자금융사고 보고 대상인지 판단 기준과 보고 절차가 마련되어 있는가"
+        ],
+        "isms": [
+          "2.4.4 보호설비 운영: 항온항습·UPS·소화설비·누수감지 등의 설치 및 주기적 점검",
+          "2.4.3 정보시스템 보호: 랙 고정, 케이블 관리 등 물리적 손상 예방 조치",
+          "2.12.1 재해·재난 대비: 설비 장애를 포함한 비상 대응 절차와 훈련"
+        ],
+        "evidence": [
+          "UPS 배터리 점검·교체 이력, 제조사 점검 리포트",
+          "비상발전기 월간 무부하 시험·연간 부하 시험 기록과 연료 보유 현황",
+          "항온항습기 점검 기록 및 최근 1년 온습도 추이 그래프(BMS/Zabbix 캡처)",
+          "환경 경보 설정 화면과 실제 발생 경보 및 조치 이력",
+          "정전·냉방 장애 인시던트 티켓과 사후검토 보고서"
+        ],
+        "auditorQuestions": [
+          "가장 최근 정전은 언제였고 UPS·발전기는 정상 동작했는가?",
+          "UPS 배터리의 설치 연도와 다음 교체 예정 시기는?",
+          "전산실 온도가 임계치를 넘으면 누가 어떤 경로로 알게 되는가?",
+          "서버의 A/B 전원이 실제로 서로 다른 계통에 연결되어 있음을 어떻게 확인했는가?",
+          "코로케이션 사업자로부터 어떤 점검 보고서를 정기적으로 받는가?"
+        ],
+        "controlExample": "전산실 전원·냉방 설비는 월 1회(발전기 부하시험은 연 1회) 점검하며 점검표를 설비 담당자와 인프라팀장이 승인·보관한다. 온습도 및 전원 이상은 임계치 초과 시 자동 경보되어 당직자에게 통지되고 인시던트로 등록·조치된다."
+      },
+      "related": [
+        "onprem-datacenter",
+        "onprem-physical-security",
+        "onprem-server-hardware",
+        "onprem-dr-center",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "ASHRAE Thermal Guidelines for Data Processing Environments",
+        "Uptime Institute Tier Standard: Topology",
+        "ISMS-P 인증기준 안내서 - 2.4 물리보안"
+      ]
+    },
+    {
+      "id": "onprem-physical-security",
+      "title": "물리보안·출입통제",
+      "titleEn": "Physical Security and Access Control",
+      "aliases": [
+        "출입통제",
+        "물리적 접근통제",
+        "보호구역",
+        "CCTV",
+        "맨트랩",
+        "반출입 통제"
+      ],
+      "tags": [
+        "physical",
+        "security",
+        "access-control"
+      ],
+      "level": "기초",
+      "oneLiner": "서버·저장매체를 물리적으로 만질 수 있는 사람을 제한하고 기록하는 통제",
+      "analogy": "물리보안은 아파트 현관-엘리베이터-세대 현관의 3중 문과 같다. 공동현관 카드로 1차, 엘리베이터 층 제한으로 2차, 세대 도어락으로 3차를 통과해야 집에 들어간다. 데이터센터도 건물 로비 → 센터 층 → 전산실 → 케이지(회사 전용 구역) → 랙 도어까지 여러 겹으로 나뉘고, 각 문마다 '누가 언제 열었는지'가 남는다.",
+      "explanation": "<p><strong>물리보안(Physical Security)</strong>은 정보자산이 놓인 공간에 사람이 접근하는 것을 통제하는 활동이다. 논리적 접근통제(계정·비밀번호)가 아무리 튼튼해도, 서버 앞에 앉아 USB로 부팅하거나 디스크를 뽑아 갈 수 있다면 소용이 없다. 그래서 ITGC와 ISMS-P는 논리적 접근통제와 물리적 접근통제를 같은 무게로 본다.</p><p><strong>보호구역 지정</strong>이 출발점이다. 사무 공간, 전산실, 통신실, 문서보관실, 개발실(망분리 구역) 등을 중요도에 따라 구역으로 나누고 각 구역에 들어갈 수 있는 역할을 정의한다. 전산실은 최고 등급 보호구역으로 지정하고 상시 출입자를 최소화한다. 쉽게 말하면 '누가 어느 문까지 열 수 있는지'를 문서로 먼저 정하고 시스템에 반영하는 것이다.</p><p><strong>통제 수단</strong>은 여러 겹이다. RFID 출입카드, 지문·홍채 같은 <strong>생체인증</strong>, 두 문 중 하나만 열리는 <strong>맨트랩(Mantrap)</strong>, 카드와 생체를 모두 요구하는 <strong>2요소 출입</strong>, 상시 녹화 CCTV(통상 30~90일 이상 보관), 무인 시간대의 침입감지 센서, 랙 도어 잠금과 전자 랙락이 쓰인다. 방문자는 별도 절차로 신청·승인 후 <strong>상시 동행</strong>이 원칙이다.</p><p><strong>반출입 통제</strong>도 핵심이다. 노트북, USB, 촬영 가능한 휴대폰, 외장 디스크의 반입과, 서버·디스크·테이프의 반출을 신청·승인·기록한다. 특히 폐기 시에는 디스크 완전삭제(소거) 또는 물리적 파쇄·천공을 하고 <strong>파기 확인서</strong>를 남겨야 한다. 금융권은 반출 시 봉인번호까지 기록하는 경우가 많다.</p><p><strong>운영에서 가장 자주 무너지는 지점</strong>은 '권한 회수'다. 퇴사·부서이동·프로젝트 종료 후 출입권한이 남아 있는 경우가 감사에서 가장 흔한 결함이다. 그래서 인사 시스템(HR)과 출입통제 시스템을 연동하거나, 최소한 월·분기 단위로 인사 데이터와 출입권한 명단을 대사(reconciliation)하는 절차가 필요하다.</p><p><strong>증적 관점</strong>에서 물리보안은 다행히 기록이 잘 남는 영역이다. 출입 이력 CSV, CCTV 영상, 방문자 대장, 반출입 신청서가 그것이다. 감사인은 이 기록들을 서로 대사한다. 예를 들어 '토요일 새벽 전산실 출입 기록'이 있으면 그 시간의 작업요청서(WO)나 변경관리 티켓이 있는지 확인하고, 없으면 예외 사항으로 본다.</p>",
+      "howItWorks": "<ol><li>보안정책에서 구역별 등급과 접근 가능 역할을 정의한다.</li><li>담당자가 출입 신청을 하고 부서장·보안담당자가 승인한다.</li><li>출입통제 시스템(예: 카드 시스템)에 해당 카드와 구역 권한이 등록된다.</li><li>출입 시 카드 태그 + 생체인증이 수행되고 문 개폐 이력이 서버에 기록된다.</li><li>CCTV가 출입문·랙 열을 상시 녹화하고 정해진 기간 보관한다.</li><li>방문자는 대장 작성 후 임시카드를 받고 담당자가 동행하며, 퇴실 시 카드를 반납한다.</li><li>월/분기 단위로 인사 데이터와 권한 명단을 대사해 불필요한 권한을 회수하고 결과를 결재로 남긴다.</li><li>이상 출입(비인가 시도, 심야 출입, 장시간 체류)은 보안팀이 검토하고 필요 시 인시던트로 등록한다.</li></ol>",
+      "example": "<p>보험사 '세이프라이프'는 본사 전산실을 1급 보호구역으로 지정하고 상시 출입자를 인프라팀 8명, 위탁운영 4명으로 제한한다. 출입은 사원증 + 지문 2요소이며, 전산실 입구에 맨트랩이 설치돼 있다. 2026년 1분기 대사에서 타 부서로 이동한 직원 2명과 계약 종료된 벤더 1명의 권한이 남아 있어 회수했고, 이후 HR 시스템의 발령·퇴직 이벤트를 출입통제 시스템에 일 1회 자동 반영하도록 개선했다.</p><pre><code># 분기 출입권한 대사 절차 (스크립트 개념)\n1) 출입통제시스템 export  -&gt; access_rights.csv (사번, 이름, 구역, 부여일)\n2) HR 시스템 재직자 export -&gt; hr_active.csv  (사번, 부서, 재직상태)\n3) 대사: access_rights 에 있으나 hr_active 에 없거나\n         부서가 인프라팀/승인된 위탁사가 아닌 건 = 예외\n4) 예외 목록을 보안팀이 검토 → 회수 또는 사유 승인\n5) 결과를 전자결재로 상신하여 증적 보관\n\n# 심야 출입 이상징후 점검 쿼리(개념)\nSELECT name, zone, in_time, out_time\nFROM access_log\nWHERE zone = 'DC-1F-SERVER'\n  AND (HOUR(in_time) &lt; 7 OR HOUR(in_time) &gt;= 22)\n  AND work_order IS NULL;</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 230' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='12'>다층 물리 접근통제</text><rect x='15' y='40' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='63' text-anchor='middle' fill='currentColor' font-size='12'>건물 로비</text><text x='67' y='83' text-anchor='middle' fill='currentColor' font-size='11'>신분확인</text><line x1='120' y1='67' x2='160' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='40' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='212' y='63' text-anchor='middle' fill='currentColor' font-size='12'>센터 층</text><text x='212' y='83' text-anchor='middle' fill='currentColor' font-size='11'>카드</text><line x1='265' y1='67' x2='305' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='305' y='40' width='105' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='357' y='63' text-anchor='middle' fill='currentColor' font-size='12'>전산실</text><text x='357' y='83' text-anchor='middle' fill='currentColor' font-size='11'>카드+생체</text><line x1='410' y1='67' x2='450' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='450' y='40' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='502' y='63' text-anchor='middle' fill='currentColor' font-size='12'>케이지</text><text x='502' y='83' text-anchor='middle' fill='currentColor' font-size='11'>전용구역</text><line x1='555' y1='67' x2='590' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='560' y='105' width='70' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='595' y='132' text-anchor='middle' fill='currentColor' font-size='11'>랙 도어</text><rect x='15' y='140' width='250' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='140' y='163' text-anchor='middle' fill='currentColor'>기록</text><text x='140' y='185' text-anchor='middle' fill='currentColor' font-size='11'>출입이력 · CCTV · 방문자대장</text><text x='140' y='203' text-anchor='middle' fill='currentColor' font-size='11'>반출입 신청서</text><rect x='290' y='140' width='250' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='415' y='163' text-anchor='middle' fill='currentColor'>주기적 대사</text><text x='415' y='185' text-anchor='middle' fill='currentColor' font-size='11'>HR 재직자 vs 출입권한자</text><text x='415' y='203' text-anchor='middle' fill='currentColor' font-size='11'>심야출입 vs 작업요청서</text></svg>",
+      "keyTerms": [
+        {
+          "term": "보호구역",
+          "meaning": "중요도에 따라 지정한 통제 구역(전산실, 통신실, 문서고 등)"
+        },
+        {
+          "term": "맨트랩(Mantrap)",
+          "meaning": "두 문이 동시에 열리지 않는 이중문. 무단 동반출입(tailgating) 방지"
+        },
+        {
+          "term": "테일게이팅",
+          "meaning": "인가자 뒤에 붙어 인증 없이 따라 들어가는 행위"
+        },
+        {
+          "term": "2요소 출입",
+          "meaning": "카드(소지)와 생체(고유정보) 등 서로 다른 요소를 함께 요구"
+        },
+        {
+          "term": "방문자 동행",
+          "meaning": "외부인은 담당자가 입·퇴실까지 동행하는 원칙"
+        },
+        {
+          "term": "반출입 통제",
+          "meaning": "저장매체·장비의 반입과 반출을 신청·승인·기록하는 절차"
+        },
+        {
+          "term": "파기 확인서",
+          "meaning": "디스크 소거·천공·파쇄 사실을 증명하는 문서(시리얼 번호 포함)"
+        }
+      ],
+      "pitfalls": [
+        "출입권한 대사를 '시스템에 등록된 명단'만 보고 하는 것. 임시카드·마스터키·공용 카드가 누락되기 쉽다.",
+        "CCTV는 설치했으나 보관 기간이 짧아 감사 대상 기간의 영상이 이미 삭제된 경우.",
+        "방문자 대장을 종이로만 운영해 실제 동행 여부를 확인할 수 없는 상태.",
+        "랙 도어를 상시 개방해 두어 구역 통제는 있으나 장비 단위 통제는 없는 상황.",
+        "물리보안을 총무·시설팀 업무로만 보고 IT 감사 범위에서 빼는 것. ITGC 접근통제의 일부다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 전산실 등 보호구역의 출입권한이 최소 인원으로 제한되고 승인 절차를 통해 부여되는가",
+          "[접근] 퇴직·인사이동 시 출입권한이 정해진 기한 내 회수되며 그 증적이 있는가",
+          "[접근] 출입권한 명단이 주기적으로(반기 이상) 재검토되고 결과가 승인·보관되는가",
+          "[운영] 심야·휴일 출입 등 이상 출입이 검토되고 작업 근거와 대사되는가",
+          "[운영] 저장매체 반출입 및 폐기가 승인·기록되고 파기 증빙이 보관되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 전산실 출입 통제 및 출입기록 보존 요건을 충족하는가",
+          "외부인(위탁·유지보수 업체) 출입 시 승인·동행·작업기록 관리 절차가 있는가",
+          "전자금융기반시설 취약점 분석·평가 시 물리적 보호조치 항목이 포함되어 평가되는가"
+        ],
+        "isms": [
+          "2.4.1 보호구역 지정 / 2.4.2 출입통제: 구역 지정과 출입 승인·기록·주기적 검토",
+          "2.4.6 반출입 기기 통제: 정보시스템·저장매체 반출입 통제",
+          "2.4.7 업무환경 보안 / 2.4.5 보호구역 내 작업: 작업 신청·승인·기록"
+        ],
+        "evidence": [
+          "보호구역 지정 현황과 구역별 출입 허용 역할 정의 문서",
+          "출입통제 시스템에서 추출한 권한자 목록과 최근 재검토 결재",
+          "감사 대상 기간 출입 이력(일시·구역·성명) 및 심야 출입 샘플에 대한 작업근거",
+          "방문자 대장(신청·승인·동행자·반납 기록)",
+          "저장매체 폐기 시 파기 확인서(시리얼 번호 포함)와 위탁 파기 업체 인증서"
+        ],
+        "auditorQuestions": [
+          "전산실 상시 출입 인가자는 몇 명이고 최근 검토는 언제 했는가?",
+          "퇴사자 출입카드 회수 절차와 평균 소요 기간은?",
+          "외부 유지보수 인력이 전산실에 들어갈 때 누가 동행하며 작업 기록은 어디에 남는가?",
+          "CCTV 보관 기간은 며칠이며 누가 열람할 수 있는가?",
+          "최근 1년간 비인가 출입 시도나 이상 출입이 탐지된 사례가 있는가?"
+        ],
+        "controlExample": "전산실은 1급 보호구역으로 지정되어 사원증과 생체인증 2요소로만 출입 가능하며, 출입권한은 보안담당 승인 후 부여되고 분기 1회 인사 데이터와 대사해 재승인한다. 출입 이력은 1년, CCTV는 90일 이상 보관하며 심야 출입은 월 1회 작업요청서와 대사해 검토한다."
+      },
+      "related": [
+        "onprem-datacenter",
+        "onprem-power-cooling",
+        "onprem-vdi-network-separation",
+        "onprem-cmdb-license",
+        "sec-pam",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "ISMS-P 인증기준 안내서 - 2.4 물리보안",
+        "ISO/IEC 27001 Annex A - Physical and environmental security",
+        "개인정보의 안전성 확보조치 기준 - 물리적 안전조치"
+      ]
+    },
+    {
+      "id": "onprem-server-hardware",
+      "title": "서버 하드웨어와 랙",
+      "titleEn": "Server Hardware and Rack",
+      "aliases": [
+        "랙마운트 서버",
+        "블레이드",
+        "1U 서버",
+        "x86 서버",
+        "베어메탈",
+        "물리서버"
+      ],
+      "tags": [
+        "hardware",
+        "server",
+        "datacenter"
+      ],
+      "level": "기초",
+      "oneLiner": "랙에 꽂아 쓰는 물리 서버의 구성과 규격, 그리고 자산으로서의 관리 대상",
+      "analogy": "랙 서버는 서랍장에 들어가는 서랍과 같다. 서랍장(랙)의 폭은 19인치로 표준화되어 있고, 서랍의 높이는 1U, 2U처럼 칸 수로 센다. 서랍마다 들어 있는 내용물(CPU, 메모리, 디스크)은 다르지만 크기 규격이 같아 어느 서랍장에나 꽂힌다. 덕분에 제조사가 달라도 같은 랙에 섞어 쓸 수 있다.",
+      "explanation": "<p><strong>서버 하드웨어</strong>는 데이터센터 랙에 장착되는 물리 컴퓨터다. 사무용 PC와 부품 종류는 비슷하지만, 24시간 무정지 운전, 부품 이중화, 원격관리, 고밀도 집적을 전제로 설계된다는 점이 다르다. 클라우드로 옮겨도 EC2 인스턴스 밑에는 결국 이런 물리 서버가 있으므로, 개념을 알면 인스턴스 타입이나 전용 호스트(Dedicated Host) 같은 용어가 쉽게 읽힌다.</p><p><strong>폼팩터(Form Factor)</strong>는 크게 세 가지다. <strong>랙마운트(Rack-mount)</strong>는 19인치 랙에 눕혀 꽂는 가장 일반적인 형태로 높이를 U로 센다(1U=44.45mm, 보통 랙은 42U). <strong>블레이드(Blade)</strong>는 섀시(Chassis) 하나에 얇은 서버 여러 장을 꽂아 전원·네트워크를 공유해 밀도를 높인 형태다. <strong>타워(Tower)</strong>는 데스크톱처럼 세워 쓰는 형태로 소규모 사무실이나 지점에서 쓰인다.</p><p><strong>주요 구성 요소</strong>는 CPU(소켓 1~2개, 인텔 제온·AMD 에픽), 메모리(오류를 정정하는 <strong>ECC 메모리</strong>), 디스크(SAS/SATA HDD, SSD, 고속 NVMe), <strong>RAID 컨트롤러</strong>, 네트워크 카드(NIC, 보통 2~4포트 이중화), 스토리지 연결용 <strong>HBA/FC 카드</strong>, 이중 <strong>파워서플라이(PSU)</strong>, 그리고 원격관리 칩인 <strong>BMC</strong>다. 여기에 GPU 서버(AI 학습용)는 대량의 전력과 냉방을 요구해 별도 존에 배치하는 경우가 많다.</p><p><strong>무정지 설계</strong>가 사무용 PC와 가장 큰 차이다. 전원·팬·디스크는 전원을 끄지 않고 교체하는 <strong>핫스왑(Hot-swap)</strong>을 지원하고, 메모리 오류는 ECC로 자동 정정되며, 부품 고장은 BMC가 감지해 경보한다. 제조사 보증(HPE, Dell, Lenovo, Supermicro 등)과 유지보수 계약(예: 4시간 내 출동, 익일 부품 교체)이 가용성 통제의 일부가 된다.</p><p><strong>감사 관점에서 물리 서버는 '정보자산 목록의 기본 단위'</strong>다. 자산 태그, 시리얼 번호, 설치 위치(센터-랙-U), 용도, 담당자, 유지보수 계약 만료일, OS와 EOL 정보가 CMDB에 정확히 있어야 한다. 실무에서 흔한 문제는 (1) 가상화 이후 물리 서버 목록과 가상 서버 목록이 따로 놀아 자산이 누락되는 것, (2) 유지보수 계약이 끝난 노후 장비가 운영 중인 것, (3) 폐기 시 디스크 처리 증빙이 없는 것이다.</p>",
+      "howItWorks": "<ol><li>용량 산정 후 구매 요청·승인 → 자산 구매 및 입고, 자산 태그 부착.</li><li>CMDB에 자산 등록(시리얼, 모델, 보증기간, 담당자, 용도)을 한다.</li><li>랙에 레일을 설치해 서버를 마운트하고 A/B 전원, 네트워크 2포트, (필요 시) FC 케이블을 연결한다.</li><li>BMC(iLO/iDRAC)에 관리 IP를 설정하고 관리망에만 붙인다.</li><li>BIOS/펌웨어 버전을 표준 베이스라인에 맞추고 RAID 볼륨을 구성한다.</li><li>OS를 설치(또는 하이퍼바이저를 설치)하고 표준 이미지·보안 설정을 적용한다.</li><li>모니터링(하드웨어 상태·온도·디스크)과 백업 대상에 등록한다.</li><li>운영 중 부품 고장은 BMC 경보 → 벤더 콜 → 핫스왑 교체 → 변경 티켓 기록 순으로 처리한다.</li><li>수명 종료 시 데이터 소거·파기 후 반출하고 CMDB에서 폐기 처리한다.</li></ol>",
+      "example": "<p>커머스 기업 '샵나우'는 상암 IDC 랙 B-07에 2U 서버 8대를 운영한다. 각 서버는 제온 CPU 2소켓(32코어), 512GB ECC 메모리, 960GB SSD 2장(RAID 1, OS용), 10GbE NIC 2포트(본딩), PSU 2개 구성이다. 2026년 5월 서버 3호기의 디스크 1장이 고장났지만 RAID 1 덕분에 서비스는 무중단이었고, 벤더 유지보수 계약(익일 부품)에 따라 다음 날 핫스왑으로 교체했다. 이 작업은 표준 변경(Standard Change)으로 분류되어 사후 승인으로 처리됐다.</p><pre><code># 리눅스에서 하드웨어 정보 확인\nsudo dmidecode -t system | grep -E 'Manufacturer|Product|Serial'\nlscpu | head -15\nfree -h\nlsblk\n\n# HPE 서버 RAID/디스크 상태 확인(ssacli)\nsudo ssacli ctrl all show config detail | grep -E 'Status|Serial'\n\n# CMDB 등록 항목 예시\nasset_tag : SN-2024-0311\nmodel     : HPE ProLiant DL380 Gen11 (2U)\nserial    : CZ24xxxxYZ\nlocation  : 상암IDC / ZoneB / Rack B-07 / U12-13\nrole      : 주문 API 서버 (prod)\nowner     : 인프라팀 김운영\nsupport   : 2027-08-31 만료 (익일 부품 교체)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>42U 랙 단면과 서버 구성</text><rect x='20' y='30' width='150' height='200' rx='6' fill='var(--dg-box)' stroke='currentColor'/><rect x='30' y='40' width='130' height='22' rx='3' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='56' text-anchor='middle' fill='currentColor' font-size='11'>ToR 스위치 1U</text><rect x='30' y='66' width='130' height='22' rx='3' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='82' text-anchor='middle' fill='currentColor' font-size='11'>ToR 스위치 1U</text><rect x='30' y='95' width='130' height='30' rx='3' fill='var(--dg-accent)' stroke='currentColor'/><text x='95' y='114' text-anchor='middle' fill='currentColor' font-size='11'>서버 2U</text><rect x='30' y='129' width='130' height='30' rx='3' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='148' text-anchor='middle' fill='currentColor' font-size='11'>서버 2U</text><rect x='30' y='163' width='130' height='30' rx='3' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='182' text-anchor='middle' fill='currentColor' font-size='11'>서버 2U</text><rect x='30' y='197' width='130' height='25' rx='3' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='214' text-anchor='middle' fill='currentColor' font-size='11'>스토리지</text><line x1='170' y1='110' x2='215' y2='110' stroke='currentColor' marker-end='url(#ar)'/><rect x='215' y='40' width='405' height='170' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='417' y='62' text-anchor='middle' fill='currentColor'>서버 1대 내부</text><rect x='230' y='75' width='110' height='35' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='97' text-anchor='middle' fill='currentColor' font-size='11'>CPU x2</text><rect x='350' y='75' width='110' height='35' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='405' y='97' text-anchor='middle' fill='currentColor' font-size='11'>ECC 메모리</text><rect x='470' y='75' width='135' height='35' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='537' y='97' text-anchor='middle' fill='currentColor' font-size='11'>디스크+RAID</text><rect x='230' y='120' width='110' height='35' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='142' text-anchor='middle' fill='currentColor' font-size='11'>NIC x2</text><rect x='350' y='120' width='110' height='35' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='405' y='142' text-anchor='middle' fill='currentColor' font-size='11'>PSU x2</text><rect x='470' y='120' width='135' height='35' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='537' y='142' text-anchor='middle' fill='currentColor' font-size='11'>BMC(iLO/iDRAC)</text><text x='230' y='180' fill='currentColor' font-size='11'>핫스왑: 디스크·팬·PSU는 전원 끄지 않고 교체</text><text x='230' y='198' fill='currentColor' font-size='11'>자산: 시리얼·위치(랙/U)·보증만료일을 CMDB에 등록</text></svg>",
+      "keyTerms": [
+        {
+          "term": "U (Rack Unit)",
+          "meaning": "랙 높이 단위. 1U=44.45mm. 표준 랙은 42U"
+        },
+        {
+          "term": "핫스왑(Hot-swap)",
+          "meaning": "전원을 끄지 않고 디스크·팬·전원장치를 교체하는 기능"
+        },
+        {
+          "term": "ECC 메모리",
+          "meaning": "비트 오류를 자동 정정하는 서버용 메모리"
+        },
+        {
+          "term": "HBA",
+          "meaning": "서버를 SAN 스토리지에 연결하는 호스트 버스 어댑터(FC/SAS)"
+        },
+        {
+          "term": "블레이드 섀시",
+          "meaning": "얇은 서버 여러 장을 꽂아 전원·네트워크를 공유하는 인클로저"
+        },
+        {
+          "term": "베어메탈(Bare Metal)",
+          "meaning": "가상화 없이 OS가 물리 서버에 직접 설치된 상태"
+        },
+        {
+          "term": "ToR 스위치",
+          "meaning": "랙 상단에 두어 랙 내 서버를 모으는 Top-of-Rack 스위치"
+        },
+        {
+          "term": "유지보수 계약(SLA)",
+          "meaning": "부품 고장 시 출동·교체 시간을 약정한 벤더 지원 계약"
+        }
+      ],
+      "pitfalls": [
+        "가상화 도입 후 물리 서버와 가상 서버 자산을 이중으로 관리하지 않아 호스트가 자산목록에서 누락되는 경우.",
+        "유지보수 계약(EOS/EOSL) 만료 장비를 운영에 계속 사용해 고장 시 부품 조달이 불가능해지는 상황.",
+        "RAID 1이 있으니 백업이 필요 없다고 오해. RAID는 디스크 고장 대비이지 삭제·랜섬웨어 대비가 아니다.",
+        "BMC 관리 포트를 업무망이나 인터넷에 노출. 서버 전원·콘솔을 장악당할 수 있는 최고 위험 지점이다.",
+        "펌웨어(BIOS·RAID·NIC) 버전을 관리하지 않아 알려진 취약점이 장기간 남아 있는 상태."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 물리 서버가 자산목록(CMDB)에 시리얼·위치·용도·담당자와 함께 등록되고 주기적으로 실사·대사되는가",
+          "[운영] 하드웨어 유지보수 계약 및 EOS/EOSL 현황이 관리되고 만료 전 교체 계획이 수립되는가",
+          "[운영] 하드웨어 장애 감지·경보 및 부품 교체가 변경관리 절차에 따라 기록되는가",
+          "[접근] BMC 등 하드웨어 관리 인터페이스 접근이 관리망으로 제한되고 계정이 통제되는가"
+        ],
+        "fss": [
+          "정보처리시스템 구성 현황(하드웨어 목록·구성도)이 최신으로 유지되는가",
+          "주요 전산장비의 이중화 및 유지보수 체계가 마련되어 장애 시 복구 시간이 목표(RTO) 내에 가능한가",
+          "노후·지원종료 장비 사용 시 위험평가와 대응계획이 수립되어 있는가"
+        ],
+        "isms": [
+          "2.1.3 정보자산 관리: 자산 식별·분류·책임자 지정 및 정기 점검",
+          "2.9.2 성능 및 장애관리: 하드웨어 성능·장애 모니터링과 조치",
+          "2.4.3 정보시스템 보호: 장비 배치·보호 및 케이블 관리"
+        ],
+        "evidence": [
+          "CMDB 서버 자산 목록 export(시리얼, 위치, 용도, 보증만료일)",
+          "최근 자산 실사 결과와 차이 조치 내역",
+          "하드웨어 유지보수 계약서 및 만료 예정 장비 목록",
+          "BMC 계정 목록과 관리망 접근 제한 설정(방화벽 정책) 캡처",
+          "최근 1년 하드웨어 장애·부품교체 티켓 샘플"
+        ],
+        "auditorQuestions": [
+          "운영 중인 물리 서버는 몇 대이며 목록은 어디서 관리되는가?",
+          "자산 실사는 언제 누가 수행했고 차이는 어떻게 처리했는가?",
+          "유지보수 계약이 만료된 장비가 운영 중인 것이 있는가?",
+          "서버 부품 교체 작업은 어떤 승인 절차를 거치는가?",
+          "BMC(iLO/iDRAC) 계정은 몇 개이며 비밀번호는 어떻게 관리되는가?"
+        ],
+        "controlExample": "모든 물리 서버는 도입 시 CMDB에 시리얼·설치위치·용도·유지보수 만료일과 함께 등록되며, 연 1회 실사로 실물과 대사한다. 하드웨어 장애 및 부품 교체는 변경관리 시스템에 티켓으로 기록되고 담당 팀장이 검토한다."
+      },
+      "related": [
+        "onprem-datacenter",
+        "onprem-bmc",
+        "onprem-raid-lun",
+        "onprem-hypervisor-types",
+        "onprem-cmdb-license",
+        "onprem-patch-eol"
+      ],
+      "learnMore": [
+        "HPE ProLiant Server Documentation",
+        "Dell PowerEdge Technical Guide",
+        "EIA-310 19-inch rack standard"
+      ]
+    },
+    {
+      "id": "onprem-bmc",
+      "title": "BMC(iLO·iDRAC)",
+      "titleEn": "Baseboard Management Controller (iLO, iDRAC, IPMI)",
+      "aliases": [
+        "iLO",
+        "iDRAC",
+        "IPMI",
+        "원격관리",
+        "OOB",
+        "서버 원격콘솔",
+        "Redfish"
+      ],
+      "tags": [
+        "hardware",
+        "remote-management",
+        "access-control"
+      ],
+      "level": "중급",
+      "oneLiner": "서버 전원이 꺼져 있어도 원격으로 켜고 화면을 볼 수 있는 독립 관리 칩",
+      "analogy": "BMC는 자동차의 스마트키 원격시동과 같다. 차 안에 타지 않아도(=OS가 꺼져 있어도) 밖에서 시동을 걸고, 문을 열고, 계기판 상태를 확인할 수 있다. 서버 메인보드에 붙은 아주 작은 별도 컴퓨터가 서버 본체와 무관하게 늘 깨어 있기 때문이다. 편리한 만큼, 이 스마트키를 잃어버리면 차를 통째로 빼앗기는 것과 같다.",
+      "explanation": "<p><strong>BMC(Baseboard Management Controller)</strong>는 서버 메인보드에 내장된 독립 마이크로컨트롤러다. 서버의 OS와 전혀 별개로, 서버가 꺼져 있어도 대기 전원만 있으면 동작한다. 제조사별 상표명이 달라서 HPE는 <strong>iLO(Integrated Lights-Out)</strong>, Dell은 <strong>iDRAC</strong>, Lenovo는 XClarity Controller, Supermicro는 IPMI/BMC라고 부른다. 표준 프로토콜로는 구형인 <strong>IPMI</strong>와 현대적인 REST API 기반 <strong>Redfish</strong>가 있다.</p><p><strong>무엇을 할 수 있나.</strong> 원격 전원 On/Off/리셋, 화면과 키보드를 원격으로 잡는 <strong>가상 콘솔(KVM over IP)</strong>, ISO 이미지를 원격으로 붙여 OS를 설치하는 <strong>가상 미디어</strong>, 하드웨어 센서(온도·팬·전원) 조회, 부품 고장 로그(SEL), 펌웨어 업데이트, BIOS 설정 변경까지 가능하다. 쉽게 말하면 <strong>데이터센터에 가지 않고도 서버 앞에 앉아 있는 것과 같은 권한</strong>을 준다.</p><p><strong>왜 필요한가.</strong> OS가 부팅 실패로 멈추거나 커널 패닉이 나면 SSH로 들어갈 수 없다. 이때 BMC 가상 콘솔이 유일한 접근 수단이다. 새벽 2시에 IDC로 차를 몰고 갈 필요가 없어진다. 그래서 모든 데이터센터 서버는 BMC IP를 별도로 부여받는다.</p><p><strong>관리망(Out-of-Band, OOB) 분리</strong>가 핵심 원칙이다. BMC 포트는 업무 트래픽이 흐르는 서비스망이 아니라, 별도의 관리 전용 VLAN·물리망에 연결하고, 그 망에는 점프서버(Bastion)나 PAM 솔루션을 통해서만 도달하게 한다. 인터넷에 BMC가 노출되면 서버 전체가 탈취된다. 실제로 IPMI의 오래된 인증 취약점, 기본 계정(HPE의 Administrator, Dell의 root/calvin), 서명되지 않은 펌웨어는 반복적으로 문제가 되어 왔다.</p><p><strong>감사 관점에서 BMC는 '가장 강력하지만 가장 자주 빠지는 계정 집합'</strong>이다. ITGC 접근통제 리뷰에서 OS 계정·DB 계정은 보지만 BMC 계정은 빼먹는 회사가 많다. BMC 계정 하나면 서버를 끄고, 부팅 매체를 바꿔 디스크를 통째로 읽을 수 있으므로 특권 계정(Privileged Account)으로 분류해 PAM에 등록하고, 공용 계정은 금지하거나 비밀번호를 금고에 보관해 대출·반납 방식으로 운영해야 한다.</p><p><strong>현재(2026년) 실무</strong>에서는 Redfish API로 BMC를 자동화(전원 제어, 펌웨어 업데이트, 인벤토리 수집)하고, BMC 로그를 SIEM으로 전송해 원격 전원 조작·가상 미디어 마운트 같은 고위험 이벤트를 탐지하는 것이 표준으로 자리 잡았다.</p>",
+      "howItWorks": "<ol><li>서버를 랙에 장착하면 BMC 전용 NIC 포트를 관리망 스위치에 연결한다.</li><li>초기 설정에서 BMC에 관리 IP를 부여하고 기본 계정 비밀번호를 즉시 변경, 필요 시 기본 계정 비활성화.</li><li>BMC 계정을 AD/LDAP과 연동하거나 PAM 솔루션에 등록해 개인 식별이 가능하게 한다.</li><li>운영자는 VPN·점프서버를 거쳐 관리망에 진입한 뒤 BMC 웹 UI 또는 Redfish API에 HTTPS로 접속한다.</li><li>MFA·계정 인증 후 전원 제어, 가상 콘솔 열기, 가상 미디어 마운트 등의 작업을 수행한다.</li><li>모든 로그인·전원 조작·미디어 마운트는 BMC 이벤트 로그에 남고 syslog로 SIEM에 전달된다.</li><li>정기적으로 BMC 펌웨어를 패치하고 계정 목록을 리뷰한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 물리 서버 46대의 BMC를 10.250.10.0/24 관리 VLAN에 두고, 인프라팀은 PAM(특권접근관리) 솔루션을 통해서만 접속한다. 2026년 4월 정산 서버가 커널 패닉으로 부팅되지 않자 담당자가 PAM에서 iLO 접속을 신청·승인받고 가상 콘솔로 복구 모드에 진입해 조치했다. 이 세션은 영상으로 녹화되어 변경 티켓 CHG-2026-0412에 첨부됐다. 같은 분기 점검에서 구형 서버 4대의 iDRAC 기본 계정(root/calvin)이 살아 있어 즉시 비활성화했다.</p><pre><code># Redfish API로 전원 상태 조회 (Dell iDRAC 예시)\ncurl -k -u svc_bmc:'***' \\\n  https://10.250.10.31/redfish/v1/Systems/System.Embedded.1 \\\n  | jq '{PowerState, Model, SerialNumber, BiosVersion}'\n\n# 원격 재부팅 (고위험 작업: 변경 티켓 필수)\ncurl -k -u svc_bmc:'***' -X POST \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"ResetType\":\"ForceRestart\"}' \\\n  https://10.250.10.31/redfish/v1/Systems/System.Embedded.1/Actions/ComputerSystem.Reset\n\n# 계정 목록 점검 (감사 증빙용)\ncurl -k -u svc_bmc:'***' https://10.250.10.31/redfish/v1/AccountService/Accounts | jq '.Members'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>In-Band(서비스망) vs Out-of-Band(관리망)</text><rect x='15' y='45' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='72' text-anchor='middle' fill='currentColor' font-size='12'>운영자 PC</text><line x1='115' y1='67' x2='165' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='165' y='45' width='110' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='220' y='66' text-anchor='middle' fill='currentColor' font-size='12'>PAM/점프서버</text><text x='220' y='83' text-anchor='middle' fill='currentColor' font-size='11'>MFA+녹화</text><line x1='275' y1='58' x2='330' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='275' y1='78' x2='330' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='25' width='140' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='400' y='50' text-anchor='middle' fill='currentColor' font-size='11'>서비스망 SSH(22)</text><rect x='330' y='120' width='140' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='400' y='145' text-anchor='middle' fill='currentColor' font-size='11'>관리망 BMC(443)</text><rect x='500' y='25' width='125' height='170' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='562' y='48' text-anchor='middle' fill='currentColor'>물리 서버</text><rect x='512' y='60' width='100' height='45' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='562' y='80' text-anchor='middle' fill='currentColor' font-size='11'>OS / 앱</text><text x='562' y='97' text-anchor='middle' fill='currentColor' font-size='11'>(꺼지면 접근불가)</text><rect x='512' y='120' width='100' height='60' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='562' y='142' text-anchor='middle' fill='currentColor' font-size='11'>BMC 칩</text><text x='562' y='159' text-anchor='middle' fill='currentColor' font-size='11'>전원/콘솔/</text><text x='562' y='174' text-anchor='middle' fill='currentColor' font-size='11'>가상미디어</text><line x1='470' y1='45' x2='498' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='470' y1='140' x2='498' y2='145' stroke='currentColor' marker-end='url(#ar)'/><text x='15' y='215' fill='currentColor' font-size='11'>BMC는 서버 전원이 꺼져도 살아 있음 → 특권계정으로 분류·PAM 통제·로그 SIEM 전송</text></svg>",
+      "keyTerms": [
+        {
+          "term": "iLO / iDRAC",
+          "meaning": "HPE와 Dell의 BMC 상표명. 기능은 대체로 동일"
+        },
+        {
+          "term": "IPMI",
+          "meaning": "구형 BMC 표준 프로토콜. 알려진 인증 취약점으로 비활성화 권고"
+        },
+        {
+          "term": "Redfish",
+          "meaning": "HTTPS/JSON 기반 최신 서버관리 표준 API. 자동화에 사용"
+        },
+        {
+          "term": "Out-of-Band(OOB)",
+          "meaning": "업무 트래픽과 분리된 별도 관리 경로/관리망"
+        },
+        {
+          "term": "가상 콘솔(KVM over IP)",
+          "meaning": "원격에서 서버 화면·키보드·마우스를 잡는 기능"
+        },
+        {
+          "term": "가상 미디어",
+          "meaning": "원격 ISO를 서버에 CD처럼 붙여 부팅·설치하는 기능"
+        },
+        {
+          "term": "SEL",
+          "meaning": "System Event Log. 하드웨어 이벤트·고장 기록"
+        }
+      ],
+      "pitfalls": [
+        "BMC 관리망을 만들지 않고 업무망 또는 인터넷에 직접 노출. 서버 전체 탈취로 이어지는 최악의 구성이다.",
+        "제조사 기본 계정(root/calvin, Administrator 등)을 그대로 두거나, 팀이 공유하는 공용 계정 하나만 쓰는 경우.",
+        "ITGC 계정 리뷰 범위에서 BMC를 누락. OS 계정만 보면 특권 경로가 통째로 빠진다.",
+        "BMC 펌웨어를 서버 OS 패치와 별개로 관리하지 않아 수년간 미패치 상태로 방치.",
+        "가상 미디어 마운트·원격 전원 조작 로그를 수집하지 않아 사후 추적이 불가능한 상태."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] BMC 계정이 특권계정으로 식별·등록되고 개인별로 부여되며 공용계정 사용이 금지·통제되는가",
+          "[접근] BMC 접근이 관리망·점프서버(PAM)를 통해서만 가능하도록 네트워크로 제한되는가",
+          "[접근] BMC 계정 목록이 주기적으로 검토되고 퇴직·이동 시 회수되는가",
+          "[운영] BMC 로그인·전원조작·가상미디어 마운트 로그가 수집·보관되고 이상행위가 검토되는가",
+          "[변경] BMC·BIOS 펌웨어 업데이트가 변경관리 절차에 따라 승인·기록되는가"
+        ],
+        "fss": [
+          "정보처리시스템에 대한 원격접속은 승인된 단말·경로로 제한하고 접속기록을 보존해야 한다는 요건 충족 여부",
+          "전산장비 관리용 네트워크를 업무망과 분리해 운영하는가(내부망 접근통제)",
+          "특권 접근에 대한 이중 인증 및 접속기록 점검 절차가 있는가"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.5 특수 계정 및 권한 관리: BMC 계정의 식별과 최소권한",
+          "2.6.1 네트워크 접근 / 2.6.6 원격접근 통제: 관리망 분리와 원격접근 제한",
+          "2.9.4 로그 및 접속기록 관리: BMC 접속·조작 기록의 수집과 보관"
+        ],
+        "evidence": [
+          "BMC 계정 목록 export(Redfish AccountService 또는 UI 캡처)와 담당자 매핑표",
+          "관리망 접근을 제한하는 방화벽/ACL 정책 설정",
+          "PAM 솔루션의 BMC 접속 신청·승인·세션 녹화 기록 샘플",
+          "BMC 펌웨어 버전 현황과 최근 패치 변경 티켓",
+          "BMC 이벤트 로그가 SIEM에 적재된 화면과 보존 기간 설정"
+        ],
+        "auditorQuestions": [
+          "BMC에 접속할 수 있는 사람은 누구이며 계정은 개인별로 분리되어 있는가?",
+          "제조사 기본 계정은 비활성화했는가? 확인 방법은?",
+          "BMC는 어떤 네트워크에 있고 인터넷에서 접근 가능한가?",
+          "원격으로 서버 전원을 끈 최근 사례와 그 승인 근거는?",
+          "BMC 펌웨어 취약점은 어떻게 파악하고 패치 주기는 어떻게 되는가?"
+        ],
+        "controlExample": "서버 BMC(iLO/iDRAC)는 업무망과 분리된 관리 VLAN에만 연결되며, 접근은 PAM을 통한 개인 식별 계정과 MFA로만 허용되고 세션이 녹화된다. BMC 계정 목록은 반기 1회 검토·재승인하고, 로그인 및 전원·가상미디어 조작 로그는 SIEM으로 전송해 1년간 보관한다."
+      },
+      "related": [
+        "onprem-server-hardware",
+        "onprem-server-access-control",
+        "onprem-network-appliance",
+        "onprem-vlan",
+        "sec-pam",
+        "onprem-patch-eol"
+      ],
+      "learnMore": [
+        "DMTF Redfish Specification",
+        "HPE iLO 6 User Guide",
+        "Dell iDRAC9 User's Guide",
+        "NIST SP 800-193 Platform Firmware Resiliency"
+      ]
+    },
+    {
+      "id": "onprem-hypervisor-types",
+      "title": "하이퍼바이저 유형",
+      "titleEn": "Hypervisor Types (Type 1 / Type 2)",
+      "aliases": [
+        "가상화",
+        "Type 1",
+        "베어메탈 하이퍼바이저",
+        "호스트형",
+        "VMM",
+        "서버 가상화"
+      ],
+      "tags": [
+        "virtualization",
+        "concept"
+      ],
+      "level": "기초",
+      "oneLiner": "물리 서버 한 대를 여러 가상 서버로 쪼개 주는 소프트웨어 계층",
+      "analogy": "하이퍼바이저는 한 채의 건물을 여러 세대로 나누는 건축 설계와 같다. Type 1은 땅 위에 곧바로 지은 아파트여서 각 세대가 벽을 공유하며 효율이 높다. Type 2는 이미 단독주택(윈도우·맥 같은 일반 OS)이 있는데 그 안에 방을 나눠 세를 놓는 것과 비슷해, 집주인(호스트 OS)이 중간에 끼어 있어 느리지만 설치가 간편하다.",
+      "explanation": "<p><strong>가상화(Virtualization)</strong>는 물리 서버 한 대의 CPU·메모리·디스크·네트워크를 잘게 나눠 여러 개의 독립된 가상 서버(VM, Virtual Machine)로 보이게 하는 기술이다. 그 나누는 일을 하는 소프트웨어가 <strong>하이퍼바이저(Hypervisor)</strong> 또는 VMM(Virtual Machine Monitor)이다. 각 VM은 자기만의 OS, IP, 디스크를 가지며 서로를 모른다.</p><p><strong>Type 1(베어메탈, Bare-metal)</strong>은 하이퍼바이저가 물리 서버 위에 직접 설치되어 그 자체가 OS 역할을 한다. VMware <strong>ESXi</strong>, Microsoft <strong>Hyper-V</strong>, 리눅스 커널에 내장된 <strong>KVM</strong>, Xen, Nutanix AHV가 여기에 속한다. 중간 계층이 없어 성능 손실이 적고 안정적이라 <strong>운영 데이터센터는 거의 전부 Type 1</strong>이다.</p><p><strong>Type 2(호스트형, Hosted)</strong>는 이미 설치된 일반 OS 위에 애플리케이션처럼 올라간다. VMware Workstation/Fusion, Oracle VirtualBox, Parallels가 대표적이며 개발자 PC나 테스트 용도로 쓰인다.</p><p><strong>왜 가상화를 하는가.</strong> 물리 서버는 보통 CPU를 10~20%만 쓰는데, 서비스마다 서버를 따로 사면 낭비가 크다. 가상화를 하면 서버 1대에 VM 20~40대를 올려 <strong>집적률(Consolidation Ratio)</strong>을 높인다. 또 VM은 결국 파일 덩어리이므로 복제·이동·스냅샷·백업이 쉬워지고, 호스트가 죽어도 다른 호스트에서 다시 켤 수 있어(HA) 가용성이 올라간다. 쉽게 말하면 서버가 '하드웨어'에서 '파일'이 되면서 다루기 쉬워진 것이다.</p><p><strong>핵심 개념 몇 가지.</strong> <strong>오버커밋(Overcommit)</strong>은 실제 물리 자원보다 많은 가상 자원을 할당하는 것으로, 모든 VM이 동시에 최대치를 쓰지 않는다는 가정에 기댄다. 과도하면 성능 저하가 온다. <strong>스냅샷</strong>은 특정 시점 상태를 저장해 되돌릴 수 있게 하지만 백업이 아니며, 오래 두면 디스크와 성능을 갉아먹는다. <strong>템플릿</strong>은 표준 설정이 적용된 VM 원본으로, 신규 서버를 몇 분 만에 찍어낸다.</p><p><strong>감사 관점</strong>에서 가상화는 두 가지를 바꾼다. 첫째, <strong>새로운 특권 계층</strong>이 생긴다. 하이퍼바이저 관리자는 그 위 모든 VM의 디스크를 복제하고 콘솔에 들어갈 수 있으므로 OS 관리자보다 더 강한 권한이다. 둘째, <strong>서버 생성이 너무 쉬워져</strong> 승인 없는 VM(섀도 IT, VM 스프롤)이 늘어난다. 그래서 VM 생성·삭제·스냅샷도 변경관리 대상으로 넣고, 자산목록과 하이퍼바이저의 실제 VM 목록을 정기적으로 대사해야 한다.</p>",
+      "howItWorks": "<ol><li>물리 서버에 Type 1 하이퍼바이저(ESXi 등)를 설치하면 하이퍼바이저가 CPU·메모리·디스크·NIC를 직접 장악한다.</li><li>관리자가 관리 콘솔에서 VM을 정의한다(vCPU 4, 메모리 16GB, 디스크 200GB, 네트워크 VLAN 20 등).</li><li>하이퍼바이저는 디스크 파일(VMDK/VHDX/qcow2)을 만들고 가상 하드웨어를 VM에 제시한다.</li><li>VM 안에서 게스트 OS가 부팅되며, 자신이 진짜 서버 위에 있다고 인식한다.</li><li>VM의 CPU 명령은 Intel VT-x/AMD-V 하드웨어 가상화 지원을 통해 대부분 물리 CPU에서 직접 실행되고, 특권 명령만 하이퍼바이저가 가로채 처리한다.</li><li>디스크·네트워크 I/O는 가상 장치 드라이버를 통해 하이퍼바이저가 중계해 실제 장치로 전달한다.</li><li>호스트 장애 시 클러스터 기능이 다른 호스트에서 VM을 자동 재기동(HA)하거나, 사전에 무중단 이동(라이브 마이그레이션)한다.</li></ol>",
+      "example": "<p>제조사 '하나머티리얼'은 물리 서버 12대에 ESXi를 설치해 VM 310대를 운영한다. 평균 집적률은 호스트당 26 VM이며, CPU 오버커밋 비율은 3:1로 유지한다. 2026년 초 감사에서 하이퍼바이저에는 있으나 CMDB에는 없는 VM이 27대 발견됐다. 대부분 테스트용으로 만들고 삭제하지 않은 것이었고, 이후 VM 생성 시 변경 티켓 번호를 VM 이름 규칙(<code>prd-order-api-01</code>, <code>tst-CHG20260117-01</code>)에 넣고 월 1회 자동 대사 리포트를 돌리도록 개선했다.</p><pre><code># KVM 호스트에서 VM 목록과 자원 확인 (리눅스)\nsudo virsh list --all\nsudo virsh dominfo prd-order-api-01\n\n# ESXi 호스트에서 VM 목록 (SSH)\nvim-cmd vmsvc/getallvms\n\n# CPU 가상화 지원 여부 확인\nlscpu | grep -E 'Virtualization|vmx|svm'\n\n# 자산 대사 개념\n하이퍼바이저 VM 목록(export)  vs  CMDB 서버 목록\n → 차집합 = 미등록 VM(승인 없이 생성) 또는 유령 자산(삭제 누락)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><text x='20' y='20' fill='currentColor' font-size='12'>Type 1 (운영 데이터센터)</text><rect x='20' y='30' width='280' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='50' text-anchor='middle' fill='currentColor' font-size='11'>VM1 OS</text><text x='160' y='50' text-anchor='middle' fill='currentColor' font-size='11'>VM2 OS</text><text x='245' y='50' text-anchor='middle' fill='currentColor' font-size='11'>VM3 OS</text><line x1='118' y1='30' x2='118' y2='60' stroke='currentColor'/><line x1='203' y1='30' x2='203' y2='60' stroke='currentColor'/><rect x='20' y='65' width='280' height='35' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='160' y='88' text-anchor='middle' fill='currentColor'>하이퍼바이저 (ESXi/KVM)</text><rect x='20' y='105' width='280' height='35' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='128' text-anchor='middle' fill='currentColor'>물리 서버 하드웨어</text><text x='340' y='20' fill='currentColor' font-size='12'>Type 2 (개발 PC)</text><rect x='340' y='30' width='280' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='410' y='50' text-anchor='middle' fill='currentColor' font-size='11'>VM1 OS</text><text x='550' y='50' text-anchor='middle' fill='currentColor' font-size='11'>VM2 OS</text><line x1='480' y1='30' x2='480' y2='60' stroke='currentColor'/><rect x='340' y='65' width='280' height='30' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='480' y='86' text-anchor='middle' fill='currentColor' font-size='11'>하이퍼바이저 앱(VirtualBox)</text><rect x='340' y='100' width='280' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='480' y='120' text-anchor='middle' fill='currentColor' font-size='11'>호스트 OS (Windows/macOS)</text><rect x='340' y='135' width='280' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='480' y='155' text-anchor='middle' fill='currentColor' font-size='11'>PC 하드웨어</text><rect x='20' y='170' width='600' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='193' text-anchor='middle' fill='currentColor'>감사 포인트</text><text x='320' y='215' text-anchor='middle' fill='currentColor' font-size='11'>하이퍼바이저 관리자 = VM 전체를 장악하는 최상위 특권 · VM 생성/삭제도 변경관리 대상</text></svg>",
+      "keyTerms": [
+        {
+          "term": "하이퍼바이저",
+          "meaning": "물리 자원을 나눠 VM에 제공하고 격리를 보장하는 소프트웨어 계층"
+        },
+        {
+          "term": "Type 1 / Type 2",
+          "meaning": "하드웨어 위에 직접 설치되는 방식 / 호스트 OS 위에 앱으로 설치되는 방식"
+        },
+        {
+          "term": "게스트 OS",
+          "meaning": "VM 안에서 도는 운영체제"
+        },
+        {
+          "term": "오버커밋",
+          "meaning": "물리 자원보다 많은 가상 자원을 할당하는 것"
+        },
+        {
+          "term": "집적률",
+          "meaning": "물리 서버 1대당 올린 VM 수"
+        },
+        {
+          "term": "스냅샷",
+          "meaning": "특정 시점 VM 상태 저장. 백업이 아니며 장기 보관 금지"
+        },
+        {
+          "term": "템플릿/골든이미지",
+          "meaning": "표준 설정이 적용된 VM 원본. 신규 서버 생성의 기준"
+        },
+        {
+          "term": "VM 스프롤",
+          "meaning": "관리되지 않는 VM이 무분별하게 늘어나는 현상"
+        }
+      ],
+      "pitfalls": [
+        "스냅샷을 백업으로 오해. 스냅샷은 원본 디스크에 의존하므로 스토리지가 깨지면 함께 사라진다.",
+        "과도한 오버커밋으로 특정 시간대(배치·마감)에 전체 VM 성능이 동시에 저하되는 현상.",
+        "VM 생성이 쉬워 승인 없이 서버가 늘어나고 자산·패치·백업 대상에서 누락되는 문제.",
+        "하이퍼바이저 관리자 권한을 서버 운영자 다수에게 부여. OS 관리자보다 상위 권한임을 간과한 것.",
+        "게스트 OS 라이선스(Windows Server 등)를 물리 코어 기준으로 계산하지 않아 라이선스 미달 상태가 되는 경우."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 하이퍼바이저 관리 콘솔의 관리자 권한이 최소 인원으로 제한되고 개인 계정으로 식별되는가",
+          "[변경] VM 생성·삭제·자원 변경이 변경관리 절차(요청·승인·기록)를 따르는가",
+          "[운영] 하이퍼바이저의 실제 VM 목록과 자산목록(CMDB)이 정기적으로 대사되는가",
+          "[운영] 스냅샷 보유 기간·개수 정책이 있고 장기 방치 스냅샷이 관리되는가"
+        ],
+        "fss": [
+          "정보처리시스템 가상화 구성 시 업무 중요도에 따른 자원 분리와 성능 관리 방안이 마련되어 있는가",
+          "가상화 환경의 구성도 및 시스템 목록이 최신으로 관리되는가",
+          "가상 서버 신설·폐기 절차가 정보처리시스템 변경 절차에 포함되어 있는가"
+        ],
+        "isms": [
+          "2.1.3 정보자산 관리: 가상 서버를 포함한 자산 식별·분류",
+          "2.9.1 변경관리: 가상 자원의 생성·변경·삭제 통제",
+          "2.10.x 시스템 및 서비스 보안관리: 가상화 플랫폼 보안 설정 기준"
+        ],
+        "evidence": [
+          "하이퍼바이저 관리 콘솔 계정·역할 목록 export",
+          "전체 VM 목록 export(이름, 호스트, 용도, 생성일)와 CMDB 대사 결과",
+          "최근 분기 VM 생성·삭제 변경 티켓 샘플",
+          "스냅샷 현황 리포트(보유 기간 포함)",
+          "가상화 플랫폼 보안 설정 기준 문서와 점검 결과"
+        ],
+        "auditorQuestions": [
+          "운영 중 VM은 총 몇 대이며 목록은 어떻게 뽑는가?",
+          "새 VM을 만들 때 어떤 승인을 받는가? 실제 티켓을 보여줄 수 있는가?",
+          "하이퍼바이저 관리자 권한을 가진 사람은 몇 명인가?",
+          "스냅샷이 30일 이상 남아 있는 VM이 있는가?",
+          "CMDB에 없는 VM을 찾아낸 적이 있는가? 어떻게 조치했는가?"
+        ],
+        "controlExample": "가상 서버의 생성·변경·삭제는 변경관리 시스템의 승인된 요청에 근거해서만 수행되며, 월 1회 하이퍼바이저 VM 목록과 CMDB를 대사해 미등록 자산을 식별·조치한다. 하이퍼바이저 관리자 권한은 인프라팀 4인으로 제한하고 반기 1회 재검토한다."
+      },
+      "related": [
+        "onprem-vmware-vsphere",
+        "onprem-hyperv-kvm",
+        "onprem-server-hardware",
+        "onprem-storage-types",
+        "onprem-cmdb-license",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "VMware vSphere Documentation - Introduction to Virtualization",
+        "Red Hat Virtualization Deployment Guide",
+        "NIST SP 800-125 Guide to Security for Full Virtualization Technologies"
+      ]
+    },
+    {
+      "id": "onprem-vmware-vsphere",
+      "title": "VMware vSphere",
+      "titleEn": "VMware vSphere (ESXi, vCenter Server)",
+      "aliases": [
+        "ESXi",
+        "vCenter",
+        "vMotion",
+        "VMware",
+        "vSphere",
+        "DRS",
+        "HA"
+      ],
+      "tags": [
+        "virtualization",
+        "vmware",
+        "platform"
+      ],
+      "level": "중급",
+      "oneLiner": "국내 온프레미스에서 가장 널리 쓰이는 서버 가상화 플랫폼",
+      "analogy": "ESXi는 호텔 한 채이고 vCenter는 여러 호텔을 총괄하는 본사 관제실과 같다. 손님(VM)이 묵을 방을 어느 호텔에 배정할지, 호텔 한 채를 보수할 때 손님을 다른 호텔로 어떻게 옮길지, 호텔이 통째로 정전되면 손님을 어디서 다시 받을지를 본사가 결정한다. 관제실 열쇠를 가진 사람은 모든 호텔 모든 객실에 들어갈 수 있다.",
+      "explanation": "<p><strong>VMware vSphere</strong>는 <strong>ESXi</strong>(각 물리 서버에 설치되는 Type 1 하이퍼바이저)와 <strong>vCenter Server</strong>(여러 ESXi를 한 화면에서 관리하는 중앙 관리 서버)로 이루어진 가상화 플랫폼이다. 국내 금융·제조·공공의 온프레미스 데이터센터에서 사실상 표준으로 쓰여 왔다. 최근 브로드컴 인수 이후 라이선스가 구독형 번들(VMware Cloud Foundation, VVF 등)로 재편되면서 비용 상승을 이유로 Nutanix·Proxmox·퍼블릭 클라우드로 이전을 검토하는 기업이 늘었다 — 감사 시 <strong>라이선스 준수와 이전 계획</strong>이 함께 다뤄지는 이유다.</p><p><strong>구성 요소</strong>는 이렇다. ESXi 호스트 여러 대를 묶으면 <strong>클러스터(Cluster)</strong>가 되고, 클러스터의 CPU·메모리는 하나의 자원 풀처럼 쓰인다. 저장 공간은 <strong>데이터스토어(Datastore)</strong>로 추상화되어 SAN LUN이나 NFS 볼륨이 여기에 매핑된다. 네트워크는 <strong>가상 스위치(vSwitch)</strong> 또는 여러 호스트에 걸친 <strong>분산 스위치(vDS)</strong>로 구성하고 포트그룹에 VLAN을 지정한다.</p><p><strong>핵심 기능</strong>은 네 가지를 기억하면 된다. <strong>vMotion</strong>은 켜져 있는 VM을 다른 호스트로 무중단 이동시킨다(호스트 점검 시 서비스 중단 없음). <strong>Storage vMotion</strong>은 디스크를 다른 스토리지로 무중단 이동한다. <strong>HA(High Availability)</strong>는 호스트가 죽으면 그 위 VM들을 다른 호스트에서 자동 재기동한다(몇 분의 중단은 발생). <strong>DRS</strong>는 호스트 간 부하를 보고 VM을 자동 재배치한다. 여기에 <strong>vSAN</strong>(서버 내장 디스크를 묶어 공유 스토리지처럼 쓰는 SDS), <strong>NSX</strong>(네트워크 가상화·마이크로세그멘테이션)가 옵션으로 붙는다.</p><p><strong>권한 모델</strong>은 vCenter의 <strong>역할(Role) + 권한(Permission) + 객체 계층(데이터센터·클러스터·폴더·VM)</strong> 조합이다. 기본 제공 역할로 Administrator, Read-only 등이 있고, 실무에서는 '특정 폴더의 VM만 전원 On/Off와 콘솔 접근 허용' 같은 커스텀 역할을 만들어 개발팀에 준다. 인증은 vCenter Single Sign-On(SSO)을 통해 AD와 연동하는 것이 일반적이며, <code>administrator@vsphere.local</code> 같은 내장 최고권한 계정은 비상용으로만 두고 금고 보관해야 한다.</p><p><strong>감사에서 vCenter는 최상위 특권 시스템</strong>이다. vCenter Administrator는 모든 VM의 콘솔에 로그인 없이 들어가고, 디스크를 복제해 데이터를 통째로 가져갈 수 있다. 따라서 (1) 관리자 권한 최소화와 AD 연동 개인 계정, (2) MFA와 PAM 경유 접속, (3) vCenter 이벤트/태스크 로그(누가 언제 어떤 VM을 만들고 지웠는지)의 SIEM 전송·보관, (4) ESXi 호스트의 SSH·Shell 비활성화와 <strong>잠금 모드(Lockdown Mode)</strong> 적용이 핵심 통제다.</p>",
+      "howItWorks": "<ol><li>물리 서버에 ESXi를 설치하고 관리 IP·NTP·syslog 대상을 설정한다.</li><li>vCenter에 호스트를 등록하고 여러 호스트를 클러스터로 묶는다(HA·DRS 활성화).</li><li>SAN LUN 또는 NFS를 데이터스토어로 마운트해 모든 호스트가 같은 저장소를 보게 한다(공유 스토리지가 있어야 vMotion·HA가 가능).</li><li>분산 스위치와 포트그룹을 만들고 업무망 VLAN을 매핑한다.</li><li>표준 템플릿에서 VM을 배포하고 vCPU·메모리·디스크·네트워크를 할당한다.</li><li>DRS가 호스트 부하를 감시하며 필요 시 vMotion으로 VM을 자동 재배치한다.</li><li>호스트 점검 시 유지보수 모드로 전환하면 VM이 자동으로 다른 호스트로 이동한다.</li><li>호스트 장애 시 HA가 감지해 다른 호스트에서 VM을 재기동하고, 이벤트가 로그와 알림으로 남는다.</li><li>모든 작업(태스크·이벤트)은 vCenter DB에 기록되고 syslog로 SIEM에 전달된다.</li></ol>",
+      "example": "<p>보험사 '세이프라이프'는 ESXi 호스트 16대를 vCenter 1대로 관리하며 운영 클러스터(10대)와 개발 클러스터(6대)를 분리 운영한다. 운영 클러스터에는 계약관리·청구 시스템 VM 240대가 있고 vSAN 대신 FC SAN 데이터스토어를 쓴다. 2026년 2월 호스트 펌웨어 점검 때 유지보수 모드 전환으로 VM 24대가 vMotion 되어 무중단 처리됐다. 같은 해 ITGC 점검에서 개발팀 5명에게 운영 클러스터 전체 Administrator 역할이 부여돼 있던 사실이 발견되어, 개발 폴더 한정 커스텀 역할로 축소하고 vCenter 접속을 PAM 경유로 일원화했다.</p><pre><code># PowerCLI로 권한·VM 현황 추출 (감사 증빙)\nConnect-VIServer vcenter.safelife.local\n\n# 1) vCenter 전체 권한 목록 (누가 어떤 객체에 무슨 역할인지)\nGet-VIPermission | Select Principal, Role, Entity, Propagate |\n  Export-Csv -Path vcenter_permissions_2026Q1.csv -NoTypeInformation\n\n# 2) 운영 VM 목록\nGet-VM | Select Name, PowerState, NumCpu, MemoryGB, VMHost, Folder |\n  Export-Csv -Path vm_inventory.csv -NoTypeInformation\n\n# 3) 30일 이상 된 스냅샷\nGet-VM | Get-Snapshot | Where {$_.Created -lt (Get-Date).AddDays(-30)} |\n  Select VM, Name, Created, SizeGB\n\n# 4) 최근 VM 삭제 이벤트\nGet-VIEvent -MaxSamples 5000 -Start (Get-Date).AddDays(-90) |\n  Where {$_.GetType().Name -eq 'VmRemovedEvent'} |\n  Select CreatedTime, UserName, FullFormattedMessage</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='46' text-anchor='middle' fill='currentColor' font-size='12'>관리자/개발자</text><text x='85' y='64' text-anchor='middle' fill='currentColor' font-size='11'>AD 계정+MFA</text><line x1='150' y1='50' x2='200' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='20' width='170' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='285' y='43' text-anchor='middle' fill='currentColor'>vCenter Server</text><text x='285' y='63' text-anchor='middle' fill='currentColor' font-size='11'>역할·권한·태스크 로그</text><line x1='370' y1='50' x2='420' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='420' y='25' width='200' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='46' text-anchor='middle' fill='currentColor' font-size='12'>SIEM / syslog</text><text x='520' y='64' text-anchor='middle' fill='currentColor' font-size='11'>VM 생성·삭제 추적</text><line x1='285' y1='80' x2='285' y2='110' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='110' width='600' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='130' text-anchor='middle' fill='currentColor' font-size='12'>운영 클러스터 (HA + DRS)</text><rect x='40' y='138' width='120' height='45' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='100' y='158' text-anchor='middle' fill='currentColor' font-size='11'>ESXi 1</text><text x='100' y='175' text-anchor='middle' fill='currentColor' font-size='11'>VM x26</text><rect x='180' y='138' width='120' height='45' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='158' text-anchor='middle' fill='currentColor' font-size='11'>ESXi 2</text><text x='240' y='175' text-anchor='middle' fill='currentColor' font-size='11'>VM x24</text><rect x='320' y='138' width='120' height='45' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='380' y='158' text-anchor='middle' fill='currentColor' font-size='11'>ESXi 3</text><text x='380' y='175' text-anchor='middle' fill='currentColor' font-size='11'>VM x25</text><text x='530' y='158' text-anchor='middle' fill='currentColor' font-size='11'>vMotion으로</text><text x='530' y='175' text-anchor='middle' fill='currentColor' font-size='11'>무중단 이동</text><line x1='160' y1='160' x2='178' y2='160' stroke='currentColor' marker-end='url(#ar)'/><line x1='300' y1='160' x2='318' y2='160' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='205' width='320' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='230' text-anchor='middle' fill='currentColor' font-size='12'>공유 데이터스토어 (SAN LUN / NFS / vSAN)</text><line x1='100' y1='185' x2='200' y2='203' stroke='currentColor' marker-end='url(#ar)'/><line x1='380' y1='185' x2='420' y2='203' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "ESXi",
+          "meaning": "각 물리 서버에 설치되는 VMware의 Type 1 하이퍼바이저"
+        },
+        {
+          "term": "vCenter Server",
+          "meaning": "여러 ESXi 호스트를 중앙에서 관리하는 서버. 권한·로그의 중심"
+        },
+        {
+          "term": "vMotion",
+          "meaning": "실행 중인 VM을 다른 호스트로 무중단 이동"
+        },
+        {
+          "term": "HA",
+          "meaning": "호스트 장애 시 VM을 다른 호스트에서 자동 재기동(짧은 중단 발생)"
+        },
+        {
+          "term": "DRS",
+          "meaning": "클러스터 부하를 보고 VM 배치를 자동 최적화"
+        },
+        {
+          "term": "데이터스토어",
+          "meaning": "VM 디스크가 저장되는 논리 저장 공간(SAN LUN, NFS, vSAN)"
+        },
+        {
+          "term": "잠금 모드(Lockdown Mode)",
+          "meaning": "ESXi 직접 접속을 차단하고 vCenter 경유만 허용하는 보안 설정"
+        },
+        {
+          "term": "vDS",
+          "meaning": "여러 호스트에 걸친 분산 가상 스위치. 포트그룹으로 VLAN 매핑"
+        }
+      ],
+      "pitfalls": [
+        "vCenter Administrator 역할을 편의상 다수에게 부여. 모든 VM 콘솔·디스크에 접근 가능한 최상위 권한이다.",
+        "administrator@vsphere.local 같은 내장 계정을 일상 운영에 공용으로 사용해 행위자 추적이 불가능한 상태.",
+        "ESXi SSH를 상시 활성화하고 잠금 모드를 미적용해 vCenter를 우회한 직접 조작이 가능한 구성.",
+        "vCenter 로그를 syslog로 내보내지 않아 VM 삭제 이력이 DB 보존기간 경과 후 사라지는 문제.",
+        "브로드컴 라이선스 체계 변경 후 CPU 코어 기준 구독 수량을 재산정하지 않아 라이선스 미준수 위험 발생.",
+        "vCenter 자체의 백업(파일 기반 백업)을 설정하지 않아 vCenter 장애 시 권한·구성 정보를 잃는 경우."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] vCenter 권한이 AD 연동 개인 계정으로 부여되고 Administrator 역할 보유자가 최소화·문서화되어 있는가",
+          "[접근] 내장 최고권한 계정(administrator@vsphere.local)이 비상용으로만 보관·통제되는가",
+          "[접근] vCenter 권한 목록이 반기 이상 주기로 검토·재승인되는가",
+          "[변경] VM 생성·삭제·자원 변경과 호스트 패치가 변경관리 절차를 통해 승인·기록되는가",
+          "[운영] vCenter 태스크·이벤트 로그가 외부(SIEM)로 전송되어 보존되고 고위험 이벤트가 검토되는가"
+        ],
+        "fss": [
+          "정보처리시스템의 접근권한 부여·변경·말소 기록을 보존하고 주기적으로 점검하는 요건 충족 여부",
+          "가상화 인프라 장애 시 업무연속성 확보 방안(HA, DR 이중화)이 마련되고 시험되는가",
+          "전산장비 관리자 접속에 대한 이중 인증 및 접속기록 관리 요건 이행 여부"
+        ],
+        "isms": [
+          "2.5.5 특수 계정 및 권한 관리: vCenter 관리자 권한의 최소화와 별도 통제",
+          "2.6.2 정보시스템 접근 / 2.6.6 원격접근 통제: 관리 콘솔 접근 경로 제한",
+          "2.9.4 로그 및 접속기록 관리 / 2.9.5 로그 및 접속기록 점검: vCenter 로그 보관과 점검"
+        ],
+        "evidence": [
+          "Get-VIPermission 결과(권한자·역할·대상 객체) CSV와 최근 권한 검토 결재",
+          "vCenter 로컬/내장 계정 목록과 사용 여부, 비밀번호 보관 절차 문서",
+          "ESXi 호스트의 잠금 모드·SSH 비활성화 설정 캡처",
+          "vCenter syslog 전송 설정과 SIEM 적재 화면, 보존 기간",
+          "최근 90일 VM 생성·삭제 이벤트 목록과 대응 변경 티켓",
+          "vSphere 라이선스 보유 수량 대비 사용량 리포트"
+        ],
+        "auditorQuestions": [
+          "vCenter Administrator 역할을 가진 계정은 몇 개이고 각각 누구인가?",
+          "개발자가 운영 VM 콘솔에 접근할 수 있는가? 제한은 어떻게 구현했는가?",
+          "administrator@vsphere.local 비밀번호는 누가 알고 있으며 최근 사용은 언제인가?",
+          "VM을 삭제한 이력은 몇 년치까지 조회 가능한가?",
+          "ESXi 호스트에 SSH로 직접 접속한 기록이 있는가?",
+          "라이선스 계약 변경 이후 필요한 구독 수량을 어떻게 산정했는가?"
+        ],
+        "controlExample": "vCenter 접근은 AD 연동 개인 계정과 MFA를 통해서만 허용되며, Administrator 역할은 가상화 담당 3인으로 제한하고 반기 1회 권한 적정성을 검토·승인한다. VM 생성·삭제 및 호스트 변경은 변경관리 티켓에 근거해 수행되고, vCenter 이벤트 로그는 SIEM으로 전송해 1년 이상 보관한다."
+      },
+      "related": [
+        "onprem-hypervisor-types",
+        "onprem-hyperv-kvm",
+        "onprem-storage-types",
+        "onprem-backup-solution",
+        "onprem-cmdb-license",
+        "onprem-server-access-control",
+        "onprem-dr-center"
+      ],
+      "learnMore": [
+        "VMware vSphere Product Documentation",
+        "vSphere Security Configuration Guide (SCG)",
+        "VMware PowerCLI User's Guide"
+      ]
+    },
+    {
+      "id": "onprem-hyperv-kvm",
+      "title": "Hyper-V와 KVM/Proxmox",
+      "titleEn": "Microsoft Hyper-V, KVM and Proxmox VE",
+      "aliases": [
+        "Hyper-V",
+        "KVM",
+        "Proxmox",
+        "libvirt",
+        "oVirt",
+        "SCVMM",
+        "PVE"
+      ],
+      "tags": [
+        "virtualization",
+        "microsoft",
+        "linux",
+        "opensource"
+      ],
+      "level": "중급",
+      "oneLiner": "VMware 대안으로 쓰이는 마이크로소프트와 리눅스 계열 서버 가상화",
+      "analogy": "Hyper-V는 윈도우 생태계에 기본 포함된 '빌트인 가구'와 같다. 이미 윈도우 서버 라이선스가 있으면 추가 비용 없이 방을 나눌 수 있다. KVM은 리눅스 커널에 원래 들어 있는 기능이고, Proxmox는 그 위에 쓰기 편한 관리 화면과 클러스터·백업 기능을 얹어 완성품처럼 포장한 것이다. 재료는 공짜인데 요리 도구를 잘 갖춘 셈이다.",
+      "explanation": "<p>VMware 외에도 실무에서 만나는 Type 1 하이퍼바이저는 크게 두 갈래다. 마이크로소프트의 <strong>Hyper-V</strong>와 리눅스 커널 기반의 <strong>KVM(Kernel-based Virtual Machine)</strong> 계열이다. 최근 VMware 라이선스 비용 상승으로 이 두 갈래로 이전하는 국내 기업이 크게 늘어, 2026년 감사 현장에서는 '가상화 플랫폼 이전 프로젝트'가 자주 등장한다.</p><p><strong>Hyper-V</strong>는 Windows Server에 역할(Role)로 포함된 하이퍼바이저다. 별도 구매 없이 Windows Server 라이선스로 사용할 수 있고, Active Directory·그룹정책·Windows Admin Center와 자연스럽게 통합된다. 여러 호스트를 묶을 때는 <strong>장애 조치 클러스터링(Failover Clustering)</strong>과 공유 스토리지(CSV, Cluster Shared Volume)를 쓰고, VM 무중단 이동은 <strong>라이브 마이그레이션</strong>이라 부른다. 다수 호스트 중앙 관리는 <strong>System Center Virtual Machine Manager(SCVMM)</strong>가 담당한다. 권한은 AD 계정과 <strong>Hyper-V Administrators</strong> 로컬 그룹, 위임 기능으로 통제한다.</p><p><strong>KVM</strong>은 리눅스 커널 모듈로, RHEL·Ubuntu 등에서 <code>libvirt</code>/<code>virsh</code>를 통해 사용한다. 그 자체로는 관리 화면이 없어, 상용으로는 Red Hat OpenShift Virtualization(구 RHV), 오픈소스로는 <strong>Proxmox VE</strong>, oVirt, OpenStack이 관리 계층을 제공한다.</p><p><strong>Proxmox VE</strong>는 데비안 기반 배포판으로 KVM(가상머신)과 LXC(컨테이너)를 하나의 웹 UI에서 관리한다. 여러 노드를 묶는 클러스터, 내장 <strong>Proxmox Backup Server(PBS)</strong>, Ceph 기반 분산 스토리지, HA 기능을 기본 제공하며, 구독 없이도 사용 가능하고 유료 구독은 안정 저장소와 기술지원을 제공한다. 권한 모델은 <strong>사용자/그룹 + 역할(Role) + 경로(/vms/101 같은 객체 경로)</strong> 조합이고, PAM 계정, 자체 계정(pve), LDAP/AD 연동을 지원하며 API 토큰과 TOTP 2단계 인증도 제공한다.</p><p><strong>감사 관점의 공통 원칙은 vSphere와 같다.</strong> 하이퍼바이저 관리자는 그 위 모든 VM을 장악한다. 다만 증적을 뽑는 방법이 다르다. Hyper-V는 Windows 이벤트 로그(Hyper-V-VMMS 채널)와 AD 그룹 멤버십, Proxmox는 <code>/var/log/pve/tasks</code> 태스크 로그와 <code>pveum</code> 명령의 사용자·권한 목록, KVM은 libvirt 로그와 OS 계정(sudo) 통제가 증적이 된다. 오픈소스라는 이유로 '로그가 없다'고 넘어가면 안 되고, syslog 전송 설정을 반드시 확인해야 한다.</p><p><strong>실무 선택 기준</strong>은 대체로 이렇다. 윈도우 워크로드가 많고 AD 중심이면 Hyper-V, 리눅스 중심에 비용 절감과 자동화가 중요하면 Proxmox/KVM, 이미 대규모 VMware 자산과 운영 인력이 있으면 VMware 유지 또는 클라우드 이전을 검토한다. 어떤 경우든 마이그레이션 프로젝트 자체가 대규모 변경이므로 <strong>변경관리·테스트·롤백 계획·데이터 이관 검증</strong>이 감사 대상이 된다.</p>",
+      "howItWorks": "<ol><li>(Hyper-V) Windows Server에 Hyper-V 역할을 설치하고 가상 스위치를 만들어 VLAN을 매핑한다.</li><li>여러 호스트를 장애 조치 클러스터로 묶고 공유 스토리지(CSV, iSCSI/FC/S2D)를 연결한다.</li><li>VM을 생성하면 VHDX 디스크 파일이 만들어지고, 라이브 마이그레이션으로 호스트 간 무중단 이동이 가능해진다.</li><li>(Proxmox/KVM) 각 노드에 Proxmox VE를 설치하고 <code>pvecm</code>으로 클러스터를 구성한다(3노드 이상 권장, 쿼럼 확보).</li><li>스토리지(로컬 LVM, NFS, iSCSI, Ceph)를 등록하고 VM 디스크 위치로 지정한다.</li><li>웹 UI 또는 API로 VM을 생성하면 qcow2/raw 디스크가 만들어지고 KVM이 게스트를 실행한다.</li><li>HA 그룹에 넣은 VM은 노드 장애 시 다른 노드에서 자동 재기동된다.</li><li>PBS나 백업 솔루션으로 VM 단위 백업을 잡고 복구 테스트를 주기적으로 수행한다.</li><li>모든 작업은 태스크 로그·이벤트 로그에 남고 syslog로 중앙 로그 서버에 전달된다.</li></ol>",
+      "example": "<p>중견 제조사 '한빛정밀'은 VMware 구독 비용 상승을 계기로 2026년 개발·테스트 환경 VM 120대를 Proxmox VE 클러스터(노드 4대, Ceph 스토리지)로 이전했다. 운영 환경은 당분간 vSphere를 유지하되 3년 내 전환을 계획한다. 이전 과정은 변경관리 프로젝트로 등록해 단계별 승인·롤백 계획을 문서화했고, 이전 후 VM 목록과 CMDB 대사를 실시했다. 권한은 AD 연동으로 통합하고, Proxmox 로컬 계정 <code>root@pam</code>은 비상용으로만 남겨 PAM 금고에 보관한다.</p><pre><code># Proxmox: 사용자·권한 현황 추출 (감사 증빙)\npveum user list\npveum acl list\npveum role list\n\n# 특정 팀에게 개발 VM 풀만 위임하는 예\npveum group add dev-team\npveum acl modify /pool/dev -group dev-team -role PVEVMUser\n\n# Proxmox 태스크 로그 위치 (누가 무엇을 했는지)\nls -l /var/log/pve/tasks/\ncat /var/log/pve/tasks/index | tail -20\n\n# KVM(libvirt) 기본 조회\nsudo virsh list --all\nsudo virsh dumpxml prd-erp-01 | grep -E 'name|memory|vcpu'\n\n# Hyper-V: 관리자 그룹과 VM 목록 (PowerShell)\nGet-LocalGroupMember -Group 'Hyper-V Administrators'\nGet-VM | Select Name, State, ProcessorCount, MemoryAssigned\nGet-WinEvent -LogName 'Microsoft-Windows-Hyper-V-VMMS-Admin' -MaxEvents 50</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>Hyper-V 스택</text><rect x='20' y='30' width='280' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='49' text-anchor='middle' fill='currentColor' font-size='11'>VM (Windows / Linux) · VHDX</text><rect x='20' y='62' width='280' height='28' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='160' y='81' text-anchor='middle' fill='currentColor' font-size='11'>Hyper-V 역할 (Windows Server)</text><rect x='20' y='94' width='280' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='113' text-anchor='middle' fill='currentColor' font-size='11'>Failover Cluster + CSV</text><rect x='20' y='126' width='280' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='145' text-anchor='middle' fill='currentColor' font-size='11'>관리: SCVMM / AD 그룹</text><text x='340' y='20' fill='currentColor' font-size='12'>Proxmox/KVM 스택</text><rect x='340' y='30' width='280' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='480' y='49' text-anchor='middle' fill='currentColor' font-size='11'>VM(qcow2) + LXC 컨테이너</text><rect x='340' y='62' width='280' height='28' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='480' y='81' text-anchor='middle' fill='currentColor' font-size='11'>KVM (Linux 커널) + libvirt</text><rect x='340' y='94' width='280' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='480' y='113' text-anchor='middle' fill='currentColor' font-size='11'>Proxmox 클러스터 + Ceph</text><rect x='340' y='126' width='280' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='480' y='145' text-anchor='middle' fill='currentColor' font-size='11'>관리: 웹UI/API · pveum ACL</text><rect x='20' y='170' width='600' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='191' text-anchor='middle' fill='currentColor' font-size='12'>공통 감사 증적</text><text x='320' y='212' text-anchor='middle' fill='currentColor' font-size='11'>관리자 목록 · VM 생성/삭제 로그 · syslog 전송 · 백업과 복구시험 기록</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Hyper-V",
+          "meaning": "Windows Server에 포함된 Type 1 하이퍼바이저"
+        },
+        {
+          "term": "라이브 마이그레이션",
+          "meaning": "Hyper-V에서 실행 중 VM을 다른 호스트로 무중단 이동"
+        },
+        {
+          "term": "CSV",
+          "meaning": "Cluster Shared Volume. 클러스터 노드가 동시에 접근하는 공유 볼륨"
+        },
+        {
+          "term": "KVM",
+          "meaning": "리눅스 커널에 내장된 하이퍼바이저 모듈"
+        },
+        {
+          "term": "libvirt / virsh",
+          "meaning": "KVM VM을 관리하는 표준 라이브러리와 CLI"
+        },
+        {
+          "term": "Proxmox VE",
+          "meaning": "KVM+LXC를 웹 UI로 관리하는 데비안 기반 가상화 배포판"
+        },
+        {
+          "term": "Ceph",
+          "meaning": "여러 노드 디스크를 묶는 분산 스토리지. Proxmox와 자주 함께 사용"
+        },
+        {
+          "term": "쿼럼(Quorum)",
+          "meaning": "클러스터가 정상 판단을 내리기 위한 과반 노드 확보 상태"
+        }
+      ],
+      "pitfalls": [
+        "Proxmox 2노드 클러스터 구성으로 쿼럼을 확보하지 못해 한 노드 장애 시 전체가 멈추는 구성.",
+        "오픈소스라서 감사 대상이 아니라고 보는 오해. 로그·권한·백업 증적 요구는 상용과 동일하다.",
+        "root@pam, 로컬 Administrator 등 공용 최고권한 계정으로 일상 운영해 행위자 추적이 불가능한 상태.",
+        "Hyper-V에서 Hyper-V Administrators 그룹에 개발자를 넣어, 사실상 모든 VM 콘솔·디스크 접근을 허용하는 경우.",
+        "VMware→Proxmox/Hyper-V 이전 시 백업 솔루션 호환성과 복구 테스트를 검증하지 않아 이전 후 복구 불가 상태가 되는 사례.",
+        "무료 저장소를 쓰면서 패치 관리 체계를 세우지 않아 하이퍼바이저가 장기간 미패치로 남는 문제."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 하이퍼바이저 관리자 그룹(Hyper-V Administrators, Proxmox root/Administrator 역할) 구성원이 최소화·문서화되어 있는가",
+          "[접근] 관리 계정이 AD/LDAP 연동 개인 계정으로 식별되고 공용 최고권한 계정은 비상용으로 통제되는가",
+          "[변경] VM 생성·삭제와 하이퍼바이저 패치가 변경관리 절차에 따라 승인·기록되는가",
+          "[운영] 태스크·이벤트 로그가 중앙 로그 서버로 전송되어 보존되는가",
+          "[운영] 클러스터 HA 구성과 백업·복구 테스트가 주기적으로 수행되는가"
+        ],
+        "fss": [
+          "정보처리시스템 접근권한 관리 및 접속기록 보존·점검 요건 충족 여부",
+          "가상화 플랫폼 변경(이전) 시 전산시스템 변경 절차와 테스트·검증 결과 보존 여부",
+          "장애 대비 이중화 구성과 복구 시험 실시 여부"
+        ],
+        "isms": [
+          "2.5.5 특수 계정 및 권한 관리: 하이퍼바이저 관리자 권한 통제",
+          "2.9.1 변경관리 / 2.9.2 성능 및 장애관리",
+          "2.9.4 로그 및 접속기록 관리: 태스크 로그 수집·보관"
+        ],
+        "evidence": [
+          "pveum user/acl list 출력 또는 Hyper-V Administrators 그룹 멤버 목록",
+          "VM 인벤토리 export와 CMDB 대사 결과",
+          "태스크·이벤트 로그 syslog 전송 설정과 중앙 로그 적재 화면",
+          "가상화 플랫폼 패치 이력과 현재 버전 현황",
+          "백업 정책 및 최근 복구 테스트 결과서",
+          "(이전 프로젝트 시) 마이그레이션 계획·테스트·롤백 승인 문서"
+        ],
+        "auditorQuestions": [
+          "하이퍼바이저 최고권한을 가진 계정과 사람은 각각 누구인가?",
+          "root 또는 Administrator 공용 계정은 어떻게 통제되는가?",
+          "VM 생성·삭제 이력을 어디서 얼마나 오래 조회할 수 있는가?",
+          "하이퍼바이저 패치는 어떤 주기로 어떻게 적용하는가?",
+          "노드 1대가 죽으면 어떤 일이 일어나는지 실제로 시험해 본 적이 있는가?",
+          "VMware에서 이전한 VM의 데이터 정합성은 어떻게 검증했는가?"
+        ],
+        "controlExample": "Proxmox/Hyper-V 클러스터의 관리자 권한은 AD 연동 개인 계정 기준으로 인프라팀 4인에게만 부여되며, 공용 최고권한 계정은 PAM 금고에 보관해 승인된 비상 상황에만 사용한다. VM 생성·삭제와 호스트 패치는 변경 티켓에 근거해 수행하고 태스크 로그는 중앙 로그 서버로 전송해 1년간 보관한다."
+      },
+      "related": [
+        "onprem-hypervisor-types",
+        "onprem-vmware-vsphere",
+        "onprem-windows-ad",
+        "onprem-backup-solution",
+        "onprem-linux-basics",
+        "onprem-cmdb-license"
+      ],
+      "learnMore": [
+        "Proxmox VE Administration Guide",
+        "Microsoft Hyper-V Documentation",
+        "libvirt Virtualization API Documentation",
+        "Red Hat OpenShift Virtualization Documentation"
+      ]
+    },
+    {
+      "id": "onprem-storage-types",
+      "title": "스토리지(SAN·NAS·DAS)",
+      "titleEn": "Enterprise Storage: SAN, NAS, DAS",
+      "aliases": [
+        "SAN",
+        "NAS",
+        "DAS",
+        "스토리지",
+        "디스크 어레이",
+        "iSCSI",
+        "FC",
+        "파일서버"
+      ],
+      "tags": [
+        "storage",
+        "infrastructure"
+      ],
+      "level": "중급",
+      "oneLiner": "서버에 디스크를 붙이는 세 가지 방식 — 직결, 블록 네트워크, 파일 네트워크",
+      "analogy": "DAS는 책상에 붙은 서랍이다. 내 자리에서만 쓸 수 있고 빠르다. SAN은 회사 공용 창고에서 '선반 한 칸'을 통째로 배정받아 내 서랍처럼 쓰는 것이다. 창고 관리자는 선반만 주고 그 안을 어떻게 정리할지는 내가 정한다. NAS는 공용 사물함에 '폴더'를 만들어 여러 사람이 동시에 파일을 넣고 꺼내는 방식이다. 선반(블록)을 받느냐 폴더(파일)를 받느냐가 SAN과 NAS의 결정적 차이다.",
+      "explanation": "<p>서버가 데이터를 저장하는 방식은 연결 형태에 따라 세 가지로 나뉜다. 이 구분은 클라우드에서도 그대로 이어져 <strong>DAS ≈ EC2 인스턴스 스토어, SAN ≈ EBS, NAS ≈ EFS</strong>로 대응하니, 온프레미스 개념을 잡아 두면 클라우드 스토리지 선택이 쉬워진다.</p><p><strong>DAS(Direct Attached Storage)</strong>는 서버 본체에 디스크를 직접 장착하거나 케이블로 직결하는 방식이다. 가장 빠르고 단순하지만 해당 서버만 쓸 수 있어, 서버가 죽으면 그 데이터도 함께 접근 불가가 된다. OS 디스크나 로컬 캐시 용도로 쓴다.</p><p><strong>SAN(Storage Area Network)</strong>은 전용 네트워크를 통해 스토리지 장비의 공간을 <strong>블록(Block)</strong> 단위로 서버에 제공한다. 서버는 이 공간을 마치 자기 몸에 달린 디스크처럼 인식하고 직접 파일시스템을 만든다. 서버에 제공되는 논리적 단위가 <strong>LUN(Logical Unit Number)</strong>이다. 전송 방식은 전용 광케이블과 FC 스위치를 쓰는 <strong>FC(Fibre Channel) SAN</strong>과, 일반 이더넷 위에서 SCSI 명령을 실어 나르는 <strong>iSCSI</strong>가 대표적이다. 데이터베이스, 가상화 데이터스토어처럼 낮은 지연과 높은 IOPS가 필요한 곳에 쓴다.</p><p><strong>NAS(Network Attached Storage)</strong>는 <strong>파일(File)</strong> 단위로 공유한다. 리눅스는 <strong>NFS</strong>, 윈도우는 <strong>SMB/CIFS</strong> 프로토콜로 접근하며, 여러 서버와 사용자가 동시에 같은 폴더를 읽고 쓸 수 있다. 부서 공유 폴더, 웹 서버 공통 콘텐츠, 로그 수집 저장소, 백업 대상 저장소로 흔히 쓴다. NAS는 파일 단위 권한(ACL)을 스토리지가 직접 관리하므로, <strong>개인정보가 담긴 공유 폴더의 접근권한</strong>이 감사에서 핵심 이슈가 된다.</p><p><strong>주요 부가 기능</strong>으로는 특정 시점을 보존하는 <strong>스냅샷</strong>, 원격 장비로 데이터를 복사하는 <strong>복제(Replication, 동기/비동기)</strong>, 중복 데이터를 제거하는 <strong>중복제거(Dedup)</strong>, 자주 쓰는 데이터를 SSD로 올리는 <strong>계층화(Tiering)</strong>, 그리고 <strong>저장 데이터 암호화</strong>가 있다. 재해복구센터로 데이터를 옮기는 가장 일반적인 수단이 스토리지 복제다.</p><p><strong>감사 관점</strong>에서 스토리지는 '데이터가 실제로 앉아 있는 곳'이므로 세 가지를 본다. 첫째 <strong>접근통제</strong> — 어떤 서버에 어떤 LUN이 보이는지(존닝·매스킹), NAS 공유 폴더에 누가 접근 가능한지. 둘째 <strong>관리자 권한</strong> — 스토리지 관리 콘솔 계정은 볼륨을 통째로 삭제하거나 복제본을 만들 수 있는 특권이다. 셋째 <strong>보호와 파기</strong> — 암호화 적용 여부, 스냅샷·복제 정책, 폐기 시 데이터 소거 증빙이다. 특히 NAS 공유 폴더는 '모두 읽기(Everyone)' 권한이 방치되어 개인정보 유출로 이어지는 단골 결함 지점이다.</p>",
+      "howItWorks": "<ol><li>스토리지 장비에서 물리 디스크를 묶어 RAID 그룹(또는 풀)을 만든다.</li><li>풀에서 필요한 용량을 잘라 LUN(블록) 또는 볼륨/공유(파일)를 생성한다.</li><li>(SAN) FC 스위치에서 존닝(Zoning)으로 특정 서버 HBA와 스토리지 포트만 통신하도록 제한한다.</li><li>(SAN) 스토리지에서 LUN 매스킹(Masking)으로 그 LUN을 볼 수 있는 서버를 지정한다.</li><li>서버가 LUN을 새 디스크로 인식하면 파일시스템을 만들고 마운트한다(또는 하이퍼바이저가 데이터스토어로 등록).</li><li>(NAS) 볼륨에 공유를 만들고 NFS export 또는 SMB 공유 권한(ACL)을 설정하면 서버·PC가 마운트한다.</li><li>스냅샷 일정과 원격 복제 일정이 자동 수행되어 백업·DR 요건을 충족한다.</li><li>용량·성능·디스크 상태는 모니터링되고 임계치 초과 시 경보가 발생한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 FC SAN 스토리지 1대(All-Flash, 유효 용량 120TB)에서 DB용 LUN 12개와 vSphere 데이터스토어용 LUN 8개를 제공하고, 별도 NAS(80TB)로 로그 보관·부서 공유 폴더를 운영한다. 2026년 1분기 점검에서 마케팅 공유 폴더 <code>\\\\nas01\\marketing</code>에 'Domain Users 모두 읽기' 권한이 남아 있어 고객 이벤트 명단(개인정보 3만 건)이 전사에 노출 가능한 상태였음이 발견됐고, 폴더 권한을 부서 AD 그룹 기준으로 재설계했다.</p><pre><code># 리눅스에서 SAN LUN(멀티패스) 확인\nsudo multipath -ll\nlsblk -o NAME,SIZE,TYPE,MOUNTPOINT\nsudo pvs; sudo vgs; sudo lvs\n\n# NFS 마운트 (NAS)\nsudo mount -t nfs 10.10.30.20:/vol/logs /mnt/logs\ngrep nfs /etc/fstab\n\n# 윈도우 공유 폴더 권한 점검 (PowerShell)\nGet-SmbShare | Select Name, Path\nGet-Acl \\\\nas01\\marketing | Format-List\n(Get-Acl \\\\nas01\\marketing).Access |\n  Select IdentityReference, FileSystemRights, AccessControlType\n\n# 감사 포인트: Everyone / Domain Users 에 Modify·FullControl 이 있으면 예외 처리</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>DAS</text><rect x='20' y='30' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='50' text-anchor='middle' fill='currentColor' font-size='11'>서버</text><text x='95' y='67' text-anchor='middle' fill='currentColor' font-size='11'>내장 디스크 직결</text><text x='210' y='20' fill='currentColor' font-size='12'>SAN (블록)</text><rect x='210' y='30' width='100' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='57' text-anchor='middle' fill='currentColor' font-size='11'>DB 서버</text><line x1='310' y1='52' x2='355' y2='52' stroke='currentColor' marker-end='url(#ar)'/><text x='332' y='45' text-anchor='middle' fill='currentColor' font-size='10'>FC</text><rect x='355' y='30' width='90' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='400' y='57' text-anchor='middle' fill='currentColor' font-size='11'>FC 스위치</text><line x1='445' y1='52' x2='490' y2='52' stroke='currentColor' marker-end='url(#ar)'/><rect x='490' y='20' width='130' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='555' y='45' text-anchor='middle' fill='currentColor' font-size='11'>스토리지</text><text x='555' y='63' text-anchor='middle' fill='currentColor' font-size='11'>LUN 단위 제공</text><text x='555' y='80' text-anchor='middle' fill='currentColor' font-size='10'>존닝+매스킹</text><text x='20' y='115' fill='currentColor' font-size='12'>NAS (파일)</text><rect x='20' y='125' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='150' text-anchor='middle' fill='currentColor' font-size='11'>서버 A</text><rect x='20' y='175' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='200' text-anchor='middle' fill='currentColor' font-size='11'>사용자 PC</text><line x1='130' y1='145' x2='200' y2='165' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='195' x2='200' y2='180' stroke='currentColor' marker-end='url(#ar)'/><text x='165' y='135' text-anchor='middle' fill='currentColor' font-size='10'>NFS / SMB</text><rect x='200' y='140' width='150' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='275' y='163' text-anchor='middle' fill='currentColor' font-size='11'>NAS 공유폴더</text><text x='275' y='183' text-anchor='middle' fill='currentColor' font-size='10'>폴더 ACL로 통제</text><rect x='400' y='130' width='220' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='152' text-anchor='middle' fill='currentColor' font-size='12'>공통 기능</text><text x='510' y='172' text-anchor='middle' fill='currentColor' font-size='10'>스냅샷 · 원격복제(DR) · 중복제거</text><text x='510' y='190' text-anchor='middle' fill='currentColor' font-size='10'>저장 암호화 · 계층화</text></svg>",
+      "keyTerms": [
+        {
+          "term": "블록 스토리지",
+          "meaning": "서버가 직접 파일시스템을 만드는 raw 공간 제공 방식(SAN)"
+        },
+        {
+          "term": "파일 스토리지",
+          "meaning": "폴더·파일 단위로 여러 클라이언트가 공유하는 방식(NAS)"
+        },
+        {
+          "term": "LUN",
+          "meaning": "SAN이 서버에 제공하는 논리 디스크 단위"
+        },
+        {
+          "term": "존닝(Zoning)",
+          "meaning": "FC 스위치에서 통신 가능한 서버-스토리지 포트 쌍을 제한"
+        },
+        {
+          "term": "LUN 매스킹",
+          "meaning": "특정 LUN을 지정된 서버에만 보이게 하는 스토리지 설정"
+        },
+        {
+          "term": "iSCSI",
+          "meaning": "일반 이더넷 위에서 블록 스토리지를 제공하는 프로토콜"
+        },
+        {
+          "term": "NFS / SMB",
+          "meaning": "리눅스용 / 윈도우용 파일 공유 프로토콜"
+        },
+        {
+          "term": "멀티패스",
+          "meaning": "서버-스토리지 간 경로를 이중화해 한 경로 장애 시 자동 전환"
+        },
+        {
+          "term": "복제(Replication)",
+          "meaning": "다른 스토리지로 데이터를 동기·비동기 복사. DR의 기본 수단"
+        }
+      ],
+      "pitfalls": [
+        "NAS 공유 폴더에 Everyone/Domain Users 권한을 남겨 개인정보가 전사에 노출되는 전형적 결함.",
+        "스토리지 복제를 백업으로 착각. 복제는 삭제·랜섬웨어까지 그대로 복사하므로 별도 백업이 필요하다.",
+        "멀티패스 구성을 하지 않아 FC 케이블 한 가닥 장애로 DB가 정지하는 사례.",
+        "LUN 매스킹 없이 여러 서버에 같은 LUN이 보여, 두 서버가 동시에 쓰면서 파일시스템이 깨지는 사고.",
+        "스토리지 관리 콘솔 계정을 벤더 엔지니어와 공유하고 별도 통제 없이 두는 경우.",
+        "용량 임계치 경보를 설정하지 않아 데이터스토어가 가득 차 VM 전체가 멈추는 장애."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 스토리지 관리 콘솔 계정이 개인별로 식별·최소화되고 벤더 계정이 상시 활성화되어 있지 않은가",
+          "[접근] NAS 공유 폴더의 접근권한이 최소권한 원칙에 따라 부여되고 주기적으로 검토되는가",
+          "[운영] LUN 할당·존닝·매스킹 변경이 변경관리 절차로 승인·기록되는가",
+          "[운영] 스냅샷·복제 정책이 백업·DR 요건과 정합하고 용량·성능 임계치가 모니터링되는가",
+          "[운영] 스토리지 폐기·교체 시 데이터 소거 절차와 증빙이 있는가"
+        ],
+        "fss": [
+          "고객정보가 저장되는 스토리지에 대해 저장 시 암호화 등 안전성 확보조치를 적용했는가",
+          "정보처리시스템 데이터의 이중화·백업 및 재해복구를 위한 원격 복제 체계가 마련되어 있는가",
+          "저장매체 폐기 시 복구 불가능한 방법으로 삭제하고 기록을 보존하는가"
+        ],
+        "isms": [
+          "2.5.1/2.5.6 접근권한 관리: 파일 공유 권한 부여와 주기적 검토",
+          "2.7.1 암호정책 적용 / 2.7.2 암호키 관리: 저장 데이터 암호화",
+          "2.4.6 반출입 기기 통제 및 2.11.x 재해복구: 저장매체 파기와 복제 체계"
+        ],
+        "evidence": [
+          "스토리지 관리자 계정 목록과 최근 권한 검토 결재",
+          "LUN 할당 현황(서버-LUN 매핑표)과 존닝 설정 export",
+          "NAS 공유 목록과 공유별 ACL 덤프(Get-Acl 또는 스토리지 UI 캡처)",
+          "스냅샷·복제 정책 설정 화면과 최근 복제 상태 리포트",
+          "저장 암호화 적용 현황과 키 관리 절차 문서",
+          "디스크 폐기 시 소거·파쇄 확인서"
+        ],
+        "auditorQuestions": [
+          "개인정보가 저장된 볼륨·공유 폴더는 무엇이며 접근 가능한 사람은 누구인가?",
+          "공유 폴더 권한은 언제 마지막으로 검토했는가?",
+          "스토리지 관리 콘솔에 접근 가능한 사람은 몇 명이며 벤더 계정은 어떻게 통제되는가?",
+          "DR센터로의 복제 주기와 최근 복제 지연 발생 사례는?",
+          "복제가 있는데 별도 백업이 왜 필요한지 설명할 수 있는가?",
+          "교체한 디스크는 어떻게 처리했는가?"
+        ],
+        "controlExample": "스토리지 볼륨·LUN의 신규 할당 및 공유 권한 변경은 변경관리 승인 후 수행되며, 개인정보가 저장된 공유 폴더의 접근권한은 반기 1회 부서장 확인을 거쳐 재승인한다. 스토리지 관리 콘솔은 PAM을 통한 개인 계정으로만 접근 가능하고 작업 로그를 1년간 보관한다."
+      },
+      "related": [
+        "onprem-raid-lun",
+        "onprem-backup-solution",
+        "onprem-vmware-vsphere",
+        "onprem-dr-center",
+        "onprem-server-hardware",
+        "onprem-windows-ad"
+      ],
+      "learnMore": [
+        "SNIA Storage Networking Primer",
+        "NetApp ONTAP Documentation",
+        "Dell PowerStore/PowerMax Documentation"
+      ]
+    },
+    {
+      "id": "onprem-raid-lun",
+      "title": "RAID와 볼륨",
+      "titleEn": "RAID Levels, LUN and Volume",
+      "aliases": [
+        "RAID",
+        "레이드",
+        "미러링",
+        "패리티",
+        "핫스페어",
+        "볼륨",
+        "LVM"
+      ],
+      "tags": [
+        "storage",
+        "availability"
+      ],
+      "level": "중급",
+      "oneLiner": "여러 디스크를 묶어 고장에 견디거나 속도를 높이는 구성 방식",
+      "analogy": "RAID는 중요한 서류를 다루는 방법에 비유할 수 있다. RAID 1(미러링)은 서류를 똑같이 두 부 복사해 두 서랍에 나눠 넣는 것이다. 한 서랍이 불타도 나머지로 산다. RAID 5/6(패리티)는 서류를 여러 조각으로 나누되 '조각을 잃어도 복원할 수 있는 계산값'을 함께 적어 두는 방식이다. 공간은 덜 쓰지만 복원에 시간이 걸린다. 그리고 어떤 방식이든 '서류를 실수로 찢어 버린 경우'는 못 막는다 — 그건 백업의 일이다.",
+      "explanation": "<p><strong>RAID(Redundant Array of Independent Disks)</strong>는 디스크 여러 개를 묶어 하나의 논리 디스크처럼 쓰면서, 디스크 고장에 견디거나(중복성) 성능을 높이는 기술이다. 디스크는 소모품이고 반드시 고장 나기 때문에, 서버·스토리지에서는 RAID가 사실상 필수다.</p><p><strong>주요 레벨</strong>은 다음과 같다. <strong>RAID 0(스트라이핑)</strong>은 데이터를 여러 디스크에 나눠 써 속도만 높이고 중복성은 없다 — 한 장만 고장 나도 전부 손실이므로 운영 데이터에는 쓰지 않는다. <strong>RAID 1(미러링)</strong>은 두 디스크에 같은 내용을 쓴다. 용량은 절반이지만 안전하고 복구가 빠르며 OS 디스크에 흔히 쓴다. <strong>RAID 5</strong>는 디스크 3개 이상에서 데이터와 패리티를 분산해 1장 고장까지 견딘다. <strong>RAID 6</strong>은 패리티를 두 벌 둬 2장 고장까지 견딘다. 대용량 디스크 시대에는 복구(리빌드) 중 두 번째 고장이 나는 사례 때문에 RAID 5보다 RAID 6이 권장된다. <strong>RAID 10(1+0)</strong>은 미러 쌍을 스트라이핑한 형태로 성능과 안정성이 모두 좋아 DB에 많이 쓰이며 대신 용량 효율이 50%다.</p><p><strong>핫스페어(Hot Spare)</strong>는 평소 놀고 있다가 디스크가 죽으면 자동으로 투입되어 <strong>리빌드(Rebuild)</strong>를 시작하는 예비 디스크다. 리빌드 중에는 성능이 떨어지고 나머지 디스크에 부하가 걸려 추가 고장 위험이 올라간다. 대용량 HDD는 리빌드에 수십 시간이 걸리기도 한다.</p><p><strong>LUN과 볼륨.</strong> RAID로 만든 큰 저장 공간을 <strong>풀(Pool)</strong>이라 하고, 여기서 필요한 만큼 잘라 서버에 주는 논리 단위가 <strong>LUN</strong>이다. 서버는 LUN을 디스크로 인식하고, 리눅스에서는 <strong>LVM(Logical Volume Manager)</strong>으로 여러 LUN을 묶거나 온라인으로 확장하고, 윈도우에서는 디스크 관리에서 볼륨을 만든다. 실제 쓰는 만큼만 물리 공간을 소비하는 <strong>씬 프로비저닝(Thin Provisioning)</strong>을 쓰면 효율은 좋지만, 논리 할당 총합이 물리 용량을 넘어선 상태에서 실제 사용량이 차오르면 전체가 정지하는 <strong>오버서브스크립션 사고</strong>가 발생할 수 있다.</p><p><strong>감사에서 가장 중요한 메시지</strong>는 이것이다. <strong>RAID는 백업이 아니다.</strong> RAID는 '디스크 하드웨어 고장'만 막는다. 사용자가 실수로 지운 데이터, 랜섬웨어로 암호화된 데이터, 잘못된 배치가 덮어쓴 데이터는 RAID가 그대로 모든 디스크에 반영해 버린다. 그래서 가용성 통제(RAID·이중화)와 복구 통제(백업·복구시험)는 반드시 분리해서 확인해야 한다.</p>",
+      "howItWorks": "<ol><li>RAID 컨트롤러 또는 스토리지 장비에서 물리 디스크 여러 장을 선택해 RAID 그룹/풀을 만든다.</li><li>선택한 RAID 레벨에 따라 데이터가 스트라이핑되고 패리티 또는 미러 복사본이 함께 기록된다.</li><li>풀에서 용량을 잘라 LUN(또는 볼륨)을 만들고 서버에 할당한다.</li><li>서버는 이를 하나의 디스크로 인식하고 파일시스템 생성 후 마운트한다.</li><li>디스크 1장이 고장 나면 RAID는 나머지 디스크와 패리티로 데이터를 계속 제공한다(성능 저하 상태).</li><li>핫스페어가 자동 투입되어 리빌드가 시작되고, 완료되면 정상 상태로 복귀한다.</li><li>컨트롤러는 고장·리빌드 이벤트를 BMC·모니터링 시스템에 경보로 보내고 벤더 부품 교체가 진행된다.</li><li>용량 부족이 예상되면 풀 확장 또는 LVM 온라인 확장으로 대응한다.</li></ol>",
+      "example": "<p>커머스 '샵나우'의 주문 DB 서버는 SAS SSD 8장을 RAID 10으로 묶어 3.2TB 볼륨을 쓰고, 로그·아카이브 서버는 대용량 HDD 12장을 RAID 6(핫스페어 1장)으로 구성했다. 2026년 3월 DB 서버 디스크 1장이 고장났지만 미러 짝이 있어 성능 저하 없이 운영됐고, 핫스페어 리빌드가 40분 만에 끝났다. 반면 아카이브 서버는 16TB HDD 리빌드에 26시간이 걸렸고 그동안 야간 배치 성능이 30% 저하되어, 이후 RAID 6 그룹의 디스크 수를 줄이는 방향으로 재설계했다.</p><pre><code># 리눅스 소프트웨어 RAID 상태 확인\ncat /proc/mdstat\nsudo mdadm --detail /dev/md0\n\n# 하드웨어 RAID(HPE) 상태와 고장 디스크 확인\nsudo ssacli ctrl slot=0 pd all show status\nsudo ssacli ctrl slot=0 ld all show detail | grep -E 'Status|Fault'\n\n# LVM으로 온라인 용량 확장 (LUN 추가 후)\nsudo pvcreate /dev/mapper/mpathd\nsudo vgextend vg_data /dev/mapper/mpathd\nsudo lvextend -L +500G /dev/vg_data/lv_pgdata\nsudo xfs_growfs /var/lib/pgsql/data\n\n# 감사 증빙 포인트\n- RAID 구성 및 상태 리포트(주기적 캡처)\n- 디스크 고장/리빌드 이벤트 티켓\n- 씬 프로비저닝 사용 시 풀 사용률 추이와 임계치 경보 설정</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><text x='20' y='20' fill='currentColor' font-size='12'>RAID 1 (미러)</text><rect x='20' y='30' width='60' height='50' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='50' y='60' text-anchor='middle' fill='currentColor' font-size='11'>D1</text><rect x='90' y='30' width='60' height='50' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='120' y='60' text-anchor='middle' fill='currentColor' font-size='11'>D1 복사</text><text x='85' y='95' text-anchor='middle' fill='currentColor' font-size='10'>1장 고장 OK · 용량 50%</text><text x='200' y='20' fill='currentColor' font-size='12'>RAID 5 (패리티 1)</text><rect x='200' y='30' width='50' height='50' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='225' y='60' text-anchor='middle' fill='currentColor' font-size='11'>A1</text><rect x='256' y='30' width='50' height='50' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='281' y='60' text-anchor='middle' fill='currentColor' font-size='11'>A2</text><rect x='312' y='30' width='50' height='50' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='337' y='60' text-anchor='middle' fill='currentColor' font-size='11'>P</text><text x='281' y='95' text-anchor='middle' fill='currentColor' font-size='10'>1장 고장 OK</text><text x='410' y='20' fill='currentColor' font-size='12'>RAID 6 (패리티 2)</text><rect x='410' y='30' width='45' height='50' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='432' y='60' text-anchor='middle' fill='currentColor' font-size='11'>B1</text><rect x='460' y='30' width='45' height='50' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='482' y='60' text-anchor='middle' fill='currentColor' font-size='11'>B2</text><rect x='510' y='30' width='45' height='50' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='532' y='60' text-anchor='middle' fill='currentColor' font-size='11'>P</text><rect x='560' y='30' width='45' height='50' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='582' y='60' text-anchor='middle' fill='currentColor' font-size='11'>Q</text><text x='507' y='95' text-anchor='middle' fill='currentColor' font-size='10'>2장 고장까지 OK</text><rect x='20' y='115' width='600' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='137' text-anchor='middle' fill='currentColor' font-size='12'>물리디스크 → RAID 풀 → LUN/볼륨 → 파일시스템(LVM)</text><text x='320' y='158' text-anchor='middle' fill='currentColor' font-size='11'>씬 프로비저닝 사용 시 풀 사용률 임계치 경보 필수</text><rect x='20' y='185' width='600' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='206' text-anchor='middle' fill='currentColor' font-size='12'>RAID ≠ 백업</text><text x='320' y='226' text-anchor='middle' fill='currentColor' font-size='11'>삭제·랜섬웨어·논리적 오류는 모든 디스크에 그대로 반영된다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "스트라이핑",
+          "meaning": "데이터를 여러 디스크에 나눠 써 성능을 높이는 방식"
+        },
+        {
+          "term": "미러링",
+          "meaning": "같은 데이터를 두 디스크에 동일하게 기록"
+        },
+        {
+          "term": "패리티",
+          "meaning": "일부 디스크를 잃어도 데이터를 복원할 수 있게 하는 계산값"
+        },
+        {
+          "term": "핫스페어",
+          "meaning": "고장 시 자동 투입되는 예비 디스크"
+        },
+        {
+          "term": "리빌드",
+          "meaning": "고장 디스크의 데이터를 예비 디스크에 복원하는 과정. 성능 저하 동반"
+        },
+        {
+          "term": "RAID 10",
+          "meaning": "미러 쌍을 스트라이핑. 성능·안정성 우수, 용량 효율 50%"
+        },
+        {
+          "term": "씬 프로비저닝",
+          "meaning": "실제 사용량만 물리 공간을 소비하는 할당 방식"
+        },
+        {
+          "term": "LVM",
+          "meaning": "리눅스 논리 볼륨 관리자. 온라인 확장·스냅샷 지원"
+        }
+      ],
+      "pitfalls": [
+        "RAID가 있으니 백업이 필요 없다는 오해. 삭제·랜섬웨어·논리 오류는 RAID로 막지 못한다.",
+        "대용량 HDD를 RAID 5로 묶어 리빌드 중 2차 고장으로 전체 손실이 발생하는 사례.",
+        "핫스페어를 설정하지 않아 고장 후 사람이 수동 교체할 때까지 무방비로 운영되는 상태.",
+        "디스크 고장 경보를 모니터링에 연결하지 않아 여러 장이 죽은 뒤에야 인지하는 경우.",
+        "씬 프로비저닝 풀의 실제 사용률을 보지 않고 논리 용량만 보다가 풀 고갈로 전체 서비스 정지.",
+        "RAID 컨트롤러의 캐시 배터리(BBU) 수명을 관리하지 않아 정전 시 쓰기 캐시 데이터가 유실되는 위험."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 중요 시스템의 디스크 구성(RAID 레벨·핫스페어)이 가용성 요건에 맞게 표준으로 정의되어 있는가",
+          "[운영] 디스크 고장·리빌드 이벤트가 자동 경보되고 인시던트로 기록·조치되는가",
+          "[운영] 스토리지 용량 사용률이 모니터링되고 임계치 초과 시 사전 조치되는가",
+          "[운영] RAID 구성이 백업 통제를 대체하지 않으며 별도 백업·복구시험이 수행되는가"
+        ],
+        "fss": [
+          "정보처리시스템의 저장장치 이중화 등 장애 대비 조치가 마련되어 있는가",
+          "용량·성능 관리 절차에 따라 자원 부족으로 인한 장애를 예방하고 있는가",
+          "데이터 손상·유실 시 복구 절차와 목표복구시점(RPO)을 충족하는 수단이 있는가"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리: 디스크 성능·용량·장애 모니터링과 조치",
+          "2.9.3 백업 및 복구관리: RAID와 별개의 백업 체계 운영",
+          "2.1.3 정보자산 관리: 스토리지 구성 정보의 최신 유지"
+        ],
+        "evidence": [
+          "서버·스토리지별 RAID 구성 현황표(레벨, 디스크 수, 핫스페어)",
+          "최근 1년 디스크 고장·리빌드 이벤트 로그와 대응 티켓",
+          "스토리지 풀 사용률 추이 그래프와 임계치 경보 설정 캡처",
+          "백업 정책 및 최근 복구 테스트 결과(RAID와 분리된 통제임을 입증)",
+          "RAID 컨트롤러 캐시 배터리 상태 점검 기록"
+        ],
+        "auditorQuestions": [
+          "핵심 DB 서버의 디스크는 어떤 RAID 구성인가? 몇 장까지 고장에 견디는가?",
+          "디스크가 고장 나면 누가 언제 알게 되는가?",
+          "최근 리빌드가 발생한 사례와 소요 시간은?",
+          "스토리지 풀 사용률이 몇 %일 때 경보가 울리는가?",
+          "RAID가 있는데도 백업이 필요한 이유를 설명할 수 있는가?"
+        ],
+        "controlExample": "운영 시스템의 저장장치는 표준 기준(DB는 RAID 10, 아카이브는 RAID 6 + 핫스페어)에 따라 구성하며, 디스크 고장 및 용량 임계치(80%) 초과 시 자동 경보되어 인시던트로 등록·조치된다. RAID와 별도로 일 단위 백업을 수행하고 반기 1회 복구 테스트를 실시한다."
+      },
+      "related": [
+        "onprem-storage-types",
+        "onprem-backup-solution",
+        "onprem-server-hardware",
+        "onprem-tape-offsite",
+        "onprem-linux-basics"
+      ],
+      "learnMore": [
+        "SNIA Common RAID Disk Data Format Specification",
+        "Red Hat Enterprise Linux Storage Administration Guide",
+        "제조사 RAID 컨트롤러 관리 가이드(HPE SSA, Dell PERC)"
+      ]
+    },
+    {
+      "id": "onprem-backup-solution",
+      "title": "백업 솔루션",
+      "titleEn": "Backup Solutions (Veeam, NetBackup, Commvault)",
+      "aliases": [
+        "Veeam",
+        "NetBackup",
+        "Commvault",
+        "백업",
+        "복구",
+        "RPO",
+        "RTO",
+        "3-2-1"
+      ],
+      "tags": [
+        "backup",
+        "recovery",
+        "operations"
+      ],
+      "level": "중급",
+      "oneLiner": "데이터를 주기적으로 복사해 두고 필요할 때 되돌리는 전사 백업·복구 체계",
+      "analogy": "백업은 사진을 클라우드에 자동 업로드해 두는 것과 같다. 휴대폰을 잃어버려도(RAID로 못 막는 사고) 사진은 남는다. 다만 진짜 중요한 것은 업로드가 아니라 '실제로 다시 내려받아 열어 본 적이 있는가'다. 복구 테스트를 안 한 백업은 열어 본 적 없는 클라우드 앨범과 같아서, 정작 필요할 때 파일이 깨져 있어도 알 길이 없다.",
+      "explanation": "<p><strong>백업</strong>은 데이터를 다른 매체·다른 장소에 복사해 두었다가 손실 시 복원하는 활동이다. RAID와 스토리지 복제는 하드웨어 고장과 사이트 장애를 막지만, <strong>사람의 실수, 악성코드, 애플리케이션 오류로 인한 논리적 손상</strong>은 백업만이 되돌릴 수 있다. 랜섬웨어가 일상화된 2026년 현재 백업은 보안 통제이기도 하다.</p><p><strong>핵심 지표 두 가지</strong>를 먼저 알아야 한다. <strong>RPO(Recovery Point Objective)</strong>는 '얼마나 최근 시점까지 되살릴 것인가' 즉 허용 가능한 데이터 손실 범위다(예: RPO 15분). <strong>RTO(Recovery Time Objective)</strong>는 '얼마나 빨리 되살릴 것인가' 즉 복구 목표 시간이다(예: RTO 4시간). 백업 주기와 방식은 이 두 숫자에서 역산해 설계한다. 일 1회 백업이면 RPO는 최대 24시간이다.</p><p><strong>백업 방식</strong>은 매번 전체를 복사하는 <strong>전체(Full)</strong>, 마지막 백업 이후 변경분만 담는 <strong>증분(Incremental)</strong>, 마지막 전체 백업 이후 변경분을 누적하는 <strong>차등(Differential)</strong>, 그리고 변경 블록만 계속 추적해 항상 최신을 유지하는 <strong>영구 증분(Forever Incremental)</strong>이 있다. DB는 여기에 <strong>아카이브 로그(리두 로그) 백업</strong>을 더해 장애 시점 직전까지 복원하는 <strong>시점 복구(PITR)</strong>를 지원한다.</p><p><strong>대표 솔루션</strong>으로는 가상화 환경에 강한 <strong>Veeam Backup &amp; Replication</strong>, 대규모 이기종 환경과 테이프에 강한 <strong>Veritas NetBackup</strong>, 통합 데이터 관리 지향의 <strong>Commvault</strong>, 그 외 Rubrik·Cohesity·Networker 등이 있다. 국내 금융권은 NetBackup + 테이프 조합이 여전히 많고, 중견기업은 Veeam + NAS/오브젝트 스토리지 조합이 흔하다.</p><p><strong>3-2-1 규칙</strong>이 업계 표준 설계 원칙이다. 사본 3벌, 서로 다른 매체 2종, 그중 1벌은 원격지(오프사이트). 최근에는 랜섬웨어 대응을 위해 <strong>3-2-1-1-0</strong>(1벌은 변경 불가한 <strong>불변 백업(Immutable)</strong> 또는 오프라인, 복구 검증 오류 0건)으로 확장해 말한다. <strong>불변성</strong>은 오브젝트 락(WORM)이나 테이프 오프라인 보관으로 구현하며, 백업 서버까지 장악당해도 백업본을 지우지 못하게 하는 마지막 방어선이다.</p><p><strong>감사 관점에서 백업은 ITGC '운영(Operations)' 도메인의 대표 통제</strong>다. 감사인은 순서대로 확인한다. (1) 백업 대상 목록이 자산목록과 일치하는가(=백업 안 되는 시스템이 있는가), (2) 정책상 주기·보존기간이 정의되고 승인됐는가, (3) 백업 작업 성공·실패가 매일 모니터링되고 실패 시 재수행·에스컬레이션되는가, (4) <strong>주기적 복구 테스트</strong>를 실제로 하고 결과를 문서화했는가, (5) 백업 데이터가 암호화되고 접근이 통제되는가. 특히 (4)는 많은 회사가 빠뜨리는 항목이며, 금융권에서는 재해복구 훈련과 함께 연 1~2회 수행이 요구된다.</p>",
+      "howItWorks": "<ol><li>백업 정책을 수립한다: 대상 시스템, 주기(예: 일 증분·주 전체), 보존기간(예: 일 30일·월 1년·연 5년), 저장 위치.</li><li>백업 서버가 에이전트 또는 하이퍼바이저 API(VMware VADP 등)를 통해 대상에 접근한다.</li><li>지정 시간에 작업(Job)이 기동해 변경 블록을 읽고 중복제거·압축·암호화하여 백업 저장소에 기록한다.</li><li>DB는 정합성을 위해 스냅샷·백업 모드 또는 전용 에이전트(RMAN, SQL VSS 등)로 처리하고 아카이브 로그를 함께 백업한다.</li><li>작업 결과(성공/실패/경고)가 콘솔과 리포트, 알림 메일·메신저로 통지된다.</li><li>보존 정책에 따라 오래된 백업본은 자동 만료·삭제되고, 장기 보관본은 테이프나 오브젝트 스토리지로 계층 이동한다.</li><li>1벌은 원격지(DR센터·클라우드·소산 테이프)로 복제되며 불변 설정으로 삭제를 차단한다.</li><li>정기적으로 실제 복구 테스트를 수행해 데이터 정합성과 RTO 달성 여부를 검증하고 결과를 보고한다.</li></ol>",
+      "example": "<p>보험사 '세이프라이프'는 Veeam으로 VM 240대를 일 1회 증분·주 1회 전체 백업하고, 계약·청구 DB는 NetBackup 에이전트로 일 전체 + 15분 간격 아카이브 로그 백업(RPO 15분)을 수행한다. 백업본은 본사 중복제거 어플라이언스에 30일, 부산 DR센터에 복제 90일, 연말 마감본은 테이프로 5년 보관한다. 2026년 1월 개발자가 운영 DB의 테이블을 실수로 truncate 했을 때 전날 전체 백업 + 아카이브 로그로 사고 3분 전 시점까지 복구해 실제 손실은 0건이었다. 분기 복구 테스트에서는 VM 3대를 무작위 선정해 격리망에 복구하고 서비스 기동까지 확인한다.</p><pre><code># 백업 정책 요약표 (감사 제출용)\n시스템          주기        보존      위치            RPO    RTO\n계약 DB         일 Full + 로그15분  30일/5년  로컬+DR+테이프  15분   2시간\n청구 웹 VM      일 증분/주 Full     30일/90일 로컬+DR         24시간 4시간\n파일서버(NAS)   일 증분             60일      로컬+오브젝트   24시간 8시간\n\n# Veeam 작업 성공률 점검 (PowerShell)\nAsnp VeeamPSSnapin\nGet-VBRBackupSession |\n  Where {$_.EndTime -gt (Get-Date).AddDays(-30)} |\n  Select JobName, Result, EndTime |\n  Group-Object JobName, Result | Select Name, Count\n\n# 리눅스 DB 시점복구 개념 (PostgreSQL)\nrestore_command = 'cp /backup/wal/%f %p'\nrecovery_target_time = '2026-01-14 09:57:00 KST'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='20' fill='currentColor' font-size='12'>3-2-1-1-0 백업 설계</text><rect x='20' y='32' width='130' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85' y='55' text-anchor='middle' fill='currentColor' font-size='11'>운영 시스템</text><text x='85' y='73' text-anchor='middle' fill='currentColor' font-size='11'>VM · DB · NAS</text><text x='85' y='91' text-anchor='middle' fill='currentColor' font-size='10'>(원본 1벌)</text><line x1='150' y1='67' x2='200' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='32' width='130' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='265' y='55' text-anchor='middle' fill='currentColor' font-size='11'>백업 서버</text><text x='265' y='73' text-anchor='middle' fill='currentColor' font-size='10'>중복제거·압축·암호화</text><text x='265' y='91' text-anchor='middle' fill='currentColor' font-size='10'>Veeam/NetBackup</text><line x1='330' y1='55' x2='380' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='330' y1='80' x2='380' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='380' y='25' width='115' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='437' y='44' text-anchor='middle' fill='currentColor' font-size='11'>로컬 디스크</text><text x='437' y='61' text-anchor='middle' fill='currentColor' font-size='10'>30일 (사본2)</text><rect x='380' y='100' width='115' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='437' y='119' text-anchor='middle' fill='currentColor' font-size='11'>DR센터 복제</text><text x='437' y='136' text-anchor='middle' fill='currentColor' font-size='10'>90일 (사본3)</text><line x1='495' y1='122' x2='530' y2='150' stroke='currentColor' marker-end='url(#ar)'/><rect x='500' y='160' width='125' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='562' y='180' text-anchor='middle' fill='currentColor' font-size='11'>불변/오프라인</text><text x='562' y='198' text-anchor='middle' fill='currentColor' font-size='10'>테이프·WORM 5년</text><rect x='20' y='160' width='330' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='185' y='182' text-anchor='middle' fill='currentColor' font-size='12'>필수 운영 활동</text><text x='185' y='202' text-anchor='middle' fill='currentColor' font-size='10'>일일 성공/실패 모니터링 · 실패 재수행</text><text x='185' y='220' text-anchor='middle' fill='currentColor' font-size='10'>정기 복구 테스트 결과 문서화 (감사 핵심)</text><text x='380' y='240' fill='currentColor' font-size='10'>RPO=데이터 손실 허용, RTO=복구 시간 목표</text></svg>",
+      "keyTerms": [
+        {
+          "term": "RPO",
+          "meaning": "허용 가능한 데이터 손실 범위. 백업 주기가 결정한다"
+        },
+        {
+          "term": "RTO",
+          "meaning": "장애 후 복구까지 허용되는 목표 시간"
+        },
+        {
+          "term": "전체/증분/차등",
+          "meaning": "전체 복사 / 직전 백업 이후 변경분 / 마지막 전체 이후 누적 변경분"
+        },
+        {
+          "term": "시점 복구(PITR)",
+          "meaning": "로그를 적용해 원하는 시각 직전까지 되살리는 DB 복구"
+        },
+        {
+          "term": "3-2-1 규칙",
+          "meaning": "사본 3벌, 매체 2종, 오프사이트 1벌 보관 원칙"
+        },
+        {
+          "term": "불변 백업(Immutable)",
+          "meaning": "일정 기간 삭제·변경이 불가능한 백업. 랜섬웨어 대응 핵심"
+        },
+        {
+          "term": "중복제거(Dedup)",
+          "meaning": "동일 블록을 한 번만 저장해 용량을 줄이는 기술"
+        },
+        {
+          "term": "복구 테스트",
+          "meaning": "실제로 복원해 데이터 정합성과 RTO를 검증하는 활동"
+        },
+        {
+          "term": "에이전트리스 백업",
+          "meaning": "하이퍼바이저 API로 VM 단위 백업(VMware VADP 등)"
+        }
+      ],
+      "pitfalls": [
+        "백업 작업 '성공' 알림만 보고 실제 복원 가능 여부는 검증하지 않는 것. 복구 테스트 없는 백업은 증빙력이 없다.",
+        "DB를 파일 복사 방식으로만 백업해 정합성이 깨진 백업본을 만드는 사례(전용 에이전트·백업 모드 필요).",
+        "백업 서버와 운영 서버가 같은 도메인·같은 관리자 계정을 쓰다 랜섬웨어가 백업본까지 암호화하는 최악의 시나리오.",
+        "백업 보존기간을 법정 보존기간·업무 요구와 맞추지 않아 필요한 시점 데이터가 이미 만료된 경우.",
+        "새로 만든 서버를 백업 대상에 등록하지 않아 정작 사고 시 백업이 없는 상황(자산-백업 대사 필요).",
+        "백업 데이터에 개인정보가 포함되는데 암호화·접근통제를 적용하지 않는 것."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 백업 정책(대상·주기·보존기간·위치)이 문서화·승인되고 RPO/RTO와 정합하는가",
+          "[운영] 백업 대상 목록이 자산목록과 주기적으로 대사되어 누락 시스템이 없는가",
+          "[운영] 백업 작업 성공·실패가 일 단위로 모니터링되고 실패 건이 재수행·에스컬레이션되는가",
+          "[운영] 주기적(최소 연 1회) 복구 테스트가 수행되고 결과가 문서화·보고되는가",
+          "[접근] 백업 서버·백업 데이터에 대한 접근이 제한되고 삭제·보존기간 변경이 통제·기록되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록 등 법정 보존 대상 데이터의 보존기간(전자금융거래법상 5년 등)을 백업 정책이 충족하는가",
+          "정보처리시스템 데이터 백업 및 소산 보관, 재해복구 요건 이행 여부",
+          "백업 매체에 포함된 고객정보의 암호화 및 반출입·보관 통제 여부"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리: 백업 정책 수립, 주기적 백업, 복구 시험",
+          "2.7.1 암호정책 적용: 백업 데이터 암호화",
+          "2.12.2 재해 복구 시험 및 개선: 복구 절차 시험과 결과 반영"
+        ],
+        "evidence": [
+          "승인된 백업 정책 문서(대상·주기·보존기간·RPO/RTO)",
+          "백업 솔루션 콘솔의 최근 30~90일 작업 결과 리포트(성공률, 실패 건 조치 내역)",
+          "백업 대상 목록과 CMDB 자산 목록 대사 결과",
+          "최근 복구 테스트 계획서·수행 결과서(복구 소요 시간, 검증 방법, 승인)",
+          "백업 데이터 암호화 설정 및 백업 서버 접근권한 목록",
+          "불변 백업/오프라인 보관 설정 화면과 소산 기록"
+        ],
+        "auditorQuestions": [
+          "백업 대상에서 빠진 운영 시스템이 있는가? 어떻게 확인했는가?",
+          "어제 실패한 백업 작업이 있다면 누가 언제 조치했는가?",
+          "가장 최근 실제 복구를 수행한 사례는 언제이며 얼마나 걸렸는가?",
+          "복구 테스트는 얼마나 자주, 어떤 방식으로 하는가? 결과 문서를 볼 수 있는가?",
+          "랜섬웨어가 백업 서버까지 접근했다면 무엇이 남는가?",
+          "백업 데이터를 삭제할 수 있는 사람은 누구인가?"
+        ],
+        "controlExample": "운영 시스템은 승인된 백업 정책에 따라 일 단위로 백업되며, 백업 성공·실패 결과는 익일 오전 운영담당자가 검토해 실패 건을 재수행하고 티켓으로 기록한다. 반기 1회 무작위 선정 시스템에 대해 실제 복구 테스트를 수행하고 RTO 달성 여부와 데이터 정합성을 검증해 결과를 정보보호책임자에게 보고한다."
+      },
+      "related": [
+        "onprem-tape-offsite",
+        "onprem-dr-center",
+        "onprem-storage-types",
+        "onprem-raid-lun",
+        "onprem-vmware-vsphere",
+        "db-postgresql",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "Veeam Backup & Replication User Guide",
+        "Veritas NetBackup Administrator's Guide",
+        "NIST SP 800-34 Contingency Planning Guide"
+      ]
+    },
+    {
+      "id": "onprem-tape-offsite",
+      "title": "테이프 백업과 소산",
+      "titleEn": "Tape Backup and Off-site Vaulting",
+      "aliases": [
+        "LTO",
+        "테이프",
+        "소산",
+        "오프사이트",
+        "매체 보관",
+        "WORM",
+        "에어갭"
+      ],
+      "tags": [
+        "backup",
+        "media",
+        "compliance"
+      ],
+      "level": "중급",
+      "oneLiner": "백업 데이터를 테이프에 담아 물리적으로 떨어진 곳에 보관하는 마지막 방어선",
+      "analogy": "소산 보관은 집문서 사본을 은행 대여금고에 맡겨 두는 것과 같다. 집이 불타도, 심지어 도둑이 집 안의 모든 서류를 가져가도 금고 안의 사본은 무사하다. 금고는 인터넷에 연결돼 있지 않아 해킹으로 지울 수도 없다. 대신 꺼내려면 시간이 걸리고, 누가 언제 꺼냈는지 기록이 남는다. 테이프 소산이 정확히 그 역할이다.",
+      "explanation": "<p><strong>테이프 백업</strong>은 자기 테이프 매체(현재는 <strong>LTO, Linear Tape-Open</strong> 규격이 표준)에 데이터를 기록하는 방식이다. 디스크·클라우드 백업이 보편화된 2026년에도 금융·공공·대기업에서 테이프가 살아남은 이유는 세 가지다. 첫째 <strong>장기 보관 비용</strong>이 압도적으로 싸고(TB당 단가, 전력 소모 거의 없음), 둘째 보관 수명이 길며(적정 환경에서 15~30년), 셋째 <strong>네트워크에서 물리적으로 분리(에어갭, Air Gap)</strong>되어 랜섬웨어가 절대 건드릴 수 없다는 점이다.</p><p><strong>구성 요소.</strong> 테이프를 읽고 쓰는 <strong>드라이브</strong>, 테이프 수십~수천 개를 로봇 팔로 자동 교체하는 <strong>테이프 라이브러리(오토로더)</strong>, 각 테이프를 식별하는 <strong>바코드 라벨</strong>, 그리고 백업 소프트웨어의 <strong>미디어 카탈로그</strong>다. 카탈로그는 '어떤 데이터가 몇 번 테이프의 어디에 있는지'를 담은 색인으로, 이것이 없으면 테이프가 있어도 복구가 사실상 불가능하다. 그래서 <strong>카탈로그 자체의 백업</strong>이 중요한 통제 포인트다.</p><p><strong>소산(疏散, Off-site Vaulting)</strong>은 백업 매체를 주전산센터와 물리적으로 떨어진 장소에 보관하는 것이다. 보관 장소는 회사 별도 건물, DR센터, 또는 아이언마운틴 같은 전문 매체보관 업체다. 금융권은 통상 주 1회 또는 월 1회 주기로 소산하고, 매체 반출입 대장에 <strong>매체 번호, 반출일시, 운반자, 수령 확인, 회수일</strong>을 기록한다. 운반 중 분실·도난이 가장 큰 위험이므로 <strong>테이프 암호화(LTO 드라이브 하드웨어 암호화 또는 백업 SW 암호화)</strong>가 필수이며, 암호키는 테이프와 분리 보관해야 한다.</p><p><strong>WORM(Write Once Read Many)</strong> 테이프는 한 번 쓰면 덮어쓸 수 없는 매체로, 법정 보존이 필요한 전자금융거래 기록·회계 증빙에 사용된다. 디스크 기반으로는 오브젝트 스토리지의 <strong>오브젝트 락</strong>이 같은 역할을 한다.</p><p><strong>감사 관점</strong>에서 테이프·소산은 증적이 매우 구체적으로 요구되는 영역이다. (1) 소산 주기와 대상이 정책에 정의됐는가, (2) 매체 반출입 대장이 실물과 일치하는가(<strong>매체 실사</strong>), (3) 매체가 암호화되어 있는가, (4) 보관 장소의 물리보안과 항온항습이 적정한가, (5) 보존기간 만료 매체를 소자(degauss)·파쇄하고 파기 확인서를 남겼는가, (6) <strong>소산 매체로부터의 복구 테스트</strong>를 했는가. 특히 마지막 항목은 '테이프에서 진짜 되살아나는가'를 검증하는 것으로, 여러 회사가 빠뜨려 지적을 받는다. 또한 '테이프를 반출한 사람'과 'IDC 출입 이력'이 서로 맞는지 대사하면 실효성 있는 테스트가 된다.</p>",
+      "howItWorks": "<ol><li>백업 소프트웨어가 디스크에 1차 백업을 수행한다(D2D).</li><li>정책에 따라 디스크 백업본을 테이프로 복사한다(D2D2T). 이때 암호화와 압축이 적용된다.</li><li>라이브러리 로봇이 빈 테이프를 드라이브에 장착하고 기록 후 슬롯에 반환한다.</li><li>기록이 끝난 테이프는 카탈로그에 매체번호·보존만료일과 함께 등록된다.</li><li>소산 대상 테이프를 라이브러리의 반출 슬롯(I/O 포트)으로 내보내고 반출 대장에 기록한다.</li><li>지정된 운반 절차(잠금 케이스, 지정 운반자, 인수인계 서명)로 보관 장소에 이송한다.</li><li>보관 장소에서 수령 확인이 이루어지고 목록이 회사에 회신된다.</li><li>복구가 필요하면 매체를 회수해 라이브러리에 투입하고 카탈로그를 참조해 복원한다.</li><li>보존기간이 끝난 매체는 재사용(초기화) 또는 소자·파쇄 후 파기 확인서를 보관한다.</li></ol>",
+      "example": "<p>은행 '한강은행'은 계정계 일일 백업을 디스크에 보관하고, 월말 마감본과 분기 결산본을 LTO-9 테이프(압축 시 매체당 최대 45TB)로 복사해 매주 금요일 전문 보관업체로 소산한다. 테이프는 드라이브 하드웨어 AES-256 암호화를 적용하고 키는 KMS에서 별도 관리한다. 2026년 상반기 내부감사에서 반출 대장상 매체 412개 중 실사 시 3개가 확인되지 않아, 확인 결과 조기 회수 후 라이브러리에 재투입했으나 대장에 회수 기록을 누락한 것으로 밝혀졌다. 이후 분기 실사와 대장 전산화를 도입했다.</p><pre><code># 리눅스에서 테이프 장치 확인/조작 (mt-st)\nsudo mt -f /dev/nst0 status\nsudo mt -f /dev/nst0 rewind\n\n# 테이프 라이브러리 슬롯/매체 확인 (mtx)\nsudo mtx -f /dev/sg5 status\n\n# NetBackup 매체 목록 조회 (개념)\nbpmedialist -summary\nvmquery -a          # 매체 ID, 보존만료일, 위치(off-site/robot)\n\n# 소산 대장 필수 항목\nmedia_id, backup_date, content, encrypted(Y/N), sent_date,\ncarrier, receiver_sign, storage_location, return_date, expire_date, disposal_date</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='45' width='110' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='70' y='68' text-anchor='middle' fill='currentColor' font-size='11'>운영 시스템</text><text x='70' y='86' text-anchor='middle' fill='currentColor' font-size='10'>DB · VM · 파일</text><line x1='125' y1='72' x2='170' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='170' y='45' width='110' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='225' y='68' text-anchor='middle' fill='currentColor' font-size='11'>디스크 백업</text><text x='225' y='86' text-anchor='middle' fill='currentColor' font-size='10'>D2D · 30일</text><line x1='280' y1='72' x2='325' y2='72' stroke='currentColor' marker-end='url(#ar)'/><rect x='325' y='40' width='130' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='390' y='62' text-anchor='middle' fill='currentColor' font-size='11'>테이프 라이브러리</text><text x='390' y='80' text-anchor='middle' fill='currentColor' font-size='10'>LTO + 암호화</text><text x='390' y='96' text-anchor='middle' fill='currentColor' font-size='10'>바코드·카탈로그</text><line x1='455' y1='72' x2='500' y2='72' stroke='currentColor' marker-end='url(#ar)'/><text x='478' y='62' text-anchor='middle' fill='currentColor' font-size='10'>반출</text><rect x='500' y='40' width='125' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='562' y='62' text-anchor='middle' fill='currentColor' font-size='11'>소산 보관소</text><text x='562' y='80' text-anchor='middle' fill='currentColor' font-size='10'>원격지 · 에어갭</text><text x='562' y='96' text-anchor='middle' fill='currentColor' font-size='10'>5년 보관</text><line x1='562' y1='105' x2='420' y2='140' stroke='currentColor' marker-end='url(#ar)'/><text x='500' y='130' text-anchor='middle' fill='currentColor' font-size='10'>회수 후 복구</text><rect x='15' y='140' width='380' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='205' y='162' text-anchor='middle' fill='currentColor' font-size='12'>감사 증적 체인</text><text x='205' y='182' text-anchor='middle' fill='currentColor' font-size='10'>반출입 대장(매체번호·운반자·수령서명) ↔ 실물 실사</text><text x='205' y='200' text-anchor='middle' fill='currentColor' font-size='10'>암호화 적용 · 키 분리 보관</text><text x='205' y='218' text-anchor='middle' fill='currentColor' font-size='10'>만료 매체 소자·파쇄 확인서 · 소산본 복구시험</text></svg>",
+      "keyTerms": [
+        {
+          "term": "LTO",
+          "meaning": "업계 표준 테이프 규격. 세대가 올라갈수록 용량·속도 증가"
+        },
+        {
+          "term": "소산(Off-site Vaulting)",
+          "meaning": "백업 매체를 원격지에 옮겨 보관하는 활동"
+        },
+        {
+          "term": "에어갭(Air Gap)",
+          "meaning": "네트워크와 물리적으로 분리된 상태. 랜섬웨어 차단의 최종 수단"
+        },
+        {
+          "term": "WORM 매체",
+          "meaning": "한 번 기록하면 변경 불가한 매체. 법정 보존 자료에 사용"
+        },
+        {
+          "term": "미디어 카탈로그",
+          "meaning": "어떤 데이터가 어느 매체에 있는지 기록한 색인. 별도 백업 필수"
+        },
+        {
+          "term": "D2D2T",
+          "meaning": "디스크에 먼저 백업하고 테이프로 복사하는 2단계 방식"
+        },
+        {
+          "term": "소자(Degauss)",
+          "meaning": "강한 자기장으로 테이프 데이터를 복구 불가능하게 지우는 폐기 방법"
+        },
+        {
+          "term": "매체 실사",
+          "meaning": "대장과 실물 매체 수량·번호를 대조하는 점검 활동"
+        }
+      ],
+      "pitfalls": [
+        "테이프는 있으나 미디어 카탈로그를 백업하지 않아 복구 시 어느 테이프에 무엇이 있는지 알 수 없는 상황.",
+        "소산 매체를 암호화하지 않아 운반 중 분실이 곧바로 대량 개인정보 유출 사고가 되는 위험.",
+        "암호키를 테이프와 같은 곳에 보관하거나 담당자 PC에만 두어 담당자 부재 시 복구가 불가능한 경우.",
+        "반출 기록은 있으나 회수 기록이 없어 대장과 실물이 맞지 않는 상태(실사에서 단골 지적).",
+        "테이프 드라이브 자체가 노후·단종되어 매체는 있는데 읽을 장비가 없는 상황. 보존기간 동안 판독 수단 유지가 필요하다.",
+        "소산본으로 실제 복구 테스트를 한 번도 하지 않는 것. 디스크 백업 복구 테스트로 갈음할 수 없다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 백업 매체의 소산 주기·대상·보관 장소가 정책으로 정의되고 준수되는가",
+          "[운영] 매체 반출입 대장이 유지되고 정기 실사를 통해 실물과 대사되는가",
+          "[운영] 소산 매체를 이용한 복구 테스트가 주기적으로 수행·문서화되는가",
+          "[접근] 매체 보관 장소 접근과 매체 반출 권한이 승인된 인원으로 제한되는가",
+          "[운영] 보존기간 만료 매체의 파기가 승인·수행되고 파기 확인서가 보관되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록 등 법정 보존 자료의 보존기간(전자금융거래법상 5년 등) 및 안전한 보관 요건 충족 여부",
+          "백업 매체의 소산 보관(주전산센터와 물리적으로 분리된 장소) 요건 이행 여부",
+          "고객정보가 포함된 매체의 암호화 및 반출입 통제 여부"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리: 백업 매체의 안전한 보관과 복구 시험",
+          "2.4.6 반출입 기기 통제: 저장매체 반출입 승인·기록",
+          "2.4.9 / 2.1.x 정보자산 폐기: 매체 파기 절차와 기록"
+        ],
+        "evidence": [
+          "소산 정책 문서(주기, 대상, 보관 장소, 운반 절차)",
+          "최근 12개월 매체 반출입 대장과 보관업체 수령 확인서",
+          "매체 실사 결과서(대장 대비 실물 차이와 조치)",
+          "테이프 암호화 설정 화면과 암호키 관리 절차",
+          "소산 매체 회수 후 복구 테스트 결과서",
+          "만료 매체 소자·파쇄 확인서(매체번호 포함)"
+        ],
+        "auditorQuestions": [
+          "백업 매체는 어디에 보관하며 주전산센터와 거리는 얼마인가?",
+          "테이프는 암호화되어 있는가? 키는 누가 어디에 보관하는가?",
+          "최근 매체 실사는 언제 했고 차이가 있었는가?",
+          "소산된 테이프에서 실제로 복구해 본 적이 있는가?",
+          "보존기간이 지난 테이프는 어떻게 폐기하는가? 확인서가 있는가?",
+          "테이프를 반출할 수 있는 사람은 누구이며 승인은 누가 하는가?"
+        ],
+        "controlExample": "월말 마감 백업 매체는 매주 1회 지정 운반 절차를 통해 원격지 보관소로 소산되며, 반출입 내역은 매체 대장에 기록하고 분기 1회 실물 실사를 통해 대사한다. 모든 소산 매체는 AES-256으로 암호화되고 암호키는 매체와 분리 보관되며, 연 1회 소산 매체를 회수해 복구 테스트를 수행한다."
+      },
+      "related": [
+        "onprem-backup-solution",
+        "onprem-dr-center",
+        "onprem-physical-security",
+        "onprem-storage-types",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "LTO Ultrium Technology Roadmap",
+        "Veritas NetBackup Media Management Guide",
+        "NIST SP 800-88 Guidelines for Media Sanitization"
+      ]
+    },
+    {
+      "id": "onprem-dr-center",
+      "title": "재해복구센터(DR)",
+      "titleEn": "Disaster Recovery Center and BCP",
+      "aliases": [
+        "DR센터",
+        "재해복구",
+        "BCP",
+        "DRP",
+        "이중화",
+        "모의훈련",
+        "Active-Standby"
+      ],
+      "tags": [
+        "dr",
+        "bcp",
+        "availability"
+      ],
+      "level": "심화",
+      "oneLiner": "주전산센터가 통째로 멈춰도 업무를 이어가기 위한 두 번째 센터와 절차",
+      "analogy": "DR센터는 본점이 불타도 영업을 이어가기 위해 미리 준비해 둔 제2 사무실과 같다. 어떤 회사는 제2 사무실에 직원이 상주하며 평소에도 절반의 손님을 받고(Active-Active), 어떤 회사는 책상과 전화만 깔아 두고 비상시에만 사람을 보내며(Standby), 어떤 회사는 빈 사무실 계약만 해 두었다(Cold). 중요한 것은 '가 본 적이 있는가'다. 한 번도 가서 일해 보지 않은 제2 사무실은 비상시에도 쓸모가 없다.",
+      "explanation": "<p><strong>재해복구(Disaster Recovery, DR)</strong>는 지진·화재·정전·침수·대규모 사이버 공격 등으로 주전산센터가 기능을 잃었을 때, 다른 장소에서 업무를 재개하는 체계다. 더 넓게 인력·건물·업무 프로세스까지 포함한 계획이 <strong>업무연속성계획(BCP, Business Continuity Plan)</strong>이고, 그중 IT 부분이 <strong>DRP(Disaster Recovery Plan)</strong>다.</p><p><strong>구성 방식은 네 가지</strong>로 나눈다. <strong>Active-Active(상호운영)</strong>는 두 센터가 평소에도 함께 서비스를 처리해 한쪽이 죽어도 즉시 전환된다(RTO 거의 0). <strong>Active-Standby(핫사이트)</strong>는 DR센터에 동일 장비를 두고 데이터를 실시간 복제하며 대기하다가 전환한다(RTO 수십 분~수 시간). <strong>웜사이트(Warm)</strong>는 장비는 있으나 최신 데이터·설정이 일부만 준비된 상태, <strong>콜드사이트(Cold)</strong>는 공간·전원만 확보하고 장비는 사고 후 조달한다(RTO 수일). 금융권 주요 시스템은 규제상 실질적으로 Active-Active 또는 핫사이트 수준을 요구받는다.</p><p><strong>핵심 지표</strong>는 백업과 같은 <strong>RTO(복구 목표 시간)</strong>와 <strong>RPO(복구 목표 시점)</strong>다. 여기에 업무영향분석(<strong>BIA, Business Impact Analysis</strong>)으로 업무별 중요도를 정하고, 중요 업무일수록 짧은 RTO/RPO를 부여해 투자 수준을 결정한다. 예를 들어 이체·결제는 RTO 30분·RPO 0, 내부 포털은 RTO 24시간·RPO 24시간처럼 차등화한다.</p><p><strong>데이터 동기화 수단</strong>은 스토리지 동기 복제(거리 제약 있음, RPO 0), 비동기 복제(원거리 가능, RPO 수초~수분), DB 자체 복제(Oracle Data Guard, PostgreSQL 스트리밍 복제, SQL Server AlwaysOn), 그리고 백업 기반 복원이다. 여기에 DNS·글로벌 로드밸런서 전환, 네트워크 경로 전환(BGP·전용선), 애플리케이션 세션 처리, 배치 일정 재조정까지 맞물려야 실제 전환이 성립한다.</p><p><strong>모의훈련(DR Drill)</strong>이 이 영역의 심장이다. 문서만 있는 DR은 실패한다. 훈련은 수준별로 나뉘는데, 담당자들이 모여 시나리오를 읽는 <strong>도상훈련(Tabletop)</strong>, 일부 시스템만 전환하는 <strong>부분 전환훈련</strong>, 실제 서비스를 DR센터로 넘겨 운영하는 <strong>실전 전환훈련(Failover/Failback 포함)</strong>이 있다. 국내 금융회사는 통상 연 1회 이상 실제 전환 수준의 훈련을 하고 결과를 이사회·감독기관 보고 체계에 반영한다.</p><p><strong>감사 관점</strong>에서는 (1) BIA에 근거한 RTO/RPO가 승인·문서화됐는가, (2) DR 구성이 그 목표를 실제로 달성 가능한가, (3) 훈련이 계획대로 수행되고 <strong>발견된 문제(gap)가 조치되어 다음 훈련에 반영</strong>됐는가, (4) DR센터의 접근통제·변경관리가 주센터와 동일 수준인가(자주 빠지는 지점), (5) 운영 시스템 변경이 DR 환경에도 동기화되는가(=구성 드리프트)를 본다. 특히 '주센터에만 적용된 패치·설정 변경'이 누적되면 전환해도 서비스가 안 뜨는 상황이 생긴다.</p>",
+      "howItWorks": "<ol><li>BIA로 업무별 중요도와 허용 중단 시간을 산정하고 시스템별 RTO/RPO를 승인받는다.</li><li>목표에 맞춰 DR 방식(Active-Active/핫/웜)과 데이터 복제 방식을 설계·구축한다.</li><li>평상시 주센터 데이터가 복제 경로를 통해 DR센터로 지속 전송되고 복제 지연이 모니터링된다.</li><li>재해 발생 시 사전에 정의된 기준(선포 기준)에 따라 위기대응조직이 재해를 선포한다.</li><li>DR 전환 절차서에 따라 DB를 DR 측에서 승격하고, 애플리케이션을 기동한다.</li><li>DNS/GSLB·네트워크 경로를 DR로 전환해 사용자 트래픽을 유입시킨다.</li><li>서비스 정상성 검증(체크리스트 기반) 후 대외기관·고객 공지를 수행한다.</li><li>주센터 복구 후 데이터를 역방향으로 동기화하고 계획된 시간에 원복(Failback)한다.</li><li>훈련·실제 전환 후 결과 보고서를 작성해 문제점과 개선 과제를 등록·추적한다.</li></ol>",
+      "example": "<p>은행 '한강은행'은 서울 주센터와 100km 떨어진 대전 DR센터를 운영한다. 계정계 DB는 스토리지 비동기 복제(RPO 5초 이내 유지), 채널계는 양 센터에서 동시에 트래픽을 받는 Active-Active 구성이다. 2026년 5월 연간 DR 훈련에서 실제 인터넷뱅킹 트래픽을 2시간 동안 DR센터로 전환해 운영했고, RTO 목표 30분 대비 실제 41분이 소요됐다. 원인은 DR 측 웹서버 3대에 최근 적용된 TLS 인증서가 배포되지 않은 것이었고, 이후 인증서·패치 배포 대상에 DR 서버를 자동 포함하도록 구성관리를 개선했다.</p><pre><code># 복제 지연(RPO) 모니터링 예시 - PostgreSQL 스트리밍 복제\nSELECT client_addr, state,\n       pg_wal_lsn_diff(sent_lsn, replay_lsn) AS replay_lag_bytes,\n       replay_lag\nFROM pg_stat_replication;\n\n# DR 전환 체크리스트(발췌)\n[ ] 재해 선포 승인 (위기대응반장)\n[ ] 주센터 서비스 차단 및 데이터 복제 상태 확인(RPO 기록)\n[ ] DR DB 승격 (standby -&gt; primary)\n[ ] 애플리케이션 기동 및 헬스체크 통과 확인\n[ ] DNS TTL 60초 확인 후 DR VIP로 전환\n[ ] 대외기관 연계(FEP) 회선 절체 확인\n[ ] 배치 스케줄러 DR 모드 기동, 중복 실행 방지\n[ ] 거래 정상성 샘플 검증 10건\n[ ] 고객 공지 및 감독기관 보고\n\n# 훈련 결과 기록 필수 항목\n목표 RTO/RPO, 실제 RTO/RPO, 실패 항목, 원인, 개선과제, 담당자, 기한</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='35' width='230' height='105' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='135' y='57' text-anchor='middle' fill='currentColor' font-size='12'>주센터 (서울)</text><rect x='35' y='68' width='95' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='82' y='88' text-anchor='middle' fill='currentColor' font-size='10'>App 서버</text><rect x='140' y='68' width='95' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='187' y='88' text-anchor='middle' fill='currentColor' font-size='10'>DB Primary</text><rect x='35' y='103' width='200' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='135' y='122' text-anchor='middle' fill='currentColor' font-size='10'>스토리지</text><line x1='250' y1='88' x2='390' y2='88' stroke='currentColor' marker-end='url(#ar)'/><text x='320' y='78' text-anchor='middle' fill='currentColor' font-size='10'>복제 (RPO 5초)</text><rect x='390' y='35' width='230' height='105' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='57' text-anchor='middle' fill='currentColor' font-size='12'>DR센터 (대전)</text><rect x='405' y='68' width='95' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='452' y='88' text-anchor='middle' fill='currentColor' font-size='10'>App 대기</text><rect x='510' y='68' width='95' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='557' y='88' text-anchor='middle' fill='currentColor' font-size='10'>DB Standby</text><rect x='405' y='103' width='200' height='28' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='505' y='122' text-anchor='middle' fill='currentColor' font-size='10'>스토리지 복제본</text><rect x='150' y='160' width='340' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='185' text-anchor='middle' fill='currentColor' font-size='12'>DNS / GSLB — 전환 시 트래픽 방향 변경</text><line x1='230' y1='160' x2='150' y2='145' stroke='currentColor' marker-end='url(#ar)'/><line x1='410' y1='160' x2='490' y2='145' stroke='currentColor' marker-end='url(#ar)'/><text x='320' y='222' text-anchor='middle' fill='currentColor' font-size='11'>연 1회 이상 실제 전환훈련 → 미흡사항 개선과제 등록·추적</text><text x='320' y='240' text-anchor='middle' fill='currentColor' font-size='10'>주센터 변경(패치·인증서·설정)은 DR에도 동기화해야 전환이 성공한다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "BCP / DRP",
+          "meaning": "업무연속성계획 / 그중 IT 복구에 해당하는 재해복구계획"
+        },
+        {
+          "term": "BIA",
+          "meaning": "업무영향분석. 업무별 중단 영향을 평가해 RTO/RPO 우선순위를 정함"
+        },
+        {
+          "term": "Active-Active",
+          "meaning": "두 센터가 평소에도 함께 서비스를 처리하는 구성"
+        },
+        {
+          "term": "핫/웜/콜드 사이트",
+          "meaning": "DR센터의 준비 수준. 준비도가 높을수록 RTO가 짧고 비용이 크다"
+        },
+        {
+          "term": "Failover / Failback",
+          "meaning": "DR로 전환 / 주센터로 원복"
+        },
+        {
+          "term": "동기·비동기 복제",
+          "meaning": "쓰기 즉시 양쪽 반영(RPO 0, 거리 제약) / 지연 허용(원거리 가능)"
+        },
+        {
+          "term": "구성 드리프트",
+          "meaning": "주센터와 DR 환경의 설정·버전이 서로 달라지는 현상"
+        },
+        {
+          "term": "재해 선포",
+          "meaning": "정해진 기준과 권한자에 의해 DR 절차를 공식 발동하는 행위"
+        }
+      ],
+      "pitfalls": [
+        "DR 계획 문서는 있으나 실제 전환훈련을 하지 않아, 전환 시 설정 누락·절차 오류로 실패하는 경우.",
+        "주센터에만 패치·인증서·방화벽 정책을 적용해 DR 환경이 서서히 달라지는 구성 드리프트.",
+        "DR센터 서버의 계정·권한 관리와 접근통제를 주센터보다 느슨하게 운영해 감사 결함이 되는 사례.",
+        "복제만 구성하고 백업을 소홀히 하는 것. 복제는 논리적 오류·랜섬웨어도 그대로 전달한다.",
+        "RTO/RPO가 BIA 없이 관행적으로 정해져 실제 업무 요구와 맞지 않는 상태.",
+        "DR 전환 시 배치 스케줄러가 양쪽에서 동시에 도는 중복 실행 사고를 고려하지 않는 설계."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] BIA에 근거한 시스템별 RTO/RPO가 승인·문서화되고 DR 구성이 이를 충족하는가",
+          "[운영] DR 모의훈련이 연간 계획에 따라 수행되고 결과·미흡사항·개선조치가 기록·추적되는가",
+          "[변경] 주센터의 변경(패치·설정·인증서)이 DR 환경에도 반영되도록 절차가 마련되어 있는가",
+          "[접근] DR센터 시스템의 계정·권한과 물리 접근통제가 주센터와 동일 수준으로 관리되는가",
+          "[운영] 데이터 복제 상태와 지연(RPO)이 모니터링되고 이상 시 경보·조치되는가"
+        ],
+        "fss": [
+          "전자금융감독규정에 따른 재해복구센터 구축·운영 및 비상대책 수립 요건 충족 여부",
+          "주요 전자금융업무에 대한 재해복구 목표시간(RTO) 설정과 연 1회 이상 모의훈련 실시 여부",
+          "재해복구센터를 주전산센터와 지리적으로 분리해 동시 피해 가능성을 낮췄는가",
+          "비상대응조직·비상연락체계·재해 선포 기준이 정의되고 최신 상태인가"
+        ],
+        "isms": [
+          "2.12.1 재해·재난 대비 안전조치: BIA, 복구 목표 설정, 복구 전략 수립",
+          "2.12.2 재해 복구 시험 및 개선: 시험 수행과 결과에 따른 보완",
+          "2.9.3 백업 및 복구관리: DR과 백업의 연계"
+        ],
+        "evidence": [
+          "BIA 결과 및 시스템별 RTO/RPO 승인 문서",
+          "DR 구성도(복제 방식, 회선, 전환 절차)와 최신 개정 이력",
+          "최근 DR 모의훈련 계획서·시나리오·결과보고서(목표 대비 실제 RTO/RPO)",
+          "훈련 미흡사항 개선과제 목록과 완료 증빙",
+          "복제 상태 모니터링 대시보드와 지연 경보 발생·조치 이력",
+          "DR센터 서버 계정 목록 및 출입권한자 목록"
+        ],
+        "auditorQuestions": [
+          "핵심 업무의 RTO/RPO는 얼마이며 누가 승인했는가?",
+          "가장 최근 DR 훈련은 언제, 어떤 수준(도상/부분/실전)으로 했는가?",
+          "훈련에서 실제 달성한 RTO는 목표와 비교해 어땠는가?",
+          "훈련에서 발견된 문제는 무엇이었고 지금은 조치됐는가?",
+          "주센터에 적용한 패치가 DR에도 적용됐음을 어떻게 확인하는가?",
+          "DR센터 서버에 접근 가능한 사람은 주센터와 동일하게 관리되는가?",
+          "복제 지연이 임계치를 넘으면 누가 언제 알게 되는가?"
+        ],
+        "controlExample": "핵심 업무 시스템은 BIA에 근거해 승인된 RTO 30분·RPO 5분 이내 목표에 따라 DR센터에 실시간 복제되며, 복제 지연은 상시 모니터링되어 임계치 초과 시 자동 경보된다. 연 1회 이상 실제 전환 수준의 재해복구 훈련을 수행하고, 목표 대비 결과와 미흡사항 개선계획을 정보보호최고책임자에게 보고한다."
+      },
+      "related": [
+        "onprem-backup-solution",
+        "onprem-tape-offsite",
+        "onprem-datacenter",
+        "onprem-storage-types",
+        "onprem-core-banking",
+        "onprem-hybrid-cloud",
+        "comp-fss-egfs"
+      ],
+      "learnMore": [
+        "NIST SP 800-34 Contingency Planning Guide for Federal Information Systems",
+        "ISO 22301 Business Continuity Management",
+        "금융보안원 재해복구 관련 가이드"
+      ]
+    }
+  ]
+}

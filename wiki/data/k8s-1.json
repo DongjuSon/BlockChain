@@ -1,0 +1,1297 @@
+{
+  "category": "k8s",
+  "categoryLabel": "Kubernetes (EKS 포함)",
+  "entries": [
+    {
+      "id": "k8s-overview",
+      "title": "쿠버네티스 개요",
+      "titleEn": "Kubernetes Overview",
+      "aliases": [
+        "k8s",
+        "쿠버",
+        "컨테이너 오케스트레이션",
+        "쿠베",
+        "Kubernetes"
+      ],
+      "tags": [
+        "container",
+        "orchestration",
+        "platform"
+      ],
+      "level": "기초",
+      "oneLiner": "컨테이너를 수백 대 서버에 자동 배치·복구·확장하는 운영 플랫폼",
+      "analogy": "쿠버네티스는 대형 물류센터의 자동 관제 시스템과 같다. 택배 상자(컨테이너)를 어느 선반(서버)에 둘지, 상자가 망가지면 새 상자를 어디서 꺼낼지, 주문이 몰리면 상자를 몇 개 더 준비할지를 사람이 아니라 시스템이 알아서 결정한다. 관리자는 '이 상품은 항상 3개가 진열돼 있어야 한다'는 규칙만 적어두면 된다.",
+      "explanation": "<p><strong>쿠버네티스(Kubernetes, K8s)</strong>는 컨테이너화된 애플리케이션을 여러 대의 서버(노드) 위에 배치하고, 죽으면 다시 살리고, 트래픽이 늘면 늘리고, 새 버전을 무중단으로 배포하는 일을 자동화하는 오픈소스 플랫폼이다. 구글이 내부 시스템 Borg의 경험을 바탕으로 2014년 공개했고, 지금은 CNCF(Cloud Native Computing Foundation)가 관리한다. K8s라는 약칭은 K와 s 사이에 8글자가 있다는 뜻이다.</p><p><strong>왜 필요한가.</strong> 도커(Docker) 같은 컨테이너 기술은 '한 대의 서버에서 앱을 격리해 실행'하는 문제를 해결했다. 하지만 서버가 50대, 서비스가 200개가 되면 새로운 문제가 생긴다. 어느 서버에 어떤 컨테이너를 놓을지, 서버가 죽으면 그 위 컨테이너는 어디로 옮길지, 배포 중 서비스 중단은 어떻게 막을지, 설정과 비밀번호는 어떻게 주입할지 등이다. 쉽게 말하면 컨테이너 하나를 다루는 것이 도커라면, 컨테이너 수천 개를 하나의 큰 컴퓨터처럼 다루는 것이 쿠버네티스다.</p><p><strong>핵심 사상은 선언적(declarative) 관리</strong>다. 운영자는 '결제 API 컨테이너를 3개 띄워라'라고 명령하는 것이 아니라 '결제 API는 항상 3개가 떠 있는 상태여야 한다'는 <strong>원하는 상태(desired state)</strong>를 YAML 파일로 적어 제출한다. 쿠버네티스는 실제 상태를 계속 관찰하면서 원하는 상태와 다르면 스스로 고친다. 서버 한 대가 죽어 컨테이너가 2개로 줄면 자동으로 다른 서버에 1개를 더 띄운다.</p><p><strong>주요 구성 요소</strong>는 크게 두 층이다. <strong>컨트롤 플레인(Control Plane)</strong>은 클러스터의 두뇌로 API 서버, etcd(상태 저장소), 스케줄러, 컨트롤러 매니저로 이루어진다. <strong>워커 노드(Worker Node)</strong>는 실제 컨테이너가 도는 서버이며 kubelet, kube-proxy, 컨테이너 런타임이 설치되어 있다. 운영자와 CI/CD 도구는 <code>kubectl</code>이나 API를 통해 컨트롤 플레인에만 말을 걸고, 노드는 직접 만지지 않는 것이 원칙이다.</p><p><strong>AWS에서는 EKS(Elastic Kubernetes Service)</strong>가 컨트롤 플레인을 관리형으로 제공한다. 즉 API 서버와 etcd는 AWS가 운영·백업·업그레이드하고, 회사는 워커 노드와 그 위의 워크로드만 책임진다. 이 책임 분담(Shared Responsibility)이 감사 범위를 정할 때 매우 중요하다.</p><p><strong>감사 관점에서 쿠버네티스는 '운영 서버 + 배포 시스템 + 권한 시스템'이 합쳐진 자산</strong>이다. 온프레미스에서 서버 접근권한, 배포 승인, 변경 이력을 각각 보던 것이 쿠버네티스에서는 API 서버 하나를 통해 흐른다. 따라서 API 서버에 누가 어떤 권한으로 접근하는지(RBAC), 어떤 변경이 언제 들어갔는지(audit log, GitOps 이력)를 확보하면 대부분의 통제를 설명할 수 있다.</p>",
+      "howItWorks": "<ol><li>개발자가 컨테이너 이미지를 빌드해 레지스트리(ECR 등)에 올린다.</li><li>운영자 또는 CI/CD가 '이 이미지를 3개 띄워라'는 Deployment YAML을 <code>kubectl apply</code>로 API 서버에 제출한다.</li><li>API 서버는 인증·인가·검증(admission)을 거쳐 etcd에 원하는 상태를 저장한다.</li><li>컨트롤러 매니저가 '3개가 있어야 하는데 0개다'를 감지하고 Pod 3개를 생성한다.</li><li>스케줄러가 각 Pod에 대해 CPU·메모리 여유, 제약조건을 따져 노드를 배정한다.</li><li>해당 노드의 kubelet이 컨테이너 런타임(containerd)에 이미지 pull과 실행을 지시한다.</li><li>Service/Ingress를 통해 외부 트래픽이 Pod로 라우팅된다.</li><li>이후에도 컨트롤러들이 실제 상태를 계속 감시하며 원하는 상태와 어긋나면 자동으로 복구한다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이나우'는 결제 API, 정산 배치, 관리자 웹 등 40개 서비스를 EKS 클러스터 2개(운영/스테이징)에서 운영한다. 운영 클러스터는 서울 리전 3개 가용영역(ap-northeast-2a/2b/2c)에 워커 노드 24대를 두고 있으며, 결제 API는 최소 6개 Pod가 항상 유지된다. 블랙프라이데이 이벤트 때 트래픽이 5배 늘자 HPA가 Pod를 30개까지 자동 확장했고, 노드가 부족해지자 Karpenter가 노드 8대를 추가했다. 이벤트가 끝나자 다시 원래 규모로 축소되어 비용이 절감됐다.</p><pre><code># 클러스터 접속 및 상태 확인\naws eks update-kubeconfig --region ap-northeast-2 --name paynow-prod\nkubectl get nodes\nkubectl get pods -n payment\n\n# 결제 API를 3개 유지하라는 선언\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-api\n  namespace: payment\nspec:\n  replicas: 3\n  selector:\n    matchLabels: { app: payment-api }\n  template:\n    metadata:\n      labels: { app: payment-api }\n    spec:\n      containers:\n      - name: api\n        image: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/payment-api:v2.3.1</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><text x='20' y='22' fill='currentColor' font-size='13'>운영자 / CI-CD</text><rect x='20' y='30' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='55.0' text-anchor='middle' fill='currentColor'>kubectl / API</text><line x1='130' y1='50' x2='190' y2='50' stroke='currentColor' marker-end='url(#ar)'/><text x='160.0' y='44.0' text-anchor='middle' fill='currentColor' font-size='11'>YAML 제출</text><rect x='190' y='20' width='240' height='100' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='310.0' y='75.0' text-anchor='middle' fill='currentColor'>컨트롤 플레인 (EKS 관리)</text><rect x='200' y='55' width='100' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='250.0' y='75.0' text-anchor='middle' fill='currentColor'>API 서버</text><rect x='320' y='55' width='100' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='370.0' y='75.0' text-anchor='middle' fill='currentColor'>etcd</text><rect x='200' y='90' width='100' height='25' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='250.0' y='107.5' text-anchor='middle' fill='currentColor'>스케줄러</text><rect x='320' y='90' width='100' height='25' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='370.0' y='107.5' text-anchor='middle' fill='currentColor'>컨트롤러</text><line x1='310' y1='70' x2='400' y2='150' stroke='currentColor' marker-end='url(#ar)'/><line x1='240' y1='120' x2='240' y2='150' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='150' width='180' height='90' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='110.0' y='200.0' text-anchor='middle' fill='currentColor'>워커 노드 1</text><rect x='30' y='185' width='70' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65.0' y='210.0' text-anchor='middle' fill='currentColor'>Pod</text><rect x='110' y='185' width='70' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='145.0' y='210.0' text-anchor='middle' fill='currentColor'>Pod</text><rect x='220' y='150' width='180' height='90' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='310.0' y='200.0' text-anchor='middle' fill='currentColor'>워커 노드 2</text><rect x='230' y='185' width='70' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='210.0' text-anchor='middle' fill='currentColor'>Pod</text><rect x='310' y='185' width='70' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='345.0' y='210.0' text-anchor='middle' fill='currentColor'>Pod</text><rect x='420' y='150' width='200' height='90' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520.0' y='200.0' text-anchor='middle' fill='currentColor'>워커 노드 3</text><rect x='430' y='185' width='70' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='465.0' y='210.0' text-anchor='middle' fill='currentColor'>Pod</text><text x='460' y='40' fill='currentColor' font-size='11'>선언 → 저장 → 조정</text></svg>",
+      "keyTerms": [
+        {
+          "term": "컨테이너(Container)",
+          "meaning": "앱과 실행환경을 하나로 묶어 어디서나 동일하게 실행되는 격리 단위"
+        },
+        {
+          "term": "클러스터(Cluster)",
+          "meaning": "컨트롤 플레인과 워커 노드들의 집합, 하나의 큰 컴퓨터처럼 동작"
+        },
+        {
+          "term": "컨트롤 플레인(Control Plane)",
+          "meaning": "클러스터의 두뇌. API 서버·etcd·스케줄러·컨트롤러 매니저"
+        },
+        {
+          "term": "노드(Node)",
+          "meaning": "컨테이너가 실제로 실행되는 서버(EC2 인스턴스 등)"
+        },
+        {
+          "term": "원하는 상태(Desired State)",
+          "meaning": "YAML로 선언한 목표 상태. 쿠버네티스는 이를 향해 계속 조정"
+        },
+        {
+          "term": "CNCF",
+          "meaning": "쿠버네티스를 관리하는 재단. 클라우드 네이티브 생태계 표준화 주체"
+        },
+        {
+          "term": "EKS",
+          "meaning": "AWS의 관리형 쿠버네티스. 컨트롤 플레인을 AWS가 운영"
+        }
+      ],
+      "pitfalls": [
+        "쿠버네티스를 도입하면 자동으로 고가용성이 되는 것으로 오해. 앱 자체가 무상태이고 replicas가 2 이상이며 노드가 여러 AZ에 분산돼야 한다.",
+        "EKS를 쓰면 보안이 AWS 책임이라고 생각. 워커 노드 OS 패치, RBAC, 네트워크 정책, 이미지 취약점은 고객 책임이다.",
+        "'kubectl로 직접 고쳤다'는 운영이 반복되면 Git에 있는 YAML과 실제 상태가 달라져 변경관리가 무너진다.",
+        "클러스터 하나에 운영과 개발을 섞어 두고 Namespace만으로 분리했다고 안심. 클러스터 관리자 권한은 전체에 미친다.",
+        "컨테이너 안에 상태(파일, 세션)를 저장. Pod는 언제든 죽고 다시 만들어지므로 데이터가 사라진다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 클러스터 API 서버 접근 주체(사람·CI/CD·서비스 계정)를 식별하고 권한 매트릭스를 유지하는가",
+          "[변경] 운영 워크로드 변경이 승인된 파이프라인(GitOps/CI)을 통해서만 이루어지는지, 수동 kubectl 변경이 탐지·통제되는가",
+          "[운영] 클러스터 장애·Pod 재시작·자동 확장 이벤트가 모니터링되고 중대 이벤트는 인시던트로 관리되는가",
+          "[운영] 컨트롤 플레인(EKS)과 워커 노드의 책임 분담이 문서화되고 노드 패치·업그레이드 주기가 정의되어 있는가"
+        ],
+        "fss": [
+          "클라우드컴퓨팅서비스(EKS) 이용 시 전자금융감독규정 제14조의2에 따른 업무 중요도 평가, 안전성 확보조치, 금감원 보고 절차를 이행했는가",
+          "전자금융기반시설로서 클러스터의 정보처리시스템 목록·구성도가 최신으로 관리되는가",
+          "정보처리시스템 이중화 요건(다중 AZ, 복수 replicas)이 핵심 금융 서비스에 적용되어 있는가"
+        ],
+        "isms": [
+          "2.1.3 정보자산 관리: 클러스터·노드·워크로드가 자산 목록에 식별되고 중요도가 분류되어 있는가",
+          "2.10.1 보안시스템 운영 / 2.10.2 클라우드 보안: 클라우드 서비스 이용에 따른 보안 통제와 책임 분담이 정의되어 있는가",
+          "2.9.1 변경관리: 워크로드 변경이 절차에 따라 승인·기록되는가"
+        ],
+        "evidence": [
+          "EKS 콘솔 또는 aws eks describe-cluster 출력(버전, 엔드포인트 공개 여부, 로깅 설정)",
+          "클러스터 목록과 용도(운영/개발) 및 담당자 기재된 자산 대장",
+          "kubectl get nodes -o wide 출력(노드 수, AZ 분산, 버전)",
+          "클러스터 아키텍처 구성도 및 책임 분담(RACI) 문서",
+          "최근 분기 클러스터 접근권한 리뷰 결과"
+        ],
+        "auditorQuestions": [
+          "운영 클러스터가 몇 개이며 각각의 용도와 소유 팀은 누구인가?",
+          "운영 클러스터에 kubectl로 직접 접근할 수 있는 사람은 누구이고 어떤 절차로 부여되는가?",
+          "워크로드 변경이 Git을 거치지 않고 직접 적용되는 경우가 있는가? 있다면 어떻게 탐지하는가?",
+          "EKS 컨트롤 플레인과 워커 노드 중 회사가 직접 관리하는 범위는 어디까지인가?",
+          "클러스터 장애 시 복구 절차와 최근 장애 사례는?"
+        ],
+        "controlExample": "운영 EKS 클러스터는 정보자산 대장에 등록·분류되며, 클러스터 접근 권한은 플랫폼팀 승인 후 IAM·RBAC로 부여되고 분기별로 권한 적정성을 리뷰한다. 모든 워크로드 변경은 GitOps 파이프라인을 통해 승인·배포되며 수동 변경은 감사 로그로 탐지한다."
+      },
+      "related": [
+        "k8s-architecture",
+        "k8s-declarative-reconcile",
+        "k8s-pod",
+        "k8s-deployment",
+        "k8s-eks-features",
+        "k8s-rbac",
+        "aws-eks",
+        "cicd-argocd"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Kubernetes란 무엇인가",
+        "Amazon EKS User Guide",
+        "CNCF Cloud Native Landscape"
+      ]
+    },
+    {
+      "id": "k8s-architecture",
+      "title": "클러스터 아키텍처",
+      "titleEn": "Kubernetes Cluster Architecture",
+      "aliases": [
+        "컨트롤 플레인",
+        "control plane",
+        "kube-apiserver",
+        "etcd",
+        "kubelet",
+        "kube-proxy",
+        "마스터 노드",
+        "워커 노드"
+      ],
+      "tags": [
+        "architecture",
+        "control-plane",
+        "node"
+      ],
+      "level": "기초",
+      "oneLiner": "두뇌(컨트롤 플레인)와 손발(워커 노드)로 나뉜 클러스터 구조",
+      "analogy": "클러스터는 병원과 같다. 원무과(API 서버)가 모든 접수를 받고, 차트 보관실(etcd)에 환자 상태를 기록하며, 배정 담당(스케줄러)이 어느 병동에 입원시킬지 정하고, 병동 수간호사(컨트롤러 매니저)가 '이 병동엔 항상 간호사 3명'을 맞춘다. 각 병동(워커 노드)에는 현장 책임자(kubelet)가 있어 지시대로 환자를 돌본다.",
+      "explanation": "<p>쿠버네티스 클러스터는 <strong>컨트롤 플레인(Control Plane)</strong>과 <strong>워커 노드(Worker Node)</strong>로 나뉜다. 컨트롤 플레인은 결정을 내리고 상태를 기록하는 두뇌이고, 워커 노드는 실제 컨테이너를 실행하는 손발이다. 과거에는 컨트롤 플레인을 '마스터 노드'라고 불렀으나 지금은 컨트롤 플레인이라는 용어를 쓴다(구 명칭: master).</p><p><strong>컨트롤 플레인의 4대 구성요소</strong>는 다음과 같다.</p><ul><li><strong>kube-apiserver</strong>: 클러스터의 유일한 정문. kubectl, CI/CD, 다른 컴포넌트 모두 이 REST API를 통해서만 상태를 읽고 쓴다. 인증(Authentication) → 인가(Authorization, RBAC) → 어드미션(Admission) 검증을 순서대로 수행한다. 감사 로그(audit log)도 여기서 생성된다.</li><li><strong>etcd</strong>: 클러스터의 모든 상태(어떤 Pod가 어디에 있고, Secret 값이 무엇인지)를 저장하는 분산 키-값 저장소. 이것을 잃으면 클러스터를 잃는 것과 같다. 쉽게 말하면 클러스터의 '원장(ledger)'이다.</li><li><strong>kube-scheduler</strong>: 새 Pod가 생기면 CPU·메모리 여유, taint/affinity 규칙, AZ 분산 등을 따져 어느 노드에 배치할지 결정한다. 결정만 하고 실행은 kubelet이 한다.</li><li><strong>kube-controller-manager</strong>: 수십 개의 컨트롤러(ReplicaSet, Node, Job, EndpointSlice 등)를 묶어 실행한다. 각 컨트롤러는 '원하는 상태 vs 실제 상태'를 비교해 차이를 메운다. 클라우드 연동 부분은 cloud-controller-manager로 분리돼 있다.</li></ul><p><strong>워커 노드의 3대 구성요소</strong>는 다음과 같다.</p><ul><li><strong>kubelet</strong>: 노드마다 하나씩 도는 에이전트. API 서버에서 '이 노드에 이 Pod를 실행하라'는 지시를 받아 컨테이너 런타임에 전달하고, 컨테이너 상태와 헬스체크 결과를 보고한다.</li><li><strong>kube-proxy</strong>: Service의 가상 IP로 온 트래픽을 실제 Pod IP로 전달하도록 노드의 iptables/IPVS 규칙을 관리한다. Cilium 같은 CNI를 쓰면 kube-proxy를 대체하기도 한다.</li><li><strong>컨테이너 런타임(Container Runtime)</strong>: 실제로 컨테이너를 실행하는 소프트웨어. 현재 표준은 <strong>containerd</strong>이며, 쿠버네티스 1.24부터 Docker 엔진 직접 연동(dockershim)은 제거됐다. CRI(Container Runtime Interface)라는 표준 인터페이스로 kubelet과 대화한다.</li></ul><p><strong>EKS에서의 차이.</strong> AWS는 컨트롤 플레인(API 서버, etcd, 스케줄러, 컨트롤러)을 AWS 소유 계정의 VPC에서 다중 AZ로 운영하고, etcd를 자동 백업하며, 고객은 볼 수도 SSH로 들어갈 수도 없다. 고객 VPC에는 워커 노드만 존재하고, ENI를 통해 컨트롤 플레인과 통신한다. 따라서 감사 시 컨트롤 플레인의 물리적 보안·패치는 AWS SOC 보고서로 갈음하고, 회사는 API 서버 엔드포인트 공개 여부·로깅 설정·노드 관리를 입증한다.</p>",
+      "howItWorks": "<ol><li>사용자가 <code>kubectl apply -f deployment.yaml</code>을 실행하면 kubeconfig의 자격증명으로 API 서버에 HTTPS 요청을 보낸다.</li><li>API 서버가 인증(누구인가) → 인가(권한이 있는가, RBAC) → 어드미션(정책에 맞는가)을 통과시키고 etcd에 Deployment 객체를 기록한다.</li><li>Deployment 컨트롤러가 변화를 감지(watch)하고 ReplicaSet을, ReplicaSet 컨트롤러가 Pod 객체를 etcd에 만든다. 아직 Pod에는 노드가 없다.</li><li>스케줄러가 노드 미배정 Pod를 발견하고 필터링(자원 부족 노드 제외)과 점수 계산을 거쳐 노드를 선택해 Pod의 nodeName을 기록한다.</li><li>해당 노드의 kubelet이 자기 이름이 적힌 Pod를 발견하고 CRI를 통해 containerd에 이미지 pull과 컨테이너 시작을 지시한다.</li><li>CNI 플러그인이 Pod에 IP를 할당하고, kube-proxy가 Service 규칙을 갱신한다.</li><li>kubelet이 컨테이너 상태를 API 서버에 주기적으로 보고하고, 이 정보가 etcd에 반영된다.</li></ol>",
+      "example": "<p>커머스 회사 '마켓온'의 운영 EKS 클러스터는 컨트롤 플레인을 AWS가 관리하고, 고객 VPC의 프라이빗 서브넷에 m6i.2xlarge 워커 노드 18대가 3개 AZ에 6대씩 있다. API 서버 엔드포인트는 프라이빗으로만 열려 있어 사내 VPN 또는 배스천을 통해서만 kubectl이 가능하다. 어느 날 노드 한 대가 하드웨어 장애로 NotReady가 되자, Node 컨트롤러가 5분 후 그 노드의 Pod를 퇴거(evict)시키고 스케줄러가 나머지 노드에 재배치해 서비스 영향 없이 복구됐다.</p><pre><code># 컨트롤 플레인 컴포넌트 상태 (EKS는 대부분 숨겨져 있음)\nkubectl get --raw='/readyz?verbose'\nkubectl get componentstatuses   # 구버전 명령, 참고용\n\n# 노드 및 노드 위 에이전트 확인\nkubectl get nodes -o wide\nkubectl describe node ip-10-20-31-14.ap-northeast-2.compute.internal\n# Conditions: Ready=True, MemoryPressure=False ...\n# Container Runtime Version: containerd://1.7.x\n\n# EKS 컨트롤 플레인 설정 확인\naws eks describe-cluster --name marketon-prod \\\n  --query 'cluster.{ver:version,private:resourcesVpcConfig.endpointPrivateAccess,public:resourcesVpcConfig.endpointPublicAccess,logs:logging}'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='300' height='120' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='170.0' y='85.0' text-anchor='middle' fill='currentColor'>컨트롤 플레인 (EKS: AWS 계정)</text><rect x='30' y='50' width='90' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75.0' y='72.5' text-anchor='middle' fill='currentColor'>API 서버</text><rect x='130' y='50' width='80' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='170.0' y='72.5' text-anchor='middle' fill='currentColor'>etcd</text><rect x='220' y='50' width='90' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='72.5' text-anchor='middle' fill='currentColor'>스케줄러</text><rect x='30' y='95' width='130' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='117.5' text-anchor='middle' fill='currentColor'>컨트롤러 매니저</text><rect x='170' y='95' width='140' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='240.0' y='117.5' text-anchor='middle' fill='currentColor'>cloud-controller</text><line x1='120' y1='67' x2='130' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='340' y='20' width='280' height='120' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='480.0' y='85.0' text-anchor='middle' fill='currentColor'>워커 노드 (고객 VPC)</text><rect x='350' y='50' width='80' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='390.0' y='72.5' text-anchor='middle' fill='currentColor'>kubelet</text><rect x='440' y='50' width='85' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='482.5' y='72.5' text-anchor='middle' fill='currentColor'>kube-proxy</text><rect x='535' y='50' width='75' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='572.5' y='72.5' text-anchor='middle' fill='currentColor'>containerd</text><rect x='350' y='95' width='80' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='390.0' y='117.5' text-anchor='middle' fill='currentColor'>Pod</text><rect x='440' y='95' width='80' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='480.0' y='117.5' text-anchor='middle' fill='currentColor'>Pod</text><rect x='530' y='95' width='80' height='35' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570.0' y='117.5' text-anchor='middle' fill='currentColor'>CNI</text><line x1='320' y1='67' x2='350' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='190' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='85.0' y='215.0' text-anchor='middle' fill='currentColor'>kubectl / CI-CD</text><line x1='85' y1='190' x2='75' y2='145' stroke='currentColor' marker-end='url(#ar)'/><text x='80.0' y='161.5' text-anchor='middle' fill='currentColor' font-size='11'>HTTPS 6443</text><rect x='200' y='190' width='200' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='300.0' y='215.0' text-anchor='middle' fill='currentColor'>인증→인가(RBAC)→어드미션</text><text x='420' y='215' fill='currentColor' font-size='11'>← API 서버 처리 순서</text></svg>",
+      "keyTerms": [
+        {
+          "term": "kube-apiserver",
+          "meaning": "모든 요청이 통과하는 유일한 진입점. 인증·인가·감사 로그 담당"
+        },
+        {
+          "term": "etcd",
+          "meaning": "클러스터 상태를 저장하는 분산 키-값 저장소(Raft 합의)"
+        },
+        {
+          "term": "kube-scheduler",
+          "meaning": "새 Pod를 어느 노드에 둘지 결정"
+        },
+        {
+          "term": "kube-controller-manager",
+          "meaning": "원하는 상태를 유지하는 컨트롤러들의 모음"
+        },
+        {
+          "term": "kubelet",
+          "meaning": "각 노드에서 Pod를 실제로 실행·감시하는 에이전트"
+        },
+        {
+          "term": "kube-proxy",
+          "meaning": "Service 트래픽을 Pod로 전달하는 노드 네트워크 규칙 관리자"
+        },
+        {
+          "term": "CRI / containerd",
+          "meaning": "kubelet과 런타임 간 표준 인터페이스 / 사실상 표준 런타임"
+        },
+        {
+          "term": "cloud-controller-manager",
+          "meaning": "로드밸런서·노드 정보 등 클라우드 API 연동 컨트롤러"
+        }
+      ],
+      "pitfalls": [
+        "EKS에서 etcd 백업을 회사가 해야 한다고 생각하거나, 반대로 워크로드 매니페스트 백업까지 AWS가 해 준다고 오해",
+        "API 서버 엔드포인트를 퍼블릭으로 열어두고 0.0.0.0/0에서 접근 가능하게 방치",
+        "워커 노드에 SSH로 들어가 컨테이너를 직접 조작하면 kubelet 보고와 실제가 어긋나 장애 원인 추적이 어려움",
+        "Docker가 런타임이라고 생각해 dockershim 제거 이후 노드에서 docker 명령이 없다고 당황(crictl 사용)",
+        "컨트롤 플레인 장애가 곧 서비스 장애라고 오해. API 서버가 잠시 죽어도 이미 뜬 Pod는 계속 트래픽을 처리한다"
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] API 서버 엔드포인트 접근 경로(프라이빗/퍼블릭, 허용 CIDR)가 최소화되고 승인되었는가",
+          "[접근] 워커 노드 OS 접근(SSH/SSM)이 제한되고 접근 기록이 보관되는가",
+          "[운영] 컨트롤 플레인의 가용성·백업 책임이 AWS에 있음을 계약·SOC 보고서로 확인하고 워커 노드 책임은 회사 절차로 커버하는가",
+          "[변경] 컨트롤 플레인·노드 버전 업그레이드가 변경관리 절차를 따르는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제14조의2: 클라우드 이용 시 중요도 평가 및 CSP 안전성 평가(SOC/ISMS 등) 수행 여부",
+          "정보처리시스템 구성도에 컨트롤 플레인과 노드 위치(리전·AZ·VPC)가 명시되어 있는가",
+          "제15조 해킹 등 방지대책: 관리 엔드포인트가 내부망에서만 접근 가능하도록 통제되는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: API 서버 엔드포인트 접근 통제",
+          "2.6.2 정보시스템 접근: 노드 OS 접근 통제 및 기록",
+          "2.10.2 클라우드 보안: CSP와의 책임 분담 명확화"
+        ],
+        "evidence": [
+          "aws eks describe-cluster 출력(endpointPrivateAccess/PublicAccess, publicAccessCidrs)",
+          "AWS SOC 2 Type II 보고서 중 EKS 범위 확인 페이지",
+          "노드 접근 방식 문서 및 SSM Session Manager 세션 로그 샘플",
+          "클러스터 구성도(컨트롤 플레인/노드/VPC/AZ)",
+          "kubectl get nodes -o wide 출력과 노드 AMI/런타임 버전"
+        ],
+        "auditorQuestions": [
+          "API 서버 엔드포인트는 퍼블릭인가 프라이빗인가? 퍼블릭이라면 어떤 CIDR로 제한되는가?",
+          "워커 노드에 직접 접속할 수 있는 사람과 방법은? 세션 기록이 남는가?",
+          "컨트롤 플레인 장애 시 AWS와의 SLA와 에스컬레이션 절차는?",
+          "노드 OS 이미지(AMI)는 누가 언제 갱신하는가?"
+        ],
+        "controlExample": "운영 EKS 클러스터의 API 서버 엔드포인트는 프라이빗 접근만 허용하며, 워커 노드 접근은 SSM Session Manager를 통해서만 가능하고 세션 로그는 CloudWatch에 1년 이상 보관된다."
+      },
+      "related": [
+        "k8s-overview",
+        "k8s-declarative-reconcile",
+        "k8s-etcd-backup",
+        "k8s-authentication",
+        "k8s-cni",
+        "k8s-eks-features",
+        "aws-vpc",
+        "awssec-cloudtrail"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Kubernetes Components",
+        "Amazon EKS User Guide - Cluster endpoint access control",
+        "etcd 공식 문서"
+      ]
+    },
+    {
+      "id": "k8s-declarative-reconcile",
+      "title": "선언적 모델과 Reconcile Loop",
+      "titleEn": "Declarative Model & Reconciliation Loop",
+      "aliases": [
+        "desired state",
+        "원하는 상태",
+        "컨트롤 루프",
+        "control loop",
+        "reconciliation",
+        "선언형",
+        "자가치유"
+      ],
+      "tags": [
+        "concept",
+        "controller",
+        "core"
+      ],
+      "level": "기초",
+      "oneLiner": "목표 상태를 선언하면 컨트롤러가 실제 상태를 계속 맞춰주는 원리",
+      "analogy": "선언적 모델은 온도조절기(써모스탯)와 같다. '방 온도 24도'라고 설정만 해두면, 창문을 열어 온도가 떨어지든 사람이 몰려 올라가든 조절기가 계속 히터나 에어컨을 켜고 끄며 24도로 되돌린다. 매 순간 '지금 히터 켜'라고 명령할 필요가 없다.",
+      "explanation": "<p>쿠버네티스의 가장 중요한 사상은 <strong>명령형(imperative)이 아닌 선언적(declarative) 관리</strong>다. 명령형은 '서버 A에 컨테이너를 띄워라, 그다음 B에 띄워라'처럼 절차를 지시하는 방식이고, 선언적은 '이 앱은 3개가 떠 있어야 한다'는 <strong>원하는 상태(desired state)</strong>만 적는 방식이다. 절차는 쿠버네티스가 알아서 만든다.</p><p>이를 가능하게 하는 것이 <strong>조정 루프(reconcile loop, control loop)</strong>다. 각 컨트롤러는 무한히 반복되는 단순한 루프를 돈다. (1) API 서버에서 원하는 상태를 읽고, (2) 실제 상태를 관찰하고, (3) 차이가 있으면 차이를 줄이는 행동을 하고, (4) 다시 처음으로. 쉽게 말하면 '틀린 그림 찾기'를 끝없이 하면서 틀린 곳을 계속 고치는 것이다.</p><p><strong>왜 이 방식이 강력한가.</strong> 첫째, <strong>자가 치유(self-healing)</strong>가 자연스럽게 따라온다. 노드가 죽어 Pod가 사라지면 '3개여야 하는데 2개'라는 차이가 생기고 컨트롤러가 1개를 다시 만든다. 둘째, <strong>멱등성(idempotency)</strong>이 보장된다. 같은 YAML을 열 번 apply해도 결과는 같다. 셋째, <strong>Git이 진실의 원천(source of truth)</strong>이 될 수 있다. YAML을 Git에 두고 그것을 apply하면 '현재 운영 상태 = Git의 특정 커밋'이라는 관계가 성립해 변경 이력이 곧 감사 증적이 된다. 이것이 GitOps(ArgoCD, Flux)의 기반이다.</p><p><strong>구성요소.</strong> 원하는 상태는 객체의 <code>spec</code>에, 실제 상태는 <code>status</code>에 기록된다. 예를 들어 Deployment의 <code>spec.replicas: 3</code>이 목표이고 <code>status.availableReplicas: 2</code>가 현실이다. 컨트롤러는 API 서버의 <strong>watch</strong> 기능으로 변화를 실시간 구독하며, 놓친 이벤트는 주기적 재동기화(resync)로 보정한다. 한 컨트롤러는 한 종류의 객체만 책임지며, 상위 객체가 하위 객체를 만드는 <strong>계층 구조</strong>(Deployment → ReplicaSet → Pod)를 이룬다. 이 구조를 확장한 것이 Operator 패턴이다.</p><p><strong>감사 관점</strong>에서 선언적 모델은 큰 장점이다. 온프레미스에서는 '누가 언제 서버에서 무슨 명령을 쳤는지'를 세션 로그로 좇아야 했지만, 쿠버네티스에서는 '원하는 상태의 변경 이력(Git 커밋 + API 서버 감사 로그)'만 확보하면 된다. 다만 kubectl로 직접 수정(edit/patch)하는 경로가 열려 있으면 Git과 실제가 어긋나는 <strong>드리프트(drift)</strong>가 생기므로 이를 통제·탐지해야 한다.</p>",
+      "howItWorks": "<ol><li>운영자가 <code>spec.replicas: 3</code>인 Deployment를 apply한다. API 서버가 etcd에 저장한다.</li><li>Deployment 컨트롤러가 watch로 새 객체를 감지하고, ReplicaSet 객체를 생성한다(원하는 상태 전파).</li><li>ReplicaSet 컨트롤러가 '원하는 Pod 3, 실제 Pod 0'을 보고 Pod 3개를 만든다.</li><li>스케줄러·kubelet이 Pod를 실행하고 status를 Running으로 갱신한다.</li><li>이후 노드 장애로 Pod 1개가 사라지면 ReplicaSet 컨트롤러가 '3 vs 2' 차이를 감지해 Pod 1개를 다시 만든다.</li><li>운영자가 replicas를 5로 바꿔 apply하면 같은 루프가 '5 vs 3'을 보고 2개를 추가한다.</li><li>ArgoCD 같은 GitOps 도구는 이 루프를 한 단계 더 올려 'Git의 YAML vs 클러스터의 객체'를 비교하고 차이(drift)를 보고하거나 자동 동기화한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 운영 클러스터의 모든 매니페스트를 Git 저장소 <code>paynow-k8s-manifests</code>에 두고 ArgoCD가 자동 동기화한다. 어느 날 SRE가 긴급 대응으로 <code>kubectl scale</code>로 replicas를 6에서 10으로 올렸다. 3분 후 ArgoCD가 'OutOfSync'를 감지하고 Git의 값(6)으로 되돌렸다. 이 사건을 계기로 긴급 변경도 Git PR로 하되 승인자를 1인으로 줄이는 '긴급 변경 절차'를 만들었고, 감사 시 이 사례가 '수동 변경이 탐지·복원된다'는 통제 증거로 활용됐다.</p><pre><code># 원하는 상태(spec)와 실제 상태(status) 비교\nkubectl get deployment payment-api -n payment -o yaml | grep -A3 'replicas'\n# spec:\n#   replicas: 3\n# status:\n#   availableReplicas: 3\n#   readyReplicas: 3\n\n# 선언적 apply (여러 번 실행해도 결과 동일)\nkubectl apply -f payment-api.yaml\nkubectl diff -f payment-api.yaml   # Git 파일과 클러스터 차이 미리보기\n\n# 명령형 (감사상 지양) - 이력이 Git에 남지 않음\nkubectl scale deployment payment-api --replicas=10 -n payment</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='150' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='51.0' text-anchor='middle' fill='currentColor'>Git / YAML</text><text x='95.0' y='67.0' text-anchor='middle' fill='currentColor' font-size='11'>spec.replicas: 3</text><line x1='170' y1='55' x2='230' y2='55' stroke='currentColor' marker-end='url(#ar)'/><text x='200.0' y='49.0' text-anchor='middle' fill='currentColor' font-size='11'>apply</text><rect x='230' y='30' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='295.0' y='51.0' text-anchor='middle' fill='currentColor'>API 서버 + etcd</text><text x='295.0' y='67.0' text-anchor='middle' fill='currentColor' font-size='11'>원하는 상태</text><rect x='230' y='130' width='130' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='295.0' y='151.0' text-anchor='middle' fill='currentColor'>컨트롤러</text><text x='295.0' y='167.0' text-anchor='middle' fill='currentColor' font-size='11'>차이 계산</text><line x1='295' y1='80' x2='295' y2='130' stroke='currentColor' marker-end='url(#ar)'/><text x='295.0' y='99.0' text-anchor='middle' fill='currentColor' font-size='11'>watch</text><rect x='430' y='130' width='180' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520.0' y='151.0' text-anchor='middle' fill='currentColor'>실제 상태</text><text x='520.0' y='167.0' text-anchor='middle' fill='currentColor' font-size='11'>Pod 2개 Running</text><line x1='430' y1='155' x2='360' y2='155' stroke='currentColor' marker-end='url(#ar)'/><text x='395.0' y='149.0' text-anchor='middle' fill='currentColor' font-size='11'>관찰</text><line x1='295' y1='180' x2='295' y2='220' stroke='currentColor' marker-end='url(#ar)'/><rect x='200' y='220' width='190' height='32' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='295.0' y='241.0' text-anchor='middle' fill='currentColor'>Pod 1개 추가 생성</text><line x1='390' y1='236' x2='500' y2='180' stroke='currentColor' marker-end='url(#ar)'/><text x='445.0' y='202.0' text-anchor='middle' fill='currentColor' font-size='11'>조정</text><text x='440' y='60' fill='currentColor' font-size='12'>1) 읽기 2) 관찰</text><text x='440' y='78' fill='currentColor' font-size='12'>3) 차이 메우기 4) 반복</text><text x='40' y='130' fill='currentColor' font-size='12'>노드 장애로</text><text x='40' y='148' fill='currentColor' font-size='12'>Pod 하나 소멸</text><line x1='120' y1='140' x2='200' y2='140' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "Desired State",
+          "meaning": "spec에 선언한 목표 상태"
+        },
+        {
+          "term": "Actual/Observed State",
+          "meaning": "status에 기록되는 실제 관찰된 상태"
+        },
+        {
+          "term": "Reconcile",
+          "meaning": "원하는 상태와 실제 상태의 차이를 메우는 한 번의 조정 동작"
+        },
+        {
+          "term": "Controller",
+          "meaning": "특정 객체 종류에 대해 reconcile loop를 도는 프로그램"
+        },
+        {
+          "term": "Watch",
+          "meaning": "API 서버의 변경 이벤트를 실시간 구독하는 메커니즘"
+        },
+        {
+          "term": "Drift",
+          "meaning": "Git(선언)과 클러스터(실제)가 어긋난 상태"
+        },
+        {
+          "term": "멱등성(Idempotency)",
+          "meaning": "같은 선언을 반복 적용해도 결과가 같은 성질"
+        }
+      ],
+      "pitfalls": [
+        "kubectl edit/patch/scale로 직접 고친 뒤 Git을 갱신하지 않아 다음 배포 때 변경이 사라짐(롤백처럼 보이는 사고)",
+        "컨트롤러가 즉시 반응한다고 기대. 실제로는 수 초~수 분 지연이 있으며 노드 장애 시 Pod 퇴거까지 기본 5분 걸림",
+        "선언적이라고 해서 모든 변경이 안전한 것은 아님. spec 변경이 Pod 재생성을 유발하는지(immutable 필드) 확인 필요",
+        "GitOps 자동 동기화를 켜 두고 Git 저장소 권한 관리를 소홀히 하면 Git 쓰기 권한 = 운영 배포 권한이 됨"
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 매니페스트의 진실 원천이 Git으로 정의되고, 클러스터와의 drift가 탐지·보고되는가",
+          "[변경] kubectl edit/patch 등 직접 변경 권한이 제한되며 사용 시 감사 로그에 남고 사후 검토되는가",
+          "[접근] Git 저장소 쓰기·머지 권한이 배포 권한과 동등하게 관리되는가",
+          "[운영] 자동 복구(self-healing) 이벤트가 모니터링되어 반복 장애를 인시던트로 승격하는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제29조 프로그램 통제 취지: 운영 프로그램(매니페스트) 변경은 승인된 절차와 기록을 통해서만 반영",
+          "긴급 변경 시 사후 승인 절차와 기록 보존"
+        ],
+        "isms": [
+          "2.9.1 변경관리: 변경 요청·승인·적용·검토 흐름이 GitOps로 구현되는가",
+          "2.9.2 수행 및 결과 검토: drift 탐지 결과의 검토 기록"
+        ],
+        "evidence": [
+          "ArgoCD/Flux Application 목록과 Sync 상태·이력 화면",
+          "Git 저장소 브랜치 보호 규칙·PR 승인 이력",
+          "API 서버 감사 로그에서 verb=patch/update, user가 사람 계정인 이벤트 추출",
+          "drift 탐지 알림(Slack/메일) 샘플과 조치 기록"
+        ],
+        "auditorQuestions": [
+          "운영 클러스터의 설정 원천은 어디인가? Git과 클러스터가 다를 때 무엇이 우선하는가?",
+          "kubectl로 직접 수정할 수 있는 사람은 누구이고 최근 6개월간 그런 사례가 있었는가?",
+          "자동 동기화가 꺼져 있는 애플리케이션이 있는가? 이유는?",
+          "긴급 변경 시 절차는 무엇이며 사후 승인 기록이 남는가?"
+        ],
+        "controlExample": "운영 클러스터의 모든 워크로드는 Git 저장소를 진실의 원천으로 ArgoCD가 자동 동기화하며, Git과 클러스터 간 불일치는 즉시 알림되고 주간 검토된다. 직접 kubectl 변경 권한은 플랫폼팀 온콜 계정으로 제한되고 사용 내역은 감사 로그로 월간 리뷰한다."
+      },
+      "related": [
+        "k8s-overview",
+        "k8s-architecture",
+        "k8s-deployment",
+        "k8s-operator-crd",
+        "k8s-kubectl",
+        "cicd-argocd",
+        "cicd-gitops",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Kubernetes Object Management",
+        "Kubernetes 공식 문서 - Controllers",
+        "Argo CD 공식 문서 - Sync and Drift"
+      ]
+    },
+    {
+      "id": "k8s-pod",
+      "title": "Pod",
+      "titleEn": "Pod",
+      "aliases": [
+        "파드",
+        "포드",
+        "컨테이너 그룹",
+        "사이드카",
+        "init container",
+        "최소 배포 단위"
+      ],
+      "tags": [
+        "workload",
+        "core"
+      ],
+      "level": "기초",
+      "oneLiner": "쿠버네티스가 배포·관리하는 최소 단위, 컨테이너 1개 이상의 묶음",
+      "analogy": "Pod는 '한 집에 사는 룸메이트들'과 같다. 같은 집(Pod)에 사는 컨테이너들은 같은 주소(IP)를 쓰고, 같은 방(localhost)에서 서로 대화하며, 같은 창고(볼륨)를 공유한다. 이사(재배치)를 가면 집 전체가 함께 옮겨지고 주소도 바뀐다.",
+      "explanation": "<p><strong>Pod(파드)</strong>는 쿠버네티스에서 만들고, 배치하고, 지우는 가장 작은 단위다. 쿠버네티스는 컨테이너를 직접 다루지 않고 항상 Pod로 감싸서 다룬다. 대부분의 Pod는 컨테이너 1개를 담지만, 밀접하게 붙어 동작해야 하는 컨테이너 여러 개를 하나의 Pod에 넣을 수 있다.</p><p><strong>왜 컨테이너가 아니라 Pod인가.</strong> 실무에서는 앱 컨테이너 옆에 로그 수집기, 프록시, 설정 동기화 도구를 함께 두는 경우가 많다. 이들을 한 Pod에 묶으면 <strong>같은 네트워크 네임스페이스(IP·포트 공유, localhost 통신)</strong>와 <strong>같은 볼륨</strong>을 공유하고 항상 같은 노드에 함께 배치된다. 이런 보조 컨테이너를 <strong>사이드카(sidecar)</strong>라고 부르며, 서비스 메시(Istio의 Envoy 프록시)가 대표적이다. 쿠버네티스 1.29부터는 initContainers에 <code>restartPolicy: Always</code>를 주는 '네이티브 사이드카' 방식이 정식화됐다.</p><p><strong>Pod의 구성요소.</strong></p><ul><li><strong>containers</strong>: 실제 앱 컨테이너 목록. 각각 이미지, 포트, 환경변수, 자원 요청/제한, 프로브(헬스체크)를 가진다.</li><li><strong>initContainers</strong>: 메인 컨테이너보다 먼저 순서대로 실행되어 끝나야 하는 컨테이너(DB 마이그레이션 대기, 설정 다운로드 등).</li><li><strong>volumes</strong>: Pod 수준에서 정의하고 컨테이너가 마운트하는 저장 공간(emptyDir, ConfigMap, Secret, PVC 등).</li><li><strong>securityContext</strong>: 실행 UID, 루트 여부, 권한 상승 금지, 읽기전용 루트 파일시스템 등 보안 설정.</li><li><strong>serviceAccountName</strong>: Pod가 API 서버나 AWS에 접근할 때 쓰는 신원.</li></ul><p><strong>Pod는 일회용(ephemeral)</strong>이다. 노드가 죽거나 자원이 부족하거나 배포가 일어나면 Pod는 삭제되고 새 이름·새 IP로 다시 만들어진다. 그래서 실무에서는 Pod를 직접 만들지 않고 Deployment·StatefulSet 같은 상위 컨트롤러가 만들게 하며, 파일에 상태를 저장하지 않는 '무상태(stateless)' 설계를 요구한다. 쉽게 말하면 Pod는 소모품이고 Deployment가 소모품을 계속 채워 넣는 관리자다.</p><p><strong>Pod 상태(phase)</strong>는 Pending(노드 미배정 또는 이미지 pull 중) → Running → Succeeded/Failed로 흐르며, 컨테이너 단위로는 Waiting(CrashLoopBackOff, ImagePullBackOff 등 이유 포함), Running, Terminated가 있다. 장애 대응 시 <code>kubectl describe pod</code>의 Events 섹션이 가장 먼저 볼 곳이다.</p><p><strong>감사 관점</strong>에서 Pod 스펙은 '운영 서버의 실행 설정'에 해당한다. 루트 실행 여부, 호스트 네임스페이스 공유, 특권(privileged) 컨테이너, 이미지 출처가 통제 대상이며 Pod Security Admission이나 Kyverno로 강제한다.</p>",
+      "howItWorks": "<ol><li>상위 컨트롤러(예: ReplicaSet)가 Pod 객체를 API 서버에 생성한다. 이때 어드미션 컨트롤러가 보안 정책(루트 금지 등)을 검사한다.</li><li>스케줄러가 노드를 배정하면 해당 노드의 kubelet이 Pod를 받아 간다.</li><li>kubelet이 Pod용 네트워크 네임스페이스를 만들고(pause 컨테이너), CNI가 IP를 할당한다.</li><li>볼륨(ConfigMap, Secret, PVC)을 노드에 준비하고 마운트한다.</li><li>initContainers를 순서대로 실행하며 각각 정상 종료를 기다린다.</li><li>메인 컨테이너들을 동시에 시작하고 startup/readiness/liveness 프로브를 돌린다.</li><li>readiness가 통과하면 Service 엔드포인트에 등록되어 트래픽을 받기 시작한다.</li><li>삭제 시 SIGTERM을 보내고 terminationGracePeriodSeconds(기본 30초) 후 SIGKILL, 그 사이 preStop 훅이 실행된다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'의 결제 API Pod는 앱 컨테이너 1개와 로그를 S3로 보내는 Fluent Bit 사이드카 1개로 구성된다. 앱은 UID 10001로 실행되고 루트 파일시스템은 읽기전용이며, 로그는 공유 emptyDir 볼륨에 쓰고 사이드카가 읽어 간다. 배포 후 Pod가 CrashLoopBackOff에 빠져 <code>kubectl logs --previous</code>로 확인하니 DB 연결 문자열 Secret 키 이름이 틀렸던 것이었다.</p><pre><code>apiVersion: v1\nkind: Pod\nmetadata:\n  name: payment-api-demo\n  namespace: payment\n  labels: { app: payment-api }\nspec:\n  serviceAccountName: payment-api\n  securityContext:\n    runAsNonRoot: true\n    runAsUser: 10001\n    seccompProfile: { type: RuntimeDefault }\n  initContainers:\n  - name: wait-db\n    image: busybox:1.36\n    command: ['sh','-c','until nc -z pg.payment.svc 5432; do sleep 2; done']\n  containers:\n  - name: api\n    image: 123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/payment-api:v2.3.1\n    ports: [{ containerPort: 8080 }]\n    envFrom:\n    - secretRef: { name: payment-db }\n    resources:\n      requests: { cpu: '500m', memory: '512Mi' }\n      limits:   { memory: '1Gi' }\n    securityContext:\n      allowPrivilegeEscalation: false\n      readOnlyRootFilesystem: true\n    volumeMounts:\n    - { name: logs, mountPath: /var/log/app }\n  - name: log-shipper\n    image: public.ecr.aws/aws-observability/aws-for-fluent-bit:stable\n    volumeMounts:\n    - { name: logs, mountPath: /var/log/app, readOnly: true }\n  volumes:\n  - name: logs\n    emptyDir: {}\n\n# 디버깅\nkubectl describe pod payment-api-demo -n payment\nkubectl logs payment-api-demo -c api --previous -n payment</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='60' y='30' width='380' height='200' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='250.0' y='135.0' text-anchor='middle' fill='currentColor'>Pod (IP 10.20.3.17)</text><rect x='80' y='70' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='140.0' y='86.0' text-anchor='middle' fill='currentColor'>init: wait-db</text><text x='140.0' y='102.0' text-anchor='middle' fill='currentColor' font-size='11'>먼저 실행·종료</text><line x1='140' y1='110' x2='140' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='80' y='135' width='130' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='145.0' y='166.0' text-anchor='middle' fill='currentColor'>app 컨테이너</text><text x='145.0' y='182.0' text-anchor='middle' fill='currentColor' font-size='11'>:8080</text><rect x='250' y='135' width='130' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='315.0' y='166.0' text-anchor='middle' fill='currentColor'>log-shipper</text><text x='315.0' y='182.0' text-anchor='middle' fill='currentColor' font-size='11'>사이드카</text><rect x='80' y='210' width='300' height='16' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='230.0' y='223.0' text-anchor='middle' fill='currentColor'>공유 볼륨 emptyDir /var/log/app</text><text x='240' y='90' fill='currentColor' font-size='12'>localhost 통신</text><line x1='210' y1='170' x2='250' y2='170' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='60' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545.0' y='76.0' text-anchor='middle' fill='currentColor'>Service</text><text x='545.0' y='92.0' text-anchor='middle' fill='currentColor' font-size='11'>트래픽 전달</text><line x1='470' y1='80' x2='440' y2='100' stroke='currentColor' marker-end='url(#ar)'/><rect x='470' y='150' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='545.0' y='166.0' text-anchor='middle' fill='currentColor'>ServiceAccount</text><text x='545.0' y='182.0' text-anchor='middle' fill='currentColor' font-size='11'>Pod의 신원</text><line x1='470' y1='170' x2='440' y2='170' stroke='currentColor' marker-end='url(#ar)'/><text x='60' y='250' fill='currentColor' font-size='12'>같은 노드 · 같은 IP · 같은 볼륨 · 함께 생성/삭제</text></svg>",
+      "keyTerms": [
+        {
+          "term": "사이드카(Sidecar)",
+          "meaning": "앱 컨테이너 옆에서 로그·프록시 등 보조 역할을 하는 컨테이너"
+        },
+        {
+          "term": "initContainer",
+          "meaning": "메인 컨테이너 전에 순차 실행되어 완료돼야 하는 준비 컨테이너"
+        },
+        {
+          "term": "pause 컨테이너",
+          "meaning": "Pod의 네트워크 네임스페이스를 잡아 두는 숨은 컨테이너"
+        },
+        {
+          "term": "securityContext",
+          "meaning": "UID, 권한 상승, 읽기전용 FS 등 Pod/컨테이너 보안 설정"
+        },
+        {
+          "term": "emptyDir",
+          "meaning": "Pod 수명과 함께하는 임시 공유 디렉터리"
+        },
+        {
+          "term": "Phase",
+          "meaning": "Pending/Running/Succeeded/Failed 등 Pod 생명주기 상태"
+        },
+        {
+          "term": "terminationGracePeriodSeconds",
+          "meaning": "SIGTERM 후 강제 종료까지 기다리는 시간(기본 30초)"
+        }
+      ],
+      "pitfalls": [
+        "Pod를 직접(kind: Pod) 운영에 배포. 죽으면 아무도 다시 안 살린다. 반드시 Deployment 등 컨트롤러 사용",
+        "Pod IP를 설정 파일에 하드코딩. 재생성 시 IP가 바뀌므로 Service DNS를 써야 함",
+        "privileged: true, hostNetwork/hostPID 공유를 편의상 켜 두면 컨테이너 탈출 시 노드 전체가 노출됨",
+        "graceful shutdown을 구현하지 않아 배포 때마다 진행 중 결제 요청이 끊김(SIGTERM 처리 + preStop sleep 필요)",
+        "여러 앱을 한 Pod에 넣어 '같이 뜨니 편하다'고 생각. 확장·장애 격리 단위가 묶여 버린다"
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 운영 Pod가 루트·특권 모드로 실행되지 않도록 정책(PSA/Kyverno)으로 강제되는가",
+          "[변경] Pod 스펙(이미지 태그, 환경변수)은 Git·파이프라인을 통해서만 변경되는가",
+          "[접근] kubectl exec로 운영 Pod에 들어갈 수 있는 권한이 제한되고 감사 로그에 기록되는가",
+          "[운영] Pod 재시작·CrashLoop 이벤트가 모니터링되어 반복 시 인시던트로 관리되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 해킹 등 방지대책 취지: 운영 컨테이너의 최소 권한 실행 및 불필요 기능 제거",
+          "운영 시스템 접속(exec) 기록 보존 및 정기 점검"
+        ],
+        "isms": [
+          "2.6.2 정보시스템 접근: 컨테이너 내부 접근(exec) 통제",
+          "2.10.2 클라우드 보안 / 2.10.6 업무용 단말기기 보안 취지: 컨테이너 실행 보안 설정 표준",
+          "2.11.3 이상행위 분석 및 모니터링: 비정상 재시작 탐지"
+        ],
+        "evidence": [
+          "운영 네임스페이스 Pod의 securityContext 설정 export (kubectl get pods -o json | jq)",
+          "Pod Security Admission 레이블 또는 Kyverno ClusterPolicy 목록",
+          "감사 로그에서 verb=create, subresource=exec 이벤트 추출본",
+          "Pod 재시작 알림 규칙(Prometheus rule) 및 최근 알림 이력"
+        ],
+        "auditorQuestions": [
+          "운영 Pod 중 루트 또는 privileged로 도는 것이 있는가? 예외 승인 기록은?",
+          "운영 Pod에 exec로 접속 가능한 사람은 누구이며 어떤 경우에 허용되는가?",
+          "Pod 종료 시 진행 중인 거래가 안전하게 마무리되도록 어떤 설정이 있는가?",
+          "사이드카로 어떤 컨테이너가 붙어 있고 누가 그 이미지를 관리하는가?"
+        ],
+        "controlExample": "운영 네임스페이스는 Pod Security Admission 'restricted' 프로파일이 enforce 모드로 적용되어 루트·특권 컨테이너 생성이 차단되며, 예외는 보안팀 승인 후 별도 네임스페이스에서만 허용된다."
+      },
+      "related": [
+        "k8s-deployment",
+        "k8s-replicaset",
+        "k8s-probes",
+        "k8s-resources-qos",
+        "k8s-pod-security",
+        "k8s-serviceaccount",
+        "k8s-troubleshooting",
+        "k8s-service-mesh"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Pods",
+        "Kubernetes 공식 문서 - Pod Lifecycle",
+        "Kubernetes 공식 문서 - Sidecar Containers"
+      ]
+    },
+    {
+      "id": "k8s-replicaset",
+      "title": "ReplicaSet",
+      "titleEn": "ReplicaSet",
+      "aliases": [
+        "레플리카셋",
+        "RS",
+        "복제본 관리",
+        "ReplicationController"
+      ],
+      "tags": [
+        "workload",
+        "controller"
+      ],
+      "level": "기초",
+      "oneLiner": "동일한 Pod를 지정한 개수만큼 항상 유지하는 컨트롤러",
+      "analogy": "ReplicaSet은 편의점 진열대 담당 직원과 같다. '컵라면은 항상 5개 진열'이라는 규칙만 받으면, 손님이 사 가거나(Pod 삭제) 유통기한이 지나(노드 장애) 빠지면 창고에서 꺼내 채워 넣고, 6개가 있으면 하나를 뺀다. 어떤 컵라면인지(이미지 버전)를 바꾸는 일은 직원의 몫이 아니라 점장(Deployment)의 몫이다.",
+      "explanation": "<p><strong>ReplicaSet(레플리카셋)</strong>은 '이 Pod 템플릿으로 만든 Pod가 항상 N개 있어야 한다'를 보장하는 컨트롤러다. 구 명칭인 <strong>ReplicationController</strong>를 대체했으며, 차이는 레이블 셀렉터가 집합 기반(<code>matchExpressions</code>)까지 지원한다는 점이다.</p><p><strong>왜 필요한가.</strong> Pod는 일회용이라 죽으면 스스로 살아나지 않는다. 트래픽을 나눠 받고 장애를 견디려면 같은 Pod가 여러 개 있어야 하고, 개수를 누군가 계속 감시해야 한다. ReplicaSet이 그 감시자다. 쉽게 말하면 'Pod 개수 유지 장치'다.</p><p><strong>구성요소</strong>는 세 가지다.</p><ul><li><code>replicas</code>: 유지할 Pod 개수.</li><li><code>selector</code>: 어떤 Pod를 '내 것'으로 셀지 정하는 레이블 조건. 이 조건에 맞는 Pod를 세어 replicas와 비교한다.</li><li><code>template</code>: 부족할 때 새로 만들 Pod의 설계도. template의 레이블은 반드시 selector에 매칭돼야 한다.</li></ul><p><strong>실무에서는 ReplicaSet을 직접 만들지 않는다.</strong> Deployment가 ReplicaSet을 만들고 관리한다. Deployment가 새 버전을 배포하면 새 ReplicaSet을 만들어 늘리고 옛 ReplicaSet을 줄이는 방식으로 롤링 업데이트를 수행하며, 옛 ReplicaSet은 replicas=0으로 남겨 두어 롤백에 쓴다. 그래서 <code>kubectl get rs</code>를 치면 Deployment 하나당 여러 개의 ReplicaSet이 보이고 대부분 0/0이다. 이름은 <code>payment-api-7d9f8c6b5</code>처럼 Deployment 이름 뒤에 Pod 템플릿 해시가 붙는다.</p><p><strong>주의할 동작.</strong> ReplicaSet은 Pod 템플릿을 바꿔도 이미 떠 있는 Pod를 갱신하지 않는다. 오직 개수만 맞춘다. 또한 selector에 맞는 레이블을 가진 Pod가 외부에서 생기면 그것도 자기 것으로 셈해 기존 Pod를 지워 버릴 수 있다. 레이블 설계가 중요하다는 뜻이다. Pod 삭제 시에는 <code>pod-deletion-cost</code> 어노테이션으로 우선 삭제 순서를 힌트로 줄 수 있다.</p><p><strong>감사 관점</strong>에서 ReplicaSet은 직접 통제 대상이라기보다 '가용성 요건(최소 복제본 수)'이 실제로 구현되어 있는지 확인하는 대상이다. 핵심 금융 서비스가 replicas=1로 운영된다면 이중화 요건 미충족이다.</p>",
+      "howItWorks": "<ol><li>ReplicaSet 컨트롤러가 API 서버를 watch하며 ReplicaSet 객체와 Pod 객체 변화를 받는다.</li><li>각 ReplicaSet에 대해 selector에 맞고 삭제 중이 아닌 Pod 수를 센다(ownerReference도 확인).</li><li>실제 수 &lt; replicas면 template으로 부족분만큼 Pod를 생성 요청한다(생성 속도 제한 있음).</li><li>실제 수 &gt; replicas면 초과분을 삭제한다. 미배정·NotReady·최근 생성 Pod를 우선 삭제한다.</li><li>생성된 Pod에는 ownerReferences로 ReplicaSet이 기록되어 ReplicaSet 삭제 시 함께 정리(garbage collection)된다.</li><li>status.readyReplicas, availableReplicas를 갱신해 Deployment가 롤아웃 진행을 판단하게 한다.</li></ol>",
+      "example": "<p>커머스 '마켓온'의 상품검색 API는 Deployment로 replicas=4를 운영한다. 야간에 스팟 노드 2대가 회수되면서 Pod 2개가 사라졌지만 ReplicaSet이 즉시 2개를 다른 노드에 재생성해 4개를 유지했다. 반대로 한 개발자가 실수로 같은 레이블(app=search-api)을 단 테스트 Pod를 운영 네임스페이스에 만들자 ReplicaSet이 5개로 인식해 정상 Pod 하나를 지워 버리는 사고가 있었고, 이후 레이블에 <code>managed-by</code>를 추가해 셀렉터를 좁혔다.</p><pre><code># Deployment 아래 ReplicaSet 확인 (옛 버전은 0/0)\nkubectl get rs -n search -l app=search-api\n# NAME                    DESIRED CURRENT READY AGE\n# search-api-7d9f8c6b5    4       4       4     2d\n# search-api-5c4b7a9d1    0       0       0     9d\n\n# ReplicaSet 스펙 (Deployment가 생성한 것)\napiVersion: apps/v1\nkind: ReplicaSet\nmetadata:\n  name: search-api-7d9f8c6b5\nspec:\n  replicas: 4\n  selector:\n    matchLabels:\n      app: search-api\n      pod-template-hash: 7d9f8c6b5\n  template:\n    metadata:\n      labels: { app: search-api, pod-template-hash: 7d9f8c6b5 }\n    spec:\n      containers:\n      - name: api\n        image: .../search-api:v1.8.0</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='40' width='150' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='66.0' text-anchor='middle' fill='currentColor'>Deployment</text><text x='95.0' y='82.0' text-anchor='middle' fill='currentColor' font-size='11'>이미지·전략 관리</text><line x1='170' y1='70' x2='230' y2='70' stroke='currentColor' marker-end='url(#ar)'/><text x='200.0' y='64.0' text-anchor='middle' fill='currentColor' font-size='11'>생성</text><rect x='230' y='40' width='170' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='315.0' y='66.0' text-anchor='middle' fill='currentColor'>ReplicaSet</text><text x='315.0' y='82.0' text-anchor='middle' fill='currentColor' font-size='11'>replicas: 4 / selector</text><line x1='315' y1='100' x2='315' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='60' y='140' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='156.0' text-anchor='middle' fill='currentColor'>Pod</text><text x='105.0' y='172.0' text-anchor='middle' fill='currentColor' font-size='11'>app=search</text><rect x='170' y='140' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='215.0' y='156.0' text-anchor='middle' fill='currentColor'>Pod</text><text x='215.0' y='172.0' text-anchor='middle' fill='currentColor' font-size='11'>app=search</text><rect x='280' y='140' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='325.0' y='156.0' text-anchor='middle' fill='currentColor'>Pod</text><text x='325.0' y='172.0' text-anchor='middle' fill='currentColor' font-size='11'>app=search</text><rect x='390' y='140' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435.0' y='156.0' text-anchor='middle' fill='currentColor'>Pod (소멸)</text><text x='435.0' y='172.0' text-anchor='middle' fill='currentColor' font-size='11'>노드 장애</text><rect x='500' y='140' width='110' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='156.0' text-anchor='middle' fill='currentColor'>Pod (신규)</text><text x='555.0' y='172.0' text-anchor='middle' fill='currentColor' font-size='11'>자동 재생성</text><line x1='480' y1='160' x2='500' y2='160' stroke='currentColor' marker-end='url(#ar)'/><text x='60' y='215' fill='currentColor' font-size='12'>실제 3개 < 원하는 4개 → 1개 생성</text><text x='60' y='235' fill='currentColor' font-size='12'>실제 5개 > 원하는 4개 → 1개 삭제</text><text x='430' y='60' fill='currentColor' font-size='12'>kubectl get rs</text><text x='430' y='80' fill='currentColor' font-size='11'>→ 이름-템플릿해시</text></svg>",
+      "keyTerms": [
+        {
+          "term": "replicas",
+          "meaning": "유지해야 할 Pod 개수"
+        },
+        {
+          "term": "selector",
+          "meaning": "어떤 Pod를 자기 것으로 셀지 정하는 레이블 조건"
+        },
+        {
+          "term": "template",
+          "meaning": "새 Pod를 만들 때 쓰는 Pod 설계도"
+        },
+        {
+          "term": "pod-template-hash",
+          "meaning": "Deployment가 ReplicaSet 구분을 위해 자동으로 붙이는 레이블"
+        },
+        {
+          "term": "ownerReference",
+          "meaning": "Pod가 어느 ReplicaSet 소유인지 기록, 연쇄 삭제에 사용"
+        },
+        {
+          "term": "ReplicationController",
+          "meaning": "ReplicaSet의 전신(구 명칭), 현재는 거의 쓰지 않음"
+        }
+      ],
+      "pitfalls": [
+        "ReplicaSet을 직접 만들어 운영. 이미지 교체 시 롤링 업데이트가 없어 수동으로 Pod를 지워야 함",
+        "selector가 너무 넓어 다른 워크로드 Pod까지 자기 것으로 인식",
+        "옛 ReplicaSet(0/0)을 보고 쓰레기라 생각해 삭제. 롤백 이력이 사라짐(revisionHistoryLimit로 관리)",
+        "replicas=1을 '어차피 죽으면 다시 뜬다'며 운영. 재생성 동안 수십 초 단절 발생"
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 핵심 서비스의 최소 복제본 수가 가용성 요건에 맞게 설정되고 PodDisruptionBudget으로 보호되는가",
+          "[변경] replicas 변경이 Git/파이프라인을 통해 승인·기록되는가",
+          "[운영] 복제본 부족(availableReplicas < replicas) 상태가 알림으로 탐지되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제23조 취지: 중요 정보처리시스템의 이중화 구성(복수 Pod, 다중 AZ) 이행 여부"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리 / 가용성 확보: 서비스 복제본 및 자동 복구 구성",
+          "2.9.1 변경관리: replicas 변경 이력"
+        ],
+        "evidence": [
+          "kubectl get deploy,rs -A 출력에서 핵심 서비스 replicas 값",
+          "PodDisruptionBudget 목록",
+          "KubeDeploymentReplicasMismatch 등 알림 규칙과 이력"
+        ],
+        "auditorQuestions": [
+          "핵심 서비스 중 replicas가 1인 것이 있는가? 이유는?",
+          "복제본이 목표보다 적은 상태가 얼마나 지속되면 알림이 오는가?",
+          "옛 ReplicaSet 보관 개수(revisionHistoryLimit)는 얼마이며 롤백 시 활용되는가?"
+        ],
+        "controlExample": "결제·정산 등 핵심 서비스는 최소 3개 복제본을 서로 다른 AZ에 유지하며, 가용 복제본이 목표 미만인 상태가 5분 이상 지속되면 온콜에 알림이 발송된다."
+      },
+      "related": [
+        "k8s-pod",
+        "k8s-deployment",
+        "k8s-labels-selectors",
+        "k8s-autoscaling",
+        "k8s-statefulset"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - ReplicaSet",
+        "Kubernetes 공식 문서 - Garbage Collection"
+      ]
+    },
+    {
+      "id": "k8s-deployment",
+      "title": "Deployment (롤링 업데이트/롤백)",
+      "titleEn": "Deployment",
+      "aliases": [
+        "디플로이먼트",
+        "deploy",
+        "롤링 업데이트",
+        "rolling update",
+        "롤백",
+        "rollout",
+        "무중단 배포"
+      ],
+      "tags": [
+        "workload",
+        "controller",
+        "deploy"
+      ],
+      "level": "기초",
+      "oneLiner": "무상태 앱의 버전 배포·롤백을 자동화하는 가장 흔한 워크로드",
+      "analogy": "Deployment는 항공사 기종 교체 계획과 같다. 노선(서비스)을 멈추지 않고 옛 기종 비행기를 한 대씩 빼면서 새 기종을 한 대씩 투입한다. 새 기종에 문제가 생기면 옛 기종을 다시 투입(롤백)한다. 승객(트래픽)은 교체가 일어나는지도 모른다.",
+      "explanation": "<p><strong>Deployment(디플로이먼트)</strong>는 무상태(stateless) 애플리케이션을 배포·갱신·롤백하는 표준 워크로드 객체다. 내부적으로 ReplicaSet을 만들고, 새 버전이 나오면 새 ReplicaSet을 만들어 점진적으로 교체한다. 실무에서 '앱을 쿠버네티스에 올린다'는 말은 대부분 Deployment를 만든다는 뜻이다.</p><p><strong>왜 필요한가.</strong> ReplicaSet은 개수만 맞추지 버전 교체를 모른다. 새 이미지로 바꾸려면 옛 Pod를 지우고 새 Pod를 띄워야 하는데, 이를 한 번에 하면 서비스가 끊긴다. Deployment는 '몇 개씩, 얼마나 여유를 두고, 실패하면 어떻게' 교체할지를 선언하고 자동으로 수행한다. 쉽게 말하면 '무중단 배포 자동화 장치'다.</p><p><strong>배포 전략(strategy)</strong>은 두 가지다.</p><ul><li><strong>RollingUpdate(기본)</strong>: 새 ReplicaSet을 조금씩 늘리고 옛 ReplicaSet을 조금씩 줄인다. <code>maxSurge</code>(목표보다 몇 개까지 더 띄울 수 있나, 기본 25%)와 <code>maxUnavailable</code>(몇 개까지 부족해도 되나, 기본 25%)로 속도와 안전성을 조절한다.</li><li><strong>Recreate</strong>: 옛 Pod를 전부 지운 뒤 새 Pod를 띄운다. 짧은 중단이 발생하지만 두 버전이 공존하면 안 되는 앱(스키마 비호환 등)에 쓴다.</li></ul><p><strong>롤아웃 진행 판단</strong>은 readiness 프로브에 달려 있다. 새 Pod가 Ready가 되어야 옛 Pod를 줄이기 때문에 프로브가 없으면 컨테이너가 뜨자마자 Ready로 간주해 실제 준비가 안 된 Pod에 트래픽이 간다. <code>minReadySeconds</code>로 Ready 후 추가 대기 시간을, <code>progressDeadlineSeconds</code>(기본 600초)로 진행 실패 판정 시간을 둘 수 있다.</p><p><strong>롤백과 이력.</strong> Deployment는 옛 ReplicaSet을 <code>revisionHistoryLimit</code>(기본 10) 개까지 보관한다. <code>kubectl rollout undo</code>는 이전 ReplicaSet의 replicas를 다시 올리는 방식이라 이미지 pull 없이 수십 초 내 복구된다. 단, 이 롤백은 클러스터 안에서만 일어나므로 GitOps 환경에서는 Git도 함께 되돌려야 다음 동기화 때 다시 앞으로 가지 않는다.</p><p><strong>카나리·블루그린</strong>은 Deployment 기본 기능이 아니다. Deployment 2개 + Service 가중치, 또는 Argo Rollouts/Flagger 같은 도구로 구현한다. Deployment는 어디까지나 '롤링'까지다.</p><p><strong>감사 관점</strong>에서 Deployment 변경 = 운영 프로그램 변경이다. 이미지 태그가 무엇으로 바뀌었는지, 누가 승인했는지, 롤백 사유가 무엇인지가 변경관리 증적이 된다. <code>kubernetes.io/change-cause</code> 어노테이션이나 Git 커밋 메시지에 변경 티켓 번호를 남기는 관행이 유용하다.</p>",
+      "howItWorks": "<ol><li>운영자가 Deployment의 <code>image</code>를 v2.3.1 → v2.4.0으로 바꿔 apply한다.</li><li>Deployment 컨트롤러가 Pod 템플릿 해시가 달라졌음을 감지하고 새 ReplicaSet(v2.4.0, replicas=0)을 만든다.</li><li>maxSurge에 따라 새 RS를 1개 늘린다(총 4개 → 5개 Pod).</li><li>새 Pod의 readiness 프로브가 통과하면 maxUnavailable에 따라 옛 RS를 1개 줄인다.</li><li>3~4를 반복해 새 RS=4, 옛 RS=0이 되면 롤아웃 완료. 옛 RS는 이력으로 남는다.</li><li>중간에 새 Pod가 계속 CrashLoop이면 progressDeadlineSeconds 후 'ProgressDeadlineExceeded' 상태가 되지만 자동 롤백은 하지 않는다(옛 Pod가 남아 있어 서비스는 유지).</li><li><code>kubectl rollout undo</code>를 치면 이전 RS를 다시 늘리고 현재 RS를 줄이는 동일한 롤링 과정이 역방향으로 진행된다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'의 결제 API(replicas=6)를 v2.4.0으로 배포했다. maxSurge=1, maxUnavailable=0 설정이라 항상 최소 6개가 살아 있는 상태로 한 개씩 교체되어 약 4분 걸렸다. 배포 10분 후 특정 카드사 승인 오류율이 급증해 온콜이 <code>rollout undo</code>로 90초 만에 v2.3.1로 복구했고, 동시에 Git에서 revert PR을 머지해 ArgoCD가 다시 v2.4.0으로 올리지 않도록 했다. 변경 티켓 CHG-2041에 배포·롤백 시각과 승인자가 기록됐다.</p><pre><code>apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-api\n  namespace: payment\n  annotations:\n    kubernetes.io/change-cause: \"CHG-2041 v2.4.0 카드사 승인 로직 개선\"\nspec:\n  replicas: 6\n  revisionHistoryLimit: 5\n  minReadySeconds: 10\n  progressDeadlineSeconds: 600\n  strategy:\n    type: RollingUpdate\n    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }\n  selector:\n    matchLabels: { app: payment-api }\n  template:\n    metadata:\n      labels: { app: payment-api }\n    spec:\n      containers:\n      - name: api\n        image: .../payment-api:v2.4.0\n        readinessProbe:\n          httpGet: { path: /ready, port: 8080 }\n\n# 롤아웃 관찰 및 롤백\nkubectl rollout status deployment/payment-api -n payment\nkubectl rollout history deployment/payment-api -n payment\nkubectl rollout undo deployment/payment-api -n payment --to-revision=3</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='600' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='45.0' text-anchor='middle' fill='currentColor'>Deployment payment-api (replicas 4, maxSurge 1, maxUnavailable 0)</text><text x='30' y='90' fill='currentColor' font-size='12'>RS v2.3 (옛)</text><rect x='130' y='75' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='150.0' y='92.0' text-anchor='middle' fill='currentColor'>P</text><rect x='180' y='75' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='200.0' y='92.0' text-anchor='middle' fill='currentColor'>P</text><rect x='230' y='75' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='250.0' y='92.0' text-anchor='middle' fill='currentColor'>P</text><rect x='280' y='75' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='300.0' y='92.0' text-anchor='middle' fill='currentColor'>P</text><text x='30' y='135' fill='currentColor' font-size='12'>RS v2.4 (새)</text><rect x='130' y='120' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='150.0' y='137.0' text-anchor='middle' fill='currentColor'>P</text><text x='340' y='92' fill='currentColor' font-size='12'>단계1: 새 1개 추가 (4+1)</text><text x='340' y='137' fill='currentColor' font-size='12'>단계2: 새 Ready → 옛 1개 삭제</text><line x1='160' y1='150' x2='160' y2='175' stroke='currentColor' marker-end='url(#ar)'/><text x='30' y='200' fill='currentColor' font-size='12'>반복 →</text><rect x='130' y='185' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='150.0' y='202.0' text-anchor='middle' fill='currentColor'>P</text><rect x='180' y='185' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='200.0' y='202.0' text-anchor='middle' fill='currentColor'>P</text><rect x='230' y='185' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='250.0' y='202.0' text-anchor='middle' fill='currentColor'>P</text><rect x='280' y='185' width='40' height='24' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='300.0' y='202.0' text-anchor='middle' fill='currentColor'>P</text><text x='340' y='202' fill='currentColor' font-size='12'>완료: 새 4 / 옛 0 (이력 보관)</text><text x='30' y='240' fill='currentColor' font-size='12'>rollout undo → 옛 RS 다시 확장 (역방향 롤링)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "RollingUpdate",
+          "meaning": "새 Pod를 조금씩 늘리며 옛 Pod를 줄이는 기본 전략"
+        },
+        {
+          "term": "maxSurge",
+          "meaning": "목표 개수보다 추가로 띄울 수 있는 Pod 수/비율"
+        },
+        {
+          "term": "maxUnavailable",
+          "meaning": "배포 중 부족해도 되는 Pod 수/비율"
+        },
+        {
+          "term": "Recreate",
+          "meaning": "전부 내리고 전부 올리는 전략(중단 발생)"
+        },
+        {
+          "term": "revision",
+          "meaning": "롤아웃 이력 번호, ReplicaSet 하나에 대응"
+        },
+        {
+          "term": "rollout undo",
+          "meaning": "이전 revision으로 되돌리는 명령"
+        },
+        {
+          "term": "progressDeadlineSeconds",
+          "meaning": "롤아웃이 이 시간 내 진행되지 않으면 실패로 표시"
+        },
+        {
+          "term": "change-cause",
+          "meaning": "변경 사유를 남기는 어노테이션, rollout history에 표시"
+        }
+      ],
+      "pitfalls": [
+        "readiness 프로브 없이 배포. 컨테이너 시작 직후 Ready로 간주되어 초기화 중 Pod에 트래픽 유입",
+        "이미지 태그로 latest를 사용. 태그가 바뀌지 않으면 Deployment가 변경을 감지하지 못하고, 무엇이 배포됐는지 추적 불가",
+        "롤백을 kubectl로만 하고 Git을 되돌리지 않아 GitOps가 다시 문제 버전을 배포",
+        "Deployment에 DB 같은 상태 저장 앱을 올림. Pod 이름·스토리지가 고정되지 않아 데이터 유실 위험(StatefulSet 사용)",
+        "ProgressDeadlineExceeded를 자동 롤백으로 오해. 사람이 개입해야 한다"
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 Deployment의 이미지 변경이 승인된 변경 요청과 1:1로 연결되는가(change-cause/커밋/티켓)",
+          "[변경] 롤백 시 사유·승인·수행자가 기록되고 Git도 함께 정합화되는가",
+          "[변경] 배포 전략(무중단, 프로브)이 표준으로 정의되어 있고 예외가 관리되는가",
+          "[운영] 롤아웃 실패(ProgressDeadlineExceeded)가 알림되고 조치 기록이 남는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제29조 프로그램 통제: 운영 프로그램 변경의 승인·테스트·이관·기록",
+          "긴급 변경(롤백) 시 사후 승인 및 기록 보존"
+        ],
+        "isms": [
+          "2.9.1 변경관리: Deployment 변경 승인·기록",
+          "2.8.5 소스 프로그램 관리 / 2.8.6 운영환경 이관: 검증된 이미지만 운영 반영"
+        ],
+        "evidence": [
+          "kubectl rollout history 출력과 change-cause 값",
+          "ArgoCD/CI 파이프라인의 배포 이력(누가, 언제, 어떤 커밋·이미지)",
+          "샘플 변경 티켓과 Git PR 승인 화면 매핑",
+          "롤백 사례의 인시던트 보고서와 사후 승인 기록"
+        ],
+        "auditorQuestions": [
+          "최근 3개월 운영 배포 목록을 뽑아 보여줄 수 있는가? 각 배포의 승인 근거는?",
+          "롤백 권한은 누구에게 있고 롤백 후 어떤 절차를 따르는가?",
+          "readiness 프로브 없이 운영 중인 Deployment가 있는가?",
+          "이미지 태그로 latest나 mutable 태그를 쓰는 워크로드가 있는가?"
+        ],
+        "controlExample": "운영 Deployment의 이미지 변경은 변경 티켓 승인 후 GitOps 파이프라인을 통해서만 반영되며, 모든 배포·롤백은 ArgoCD 이력과 change-cause 어노테이션으로 변경 티켓과 대사(reconcile)되어 월간 검토된다."
+      },
+      "related": [
+        "k8s-replicaset",
+        "k8s-pod",
+        "k8s-probes",
+        "k8s-statefulset",
+        "k8s-service",
+        "k8s-helm",
+        "cicd-argocd",
+        "cicd-canary-bluegreen",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Deployments",
+        "Kubernetes 공식 문서 - Performing a Rolling Update",
+        "Argo Rollouts 공식 문서"
+      ]
+    },
+    {
+      "id": "k8s-statefulset",
+      "title": "StatefulSet",
+      "titleEn": "StatefulSet",
+      "aliases": [
+        "스테이트풀셋",
+        "STS",
+        "상태 저장 워크로드",
+        "ordinal pod",
+        "headless service"
+      ],
+      "tags": [
+        "workload",
+        "controller",
+        "storage"
+      ],
+      "level": "중급",
+      "oneLiner": "고정된 이름·순서·전용 스토리지가 필요한 상태 저장 앱용 워크로드",
+      "analogy": "StatefulSet은 기숙사 배정과 같다. Deployment가 '아무 침대나 4개'라면 StatefulSet은 '101호, 102호, 103호'처럼 호실 번호가 정해져 있고 각 호실에는 전용 사물함(PVC)이 딸려 있다. 학생이 바뀌어도 101호 사물함의 짐은 그대로이며, 입주는 101호부터 순서대로, 퇴거는 역순으로 한다.",
+      "explanation": "<p><strong>StatefulSet(스테이트풀셋)</strong>은 데이터베이스, 메시지 큐, 분산 캐시처럼 <strong>각 인스턴스가 고유한 정체성과 자기만의 저장소</strong>를 가져야 하는 앱을 위한 워크로드다. Deployment의 Pod는 서로 완전히 교환 가능하지만, StatefulSet의 Pod는 '0번, 1번, 2번'이라는 번호(ordinal)를 가지며 재생성돼도 같은 번호와 같은 볼륨을 돌려받는다.</p><p><strong>왜 필요한가.</strong> PostgreSQL 프라이머리-레플리카 구성이나 Kafka 브로커는 '내가 누구인지'와 '내 데이터 디스크'가 고정돼야 한다. Deployment로 만들면 Pod 이름이 무작위 해시이고 재생성 시 다른 노드의 빈 디스크를 받을 수 있어 데이터가 사라진다. 쉽게 말하면 Deployment는 '소모품 관리', StatefulSet은 '이름표 붙은 자산 관리'다.</p><p><strong>StatefulSet이 보장하는 것</strong>은 다음과 같다.</p><ul><li><strong>안정적 네트워크 ID</strong>: Pod 이름이 <code>&lt;이름&gt;-0, -1, -2</code>로 고정되고, <strong>Headless Service</strong>(clusterIP: None)와 결합하면 <code>pg-0.pg.db.svc.cluster.local</code> 같은 고정 DNS를 갖는다.</li><li><strong>안정적 스토리지</strong>: <code>volumeClaimTemplates</code>로 Pod마다 전용 PVC가 만들어지고(<code>data-pg-0</code>), Pod가 죽어도 PVC는 남아 재생성된 Pod에 다시 붙는다. StatefulSet을 삭제해도 PVC는 기본적으로 남는다.</li><li><strong>순서 보장</strong>: 생성은 0→1→2 순서로, 앞 Pod가 Ready여야 다음을 만든다. 삭제·축소는 역순. <code>podManagementPolicy: Parallel</code>로 끌 수 있다.</li><li><strong>순차 롤링 업데이트</strong>: 높은 번호부터 하나씩 갱신하며, <code>partition</code> 값으로 특정 번호 이상만 갱신하는 카나리가 가능하다.</li></ul><p><strong>실무 현실.</strong> 쿠버네티스 위에 DB를 직접 올리는 것은 운영 부담이 크다(백업, 페일오버, 업그레이드). 그래서 핵심 DB는 RDS/Aurora 같은 관리형 서비스를 쓰고, StatefulSet은 Kafka·Elasticsearch·Redis 같은 미들웨어나 Operator(CloudNativePG, Strimzi)가 관리하는 형태로 쓰는 경우가 많다. StatefulSet은 '데이터 자체의 정합성'을 보장하는 것이 아니라 '인프라 정체성'만 보장한다는 점을 기억해야 한다.</p><p><strong>감사 관점</strong>에서 StatefulSet 위의 데이터는 금융 데이터일 가능성이 높다. PVC의 암호화(EBS KMS), 백업(스냅샷), 삭제 방지(reclaimPolicy: Retain), 접근권한이 통제 포인트다.</p>",
+      "howItWorks": "<ol><li>StatefulSet(replicas=3)이 생성되면 컨트롤러가 <code>pg-0</code> Pod와 PVC <code>data-pg-0</code>을 먼저 만든다.</li><li>StorageClass에 따라 CSI 드라이버가 EBS 볼륨을 만들고 Pod가 뜨는 노드에 attach·mount한다.</li><li>pg-0가 Ready가 되면 pg-1, 그다음 pg-2를 같은 방식으로 만든다.</li><li>Headless Service가 각 Pod에 개별 DNS 레코드를 부여해 앱이 서로를 이름으로 찾는다.</li><li>pg-1이 있는 노드가 죽으면 Pod는 삭제되고 같은 이름 pg-1로 다른 노드에 재생성되며, 기존 PVC data-pg-1이 다시 attach된다(같은 AZ 제약 주의).</li><li>이미지 업데이트 시 pg-2 → pg-1 → pg-0 순서로 하나씩 교체한다.</li><li>replicas를 2로 줄이면 pg-2만 삭제되고 PVC data-pg-2는 남는다(재확장 시 재사용).</li></ol>",
+      "example": "<p>커머스 '마켓온'은 주문 이벤트 스트림용 Kafka 브로커 3대를 StatefulSet으로 운영한다(Strimzi Operator 사용). 각 브로커는 <code>kafka-0/1/2</code>라는 이름과 500GiB gp3 EBS 볼륨을 가지며 3개 AZ에 하나씩 배치된다. 브로커 kafka-1 노드가 교체되었을 때 Pod는 같은 AZ(ap-northeast-2b)의 새 노드에 재생성되어 기존 볼륨을 그대로 붙였고 파티션 데이터 손실 없이 복구됐다. 감사 시 EBS 볼륨의 KMS 암호화와 일일 스냅샷 정책을 증빙으로 제출했다.</p><pre><code>apiVersion: v1\nkind: Service\nmetadata: { name: kafka, namespace: streaming }\nspec:\n  clusterIP: None          # Headless\n  selector: { app: kafka }\n  ports: [{ port: 9092 }]\n---\napiVersion: apps/v1\nkind: StatefulSet\nmetadata: { name: kafka, namespace: streaming }\nspec:\n  serviceName: kafka\n  replicas: 3\n  selector: { matchLabels: { app: kafka } }\n  template:\n    metadata: { labels: { app: kafka } }\n    spec:\n      containers:\n      - name: broker\n        image: .../kafka:3.7\n        volumeMounts: [{ name: data, mountPath: /var/lib/kafka }]\n  volumeClaimTemplates:\n  - metadata: { name: data }\n    spec:\n      accessModes: [ReadWriteOnce]\n      storageClassName: gp3-encrypted\n      resources: { requests: { storage: 500Gi } }\n\n# 확인\nkubectl get sts,pvc -n streaming\n# pod: kafka-0 kafka-1 kafka-2 / pvc: data-kafka-0 data-kafka-1 data-kafka-2</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='200' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='120.0' y='45.0' text-anchor='middle' fill='currentColor'>StatefulSet kafka (3)</text><rect x='260' y='20' width='200' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='360.0' y='36.0' text-anchor='middle' fill='currentColor'>Headless Service kafka</text><text x='360.0' y='52.0' text-anchor='middle' fill='currentColor' font-size='11'>clusterIP: None</text><rect x='40' y='100' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='118.5' text-anchor='middle' fill='currentColor'>kafka-0</text><text x='105.0' y='134.5' text-anchor='middle' fill='currentColor' font-size='11'>kafka-0.kafka.svc</text><rect x='240' y='100' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='305.0' y='118.5' text-anchor='middle' fill='currentColor'>kafka-1</text><text x='305.0' y='134.5' text-anchor='middle' fill='currentColor' font-size='11'>kafka-1.kafka.svc</text><rect x='440' y='100' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505.0' y='118.5' text-anchor='middle' fill='currentColor'>kafka-2</text><text x='505.0' y='134.5' text-anchor='middle' fill='currentColor' font-size='11'>kafka-2.kafka.svc</text><line x1='105' y1='145' x2='105' y2='180' stroke='currentColor' marker-end='url(#ar)'/><line x1='305' y1='145' x2='305' y2='180' stroke='currentColor' marker-end='url(#ar)'/><line x1='505' y1='145' x2='505' y2='180' stroke='currentColor' marker-end='url(#ar)'/><rect x='40' y='180' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='196.0' text-anchor='middle' fill='currentColor'>PVC data-kafka-0</text><text x='105.0' y='212.0' text-anchor='middle' fill='currentColor' font-size='11'>EBS AZ-a</text><rect x='240' y='180' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='305.0' y='196.0' text-anchor='middle' fill='currentColor'>PVC data-kafka-1</text><text x='305.0' y='212.0' text-anchor='middle' fill='currentColor' font-size='11'>EBS AZ-b</text><rect x='440' y='180' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='505.0' y='196.0' text-anchor='middle' fill='currentColor'>PVC data-kafka-2</text><text x='505.0' y='212.0' text-anchor='middle' fill='currentColor' font-size='11'>EBS AZ-c</text><line x1='170' y1='122' x2='240' y2='122' stroke='currentColor' marker-end='url(#ar)'/><text x='205.0' y='116.0' text-anchor='middle' fill='currentColor' font-size='11'>순서 생성</text><line x1='370' y1='122' x2='440' y2='122' stroke='currentColor' marker-end='url(#ar)'/><text x='405.0' y='116.0' text-anchor='middle' fill='currentColor' font-size='11'>0→1→2</text><text x='40' y='245' fill='currentColor' font-size='12'>Pod 재생성 시 같은 이름·같은 PVC 재사용 / 삭제 시 PVC 유지</text><text x='480' y='45' fill='currentColor' font-size='11'>고정 DNS</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Ordinal",
+          "meaning": "Pod에 붙는 0,1,2… 순번. 이름과 PVC 매핑의 기준"
+        },
+        {
+          "term": "Headless Service",
+          "meaning": "clusterIP 없이 Pod별 DNS 레코드를 제공하는 Service"
+        },
+        {
+          "term": "volumeClaimTemplates",
+          "meaning": "Pod마다 전용 PVC를 자동 생성하는 템플릿"
+        },
+        {
+          "term": "podManagementPolicy",
+          "meaning": "OrderedReady(순차) 또는 Parallel(동시) 생성 정책"
+        },
+        {
+          "term": "partition",
+          "meaning": "롤링 업데이트 시 이 번호 이상만 갱신(카나리)"
+        },
+        {
+          "term": "persistentVolumeClaimRetentionPolicy",
+          "meaning": "STS 삭제·축소 시 PVC를 남길지(Retain) 지울지(Delete)"
+        }
+      ],
+      "pitfalls": [
+        "EBS는 AZ에 묶이는데 노드가 다른 AZ에만 남으면 Pod가 Pending에 갇힘(WaitForFirstConsumer + AZ별 노드 확보 필요)",
+        "StatefulSet을 지우면 데이터도 지워진다고 오해하거나, 반대로 PVC가 남는 줄 모르고 비용 낭비",
+        "StatefulSet이 DB 복제·페일오버를 해 준다고 기대. 그것은 앱 또는 Operator의 역할",
+        "Pod 하나가 Ready가 안 되면 이후 번호 Pod가 영원히 안 뜸(OrderedReady 특성)",
+        "PVC 크기를 volumeClaimTemplates에서 바꿔도 기존 PVC는 안 커짐(PVC 직접 수정 필요)"
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] StatefulSet이 사용하는 PV가 암호화(KMS)되고 정기 스냅샷·복구 테스트가 수행되는가",
+          "[접근] 데이터 볼륨에 접근 가능한 Pod/노드/사람이 제한되는가",
+          "[변경] 스토리지 클래스·용량 변경, 브로커 버전 업그레이드가 변경관리를 따르는가",
+          "[운영] 삭제 방지(Retain, deletion protection)와 복제본 분산(AZ)이 설정되어 있는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제17조 취지: 중요 데이터 저장매체의 암호화 및 백업",
+          "제23조 취지: 정보처리시스템의 백업·복구 체계와 정기 복구 훈련"
+        ],
+        "isms": [
+          "2.9.3 백업 및 복구관리: PV 스냅샷 정책과 복구 테스트",
+          "2.7.1 암호정책 적용: 저장 데이터 암호화",
+          "2.10.2 클라우드 보안: 스토리지 서비스 보안 설정"
+        ],
+        "evidence": [
+          "kubectl get sts,pvc,pv -A 출력과 StorageClass 파라미터(encrypted, kmsKeyId)",
+          "AWS Backup/EBS 스냅샷 정책과 최근 스냅샷 목록",
+          "복구 테스트 결과 보고서",
+          "EBS 볼륨 암호화 상태 aws ec2 describe-volumes 출력"
+        ],
+        "auditorQuestions": [
+          "클러스터 안에서 상태 저장 워크로드는 무엇이며 어떤 데이터를 담는가?",
+          "그 볼륨은 암호화되어 있고 백업은 어떻게 되는가? 마지막 복구 테스트는 언제였나?",
+          "StatefulSet 삭제 시 데이터가 보존되는가? 실수 삭제 방지책은?",
+          "핵심 DB를 클러스터 안에 두지 않고 관리형 서비스를 쓰는 기준은?"
+        ],
+        "controlExample": "운영 클러스터의 StatefulSet 볼륨은 KMS 암호화 StorageClass만 사용하도록 정책으로 강제되며, AWS Backup으로 일일 스냅샷을 35일 보관하고 반기마다 복구 테스트를 수행·기록한다."
+      },
+      "related": [
+        "k8s-deployment",
+        "k8s-persistent-volume",
+        "k8s-csi",
+        "k8s-operator-crd",
+        "k8s-service",
+        "db-kafka",
+        "db-postgresql",
+        "awsdata-rds"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - StatefulSets",
+        "Kubernetes 공식 문서 - Headless Services",
+        "Strimzi 공식 문서"
+      ]
+    },
+    {
+      "id": "k8s-daemonset",
+      "title": "DaemonSet",
+      "titleEn": "DaemonSet",
+      "aliases": [
+        "데몬셋",
+        "DS",
+        "노드 에이전트",
+        "노드당 하나",
+        "node agent"
+      ],
+      "tags": [
+        "workload",
+        "controller",
+        "node"
+      ],
+      "level": "기초",
+      "oneLiner": "모든(또는 선택한) 노드마다 정확히 하나씩 Pod를 실행하는 워크로드",
+      "analogy": "DaemonSet은 건물 각 층마다 반드시 한 명씩 배치되는 소방 안전 요원과 같다. 층(노드)이 새로 생기면 자동으로 요원이 배치되고, 층이 철거되면 함께 빠진다. 몇 명을 둘지 정하는 것이 아니라 '층당 1명'이라는 규칙이 핵심이다.",
+      "explanation": "<p><strong>DaemonSet(데몬셋)</strong>은 클러스터의 각 노드에 Pod를 하나씩 실행하는 워크로드다. 노드가 추가되면 자동으로 그 노드에 Pod가 생기고, 노드가 제거되면 Pod도 사라진다. replicas 개념이 없고 '노드 수 = Pod 수'다.</p><p><strong>왜 필요한가.</strong> 노드 단위로 꼭 있어야 하는 인프라 기능이 있다. 로그 수집기(Fluent Bit), 모니터링 에이전트(node-exporter, Datadog agent), 네트워크 플러그인(aws-node, Cilium agent), kube-proxy, 스토리지 드라이버(EBS CSI node), 보안 에이전트(Falco) 등이다. 이들을 Deployment로 만들면 특정 노드에만 몰리거나 빠질 수 있다. 쉽게 말하면 DaemonSet은 '노드 필수 장비 자동 설치 장치'다.</p><p><strong>구성요소.</strong> Pod 템플릿과 selector는 Deployment와 같다. 추가로 <code>nodeSelector</code>/<code>nodeAffinity</code>로 특정 노드(예: GPU 노드, 특정 노드풀)에만 배치할 수 있고, 시스템 노드에 걸린 taint를 넘기 위해 <code>tolerations</code>를 넣는 경우가 많다. 업데이트 전략은 <code>RollingUpdate</code>(노드별 순차 교체, maxUnavailable 지정)와 <code>OnDelete</code>(수동 삭제 시 교체)가 있다.</p><p><strong>DaemonSet Pod의 특징.</strong> 노드 자원(호스트 로그 디렉터리, /proc, 네트워크 스택)에 접근해야 하므로 <code>hostPath</code> 볼륨, <code>hostNetwork</code>, <code>privileged</code> 같은 높은 권한을 쓰는 경우가 흔하다. 그래서 일반 앱보다 보안 검토가 더 중요하고, Pod Security Standards에서 예외 처리가 필요한 대표 사례다. 보통 <code>kube-system</code> 같은 시스템 네임스페이스에 두고 일반 개발자의 접근을 차단한다.</p><p><strong>EKS에서는</strong> aws-node(VPC CNI), kube-proxy, ebs-csi-node가 기본 DaemonSet으로 깔려 있으며 EKS add-on으로 버전이 관리된다. Fargate 노드에는 DaemonSet을 배치할 수 없어 로그 수집을 Fargate 로깅 설정(Fluent Bit sidecar 방식)으로 대체해야 한다.</p><p><strong>감사 관점</strong>에서 DaemonSet은 '모든 서버에 설치된 에이전트'다. 보안 모니터링·로그 수집이 빠짐없이 되는지(모든 노드에 Ready 상태인지), 그 에이전트의 높은 권한이 누구에 의해 변경될 수 있는지가 통제 포인트다.</p>",
+      "howItWorks": "<ol><li>DaemonSet 컨트롤러가 클러스터의 노드 목록을 watch한다.</li><li>각 노드에 대해 nodeSelector/affinity 조건과 taint/toleration을 평가해 배치 대상인지 판단한다.</li><li>대상 노드에 해당 DaemonSet Pod가 없으면 nodeAffinity를 그 노드로 고정한 Pod를 만든다(1.12 이후 스케줄러가 배치).</li><li>새 노드가 Ready가 되면 같은 과정으로 즉시 Pod가 생성된다.</li><li>이미지를 갱신하면 RollingUpdate 전략에 따라 노드별로 maxUnavailable 개수만큼 순차 교체한다.</li><li>노드가 삭제되면 그 위의 DaemonSet Pod도 함께 정리된다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 운영 클러스터 전 노드에 Fluent Bit(로그 → CloudWatch/S3), node-exporter(메트릭), Falco(런타임 보안 이벤트)를 DaemonSet으로 배포한다. 어느 날 Karpenter가 새 노드풀을 만들면서 <code>workload=batch</code> taint를 걸었는데 Falco DaemonSet에 toleration이 없어 그 노드 6대에는 보안 에이전트가 없는 상태가 이틀간 지속됐다. 모니터링에서 'DaemonSet desired ≠ ready' 알림이 없었던 것이 원인으로, 이후 <code>kube_daemonset_status_number_misscheduled</code> 기반 알림을 추가했다.</p><pre><code>apiVersion: apps/v1\nkind: DaemonSet\nmetadata: { name: falco, namespace: security }\nspec:\n  selector: { matchLabels: { app: falco } }\n  updateStrategy:\n    type: RollingUpdate\n    rollingUpdate: { maxUnavailable: 1 }\n  template:\n    metadata: { labels: { app: falco } }\n    spec:\n      tolerations:\n      - operator: Exists          # 모든 taint 허용 (모든 노드 배치)\n      containers:\n      - name: falco\n        image: .../falco:0.38\n        securityContext: { privileged: true }\n        volumeMounts:\n        - { name: proc, mountPath: /host/proc, readOnly: true }\n      volumes:\n      - name: proc\n        hostPath: { path: /proc }\n\n# 모든 노드에 떠 있는지 확인\nkubectl get ds -A\n# NAMESPACE  NAME     DESIRED CURRENT READY UP-TO-DATE AVAILABLE\n# security   falco    24      24      24    24         24</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='600' height='40' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320.0' y='45.0' text-anchor='middle' fill='currentColor'>DaemonSet falco (노드당 1개, toleration: Exists)</text><rect x='30' y='100' width='130' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='160.0' text-anchor='middle' fill='currentColor'>노드 A (app)</text><rect x='40' y='140' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='160.0' text-anchor='middle' fill='currentColor'>falco Pod</text><rect x='40' y='175' width='110' height='25' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95.0' y='192.5' text-anchor='middle' fill='currentColor'>결제 API Pod</text><rect x='180' y='100' width='130' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='245.0' y='160.0' text-anchor='middle' fill='currentColor'>노드 B (app)</text><rect x='190' y='140' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='245.0' y='160.0' text-anchor='middle' fill='currentColor'>falco Pod</text><rect x='190' y='175' width='110' height='25' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='245.0' y='192.5' text-anchor='middle' fill='currentColor'>정산 Pod</text><rect x='330' y='100' width='130' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='395.0' y='160.0' text-anchor='middle' fill='currentColor'>노드 C (batch taint)</text><rect x='340' y='140' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='395.0' y='160.0' text-anchor='middle' fill='currentColor'>falco Pod</text><rect x='340' y='175' width='110' height='25' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='395.0' y='192.5' text-anchor='middle' fill='currentColor'>배치 Job Pod</text><rect x='490' y='100' width='130' height='110' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='151.0' text-anchor='middle' fill='currentColor'>새 노드 D</text><text x='555.0' y='167.0' text-anchor='middle' fill='currentColor' font-size='11'>Karpenter 추가</text><rect x='500' y='160' width='110' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='555.0' y='180.0' text-anchor='middle' fill='currentColor'>falco Pod 자동</text><line x1='95' y1='60' x2='95' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='245' y1='60' x2='245' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='395' y1='60' x2='395' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='555' y1='60' x2='555' y2='100' stroke='currentColor' marker-end='url(#ar)'/><text x='30' y='240' fill='currentColor' font-size='12'>노드 추가 → 자동 배치 / 노드 제거 → 함께 삭제 / desired = 노드 수</text></svg>",
+      "keyTerms": [
+        {
+          "term": "nodeSelector",
+          "meaning": "특정 레이블을 가진 노드에만 배치하는 조건"
+        },
+        {
+          "term": "toleration",
+          "meaning": "노드의 taint를 허용해 그 노드에도 배치되게 하는 설정"
+        },
+        {
+          "term": "hostPath",
+          "meaning": "노드의 실제 디렉터리를 컨테이너에 마운트하는 볼륨(보안 주의)"
+        },
+        {
+          "term": "hostNetwork",
+          "meaning": "Pod가 노드의 네트워크 스택을 직접 사용"
+        },
+        {
+          "term": "OnDelete",
+          "meaning": "Pod를 수동 삭제해야 새 버전으로 교체되는 업데이트 전략"
+        },
+        {
+          "term": "misscheduled",
+          "meaning": "배치되지 말아야 할 노드에 있거나 있어야 할 노드에 없는 상태"
+        }
+      ],
+      "pitfalls": [
+        "새 노드풀에 taint를 추가했는데 DaemonSet에 toleration이 없어 에이전트가 빠진 노드 발생",
+        "DaemonSet Pod가 노드마다 자원을 요청하므로 노드 가용 자원이 생각보다 적음(특히 소형 노드)",
+        "privileged/hostPath를 쓰는 DaemonSet 이미지의 공급망 검증을 소홀히 함(전 노드 루트 권한과 동등)",
+        "Fargate에는 DaemonSet이 배치되지 않는 것을 모르고 로그 누락",
+        "DaemonSet 업데이트 시 maxUnavailable을 크게 잡아 전 노드 에이전트가 동시에 재시작되어 로그 공백"
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 로그·보안·모니터링 에이전트 DaemonSet이 모든 운영 노드에 Ready 상태인지 모니터링되는가",
+          "[접근] 특권 DaemonSet이 있는 시스템 네임스페이스의 변경 권한이 플랫폼팀으로 제한되는가",
+          "[변경] 에이전트 이미지·버전 변경이 변경관리와 취약점 검사를 거치는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 취지: 정보처리시스템 전반의 보안 모니터링 및 로그 수집 누락 방지",
+          "제37조의4 취지: 로그 기록·보존의 완전성"
+        ],
+        "isms": [
+          "2.11.3 이상행위 분석 및 모니터링: 전 노드 보안 이벤트 수집",
+          "2.9.4 로그 및 접속기록 관리: 로그 수집 에이전트의 완전성",
+          "2.6.2 정보시스템 접근: 특권 워크로드 변경 권한 제한"
+        ],
+        "evidence": [
+          "kubectl get ds -A 출력(DESIRED=READY 여부)과 노드 수 비교",
+          "DaemonSet misscheduled/unavailable 알림 규칙 및 이력",
+          "시스템 네임스페이스 RBAC 바인딩 목록",
+          "에이전트 이미지 취약점 스캔 결과"
+        ],
+        "auditorQuestions": [
+          "보안·로그 에이전트가 모든 노드에 설치되어 있음을 어떻게 지속적으로 확인하는가?",
+          "노드풀 추가 시 에이전트 배치가 자동으로 검증되는가?",
+          "특권 DaemonSet을 수정할 수 있는 사람은 누구인가?",
+          "Fargate 워크로드의 로그는 어떻게 수집되는가?"
+        ],
+        "controlExample": "운영 클러스터의 로그 수집·런타임 보안 DaemonSet은 모든 노드에 배치되도록 toleration이 표준화되어 있으며, desired와 ready 수가 불일치하면 10분 내 알림이 발송되고 조치 기록이 남는다."
+      },
+      "related": [
+        "k8s-pod",
+        "k8s-scheduling",
+        "k8s-cni",
+        "k8s-logging-monitoring",
+        "k8s-node-karpenter",
+        "k8s-eks-features",
+        "obs-fluentbit",
+        "sec-falco"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - DaemonSet",
+        "Amazon EKS User Guide - Amazon EKS add-ons"
+      ]
+    },
+    {
+      "id": "k8s-job-cronjob",
+      "title": "Job / CronJob",
+      "titleEn": "Job & CronJob",
+      "aliases": [
+        "잡",
+        "크론잡",
+        "배치",
+        "batch",
+        "스케줄 작업",
+        "일회성 작업",
+        "정산 배치"
+      ],
+      "tags": [
+        "workload",
+        "batch",
+        "scheduler"
+      ],
+      "level": "기초",
+      "oneLiner": "끝이 있는 작업(Job)과 그것을 정해진 시각에 반복 실행(CronJob)하는 워크로드",
+      "analogy": "Job은 '이 서류 100장을 복사하고 끝내라'는 심부름이고, CronJob은 '매일 새벽 2시에 그 심부름을 시켜라'는 예약이다. Deployment가 '항상 켜져 있는 매장'이라면 Job은 '한 번 하고 끝나는 이벤트'다. 실패하면 정해진 횟수까지 다시 시킨다.",
+      "explanation": "<p><strong>Job</strong>은 '완료'라는 개념이 있는 작업을 위한 워크로드다. Deployment의 Pod는 종료되면 다시 띄우지만, Job의 Pod는 정상 종료(exit 0)하면 성공으로 기록하고 더 이상 띄우지 않는다. DB 마이그레이션, 일괄 정산, 리포트 생성, 데이터 이관 같은 작업에 쓴다.</p><p><strong>CronJob</strong>은 Job을 cron 표현식(<code>0 2 * * *</code>)에 따라 반복 생성하는 스케줄러다. 온프레미스의 crontab이나 SAP 배치 잡 스케줄러(SM37)와 같은 역할이며, 쉽게 말하면 'Job 자동 예약 생성기'다. CronJob이 시각마다 Job을 만들고, Job이 Pod를 만든다.</p><p><strong>Job의 주요 설정.</strong></p><ul><li><code>completions</code>: 몇 번 성공해야 완료인가. <code>parallelism</code>: 동시에 몇 개 Pod를 돌릴까. 이 둘로 병렬 처리를 구성한다.</li><li><code>backoffLimit</code>: 실패 시 재시도 횟수(기본 6). 초과하면 Job은 Failed.</li><li><code>activeDeadlineSeconds</code>: 전체 제한 시간. 무한 루프 방지.</li><li><code>ttlSecondsAfterFinished</code>: 완료 후 자동 삭제까지의 시간. 없으면 완료된 Job/Pod가 쌓인다.</li><li><code>restartPolicy</code>: Pod 수준에서 Never 또는 OnFailure만 허용.</li><li><code>podFailurePolicy</code>(1.26+): 특정 exit code나 노드 중단(disruption)을 재시도에서 제외하는 정밀 제어.</li></ul><p><strong>CronJob의 주요 설정.</strong> <code>schedule</code>(cron 표현식, 타임존은 <code>timeZone: Asia/Seoul</code>로 지정 가능, 1.27+), <code>concurrencyPolicy</code>(Allow/Forbid/Replace — 이전 실행이 안 끝났을 때 겹치기 허용 여부), <code>startingDeadlineSeconds</code>(놓친 스케줄을 얼마나 늦게까지 실행할지), <code>successfulJobsHistoryLimit</code>/<code>failedJobsHistoryLimit</code>(이력 보관 수), <code>suspend</code>(일시 중지).</p><p><strong>실무 주의점.</strong> CronJob은 '최소 한 번(at least once)' 실행을 목표로 하므로 드물게 두 번 실행될 수 있다. 정산처럼 중복 실행이 치명적인 작업은 앱이 멱등하거나 잠금(DB lock, 실행 ID 체크)을 가져야 한다. 반대로 컨트롤 플레인 장애로 스케줄을 놓치면 실행이 건너뛰어질 수 있으므로 '실행됐어야 하는데 안 됐다'를 감지하는 모니터링이 필요하다. 복잡한 의존 관계가 있는 배치는 CronJob보다 Airflow, Argo Workflows 같은 워크플로 엔진을 쓴다.</p><p><strong>감사 관점</strong>에서 배치 Job은 온프레미스 배치 잡 통제와 동일하게 본다. 정산·이자 계산·회계 전기 같은 재무 관련 배치는 ITAC(자동화 통제)에 해당하므로 스케줄 변경 승인, 실행 결과 모니터링, 실패 시 재처리 절차, 실행 이력 보존이 핵심이다.</p>",
+      "howItWorks": "<ol><li>CronJob 컨트롤러가 매 10초마다 모든 CronJob의 schedule을 확인한다.</li><li>실행 시각이 되면 concurrencyPolicy를 확인하고(Forbid이면 이전 Job이 실행 중일 때 건너뜀) Job 객체를 생성한다. 이름은 <code>&lt;cronjob명&gt;-&lt;타임스탬프&gt;</code>.</li><li>Job 컨트롤러가 parallelism만큼 Pod를 만든다. 스케줄러가 노드를 배정하고 kubelet이 실행한다.</li><li>Pod가 exit 0으로 끝나면 succeeded 카운트 증가. completions에 도달하면 Job Complete.</li><li>Pod가 실패하면 backoffLimit 내에서 지수 백오프(10s, 20s, 40s…)로 재시도한다.</li><li>ttlSecondsAfterFinished 또는 CronJob의 HistoryLimit에 따라 완료된 Job과 Pod가 정리된다.</li><li>실행 결과(성공/실패, 시작·종료 시각)는 Job status와 이벤트, 그리고 Pod 로그로 남는다. 로그는 Pod 삭제 전 외부(CloudWatch 등)로 수집돼야 한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 매일 새벽 3시(KST) 가맹점 정산 배치를 CronJob으로 실행한다. concurrencyPolicy=Forbid로 전날 배치가 지연되면 겹치지 않게 하고, 앱은 정산일 기준 실행 ID로 중복 실행을 막는다. 실패 시 backoffLimit=2 후 Slack 알림이 가고, 재무팀 담당자가 재처리 티켓을 열어 플랫폼팀이 수동으로 Job을 재생성한다. 감사에서는 최근 3개월 실행 이력(CloudWatch 로그의 Job 이름·결과)과 실패 재처리 티켓 3건을 증빙으로 제출했다.</p><pre><code>apiVersion: batch/v1\nkind: CronJob\nmetadata: { name: merchant-settlement, namespace: settlement }\nspec:\n  schedule: \"0 3 * * *\"\n  timeZone: \"Asia/Seoul\"\n  concurrencyPolicy: Forbid\n  startingDeadlineSeconds: 3600\n  successfulJobsHistoryLimit: 7\n  failedJobsHistoryLimit: 14\n  jobTemplate:\n    spec:\n      backoffLimit: 2\n      activeDeadlineSeconds: 7200\n      ttlSecondsAfterFinished: 604800\n      template:\n        spec:\n          restartPolicy: Never\n          serviceAccountName: settlement-batch\n          containers:\n          - name: settle\n            image: .../settlement-batch:v1.12.0\n            args: ['--date=$(RUN_DATE)']\n\n# 수동 재실행 (재처리 티켓 승인 후)\nkubectl create job --from=cronjob/merchant-settlement settle-rerun-20260913 -n settlement\nkubectl get jobs -n settlement\nkubectl logs job/settle-rerun-20260913 -n settlement</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='170' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='105.0' y='56.0' text-anchor='middle' fill='currentColor'>CronJob</text><text x='105.0' y='72.0' text-anchor='middle' fill='currentColor' font-size='11'>0 3 * * * Asia/Seoul</text><line x1='190' y1='60' x2='250' y2='60' stroke='currentColor' marker-end='url(#ar)'/><text x='220.0' y='54.0' text-anchor='middle' fill='currentColor' font-size='11'>매일 03:00</text><rect x='250' y='30' width='150' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='325.0' y='56.0' text-anchor='middle' fill='currentColor'>Job</text><text x='325.0' y='72.0' text-anchor='middle' fill='currentColor' font-size='11'>settlement-2026091403</text><line x1='400' y1='60' x2='460' y2='60' stroke='currentColor' marker-end='url(#ar)'/><text x='430.0' y='54.0' text-anchor='middle' fill='currentColor' font-size='11'>생성</text><rect x='460' y='30' width='150' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535.0' y='56.0' text-anchor='middle' fill='currentColor'>Pod</text><text x='535.0' y='72.0' text-anchor='middle' fill='currentColor' font-size='11'>정산 컨테이너</text><line x1='535' y1='90' x2='535' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='460' y='130' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535.0' y='155.0' text-anchor='middle' fill='currentColor'>exit 0 → Complete</text><rect x='250' y='130' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='325.0' y='146.0' text-anchor='middle' fill='currentColor'>exit 1 → 재시도</text><text x='325.0' y='162.0' text-anchor='middle' fill='currentColor' font-size='11'>backoffLimit 2</text><line x1='460' y1='150' x2='400' y2='150' stroke='currentColor' marker-end='url(#ar)'/><line x1='325' y1='130' x2='325' y2='90' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='130' width='170' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105.0' y='146.0' text-anchor='middle' fill='currentColor'>concurrencyPolicy</text><text x='105.0' y='162.0' text-anchor='middle' fill='currentColor' font-size='11'>Forbid: 겹침 금지</text><rect x='20' y='200' width='590' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='315.0' y='225.0' text-anchor='middle' fill='currentColor'>실행 이력: Job status + Pod 로그 → CloudWatch (삭제 전 수집)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "completions / parallelism",
+          "meaning": "성공해야 할 횟수 / 동시 실행 Pod 수"
+        },
+        {
+          "term": "backoffLimit",
+          "meaning": "실패 시 재시도 상한(기본 6)"
+        },
+        {
+          "term": "concurrencyPolicy",
+          "meaning": "이전 실행 중 새 실행을 Allow/Forbid/Replace"
+        },
+        {
+          "term": "startingDeadlineSeconds",
+          "meaning": "놓친 스케줄을 실행할 수 있는 유예 시간"
+        },
+        {
+          "term": "ttlSecondsAfterFinished",
+          "meaning": "완료 Job 자동 삭제 시간"
+        },
+        {
+          "term": "suspend",
+          "meaning": "CronJob 일시 중지 플래그"
+        },
+        {
+          "term": "podFailurePolicy",
+          "meaning": "exit code별 재시도 여부를 정하는 정책"
+        }
+      ],
+      "pitfalls": [
+        "CronJob이 정확히 한 번만 실행된다고 믿음. 드물게 중복·누락 가능 → 앱 멱등성과 누락 감지 필요",
+        "timeZone 미지정 시 컨트롤 플레인(UTC) 기준으로 실행되어 새벽 3시가 낮 12시가 됨",
+        "완료 Job/Pod를 정리하지 않아 수천 개가 쌓여 API 서버 부하",
+        "Pod 로그를 외부로 수집하지 않아 Job 삭제 후 실행 증적이 사라짐",
+        "배치 Pod에 resources 요청을 안 넣어 정산 시간에 서비스 Pod와 자원 경합"
+      ],
+      "audit": {
+        "itgc": [
+          "[ITAC] 재무 관련 배치(정산·이자·회계)의 스케줄·로직 변경이 승인되고 실행 결과가 검토되는가",
+          "[운영] 배치 실패가 즉시 알림되고 재처리 절차(승인·수행·검증)가 문서화·기록되는가",
+          "[운영] 배치 실행 이력(시작·종료·결과)이 삭제되기 전에 외부 로그 저장소로 보존되는가",
+          "[접근] 배치 Job을 수동 생성·재실행할 수 있는 권한이 제한되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제29조 프로그램 통제 취지: 배치 프로그램 변경 승인·기록",
+          "제37조의4 취지: 배치 처리 기록(로그) 보존 및 정기 점검",
+          "정산·거래 처리 배치의 무결성 검증 절차"
+        ],
+        "isms": [
+          "2.9.1 변경관리: 배치 스케줄·프로그램 변경 승인",
+          "2.9.4 로그 및 접속기록 관리: 배치 실행 로그 보존",
+          "2.9.2 수행 및 결과 검토: 배치 결과 모니터링 및 검토 기록"
+        ],
+        "evidence": [
+          "kubectl get cronjob -A 출력(스케줄, 마지막 실행, suspend 여부)",
+          "CloudWatch/Loki에서 추출한 최근 3개월 배치 Job 실행 이력",
+          "배치 실패 알림 규칙과 실패 사례별 재처리 티켓",
+          "배치 스케줄·이미지 변경에 대한 Git PR 및 승인 기록",
+          "수동 Job 생성 권한이 있는 RBAC 바인딩 목록"
+        ],
+        "auditorQuestions": [
+          "재무 영향이 있는 배치 목록과 각각의 스케줄·담당자는?",
+          "배치가 실패하거나 실행되지 않았을 때 어떻게 알게 되며 누가 재처리를 승인하는가?",
+          "배치 중복 실행 방지책은 무엇인가?",
+          "배치 실행 이력은 어디에 얼마나 보관되는가?",
+          "배치 스케줄 변경은 어떤 절차를 따르는가?"
+        ],
+        "controlExample": "가맹점 정산 CronJob의 스케줄 및 이미지 변경은 변경 티켓 승인 후 Git을 통해 반영되며, 실행 결과는 매일 재무팀이 검토하고 실패 건은 재처리 티켓으로 승인·수행·검증 기록을 보관한다."
+      },
+      "related": [
+        "k8s-pod",
+        "k8s-deployment",
+        "k8s-resources-qos",
+        "k8s-serviceaccount",
+        "k8s-logging-monitoring",
+        "ai-airflow",
+        "plat-batch-scheduling",
+        "onprem-sap-basis"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Jobs",
+        "Kubernetes 공식 문서 - CronJob",
+        "Argo Workflows 공식 문서"
+      ]
+    },
+    {
+      "id": "k8s-service",
+      "title": "Service (ClusterIP/NodePort/LoadBalancer)",
+      "titleEn": "Service",
+      "aliases": [
+        "서비스",
+        "svc",
+        "ClusterIP",
+        "NodePort",
+        "LoadBalancer",
+        "가상 IP",
+        "엔드포인트",
+        "EndpointSlice"
+      ],
+      "tags": [
+        "network",
+        "core"
+      ],
+      "level": "기초",
+      "oneLiner": "수시로 바뀌는 Pod들 앞에 고정 주소와 로드밸런싱을 제공하는 객체",
+      "analogy": "Service는 회사 대표번호와 같다. 담당 직원(Pod)이 바뀌거나 자리를 옮겨도 고객은 항상 같은 대표번호(ClusterIP/DNS)로 전화하고, 교환기가 지금 근무 중인 직원에게 골고루 연결한다. NodePort는 건물 각 출입구에 붙인 내선, LoadBalancer는 외부 통신사가 제공하는 공개 전화번호다.",
+      "explanation": "<p><strong>Service</strong>는 레이블 셀렉터로 묶인 Pod 집합에 <strong>고정된 가상 IP(ClusterIP)와 DNS 이름</strong>을 부여하고 트래픽을 분산하는 객체다. Pod는 재생성될 때마다 IP가 바뀌므로 다른 앱이 Pod IP를 직접 부를 수 없다. Service가 그 사이에서 '안정적인 주소'를 제공한다.</p><p><strong>동작의 핵심.</strong> Service를 만들면 셀렉터에 맞는 Ready 상태 Pod의 IP 목록이 <strong>EndpointSlice</strong>(구 명칭: Endpoints)에 자동으로 유지된다. kube-proxy(또는 Cilium 등 eBPF CNI)가 각 노드에 'ClusterIP:포트로 온 패킷을 이 Pod IP 중 하나로 보내라'는 규칙(iptables/IPVS/eBPF)을 심는다. Service 자체는 프로세스가 아니라 규칙이다. 쉽게 말하면 '주소 변환표'다.</p><p><strong>Service 타입 4가지.</strong></p><ul><li><strong>ClusterIP(기본)</strong>: 클러스터 내부에서만 접근 가능한 가상 IP. 마이크로서비스 간 통신의 표준. DNS는 <code>&lt;svc&gt;.&lt;ns&gt;.svc.cluster.local</code>.</li><li><strong>NodePort</strong>: 모든 노드의 특정 포트(30000~32767)를 열어 외부에서 <code>노드IP:포트</code>로 접근. 테스트나 자체 LB 앞단에 쓰며, 운영 외부 노출용으로는 권장하지 않는다.</li><li><strong>LoadBalancer</strong>: 클라우드 로드밸런서를 자동 생성해 연결. EKS에서는 AWS Load Balancer Controller가 <strong>NLB</strong>를 만든다(구 in-tree 컨트롤러는 CLB 생성). 서비스 하나당 LB 하나가 생겨 비용이 늘므로 HTTP는 보통 Ingress로 묶는다.</li><li><strong>ExternalName</strong>: 외부 DNS 이름(예: RDS 엔드포인트)에 대한 CNAME 별칭. 셀렉터 없음.</li></ul><p><strong>Headless Service</strong>(clusterIP: None)는 가상 IP 없이 DNS 조회 시 Pod IP들을 직접 돌려준다. StatefulSet과 함께 Pod별 고정 DNS를 만드는 데 쓴다.</p><p><strong>알아둘 옵션.</strong> <code>sessionAffinity: ClientIP</code>(같은 클라이언트는 같은 Pod로), <code>externalTrafficPolicy: Local</code>(NodePort/LB에서 클라이언트 IP 보존, 로컬 Pod만 사용), <code>internalTrafficPolicy</code>, <code>topology aware routing</code>(같은 AZ Pod 우선 → AZ 간 데이터 전송 비용 절감). Service 포트(port)와 컨테이너 포트(targetPort)는 다를 수 있다.</p><p><strong>감사 관점</strong>에서 Service는 네트워크 노출면이다. LoadBalancer/NodePort 타입은 외부 노출을 의미하므로 생성 권한과 사용 현황이 통제 대상이며, 내부 Service라도 NetworkPolicy가 없으면 클러스터 안 모든 Pod가 접근할 수 있다는 점을 인식해야 한다.</p>",
+      "howItWorks": "<ol><li>Service(selector app=payment-api, port 80 → targetPort 8080)를 생성하면 API 서버가 ClusterIP(예: 172.20.15.8)를 할당한다.</li><li>EndpointSlice 컨트롤러가 셀렉터에 맞고 readiness를 통과한 Pod IP들(10.20.3.17:8080, 10.20.4.22:8080, ...)을 EndpointSlice에 기록한다.</li><li>CoreDNS가 <code>payment-api.payment.svc.cluster.local → 172.20.15.8</code> 레코드를 제공한다.</li><li>각 노드의 kube-proxy가 EndpointSlice 변화를 watch하고 iptables/IPVS 규칙을 갱신한다.</li><li>주문 서비스 Pod가 <code>http://payment-api.payment/pay</code>를 호출하면 DNS → ClusterIP → 노드의 규칙이 DNAT로 Pod IP 중 하나를 골라 전달한다.</li><li>Pod가 죽거나 readiness 실패 시 EndpointSlice에서 즉시 빠져 트래픽이 가지 않는다.</li><li>LoadBalancer 타입이면 AWS LB Controller가 NLB를 만들고 대상 그룹에 Pod IP(IP 모드) 또는 NodePort(인스턴스 모드)를 등록한다.</li></ol>",
+      "example": "<p>커머스 '마켓온'의 주문 서비스는 결제 API를 <code>payment-api.payment.svc</code> ClusterIP로 호출한다. 결제 API Pod가 6개에서 30개로 늘어나도 주문 서비스 설정은 바뀌지 않는다. 외부 파트너용 정산 API는 LoadBalancer 타입으로 내부 NLB를 생성하고 <code>aws-load-balancer-scheme: internal</code> 어노테이션으로 인터넷 노출을 막았다. 감사에서 <code>kubectl get svc -A --field-selector spec.type=LoadBalancer</code> 출력과 각 NLB의 internal/internet-facing 구분을 제출했다.</p><pre><code>apiVersion: v1\nkind: Service\nmetadata: { name: payment-api, namespace: payment }\nspec:\n  type: ClusterIP\n  selector: { app: payment-api }\n  ports:\n  - name: http\n    port: 80          # Service 포트\n    targetPort: 8080  # 컨테이너 포트\n---\napiVersion: v1\nkind: Service\nmetadata:\n  name: partner-settlement\n  namespace: settlement\n  annotations:\n    service.beta.kubernetes.io/aws-load-balancer-type: external\n    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip\n    service.beta.kubernetes.io/aws-load-balancer-scheme: internal\nspec:\n  type: LoadBalancer\n  selector: { app: partner-settlement }\n  ports: [{ port: 443, targetPort: 8443 }]\n\n# 확인\nkubectl get svc,endpointslice -n payment\nkubectl get svc -A --field-selector spec.type=LoadBalancer</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80.0' y='51.0' text-anchor='middle' fill='currentColor'>주문 Pod</text><text x='80.0' y='67.0' text-anchor='middle' fill='currentColor' font-size='11'>클라이언트</text><line x1='140' y1='55' x2='200' y2='55' stroke='currentColor' marker-end='url(#ar)'/><text x='170.0' y='49.0' text-anchor='middle' fill='currentColor' font-size='11'>DNS 조회</text><rect x='200' y='30' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='265.0' y='51.0' text-anchor='middle' fill='currentColor'>CoreDNS</text><text x='265.0' y='67.0' text-anchor='middle' fill='currentColor' font-size='11'>svc → ClusterIP</text><line x1='80' y1='80' x2='80' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='130' width='200' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='120.0' y='151.0' text-anchor='middle' fill='currentColor'>Service payment-api</text><text x='120.0' y='167.0' text-anchor='middle' fill='currentColor' font-size='11'>172.20.15.8:80</text><line x1='220' y1='155' x2='280' y2='155' stroke='currentColor' marker-end='url(#ar)'/><text x='250.0' y='149.0' text-anchor='middle' fill='currentColor' font-size='11'>kube-proxy 규칙</text><rect x='280' y='100' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='345.0' y='116.0' text-anchor='middle' fill='currentColor'>Pod 10.20.3.17</text><text x='345.0' y='132.0' text-anchor='middle' fill='currentColor' font-size='11'>:8080</text><rect x='280' y='150' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='345.0' y='166.0' text-anchor='middle' fill='currentColor'>Pod 10.20.4.22</text><text x='345.0' y='182.0' text-anchor='middle' fill='currentColor' font-size='11'>:8080</text><rect x='280' y='200' width='130' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='345.0' y='216.0' text-anchor='middle' fill='currentColor'>Pod 10.20.5.9</text><text x='345.0' y='232.0' text-anchor='middle' fill='currentColor' font-size='11'>:8080 NotReady</text><line x1='220' y1='148' x2='280' y2='120' stroke='currentColor' marker-end='url(#ar)'/><line x1='220' y1='162' x2='280' y2='220' stroke='currentColor' marker-end='url(#ar)'/><text x='420' y='125' fill='currentColor' font-size='12'>EndpointSlice: Ready만 등록</text><rect x='450' y='30' width='170' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535.0' y='51.0' text-anchor='middle' fill='currentColor'>NLB (type LB)</text><text x='535.0' y='67.0' text-anchor='middle' fill='currentColor' font-size='11'>외부/내부 노출</text><line x1='450' y1='70' x2='240' y2='130' stroke='currentColor' marker-end='url(#ar)'/><text x='430' y='220' fill='currentColor' font-size='11'>NotReady → 목록 제외</text></svg>",
+      "keyTerms": [
+        {
+          "term": "ClusterIP",
+          "meaning": "클러스터 내부 전용 가상 IP(기본 타입)"
+        },
+        {
+          "term": "NodePort",
+          "meaning": "모든 노드의 30000~32767 포트로 외부 노출"
+        },
+        {
+          "term": "LoadBalancer",
+          "meaning": "클라우드 LB(EKS: NLB)를 자동 생성하는 타입"
+        },
+        {
+          "term": "EndpointSlice",
+          "meaning": "Service 뒤 Ready Pod IP 목록(구 Endpoints)"
+        },
+        {
+          "term": "Headless Service",
+          "meaning": "clusterIP None, Pod IP를 직접 DNS로 반환"
+        },
+        {
+          "term": "targetPort",
+          "meaning": "실제 컨테이너가 듣는 포트"
+        },
+        {
+          "term": "externalTrafficPolicy",
+          "meaning": "Local이면 클라이언트 IP 보존, 로컬 노드 Pod만 사용"
+        },
+        {
+          "term": "AWS Load Balancer Controller",
+          "meaning": "Service/Ingress를 NLB/ALB로 만들어 주는 EKS 컨트롤러"
+        }
+      ],
+      "pitfalls": [
+        "Service 셀렉터와 Pod 레이블 오타로 EndpointSlice가 비어 있는데 '네트워크 문제'로 오진",
+        "readiness 프로브 없이 Service 연결. 준비 안 된 Pod에 트래픽 유입",
+        "LoadBalancer 타입을 서비스마다 만들어 NLB 수십 개 비용 발생 + 외부 노출면 증가",
+        "scheme 어노테이션 누락으로 내부용 서비스가 internet-facing LB로 생성",
+        "NodePort를 운영 외부 노출에 사용. 노드 보안그룹이 넓게 열리고 노드 교체 시 IP 변경"
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] LoadBalancer/NodePort 타입 Service 생성 권한이 제한되고 현황이 주기적으로 검토되는가",
+          "[접근] 외부(internet-facing) 노출 Service 목록이 승인된 서비스 목록과 일치하는가",
+          "[변경] Service·LB 설정 변경이 변경관리를 따르는가",
+          "[운영] LB 보안그룹·리스너·TLS 설정이 표준을 따르는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조 해킹 등 방지대책: 외부 노출 서비스의 최소화 및 접근통제",
+          "인터넷 노출 구간과 내부 구간의 망 분리 원칙 적용"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 서비스 노출 범위 통제",
+          "2.6.7 인터넷 접속 통제: 외부 노출 서비스 관리",
+          "2.10.2 클라우드 보안: LB 설정 보안"
+        ],
+        "evidence": [
+          "kubectl get svc -A --field-selector spec.type=LoadBalancer 출력",
+          "aws elbv2 describe-load-balancers 출력(Scheme, SecurityGroups)",
+          "외부 노출 서비스 승인 목록(인벤토리)",
+          "LB 생성을 제한하는 Kyverno/Gatekeeper 정책 또는 RBAC"
+        ],
+        "auditorQuestions": [
+          "인터넷에 노출된 Service/LB는 몇 개이며 각각 승인 근거가 있는가?",
+          "개발자가 LoadBalancer 타입 Service를 임의로 만들 수 있는가?",
+          "내부 서비스 간 통신은 어떤 제한이 있는가(NetworkPolicy)?",
+          "LB의 TLS 종단과 인증서 관리는 어떻게 하는가?"
+        ],
+        "controlExample": "운영 클러스터에서 internet-facing LoadBalancer Service 생성은 Kyverno 정책으로 차단되며, 외부 노출이 필요한 경우 보안팀 승인 후 예외 레이블을 부여하고 분기별로 노출 서비스 인벤토리를 검토한다."
+      },
+      "related": [
+        "k8s-ingress",
+        "k8s-gateway-api",
+        "k8s-coredns",
+        "k8s-networkpolicy",
+        "k8s-cni",
+        "k8s-probes",
+        "aws-elb",
+        "net-load-balancer"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Service",
+        "Kubernetes 공식 문서 - EndpointSlices",
+        "AWS Load Balancer Controller 공식 문서 - Network Load Balancer"
+      ]
+    },
+    {
+      "id": "k8s-ingress",
+      "title": "Ingress와 Ingress Controller",
+      "titleEn": "Ingress & Ingress Controller",
+      "aliases": [
+        "인그레스",
+        "ALB Ingress",
+        "nginx ingress",
+        "L7 라우팅",
+        "호스트 기반 라우팅",
+        "경로 기반 라우팅",
+        "TLS 종단"
+      ],
+      "tags": [
+        "network",
+        "http",
+        "edge"
+      ],
+      "level": "중급",
+      "oneLiner": "HTTP(S) 요청을 호스트·경로 규칙에 따라 여러 Service로 나누는 L7 진입점",
+      "analogy": "Ingress는 대형 쇼핑몰의 안내 데스크와 같다. 정문(하나의 LB)으로 들어온 손님을 '식당은 5층, 서점은 2층'처럼 목적지(호스트/경로)에 따라 안내한다. Ingress 리소스는 '안내 규칙표'이고, Ingress Controller는 그 규칙표를 보고 실제로 안내하는 직원(프록시)이다. 규칙표만 있고 직원이 없으면 아무 일도 일어나지 않는다.",
+      "explanation": "<p><strong>Ingress</strong>는 클러스터 외부에서 오는 HTTP/HTTPS 요청을 <strong>호스트 이름(Host)과 경로(Path)</strong>에 따라 내부 Service로 라우팅하는 규칙을 정의하는 객체다. Service의 LoadBalancer 타입이 서비스마다 LB를 하나씩 만드는 것과 달리, Ingress는 하나의 진입점으로 수십 개 서비스를 묶고 TLS 종단, 리다이렉트, 경로 재작성 같은 L7 기능을 제공한다.</p><p><strong>Ingress 리소스와 Ingress Controller의 분리</strong>가 핵심이다. Ingress 객체는 '규칙'일 뿐이고, 그것을 읽어 실제 프록시나 LB를 설정하는 <strong>Ingress Controller</strong>가 별도로 설치되어야 한다. 쉽게 말하면 Ingress는 설정 파일, Controller는 그 설정으로 돌아가는 웹서버다. 여러 Controller를 함께 쓸 수 있으며 <code>ingressClassName</code>으로 어느 Controller가 처리할지 지정한다.</p><p><strong>대표 Ingress Controller.</strong></p><ul><li><strong>AWS Load Balancer Controller (ALB)</strong>: EKS 표준. Ingress마다 ALB를 만들고 규칙을 ALB 리스너 규칙으로 변환한다. WAF, Cognito 인증, ACM 인증서를 어노테이션으로 연결할 수 있고, <code>group.name</code>으로 여러 Ingress가 ALB 하나를 공유한다. 프록시 Pod가 없어 운영 부담이 적다.</li><li><strong>ingress-nginx</strong>: 클러스터 안에 NGINX Pod를 띄우고 그 앞에 NLB를 둔다. 세밀한 제어(rate limit, 헤더 조작, canary 어노테이션)가 가능하며 클라우드 독립적이다. 단, 2025년 말 유지보수 축소 발표로 신규 도입 시 Gateway API 기반 대안(Envoy Gateway, NGINX Gateway Fabric 등)을 검토하는 추세다.</li><li><strong>Traefik, HAProxy, Istio Gateway, Kong</strong> 등.</li></ul><p><strong>Ingress 스펙 구성.</strong> <code>rules[].host</code>(예: api.paynow.com), <code>http.paths[]</code>(path, pathType: Prefix/Exact/ImplementationSpecific, backend.service.name/port), <code>tls[]</code>(hosts와 인증서 Secret), <code>defaultBackend</code>. Controller별 고급 기능은 대부분 어노테이션으로 지정하는데, 이것이 Ingress의 한계(비표준, 표현력 부족)로 지적되어 Gateway API가 등장했다.</p><p><strong>TLS 처리.</strong> ALB 방식은 ACM 인증서를 어노테이션으로 지정해 ALB에서 TLS를 종단한다. nginx 방식은 인증서를 <code>kubernetes.io/tls</code> 타입 Secret으로 저장하고 cert-manager가 Let's Encrypt 등에서 자동 갱신하도록 구성한다.</p><p><strong>감사 관점</strong>에서 Ingress는 '인터넷과 서비스 사이의 관문'이다. 어떤 호스트/경로가 외부에 열려 있는지(인벤토리), TLS 버전·인증서 관리, WAF 연동, 인증 없는 관리 경로(/admin, /actuator) 노출 여부, Ingress 생성 권한이 핵심 통제 포인트다.</p>",
+      "howItWorks": "<ol><li>운영자가 <code>host: api.paynow.com, path: /payment → Service payment-api:80</code>인 Ingress를 생성한다(ingressClassName: alb).</li><li>AWS LB Controller가 Ingress를 watch하고 ALB, 리스너(443), 대상 그룹을 AWS API로 생성한다. 대상 그룹에는 Pod IP가 직접 등록된다(IP 모드).</li><li>ExternalDNS(설치된 경우)가 Route 53에 <code>api.paynow.com → ALB DNS</code> 레코드를 만든다.</li><li>사용자가 https://api.paynow.com/payment/authorize를 호출하면 DNS → ALB → TLS 종단(ACM 인증서) → WAF 검사.</li><li>ALB 리스너 규칙이 Host/Path를 매칭해 payment-api 대상 그룹의 Pod IP 중 하나로 전달한다.</li><li>Pod 목록이 바뀌면 Controller가 EndpointSlice 변화를 보고 대상 그룹을 갱신한다.</li><li>nginx 방식이라면 ALB 대신 NLB → nginx Pod → Service → Pod 경로로 흐르고 TLS는 nginx가 종단한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 외부 API 도메인 api.paynow.com 하나를 ALB Ingress로 운영하며, <code>/payment</code>는 결제 API, <code>/auth</code>는 인증 서비스로 라우팅한다. ALB에는 WAF(SQLi/XSS 룰)와 ACM 인증서(TLS 1.2 이상 정책)가 붙어 있고, 내부 관리자 콘솔은 별도의 internal ALB + 사내 SSO(Cognito/OIDC) 인증 어노테이션으로 보호된다. 감사에서 '외부 노출 경로 인벤토리'로 모든 Ingress의 host/path 목록을 제출했고, 관리 경로가 외부 ALB에 없음을 확인받았다.</p><pre><code>apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: public-api\n  namespace: payment\n  annotations:\n    alb.ingress.kubernetes.io/scheme: internet-facing\n    alb.ingress.kubernetes.io/target-type: ip\n    alb.ingress.kubernetes.io/listen-ports: '[{\"HTTPS\":443}]'\n    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:123456789012:certificate/abcd\n    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06\n    alb.ingress.kubernetes.io/wafv2-acl-arn: arn:aws:wafv2:ap-northeast-2:123456789012:regional/webacl/prod/xyz\n    alb.ingress.kubernetes.io/group.name: public\nspec:\n  ingressClassName: alb\n  rules:\n  - host: api.paynow.com\n    http:\n      paths:\n      - path: /payment\n        pathType: Prefix\n        backend: { service: { name: payment-api, port: { number: 80 } } }\n      - path: /auth\n        pathType: Prefix\n        backend: { service: { name: auth-svc, port: { number: 80 } } }\n\n# 외부 노출 경로 인벤토리 추출\nkubectl get ingress -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,HOSTS:.spec.rules[*].host,SCHEME:.metadata.annotations.alb\\.ingress\\.kubernetes\\.io/scheme'</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='100' width='90' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65.0' y='121.0' text-anchor='middle' fill='currentColor'>사용자</text><text x='65.0' y='137.0' text-anchor='middle' fill='currentColor' font-size='11'>인터넷</text><line x1='110' y1='125' x2='160' y2='125' stroke='currentColor' marker-end='url(#ar)'/><text x='135.0' y='119.0' text-anchor='middle' fill='currentColor' font-size='11'>HTTPS</text><rect x='160' y='90' width='130' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='225.0' y='121.0' text-anchor='middle' fill='currentColor'>ALB</text><text x='225.0' y='137.0' text-anchor='middle' fill='currentColor' font-size='11'>TLS 종단 · WAF</text><line x1='290' y1='110' x2='360' y2='60' stroke='currentColor' marker-end='url(#ar)'/><text x='325.0' y='79.0' text-anchor='middle' fill='currentColor' font-size='11'>/payment</text><line x1='290' y1='140' x2='360' y2='200' stroke='currentColor' marker-end='url(#ar)'/><text x='325.0' y='164.0' text-anchor='middle' fill='currentColor' font-size='11'>/auth</text><rect x='360' y='40' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='420.0' y='65.0' text-anchor='middle' fill='currentColor'>Svc payment-api</text><rect x='360' y='180' width='120' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='420.0' y='205.0' text-anchor='middle' fill='currentColor'>Svc auth-svc</text><line x1='480' y1='60' x2='530' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='480' y1='200' x2='530' y2='200' stroke='currentColor' marker-end='url(#ar)'/><rect x='530' y='40' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='575.0' y='65.0' text-anchor='middle' fill='currentColor'>Pod x6</text><rect x='530' y='180' width='90' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='575.0' y='205.0' text-anchor='middle' fill='currentColor'>Pod x3</text><rect x='160' y='200' width='130' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='225.0' y='218.5' text-anchor='middle' fill='currentColor'>Ingress 리소스</text><text x='225.0' y='234.5' text-anchor='middle' fill='currentColor' font-size='11'>host/path 규칙</text><line x1='225' y1='200' x2='225' y2='160' stroke='currentColor' marker-end='url(#ar)'/><text x='225.0' y='174.0' text-anchor='middle' fill='currentColor' font-size='11'>Controller가 읽음</text><text x='20' y='40' fill='currentColor' font-size='12'>Ingress = 규칙표</text><text x='20' y='58' fill='currentColor' font-size='12'>Controller = 실행자</text><text x='20' y='76' fill='currentColor' font-size='11'>(ALB / nginx)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Ingress Controller",
+          "meaning": "Ingress 규칙을 읽어 실제 프록시/LB를 설정하는 컴포넌트"
+        },
+        {
+          "term": "IngressClass",
+          "meaning": "어느 Controller가 이 Ingress를 처리할지 지정"
+        },
+        {
+          "term": "pathType",
+          "meaning": "Prefix/Exact/ImplementationSpecific 경로 매칭 방식"
+        },
+        {
+          "term": "TLS 종단(Termination)",
+          "meaning": "HTTPS를 복호화하는 지점(ALB 또는 nginx)"
+        },
+        {
+          "term": "ACM",
+          "meaning": "AWS 인증서 관리 서비스, ALB에 인증서 연결"
+        },
+        {
+          "term": "cert-manager",
+          "meaning": "클러스터 내 TLS 인증서 자동 발급·갱신 도구"
+        },
+        {
+          "term": "group.name",
+          "meaning": "여러 Ingress가 ALB 하나를 공유하게 하는 ALB 어노테이션"
+        },
+        {
+          "term": "ExternalDNS",
+          "meaning": "Ingress/Service 호스트를 Route 53 등에 자동 등록"
+        }
+      ],
+      "pitfalls": [
+        "Ingress만 만들고 Controller가 없어 ADDRESS가 비어 있는 상태로 '안 된다'고 함",
+        "scheme 어노테이션 누락 또는 internet-facing 기본값으로 내부 서비스가 외부 노출",
+        "관리자 경로(/actuator, /admin)가 공용 Ingress에 포함되어 인증 없이 노출",
+        "TLS 정책을 기본값으로 두어 TLS 1.0/1.1 허용",
+        "Ingress마다 ALB가 생성되어 비용·관리 부담 증가(group.name 미사용)",
+        "인증서 만료를 자동 갱신에 맡기고 모니터링하지 않아 만료 장애"
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 외부 노출 Ingress(host/path) 인벤토리가 승인 목록과 일치하고 분기별 검토되는가",
+          "[접근] 관리·운영 경로가 외부 Ingress에서 제외되거나 인증(SSO/IP 제한)으로 보호되는가",
+          "[변경] Ingress 규칙·TLS·WAF 설정 변경이 변경관리를 따르는가",
+          "[운영] TLS 인증서 만료·갱신이 모니터링되고 TLS 정책이 기준 이상인가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조: 인터넷 구간 해킹 방지대책(WAF, 침입탐지), 암호화 통신",
+          "제34조 취지: 전자금융거래 시 안전한 암호 프로토콜(TLS) 사용",
+          "외부 노출 서비스의 취약점 점검 정기 수행"
+        ],
+        "isms": [
+          "2.6.7 인터넷 접속 통제 / 2.6.1 네트워크 접근: 외부 노출 서비스 통제",
+          "2.7.1 암호정책 적용: TLS 버전·암호 스위트 기준",
+          "2.10.1 보안시스템 운영: WAF 정책 관리",
+          "2.11.2 취약점 점검 및 조치: 외부 노출 서비스 점검"
+        ],
+        "evidence": [
+          "kubectl get ingress -A 출력(host, path, scheme 어노테이션)",
+          "ALB 리스너 TLS 정책 및 ACM 인증서 만료일(aws elbv2 describe-listeners)",
+          "WAF Web ACL 연결 현황과 룰 목록",
+          "외부 노출 도메인 인벤토리 및 승인 기록",
+          "인증서 만료 알림 규칙과 갱신 이력"
+        ],
+        "auditorQuestions": [
+          "인터넷에 노출된 호스트·경로 전체 목록을 보여줄 수 있는가? 각각 승인 근거는?",
+          "관리자 화면이나 헬스체크/메트릭 엔드포인트가 외부에서 접근 가능한가?",
+          "TLS 최소 버전과 인증서 갱신 방식은? 만료 시 누가 알게 되는가?",
+          "WAF는 어떤 Ingress에 적용되어 있고 룰 변경은 누가 승인하는가?",
+          "개발자가 Ingress를 직접 만들 수 있는가? 검토 절차는?"
+        ],
+        "controlExample": "외부 노출 Ingress는 보안팀 승인 후 internet-facing 어노테이션이 허용되며 WAF와 TLS 1.2 이상 정책이 Kyverno로 강제된다. 외부 노출 host/path 인벤토리는 분기별로 추출·검토하고 미승인 항목은 즉시 제거한다."
+      },
+      "related": [
+        "k8s-service",
+        "k8s-gateway-api",
+        "k8s-networkpolicy",
+        "k8s-secret",
+        "k8s-service-mesh",
+        "aws-elb",
+        "awssec-waf",
+        "net-tls",
+        "net-dns"
+      ],
+      "learnMore": [
+        "Kubernetes 공식 문서 - Ingress",
+        "AWS Load Balancer Controller 공식 문서 - Ingress annotations",
+        "cert-manager 공식 문서"
+      ]
+    },
+    {
+      "id": "k8s-gateway-api",
+      "title": "Gateway API",
+      "titleEn": "Kubernetes Gateway API",
+      "aliases": [
+        "게이트웨이 API",
+        "HTTPRoute",
+        "GatewayClass",
+        "Ingress 후속",
+        "차세대 인그레스"
+      ],
+      "tags": [
+        "network",
+        "http",
+        "edge",
+        "standard"
+      ],
+      "level": "중급",
+      "oneLiner": "Ingress의 한계를 넘어 역할 분리와 풍부한 라우팅을 표준화한 차세대 API",
+      "analogy": "Gateway API는 건물 관리 체계를 세 층으로 나눈 것과 같다. 건물주(인프라팀)가 어떤 종류의 출입구를 지을 수 있는지(GatewayClass) 정하고, 시설팀(플랫폼팀)이 실제 출입구와 문(Gateway, 리스너)을 설치하며, 각 입주사(개발팀)는 '우리 사무실은 3층 왼쪽'이라는 안내(HTTPRoute)만 붙인다. 입주사가 출입구 자체를 바꿀 수는 없다.",
+      "explanation": "<p><strong>Gateway API</strong>는 Ingress를 대체하기 위해 쿠버네티스 SIG-Network가 만든 공식 표준 API로, 2023년 v1.0 GA 이후 주요 구현체(AWS LB Controller, Istio, Cilium, Envoy Gateway, NGINX Gateway Fabric, Kong 등)가 지원한다. HTTP뿐 아니라 gRPC, TCP, UDP, TLS 라우팅을 표준 리소스로 다루며, 서비스 메시의 동서(east-west) 트래픽까지 확장(GAMMA)된다.</p><p><strong>왜 필요했나.</strong> Ingress는 host/path 매칭 외의 기능(헤더 매칭, 가중치 분배, 리다이렉트, 재작성, 타임아웃)을 표준으로 갖고 있지 않아 Controller마다 다른 어노테이션을 써야 했다. 또한 '누가 LB를 만들고 누가 라우팅 규칙을 쓰는가'라는 역할 분리가 없어 개발자가 Ingress를 만들면 LB 설정까지 건드리게 됐다. 쉽게 말하면 Ingress는 '한 장짜리 규칙표에 메모(어노테이션)를 덕지덕지 붙인 것'이고, Gateway API는 '역할별로 나뉜 정식 서식'이다.</p><p><strong>핵심 리소스와 역할 모델.</strong></p><ul><li><strong>GatewayClass</strong>(인프라 제공자): 어떤 구현체(예: ALB, Envoy)로 게이트웨이를 만들지 정의. 클러스터 범위.</li><li><strong>Gateway</strong>(클러스터/플랫폼 운영자): 실제 LB·프록시 인스턴스. 리스너(포트, 프로토콜, TLS 인증서, 호스트명)와 어떤 네임스페이스의 Route를 받아들일지(<code>allowedRoutes</code>)를 정한다.</li><li><strong>HTTPRoute / GRPCRoute / TCPRoute / TLSRoute</strong>(애플리케이션 개발자): 자기 네임스페이스에서 '이 호스트·경로·헤더는 이 Service로'를 선언하고 <code>parentRefs</code>로 Gateway에 붙인다. 가중치 기반 트래픽 분할, 헤더 추가/삭제, 리다이렉트, URL 재작성, 타임아웃, 재시도가 표준 필드다.</li><li><strong>ReferenceGrant</strong>: 다른 네임스페이스의 Service/Secret을 참조하도록 명시적으로 허용하는 객체. 크로스 네임스페이스 참조가 기본 차단이라 보안상 유리하다.</li></ul><p><strong>실무 적용.</strong> EKS에서는 AWS Load Balancer Controller가 Gateway API를 지원해 Gateway → ALB/NLB로 만들 수 있고, VPC Lattice용 'AWS Gateway API Controller'도 있다. Istio를 쓰면 Istio Gateway 대신 표준 Gateway API를 쓰는 것이 권장된다. ingress-nginx 유지보수 축소 이후 신규 클러스터는 Gateway API 기반 구현체(Envoy Gateway 등)로 가는 흐름이다. 다만 기존 Ingress가 당장 사라지는 것은 아니며(동결 상태로 유지) 마이그레이션 도구(ingress2gateway)가 있다.</p><p><strong>감사 관점</strong>에서 Gateway API는 역할 분리가 객체 모델에 내장되어 있어 통제 설계가 쉽다. Gateway(LB) 생성·수정 권한은 플랫폼팀, HTTPRoute는 각 팀 네임스페이스로 RBAC를 나누고, allowedRoutes와 ReferenceGrant로 '누가 어떤 게이트웨이에 경로를 붙일 수 있는지'가 선언적으로 남는다.</p>",
+      "howItWorks": "<ol><li>플랫폼팀이 GatewayClass <code>alb</code>(또는 envoy)를 등록한다. 구현체 컨트롤러가 이 클래스를 담당한다고 표시한다.</li><li>플랫폼팀이 Gateway <code>public-gw</code>를 만들고 리스너 443/HTTPS, 인증서, <code>allowedRoutes.namespaces: Selector(team=payment)</code>를 지정한다. 컨트롤러가 ALB/프록시를 생성한다.</li><li>결제팀이 자기 네임스페이스에 HTTPRoute를 만들고 parentRefs로 public-gw를 가리키며 <code>/payment → payment-api</code>, 카나리 가중치 90/10 등을 선언한다.</li><li>컨트롤러가 Gateway의 allowedRoutes 조건을 검사해 허용된 Route만 리스너 규칙에 반영한다. Route의 status에 Accepted/ResolvedRefs 조건이 기록된다.</li><li>사용자 요청이 Gateway(ALB/프록시)에 도착하면 리스너 → 매칭된 HTTPRoute 규칙 → 필터(헤더 수정 등) → backendRefs 가중치에 따라 Service로 전달된다.</li><li>다른 네임스페이스의 Service를 백엔드로 쓰려면 그 네임스페이스에 ReferenceGrant가 있어야 하며 없으면 Route가 거부된다.</li></ol>",
+      "example": "<p>커머스 '마켓온'은 신규 클러스터에서 Envoy Gateway 기반 Gateway API를 채택했다. 플랫폼팀이 <code>public-gw</code> Gateway 하나를 소유하고, 각 서비스팀은 자기 네임스페이스에 HTTPRoute만 작성한다. 검색팀은 신규 검색 엔진 v2에 트래픽 10%를 보내는 카나리를 HTTPRoute 가중치로 구현했고, 별도 어노테이션 없이 표준 필드만 사용했다. Gateway 수정 권한은 플랫폼팀 ClusterRole에만 있어 개발팀이 리스너나 인증서를 바꿀 수 없다.</p><pre><code>apiVersion: gateway.networking.k8s.io/v1\nkind: Gateway\nmetadata: { name: public-gw, namespace: infra }\nspec:\n  gatewayClassName: envoy\n  listeners:\n  - name: https\n    protocol: HTTPS\n    port: 443\n    hostname: \"*.marketon.com\"\n    tls:\n      mode: Terminate\n      certificateRefs: [{ name: marketon-wildcard-tls }]\n    allowedRoutes:\n      namespaces:\n        from: Selector\n        selector: { matchLabels: { gateway-access: public } }\n---\napiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata: { name: search, namespace: search }\nspec:\n  parentRefs: [{ name: public-gw, namespace: infra }]\n  hostnames: [\"api.marketon.com\"]\n  rules:\n  - matches: [{ path: { type: PathPrefix, value: /search } }]\n    backendRefs:\n    - { name: search-v1, port: 80, weight: 90 }\n    - { name: search-v2, port: 80, weight: 10 }\n\n# 상태 확인\nkubectl get gateway -n infra\nkubectl get httproute -A\nkubectl describe httproute search -n search   # Conditions: Accepted, ResolvedRefs</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 260' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='180' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='110.0' y='38.5' text-anchor='middle' fill='currentColor'>GatewayClass envoy</text><text x='110.0' y='54.5' text-anchor='middle' fill='currentColor' font-size='11'>인프라 제공자</text><line x1='110' y1='65' x2='110' y2='95' stroke='currentColor' marker-end='url(#ar)'/><rect x='20' y='95' width='180' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='110.0' y='121.0' text-anchor='middle' fill='currentColor'>Gateway public-gw</text><text x='110.0' y='137.0' text-anchor='middle' fill='currentColor' font-size='11'>플랫폼팀 · 443/TLS</text><text x='30' y='180' fill='currentColor' font-size='12'>allowedRoutes:</text><text x='30' y='196' fill='currentColor' font-size='11'>ns label gateway-access</text><rect x='260' y='40' width='170' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='345.0' y='63.5' text-anchor='middle' fill='currentColor'>HTTPRoute search</text><text x='345.0' y='79.5' text-anchor='middle' fill='currentColor' font-size='11'>검색팀 ns</text><rect x='260' y='130' width='170' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='345.0' y='153.5' text-anchor='middle' fill='currentColor'>HTTPRoute payment</text><text x='345.0' y='169.5' text-anchor='middle' fill='currentColor' font-size='11'>결제팀 ns</text><line x1='260' y1='68' x2='200' y2='110' stroke='currentColor' marker-end='url(#ar)'/><text x='230.0' y='83.0' text-anchor='middle' fill='currentColor' font-size='11'>parentRef</text><line x1='260' y1='158' x2='200' y2='135' stroke='currentColor' marker-end='url(#ar)'/><text x='230.0' y='140.5' text-anchor='middle' fill='currentColor' font-size='11'>parentRef</text><line x1='430' y1='60' x2='490' y2='45' stroke='currentColor' marker-end='url(#ar)'/><text x='460.0' y='46.5' text-anchor='middle' fill='currentColor' font-size='11'>90%</text><line x1='430' y1='75' x2='490' y2='90' stroke='currentColor' marker-end='url(#ar)'/><text x='460.0' y='76.5' text-anchor='middle' fill='currentColor' font-size='11'>10%</text><rect x='490' y='30' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='50.0' text-anchor='middle' fill='currentColor'>Svc search-v1</text><rect x='490' y='75' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='95.0' text-anchor='middle' fill='currentColor'>Svc search-v2</text><line x1='430' y1='158' x2='490' y2='158' stroke='currentColor' marker-end='url(#ar)'/><rect x='490' y='143' width='120' height='30' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='550.0' y='163.0' text-anchor='middle' fill='currentColor'>Svc payment-api</text><rect x='260' y='205' width='350' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435.0' y='230.0' text-anchor='middle' fill='currentColor'>ReferenceGrant: 타 ns Service/Secret 참조 명시 허용</text></svg>",
+      "keyTerms": [
+        {
+          "term": "GatewayClass",
+          "meaning": "게이트웨이 구현체 종류(클러스터 범위)"
+        },
+        {
+          "term": "Gateway",
+          "meaning": "실제 LB/프록시 인스턴스와 리스너 정의"
+        },
+        {
+          "term": "HTTPRoute",
+          "meaning": "호스트·경로·헤더 매칭과 백엔드·필터를 정의하는 라우팅 규칙"
+        },
+        {
+          "term": "parentRefs",
+          "meaning": "Route가 붙을 Gateway를 가리키는 참조"
+        },
+        {
+          "term": "allowedRoutes",
+          "meaning": "Gateway가 어떤 네임스페이스·종류의 Route를 받을지 제한"
+        },
+        {
+          "term": "ReferenceGrant",
+          "meaning": "네임스페이스 간 참조를 명시적으로 허용하는 객체"
+        },
+        {
+          "term": "GAMMA",
+          "meaning": "Gateway API를 서비스 메시(동서 트래픽)에 적용하는 이니셔티브"
+        },
+        {
+          "term": "ingress2gateway",
+          "meaning": "기존 Ingress를 Gateway API로 변환하는 도구"
+        }
+      ],
+      "pitfalls": [
+        "Gateway API CRD만 설치하고 구현체 컨트롤러를 설치하지 않아 Gateway가 Programmed 되지 않음",
+        "구현체마다 지원 범위(Core/Extended)가 달라 특정 필터가 무시됨. 컨트롤러 conformance 확인 필요",
+        "allowedRoutes를 All로 열어 두어 아무 네임스페이스나 공용 Gateway에 경로를 붙임",
+        "Ingress와 Gateway API를 같은 호스트에 혼용해 라우팅 충돌",
+        "Route status의 Accepted=False를 확인하지 않고 '트래픽이 안 온다'고 오진"
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] Gateway(LB·리스너·인증서) 변경 권한이 플랫폼팀으로 제한되고 Route 권한은 팀 네임스페이스로 분리되는가",
+          "[접근] 공용 Gateway의 allowedRoutes가 승인된 네임스페이스로 제한되는가",
+          "[변경] 외부 노출 HTTPRoute 추가가 검토·승인되는가",
+          "[운영] Route 거부(Accepted=False) 및 인증서 만료가 모니터링되는가"
+        ],
+        "fss": [
+          "전자금융감독규정 제15조: 인터넷 구간 접근통제 및 암호화(TLS 종단 설정)",
+          "외부 노출 서비스 인벤토리 관리"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 / 2.6.7 인터넷 접속 통제",
+          "2.5.3 사용자 권한 관리 (역할 분리 RBAC)",
+          "2.7.1 암호정책 적용"
+        ],
+        "evidence": [
+          "kubectl get gatewayclass,gateway -A 출력 및 리스너 TLS 설정",
+          "Gateway 리소스에 대한 RBAC(Role/ClusterRole) 바인딩",
+          "kubectl get httproute -A 출력(hostnames, parentRefs)과 승인 목록 대사",
+          "ReferenceGrant 목록"
+        ],
+        "auditorQuestions": [
+          "Gateway를 생성·수정할 수 있는 사람은 누구인가? 개발팀은 HTTPRoute만 만들 수 있는가?",
+          "공용 Gateway에 어떤 네임스페이스가 경로를 붙일 수 있도록 허용되어 있는가?",
+          "외부 노출 HTTPRoute 인벤토리를 뽑아 승인 목록과 대조할 수 있는가?",
+          "Ingress에서 Gateway API로의 전환 계획과 혼용 기간의 통제는?"
+        ],
+        "controlExample": "공용 Gateway는 플랫폼팀만 수정 가능하며 allowedRoutes는 승인 레이블이 부여된 네임스페이스로 제한된다. 외부 노출 HTTPRoute는 분기별로 인벤토리를 추출해 보안팀 승인 목록과 대사한다."
+      },
+      "related": [
+        "k8s-ingress",
+        "k8s-service",
+        "k8s-rbac",
+        "k8s-namespace",
+        "k8s-service-mesh",
+        "net-api-gateway",
+        "aws-vpc-lattice"
+      ],
+      "learnMore": [
+        "Kubernetes Gateway API 공식 사이트 (gateway-api.sigs.k8s.io)",
+        "AWS Load Balancer Controller - Gateway API 지원 문서",
+        "Envoy Gateway 공식 문서"
+      ]
+    }
+  ]
+}

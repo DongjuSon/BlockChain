@@ -1,0 +1,1563 @@
+{
+  "category": "onprem",
+  "categoryLabel": "온프레미스·엔터프라이즈 시스템·하이브리드",
+  "entries": [
+    {
+      "id": "onprem-network-appliance",
+      "title": "네트워크·보안 장비",
+      "titleEn": "Network and Security Appliances (Cisco, Fortinet, Palo Alto)",
+      "aliases": [
+        "방화벽",
+        "Cisco",
+        "Fortinet",
+        "FortiGate",
+        "Palo Alto",
+        "L4 스위치",
+        "IPS",
+        "UTM"
+      ],
+      "tags": [
+        "network",
+        "security",
+        "firewall"
+      ],
+      "level": "중급",
+      "oneLiner": "트래픽을 나르고 걸러 내는 스위치·라우터·방화벽 등 물리 장비 계층",
+      "analogy": "네트워크 장비는 건물의 복도와 출입문에 해당한다. 스위치는 같은 층 사무실들을 잇는 복도, 라우터는 층과 층 또는 건물과 건물을 잇는 계단, 방화벽은 층 입구에서 신분증을 확인하고 반입물을 검사하는 경비 데스크다. 경비 데스크의 '출입 허용 명단(방화벽 정책)'이 낡아서 이미 퇴사한 사람이 계속 들어올 수 있다면 건물 전체가 위험해진다.",
+      "explanation": "<p>온프레미스 네트워크는 여러 계층의 물리 장비로 구성된다. <strong>스위치(L2)</strong>는 같은 네트워크 안의 장비들을 연결하고, <strong>라우터/L3 스위치</strong>는 서로 다른 네트워크 사이를 이어 주며, <strong>방화벽(Firewall)</strong>은 허용된 트래픽만 통과시킨다. 여기에 부하를 분산하는 <strong>L4/L7 스위치(로드밸런서)</strong>, 침입을 탐지·차단하는 <strong>IDS/IPS</strong>, 웹 공격을 막는 <strong>WAF</strong>, 원격 접속용 <strong>VPN 장비</strong>가 더해진다. 클라우드의 보안그룹·NACL·ALB·WAF는 이 장비들의 소프트웨어 버전이라고 보면 이해가 빠르다.</p><p><strong>주요 벤더</strong>로는 스위치·라우터의 <strong>Cisco</strong>(IOS/NX-OS)와 Juniper·HPE Aruba, 방화벽의 <strong>Fortinet(FortiGate)</strong>, <strong>Palo Alto Networks(PAN-OS)</strong>, Check Point, 국내 제품으로는 시큐아이·안랩·윈스 등이 있다. 로드밸런서는 F5 BIG-IP, Citrix ADC가 대표적이다.</p><p><strong>차세대 방화벽(NGFW)</strong>은 전통적인 '출발지 IP-목적지 IP-포트' 기준을 넘어, 실제 <strong>애플리케이션 식별(App-ID)</strong>, <strong>사용자 식별(User-ID, AD 연동)</strong>, <strong>콘텐츠 검사(IPS·안티바이러스·URL 필터링)</strong>, <strong>SSL 복호화 검사</strong>를 수행한다. 즉 '443 포트 허용'이 아니라 '마케팅팀 사용자에 한해 승인된 SaaS만 허용' 같은 정책을 쓸 수 있다.</p><p><strong>정책(룰) 관리가 실무의 핵심</strong>이다. 방화벽 정책은 위에서부터 순서대로 평가되어 처음 매칭되는 규칙이 적용되고, 마지막에 <strong>암묵적 거부(implicit deny)</strong>가 온다. 회사가 오래되면 정책이 수천 개로 불어나고, 그중 상당수는 사용되지 않거나 지나치게 넓다(Any-Any 룰). 그래서 <strong>정기적인 룰 리뷰(Rule Review)</strong>가 ITGC·ISMS-P 공통 요구사항이 된다. 요즘은 FortiManager, Panorama, Tufin/AlgoSec 같은 정책관리 도구로 미사용 룰·중복 룰·과도한 허용 룰을 자동 분석한다.</p><p><strong>감사 관점</strong>은 세 축이다. 첫째 <strong>접근</strong> — 장비 관리자 계정이 개인별로 식별되고 TACACS+/RADIUS로 중앙 인증되는가, 공용 enable 비밀번호를 쓰지 않는가, 관리 접근이 관리망·점프서버로 제한되는가. 둘째 <strong>변경</strong> — 정책 변경이 요청·승인·기록되고 설정 백업과 이전 버전 비교(diff)가 가능한가. 셋째 <strong>운영</strong> — 로그가 SIEM으로 전송되고, 펌웨어 취약점 패치와 EOL 관리가 이뤄지는가. 실제로 VPN·방화벽 장비의 원격코드실행 취약점은 최근 몇 년간 국내외 대형 침해사고의 최초 침입 경로로 반복 등장했기 때문에, <strong>보안장비 자체의 패치 관리</strong>는 최근 감사에서 비중이 크게 높아졌다.</p>",
+      "howItWorks": "<ol><li>서버·PC가 보낸 패킷이 접속 스위치(Access)로 들어가 VLAN 태그가 붙는다.</li><li>같은 VLAN 안이면 스위치가 MAC 주소 테이블을 보고 바로 전달한다.</li><li>다른 VLAN·다른 존으로 가야 하면 L3 스위치나 방화벽으로 라우팅된다.</li><li>방화벽은 정책 목록을 위에서부터 평가해 출발지·목적지·서비스·사용자·애플리케이션이 매칭되는 첫 규칙을 적용한다.</li><li>허용이면 필요 시 NAT를 적용하고 IPS·안티바이러스·URL 필터링 검사를 수행한다.</li><li>세션 정보가 세션 테이블에 저장되어 응답 트래픽은 자동 허용된다(스테이트풀).</li><li>허용·차단 결과가 트래픽 로그로 남고 syslog로 SIEM에 전송된다.</li><li>운영자는 변경 요청에 따라 정책을 추가·수정하고, 설정은 자동 백업되어 이전 버전과 비교 가능하다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 인터넷 구간에 Palo Alto 방화벽 2대(HA), 내부 존 간에 FortiGate 2대, 서버 랙마다 Cisco Nexus ToR 스위치를 쓴다. 방화벽 정책은 총 1,860개였는데 2026년 상반기 룰 리뷰에서 12개월간 히트가 0인 룰 430개와 출발지가 any인 룰 27개가 확인되어, 업무 담당 확인 후 단계적으로 제거·축소했다. 관리자 접근은 TACACS+로 AD 계정을 인증하고 모든 명령이 기록된다.</p><pre><code># Cisco 스위치: 계정·AAA·로그 설정 확인\nshow running-config | include aaa|tacacs|username\nshow logging | include %SYS-5-CONFIG_I   # 설정 변경 이력\nshow ip access-lists\n\n# FortiGate: 미사용 정책 및 광범위 정책 점검\nget firewall policy  # policyid, srcaddr, dstaddr, service, action\ndiagnose firewall iprope show 100004    # 정책별 히트 카운터\nshow full-configuration firewall policy | grep -B5 'set srcaddr \"all\"'\n\n# Palo Alto: 관리자 목록과 설정 변경 감사 로그\nshow admins\nshow config audit info\n\n# 룰 리뷰 산출물(감사 제출)\n정책ID | 출발지 | 목적지 | 서비스 | 신청부서 | 최근히트일 | 검토결과(유지/축소/삭제) | 승인자</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='45' width='85' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='57' y='72' text-anchor='middle' fill='currentColor' font-size='11'>인터넷</text><line x1='100' y1='67' x2='140' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='140' y='35' width='105' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='192' y='58' text-anchor='middle' fill='currentColor' font-size='11'>NGFW (HA)</text><text x='192' y='76' text-anchor='middle' fill='currentColor' font-size='10'>App-ID/User-ID</text><text x='192' y='92' text-anchor='middle' fill='currentColor' font-size='10'>IPS·URL·SSL검사</text><line x1='245' y1='67' x2='285' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='285' y='45' width='95' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='332' y='63' text-anchor='middle' fill='currentColor' font-size='11'>L4/L7 LB</text><text x='332' y='80' text-anchor='middle' fill='currentColor' font-size='10'>+ WAF</text><line x1='380' y1='67' x2='420' y2='67' stroke='currentColor' marker-end='url(#ar)'/><rect x='420' y='30' width='200' height='95' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='50' text-anchor='middle' fill='currentColor' font-size='11'>DMZ / 서버존</text><rect x='432' y='60' width='85' height='25' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='474' y='77' text-anchor='middle' fill='currentColor' font-size='10'>Web VLAN10</text><rect x='525' y='60' width='85' height='25' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='567' y='77' text-anchor='middle' fill='currentColor' font-size='10'>App VLAN20</text><rect x='478' y='92' width='85' height='25' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='109' text-anchor='middle' fill='currentColor' font-size='10'>DB VLAN30</text><rect x='15' y='150' width='290' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='172' text-anchor='middle' fill='currentColor' font-size='12'>관리 경로</text><text x='160' y='192' text-anchor='middle' fill='currentColor' font-size='10'>관리망 + 점프서버 + TACACS+/RADIUS</text><text x='160' y='210' text-anchor='middle' fill='currentColor' font-size='10'>개인계정 인증 · 명령어 로깅 · 설정 자동백업</text><rect x='330' y='150' width='290' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475' y='172' text-anchor='middle' fill='currentColor' font-size='12'>정기 룰 리뷰</text><text x='475' y='192' text-anchor='middle' fill='currentColor' font-size='10'>미사용·중복·Any 룰 식별 → 담당 확인 → 제거</text><text x='475' y='210' text-anchor='middle' fill='currentColor' font-size='10'>펌웨어 취약점 패치 · EOL 관리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "NGFW",
+          "meaning": "애플리케이션·사용자 단위로 통제하는 차세대 방화벽"
+        },
+        {
+          "term": "스테이트풀 방화벽",
+          "meaning": "세션 상태를 기억해 응답 트래픽을 자동 허용하는 방식"
+        },
+        {
+          "term": "암묵적 거부",
+          "meaning": "정책에 명시되지 않은 트래픽은 마지막 규칙에서 차단"
+        },
+        {
+          "term": "NAT",
+          "meaning": "출발지/목적지 IP를 변환해 내부 주소를 감추거나 서비스를 공개"
+        },
+        {
+          "term": "TACACS+/RADIUS",
+          "meaning": "네트워크 장비 계정을 중앙 인증·인가·기록하는 프로토콜"
+        },
+        {
+          "term": "HA 구성",
+          "meaning": "장비 2대를 묶어 한 대 장애 시 자동 절체(Active-Standby/Active-Active)"
+        },
+        {
+          "term": "룰 리뷰",
+          "meaning": "방화벽 정책의 필요성·적정성을 주기적으로 검토하는 통제"
+        },
+        {
+          "term": "SSL 복호화 검사",
+          "meaning": "암호화 트래픽을 열어 검사하는 기능. 개인정보 이슈로 정책 필요"
+        }
+      ],
+      "pitfalls": [
+        "출발지 any, 서비스 any 같은 광범위 정책을 '임시'로 열고 영구히 남겨 두는 관행.",
+        "장비 로컬 공용 계정(admin)과 enable 비밀번호를 팀이 공유해 행위자 추적이 불가능한 상태.",
+        "설정 백업을 하지 않아 장비 장애 시 수천 개 정책을 복원할 수 없는 위험.",
+        "보안장비 자체의 펌웨어 취약점을 방치. VPN·방화벽 취약점은 최초 침입 경로로 자주 악용된다.",
+        "정책은 방화벽에서 바꿨지만 신청·승인 기록이 없어 변경관리 증적이 끊기는 경우.",
+        "방화벽 로그를 장비 내부에만 보관해 용량 순환으로 과거 기록이 사라지는 구성."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 네트워크·보안 장비 관리자 계정이 개인별로 식별되고 중앙 인증(TACACS+/RADIUS)을 통해 통제되는가",
+          "[접근] 장비 관리 접근이 관리망·점프서버로 제한되고 인터넷에서 직접 접근이 불가능한가",
+          "[변경] 방화벽 정책 변경이 요청·승인·기록되며 설정 백업과 변경 전후 비교가 가능한가",
+          "[운영] 방화벽 정책에 대한 정기 리뷰가 수행되고 미사용·과도 정책이 제거되는가",
+          "[운영] 장비 로그가 SIEM으로 전송·보관되고 펌웨어 취약점 패치가 관리되는가"
+        ],
+        "fss": [
+          "전자금융기반시설의 침입차단·침입탐지 시스템 설치·운영 요건 충족 여부",
+          "내부망과 외부망의 접근통제 및 불필요한 서비스·포트 차단 여부",
+          "정보처리시스템 접근 기록(방화벽 로그 등)의 보존과 주기적 점검 여부",
+          "전자금융기반시설 취약점 분석·평가 대상에 보안장비가 포함되어 평가·조치되는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 네트워크 영역 분리와 접근통제 정책",
+          "2.10.1 보안시스템 운영: 보안장비 정책 운영과 정기 검토",
+          "2.9.4/2.9.5 로그 및 접속기록 관리·점검: 장비 로그 수집과 점검",
+          "2.11.2 취약점 점검 및 조치: 장비 취약점 점검과 패치"
+        ],
+        "evidence": [
+          "장비 목록(모델, 펌웨어 버전, EOL 일자, 용도, 이중화 여부)",
+          "장비 관리자 계정 목록과 TACACS+/RADIUS 연동 설정 캡처",
+          "방화벽 정책 export(정책ID, 출발지/목적지/서비스/액션, 최근 히트일)",
+          "최근 정책 리뷰 결과서(검토 대상, 삭제·축소 결과, 승인자)",
+          "정책 변경 요청·승인 티켓 샘플과 장비 설정 변경 로그 대사 결과",
+          "장비 syslog의 SIEM 적재 화면과 보존 기간 설정"
+        ],
+        "auditorQuestions": [
+          "방화벽 정책은 총 몇 개이며 마지막 전수 검토는 언제 했는가?",
+          "출발지나 목적지가 any인 정책이 몇 개 있고 그 사유는 무엇인가?",
+          "정책을 변경할 수 있는 사람은 누구이며 변경은 어디에 기록되는가?",
+          "장비에 로그인한 개인을 식별할 수 있는가? 공용 계정은 없는가?",
+          "보안장비 펌웨어 취약점 공지는 어떻게 파악하고 언제 패치했는가?",
+          "장비 설정 백업은 얼마나 자주 이루어지며 복원 시험을 해 봤는가?"
+        ],
+        "controlExample": "방화벽 정책의 신규 등록·변경은 정보보호팀 검토와 승인권자 결재를 거친 요청서에 근거해서만 수행되며, 반기 1회 전체 정책을 대상으로 사용 이력과 업무 필요성을 검토해 미사용·과도 정책을 제거한다. 장비 관리자 접근은 TACACS+ 개인 계정으로만 허용되고 명령 이력과 설정 변경 로그는 SIEM에 1년 이상 보관한다."
+      },
+      "related": [
+        "onprem-vlan",
+        "onprem-vdi-network-separation",
+        "onprem-dns-dhcp",
+        "onprem-bmc",
+        "net-tls",
+        "sec-pam",
+        "onprem-patch-eol"
+      ],
+      "learnMore": [
+        "Cisco IOS Security Configuration Guide",
+        "FortiGate Administration Guide",
+        "Palo Alto Networks PAN-OS Administrator's Guide",
+        "NIST SP 800-41 Guidelines on Firewalls and Firewall Policy"
+      ]
+    },
+    {
+      "id": "onprem-vlan",
+      "title": "VLAN과 네트워크 분리",
+      "titleEn": "VLAN and Network Segmentation",
+      "aliases": [
+        "브이랜",
+        "가상랜",
+        "네트워크 분리",
+        "존 분리",
+        "태깅",
+        "트렁크",
+        "서브넷"
+      ],
+      "tags": [
+        "network",
+        "segmentation"
+      ],
+      "level": "중급",
+      "oneLiner": "하나의 물리 네트워크를 논리적으로 쪼개 서로 못 보게 만드는 기술",
+      "analogy": "VLAN은 넓은 사무실에 파티션을 세우는 것과 같다. 벽을 새로 짓지(케이블을 새로 깔지) 않고도 인사팀 구역과 개발팀 구역을 나눠, 옆 구역 대화가 들리지 않게 한다. 구역 간에 서류를 주고받으려면 반드시 중앙 안내데스크(라우터·방화벽)를 거쳐야 하고, 거기서 무엇이 오갔는지 기록이 남는다.",
+      "explanation": "<p><strong>VLAN(Virtual LAN)</strong>은 하나의 물리 스위치·케이블 인프라 위에서 논리적으로 분리된 여러 개의 네트워크를 만드는 기술이다. 같은 스위치에 꽂혀 있어도 VLAN 번호가 다르면 서로 직접 통신할 수 없고, 반드시 L3 장비(라우터·L3 스위치·방화벽)를 거쳐야 한다. 이 '거쳐야 한다'는 성질이 보안 통제의 출발점이다.</p><p><strong>동작 원리.</strong> 스위치 포트는 두 종류로 설정된다. <strong>액세스 포트(Access)</strong>는 하나의 VLAN에 속하며 서버·PC가 연결된다. <strong>트렁크 포트(Trunk)</strong>는 여러 VLAN의 트래픽을 한 케이블로 실어 나르며, 각 프레임에 VLAN 번호를 붙이는 <strong>802.1Q 태그</strong>를 사용한다. 스위치 간 연결이나 가상화 호스트와 스위치 사이가 대표적인 트렁크 구간이다.</p><p><strong>세그멘테이션 설계</strong>는 보통 역할별 존(Zone)으로 나눈다. DMZ(외부 공개 서버), 웹 티어, 애플리케이션 티어, DB 티어, 관리망(BMC·장비 관리), 백업망, 사용자 업무망, 게스트 Wi-Fi, 그리고 개발/스테이징망이다. 각 존 사이는 방화벽 정책으로 필요한 통신만 허용한다. 예컨대 웹 존에서 DB 존으로는 5432 포트만, 그것도 특정 서버 IP에서만 허용하는 식이다. 이렇게 하면 웹 서버 한 대가 뚫려도 공격자가 DB까지 곧장 가지 못한다(횡적 이동 차단).</p><p><strong>더 세분화한 형태</strong>가 <strong>마이크로세그멘테이션(Micro-segmentation)</strong>이다. 존 단위가 아니라 워크로드(VM·컨테이너) 단위로 통신을 통제하며, VMware NSX, 호스트 방화벽, 쿠버네티스 NetworkPolicy가 이를 구현한다. 클라우드의 <strong>보안그룹</strong>이 바로 마이크로세그멘테이션의 관리형 구현이다.</p><p><strong>감사 관점</strong>에서 VLAN·네트워크 분리는 ISMS-P 2.6.1과 전자금융감독규정의 망 분리·접근통제 요구와 직결된다. 확인 포인트는 (1) 네트워크 구성도와 존 정의가 문서화되고 최신인가, (2) 실제 장비 설정이 문서와 일치하는가, (3) 존 간 통신 정책이 최소 허용 원칙을 따르는가, (4) 개발망과 운영망이 분리되어 개발자가 운영 DB에 직접 접근할 수 없는가, (5) 관리망이 업무망과 분리되어 있는가다. 실무에서 가장 흔한 결함은 <strong>'개발 서버에서 운영 DB로 가는 열린 경로'</strong>와 <strong>'모든 VLAN이 서로 통하는 사실상 무분리 상태'</strong>다. 구성도만 보고 넘어가지 말고 실제 라우팅·정책을 확인해야 한다.</p>",
+      "howItWorks": "<ol><li>네트워크 설계에서 존과 VLAN 번호, 서브넷(예: VLAN 30 = 10.10.30.0/24 DB존)을 정의한다.</li><li>스위치에 VLAN을 생성하고 서버가 연결된 포트를 해당 VLAN의 액세스 포트로 설정한다.</li><li>스위치 간 연결 포트는 트렁크로 설정해 여러 VLAN 트래픽을 802.1Q 태그와 함께 전달한다.</li><li>같은 VLAN 내 통신은 스위치가 그대로 전달한다.</li><li>다른 VLAN으로 가는 트래픽은 게이트웨이(L3 스위치 또는 방화벽)로 향한다.</li><li>방화벽이 존 간 정책을 평가해 허용된 트래픽만 통과시키고 로그를 남긴다.</li><li>가상화 환경에서는 가상 스위치 포트그룹에 VLAN ID를 지정해 VM이 해당 존에 붙는다.</li><li>구성 변경 시 네트워크 구성도와 IP 관리대장을 갱신하고 변경 티켓에 기록한다.</li></ol>",
+      "example": "<p>커머스 '샵나우'는 존을 다음과 같이 나눈다. VLAN 10 웹(10.10.10.0/24), VLAN 20 앱(10.10.20.0/24), VLAN 30 DB(10.10.30.0/24), VLAN 100 관리망(10.250.10.0/24), VLAN 200 사용자 업무망, VLAN 900 게스트 Wi-Fi. 정책상 웹→앱은 8080, 앱→DB는 5432만 허용하고 사용자 업무망→DB는 전면 차단이다. 2026년 점검에서 데이터 분석팀이 임시로 열어 둔 '업무망 PC에서 운영 DB 5432 허용' 정책 3건이 2년째 남아 있었고, 이를 폐쇄한 뒤 분석 요구는 별도 읽기전용 복제 DB와 BI 도구를 통하도록 재설계했다.</p><pre><code># Cisco 스위치: VLAN 및 포트 설정\nvlan 30\n name DB-ZONE\ninterface GigabitEthernet1/0/12\n switchport mode access\n switchport access vlan 30\ninterface TenGigabitEthernet1/0/49\n switchport mode trunk\n switchport trunk allowed vlan 10,20,30,100\n\n# 확인 명령\nshow vlan brief\nshow interfaces trunk\nshow ip route\n\n# 분리 실효성 검증 (감사 테스트)\n# 업무망 PC에서 DB 포트가 실제로 막혔는지 확인\nnc -zv 10.10.30.21 5432        # 결과: timeout 이어야 정상\ntraceroute 10.10.30.21</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='50' text-anchor='middle' fill='currentColor' font-size='11'>VLAN 10 웹</text><text x='80' y='68' text-anchor='middle' fill='currentColor' font-size='10'>10.10.10.0/24</text><rect x='20' y='95' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='115' text-anchor='middle' fill='currentColor' font-size='11'>VLAN 20 앱</text><text x='80' y='133' text-anchor='middle' fill='currentColor' font-size='10'>10.10.20.0/24</text><rect x='20' y='160' width='120' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='80' y='180' text-anchor='middle' fill='currentColor' font-size='11'>VLAN 30 DB</text><text x='80' y='198' text-anchor='middle' fill='currentColor' font-size='10'>10.10.30.0/24</text><line x1='140' y1='55' x2='230' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='120' x2='230' y2='118' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='185' x2='230' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='230' y='85' width='140' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='300' y='110' text-anchor='middle' fill='currentColor' font-size='11'>방화벽 / L3</text><text x='300' y='128' text-anchor='middle' fill='currentColor' font-size='10'>존 간 최소 허용</text><text x='300' y='145' text-anchor='middle' fill='currentColor' font-size='10'>모든 통과 로그</text><rect x='420' y='30' width='200' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='52' text-anchor='middle' fill='currentColor' font-size='11'>허용 예시</text><text x='520' y='72' text-anchor='middle' fill='currentColor' font-size='10'>웹→앱 8080 / 앱→DB 5432</text><rect x='420' y='95' width='200' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='520' y='117' text-anchor='middle' fill='currentColor' font-size='11'>차단 예시</text><text x='520' y='137' text-anchor='middle' fill='currentColor' font-size='10'>업무망 PC → DB 전면 차단</text><line x1='370' y1='100' x2='418' y2='65' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='130' x2='418' y2='122' stroke='currentColor' marker-end='url(#ar)'/><rect x='150' y='190' width='470' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='385' y='210' text-anchor='middle' fill='currentColor' font-size='11'>관리망(VLAN 100)은 별도 분리 — BMC·장비관리·백업 트래픽</text><text x='385' y='228' text-anchor='middle' fill='currentColor' font-size='10'>감사 확인: 구성도와 실제 설정 일치 여부, 개발↔운영 경로 존재 여부</text></svg>",
+      "keyTerms": [
+        {
+          "term": "VLAN",
+          "meaning": "물리 인프라를 공유하면서 논리적으로 분리된 네트워크"
+        },
+        {
+          "term": "802.1Q 태그",
+          "meaning": "프레임에 VLAN 번호를 붙이는 표준. 트렁크에서 사용"
+        },
+        {
+          "term": "액세스/트렁크 포트",
+          "meaning": "단일 VLAN에 속한 포트 / 여러 VLAN을 실어 나르는 포트"
+        },
+        {
+          "term": "존(Zone)",
+          "meaning": "보안 정책 단위로 묶은 네트워크 영역(DMZ, DB존 등)"
+        },
+        {
+          "term": "횡적 이동(Lateral Movement)",
+          "meaning": "침입 후 내부에서 다른 시스템으로 확산하는 공격 단계"
+        },
+        {
+          "term": "마이크로세그멘테이션",
+          "meaning": "워크로드 단위로 통신을 통제하는 세밀한 분리"
+        },
+        {
+          "term": "SVI/게이트웨이",
+          "meaning": "VLAN의 출입구 역할을 하는 L3 인터페이스"
+        },
+        {
+          "term": "IP 관리대장",
+          "meaning": "VLAN·서브넷·IP 할당 현황을 기록한 대장(IPAM)"
+        }
+      ],
+      "pitfalls": [
+        "VLAN은 나눴지만 존 간 정책이 사실상 전체 허용이어서 분리 효과가 없는 '이름뿐인 분리'.",
+        "개발 서버에서 운영 DB로 향하는 경로가 열려 있어 개발자가 운영 데이터를 직접 조회할 수 있는 상태.",
+        "관리망(BMC·스위치 관리)을 업무망과 합쳐 운영해 사용자 PC에서 장비 관리 화면에 접근 가능한 구성.",
+        "트렁크 포트에 allowed vlan 제한을 두지 않아 불필요한 VLAN까지 전달되는 설정.",
+        "네트워크 구성도와 IP 대장이 수년째 갱신되지 않아 감사 시 실제 구성과 불일치.",
+        "VLAN 분리를 물리적 망분리와 동일시하는 오해. 규제상 망분리 요건은 별도 기준으로 판단해야 한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 네트워크 존 정의와 구성도가 문서화·승인되고 실제 장비 설정과 일치하는가",
+          "[접근] 존 간 통신이 최소 허용 원칙에 따라 통제되고 개발망에서 운영 시스템으로의 직접 접근이 차단되는가",
+          "[접근] 관리망이 업무망과 분리되어 있고 접근 경로가 통제되는가",
+          "[변경] VLAN·라우팅·정책 변경이 변경관리 절차로 승인·기록되는가",
+          "[운영] IP·VLAN 관리대장이 최신으로 유지되고 주기적으로 실제 구성과 대사되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 내부망·외부망 분리 및 접근통제 요건 충족 여부",
+          "전산센터 내 업무영역별 네트워크 분리와 불필요한 통신 차단 여부",
+          "개발환경과 운영환경의 분리 운영 여부"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 네트워크 영역 분리와 접근통제",
+          "2.6.2 정보시스템 접근: 시스템 간 접근 최소화",
+          "2.8.x 개발환경 분리: 개발·시험·운영 환경 분리"
+        ],
+        "evidence": [
+          "네트워크 구성도(존·VLAN·서브넷 표기)와 최신 개정 이력",
+          "스위치 VLAN 설정 및 트렁크 허용 VLAN 목록 export",
+          "존 간 방화벽 정책 목록(특히 개발→운영, 업무망→DB 경로)",
+          "IP 관리대장과 실제 할당 현황 대사 결과",
+          "분리 실효성 테스트 결과(포트 접근 시도 로그 또는 스캔 결과)"
+        ],
+        "auditorQuestions": [
+          "네트워크 존은 어떻게 구분되며 각 존에 무엇이 있는가?",
+          "개발망 PC에서 운영 DB에 접속이 가능한가? 실제로 시험해 볼 수 있는가?",
+          "관리망은 업무망과 어떻게 분리되어 있는가?",
+          "네트워크 구성도는 언제 마지막으로 갱신됐는가?",
+          "VLAN 간 통신을 허용하는 정책은 누가 승인하는가?"
+        ],
+        "controlExample": "네트워크는 업무 특성과 중요도에 따라 존(DMZ·웹·앱·DB·관리·업무)으로 분리되며, 존 간 통신은 업무상 필요한 출발지·목적지·포트에 한해 승인된 방화벽 정책으로만 허용된다. 네트워크 구성도와 IP 관리대장은 변경 시 갱신하고 반기 1회 실제 설정과 대사한다."
+      },
+      "related": [
+        "onprem-network-appliance",
+        "onprem-vdi-network-separation",
+        "onprem-dns-dhcp",
+        "onprem-vmware-vsphere",
+        "net-dns",
+        "k8s-networkpolicy"
+      ],
+      "learnMore": [
+        "IEEE 802.1Q Standard",
+        "Cisco VLAN Configuration Guide",
+        "NIST SP 800-125B / 네트워크 세그멘테이션 가이드"
+      ]
+    },
+    {
+      "id": "onprem-dns-dhcp",
+      "title": "내부 DNS와 DHCP",
+      "titleEn": "Internal DNS and DHCP",
+      "aliases": [
+        "DNS",
+        "DHCP",
+        "이름풀이",
+        "IP 자동할당",
+        "AD 통합 DNS",
+        "IPAM",
+        "포워더"
+      ],
+      "tags": [
+        "network",
+        "infrastructure",
+        "service"
+      ],
+      "level": "기초",
+      "oneLiner": "사내 이름을 IP로 바꿔 주고 PC에 IP를 자동으로 나눠 주는 기반 서비스",
+      "analogy": "DNS는 회사 전화번호부다. '인사팀'이라고만 말하면 내선 2451로 연결해 준다. 전화번호부가 잘못되면 멀쩡한 부서에 전화가 안 걸린다. DHCP는 신입사원이 자리에 앉으면 자동으로 내선번호를 배정해 주는 총무 담당자다. 번호를 일일이 손으로 적어 줄 필요가 없지만, 누가 어느 번호를 언제 썼는지 기록이 없으면 나중에 '그 시각 그 번호를 쓴 사람'을 못 찾는다.",
+      "explanation": "<p><strong>DNS(Domain Name System)</strong>는 이름을 IP 주소로 바꿔 주는 서비스다. 사내에서도 <code>erp.company.local</code>, <code>db-prod-01.corp.com</code> 같은 이름으로 서버를 부르기 때문에 내부 DNS가 없으면 업무 시스템이 전부 멈춘다. 그래서 내부 DNS는 조용하지만 장애 시 영향이 가장 큰 기반 서비스 중 하나다.</p><p><strong>구성 형태.</strong> 윈도우 환경에서는 <strong>Active Directory 통합 DNS</strong>가 표준이다. AD 도메인 컨트롤러가 DNS 서버 역할을 겸하고, 도메인 가입 PC·서버가 자기 이름을 자동 등록한다. 리눅스 중심 환경에서는 <strong>BIND</strong>, 또는 Infoblox·EfficientIP 같은 <strong>DDI 어플라이언스</strong>(DNS+DHCP+IPAM 통합)를 쓴다. 내부에서 해결되지 않는 외부 도메인 조회는 <strong>포워더(Forwarder)</strong>를 통해 사내 프록시나 상위 DNS로 보낸다.</p><p><strong>스플릿 호라이즌(Split-horizon) DNS</strong>는 같은 도메인이라도 내부에서 물으면 사설 IP, 외부에서 물으면 공인 IP를 돌려주는 구성이다. 내부 서버 IP 대역이 외부에 노출되지 않게 하는 기본 보안 조치다.</p><p><strong>DHCP(Dynamic Host Configuration Protocol)</strong>는 PC·노트북·프린터가 네트워크에 붙으면 IP, 서브넷마스크, 게이트웨이, DNS 서버 주소를 자동으로 빌려 준다. 빌려주는 기간이 <strong>임대(Lease)</strong>이며, 특정 기기에 항상 같은 IP를 주려면 MAC 주소 기반 <strong>예약(Reservation)</strong>을 건다. 서버는 IP가 바뀌면 안 되므로 보통 <strong>고정 IP</strong>를 수동 할당한다.</p><p><strong>감사 관점</strong>에서 두 서비스는 세 가지 이유로 중요하다. 첫째 <strong>가용성</strong> — DNS가 죽으면 전사 업무가 멈추므로 최소 2대 이상 이중화, 백업, 복구 절차가 요구된다. 둘째 <strong>추적성</strong> — 침해사고나 개인정보 유출 조사에서 'IP 10.20.5.77을 그 시각 쓰던 단말'을 특정하려면 DHCP 임대 로그가 필요하다. 로그가 없거나 보존기간이 짧으면 사고 조사가 불가능하다. 셋째 <strong>변경통제</strong> — DNS 레코드 변경은 트래픽 경로를 통째로 바꿀 수 있는 고위험 변경인데도, 많은 회사가 담당자 재량으로 처리한다. 운영 서비스의 A·CNAME 레코드 변경은 반드시 변경관리 대상이어야 한다.</p><p><strong>보안 위협</strong>으로는 내부 DNS가 인터넷에 열려 증폭 공격에 악용되는 <strong>오픈 리졸버</strong> 문제, 잘못된 응답을 심는 <strong>캐시 포이즈닝</strong>, 악성코드가 DNS 질의에 데이터를 실어 보내는 <strong>DNS 터널링</strong>이 있다. 그래서 DNS 질의 로그를 SIEM에 보내 비정상 도메인 조회를 탐지하는 것이 요즘 표준 통제다.</p>",
+      "howItWorks": "<ol><li>PC가 네트워크에 연결되면 DHCP Discover를 브로드캐스트한다.</li><li>DHCP 서버가 사용 가능한 IP를 Offer하고, PC가 Request, 서버가 ACK로 임대를 확정한다(DORA 과정).</li><li>PC는 함께 받은 DNS 서버 주소를 사용해 이름 조회를 시작한다.</li><li>사용자가 <code>erp.company.local</code>에 접속하면 PC가 내부 DNS에 질의한다.</li><li>내부 DNS는 자신이 가진 존(Zone)에서 레코드를 찾아 사설 IP를 응답한다.</li><li>외부 도메인이면 포워더를 통해 상위 DNS로 재귀 질의하고 결과를 캐시한다.</li><li>서버·PC 이름 등록, 임대 갱신, 만료 등의 이벤트가 로그로 남는다.</li><li>DNS 레코드 변경은 변경 요청·승인 후 반영되고 이력이 기록된다.</li></ol>",
+      "example": "<p>제조사 '한빛정밀'은 AD 통합 DNS 서버 2대(DC 겸용)와 DHCP 서버 2대(장애 조치 구성)로 본사·공장 3개 사업장 단말 2,400대를 관리한다. 업무망은 DHCP, 서버망은 고정 IP, 생산설비는 MAC 예약으로 운영한다. 2026년 4월 악성코드 감염 조사에서 '10.20.5.77이 새벽에 외부 C2 도메인을 300회 조회'한 로그가 나왔고, DHCP 임대 기록으로 해당 시각 사용 단말(자산번호 PC-1043, 생산관리팀)을 30분 만에 특정해 격리했다. 이 사례 이후 DHCP 로그 보존을 90일에서 1년으로 연장했다.</p><pre><code># Windows DNS/DHCP 점검 (PowerShell)\nGet-DnsServerZone\nGet-DnsServerResourceRecord -ZoneName company.local -RRType A | Select HostName, RecordData\nGet-DhcpServerv4Scope\nGet-DhcpServerv4Lease -ScopeId 10.20.5.0 |\n  Select IPAddress, ClientId, HostName, LeaseExpiryTime\n\n# 리눅스에서 조회 확인\ndig @10.20.1.10 erp.company.local A +short\nnslookup db-prod-01.corp.com\n\n# 감사 포인트\n- DNS 서버 이중화 여부와 백업(존 파일/AD 복제)\n- 외부에서 내부 DNS 재귀질의 가능 여부(오픈 리졸버 점검)\n- DHCP 임대 로그 보존기간과 자산대장 연계 가능 여부\n- 운영 서비스 레코드 변경 이력과 변경 티켓 대사</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='60' width='100' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='65' y='82' text-anchor='middle' fill='currentColor' font-size='11'>사용자 PC</text><text x='65' y='100' text-anchor='middle' fill='currentColor' font-size='10'>IP 없음</text><line x1='115' y1='75' x2='175' y2='60' stroke='currentColor' marker-end='url(#ar)'/><text x='145' y='55' text-anchor='middle' fill='currentColor' font-size='10'>1. DHCP</text><rect x='175' y='30' width='120' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='235' y='52' text-anchor='middle' fill='currentColor' font-size='11'>DHCP 서버</text><text x='235' y='70' text-anchor='middle' fill='currentColor' font-size='10'>IP·GW·DNS 임대</text><line x1='115' y1='100' x2='175' y2='130' stroke='currentColor' marker-end='url(#ar)'/><text x='142' y='125' text-anchor='middle' fill='currentColor' font-size='10'>2. 질의</text><rect x='175' y='105' width='120' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='235' y='128' text-anchor='middle' fill='currentColor' font-size='11'>내부 DNS</text><text x='235' y='146' text-anchor='middle' fill='currentColor' font-size='10'>AD 통합 / BIND</text><line x1='295' y1='120' x2='350' y2='95' stroke='currentColor' marker-end='url(#ar)'/><rect x='350' y='70' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='415' y='90' text-anchor='middle' fill='currentColor' font-size='11'>내부 존</text><text x='415' y='108' text-anchor='middle' fill='currentColor' font-size='10'>erp → 10.10.20.31</text><line x1='295' y1='145' x2='350' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='350' y='145' width='130' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='415' y='165' text-anchor='middle' fill='currentColor' font-size='11'>포워더</text><text x='415' y='183' text-anchor='middle' fill='currentColor' font-size='10'>외부 도메인 조회</text><rect x='500' y='60' width='125' height='135' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='562' y='83' text-anchor='middle' fill='currentColor' font-size='11'>로그 → SIEM</text><text x='562' y='105' text-anchor='middle' fill='currentColor' font-size='10'>DHCP 임대이력</text><text x='562' y='123' text-anchor='middle' fill='currentColor' font-size='10'>(IP↔단말 추적)</text><text x='562' y='145' text-anchor='middle' fill='currentColor' font-size='10'>DNS 질의로그</text><text x='562' y='163' text-anchor='middle' fill='currentColor' font-size='10'>(악성 도메인 탐지)</text><text x='562' y='183' text-anchor='middle' fill='currentColor' font-size='10'>보존 1년 권장</text><line x1='480' y1='120' x2='498' y2='120' stroke='currentColor' marker-end='url(#ar)'/><text x='320' y='225' text-anchor='middle' fill='currentColor' font-size='10'>DNS 레코드 변경은 트래픽 경로를 바꾸는 고위험 변경 → 변경관리 대상</text></svg>",
+      "keyTerms": [
+        {
+          "term": "존(Zone)",
+          "meaning": "DNS 서버가 권한을 갖고 관리하는 도메인 영역"
+        },
+        {
+          "term": "A / CNAME 레코드",
+          "meaning": "이름을 IP로 / 이름을 다른 이름으로 매핑하는 레코드"
+        },
+        {
+          "term": "포워더",
+          "meaning": "내부에서 못 푸는 질의를 넘겨줄 상위 DNS 서버"
+        },
+        {
+          "term": "스플릿 호라이즌",
+          "meaning": "내부·외부 질의에 다른 답을 주는 DNS 구성"
+        },
+        {
+          "term": "임대(Lease)",
+          "meaning": "DHCP가 단말에 IP를 빌려주는 기간"
+        },
+        {
+          "term": "예약(Reservation)",
+          "meaning": "MAC 주소를 지정해 항상 같은 IP를 주는 설정"
+        },
+        {
+          "term": "오픈 리졸버",
+          "meaning": "누구의 질의든 응답해 증폭 공격에 악용되는 잘못된 DNS 구성"
+        },
+        {
+          "term": "DNS 터널링",
+          "meaning": "DNS 질의에 데이터를 숨겨 유출하는 공격 기법"
+        },
+        {
+          "term": "IPAM",
+          "meaning": "IP 주소 할당 현황을 체계적으로 관리하는 시스템"
+        }
+      ],
+      "pitfalls": [
+        "DNS 서버를 1대만 운영해 단일 장애점이 되는 구성. 전사 업무가 동시에 멈춘다.",
+        "DHCP 임대 로그 보존기간이 짧아 침해사고 조사 시 IP를 쓴 단말을 특정하지 못하는 상황.",
+        "운영 서비스의 DNS 레코드를 담당자가 티켓 없이 바꿔 장애를 유발하고 원인 추적이 어려운 경우.",
+        "내부 DNS가 외부에서 재귀 질의를 허용해 DDoS 증폭에 악용되는 오픈 리졸버 상태.",
+        "서버에 DHCP를 쓰다가 IP가 바뀌어 연계 시스템이 끊기는 사고.",
+        "IP 관리대장을 엑셀로만 관리해 실제 할당과 불일치가 누적되는 문제."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 운영 서비스의 DNS 레코드 변경이 요청·승인·기록되는가",
+          "[운영] DNS·DHCP 서비스가 이중화되고 설정·존 데이터가 백업되며 복구 절차가 있는가",
+          "[운영] DHCP 임대 이력과 DNS 질의 로그가 수집되어 충분한 기간 보존되는가",
+          "[접근] DNS·DHCP 서버의 관리자 권한이 최소화되고 접근이 통제되는가",
+          "[운영] IP·호스트명 관리대장이 최신으로 유지되고 실제 할당과 대사되는가"
+        ],
+        "fss": [
+          "정보처리시스템 이중화 요건에 따라 기반 서비스(DNS 등)의 가용성이 확보되어 있는가",
+          "접속기록(단말 식별 가능 정보 포함)의 보존 및 점검 요건 충족 여부",
+          "내부 시스템 정보가 외부로 노출되지 않도록 네트워크 서비스가 구성되어 있는가"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근: 네트워크 서비스 구성과 접근 통제",
+          "2.9.4 로그 및 접속기록 관리: DHCP·DNS 로그 수집과 보존",
+          "2.9.2 성능 및 장애관리 / 2.9.3 백업 및 복구관리"
+        ],
+        "evidence": [
+          "DNS·DHCP 서버 구성 현황(이중화 여부, 존 목록, 스코프 목록)",
+          "운영 도메인 A/CNAME 레코드 목록 export",
+          "최근 DNS 레코드 변경 이력과 대응 변경 티켓",
+          "DHCP 임대 로그 샘플과 보존기간 설정 화면",
+          "DNS 질의 로그의 SIEM 적재 및 악성 도메인 탐지 룰",
+          "외부에서의 재귀 질의 차단 설정 확인 결과"
+        ],
+        "auditorQuestions": [
+          "내부 DNS 서버는 몇 대이며 한 대가 죽으면 어떻게 되는가?",
+          "특정 시각에 특정 IP를 사용한 단말을 지금 확인할 수 있는가?",
+          "운영 서비스의 DNS 레코드를 바꾸려면 어떤 절차를 거치는가?",
+          "DNS 질의 로그에서 악성 도메인 접속을 탐지한 사례가 있는가?",
+          "DHCP 로그는 얼마나 오래 보관하는가?"
+        ],
+        "controlExample": "내부 DNS·DHCP 서비스는 각각 2대 이상으로 이중화 운영되며 설정과 존 데이터를 일 단위로 백업한다. 운영 서비스의 DNS 레코드 변경은 변경관리 승인 후에만 수행되고, DHCP 임대 이력과 DNS 질의 로그는 SIEM으로 전송해 1년간 보관하며 악성 도메인 조회를 상시 탐지한다."
+      },
+      "related": [
+        "onprem-vlan",
+        "onprem-windows-ad",
+        "onprem-network-appliance",
+        "onprem-ntp",
+        "net-dns",
+        "onprem-cmdb-license"
+      ],
+      "learnMore": [
+        "Microsoft DNS Server Documentation",
+        "ISC BIND 9 Administrator Reference Manual",
+        "RFC 2131 DHCP"
+      ]
+    },
+    {
+      "id": "onprem-server-os",
+      "title": "서버 운영체제",
+      "titleEn": "Server Operating Systems (RHEL, Ubuntu, Windows Server)",
+      "aliases": [
+        "RHEL",
+        "레드햇",
+        "Ubuntu",
+        "CentOS",
+        "Rocky Linux",
+        "Windows Server",
+        "서버OS"
+      ],
+      "tags": [
+        "os",
+        "linux",
+        "windows"
+      ],
+      "level": "기초",
+      "oneLiner": "서버에서 애플리케이션을 돌리는 기반 운영체제와 그 지원·버전 정책",
+      "analogy": "서버 OS는 건물의 골조와 같다. 어떤 골조를 쓰느냐에 따라 위에 올릴 수 있는 설비가 달라지고, 골조에 대한 '보수 지원 계약(제조사 지원 기간)'이 끝나면 아무리 멀쩡해 보여도 균열이 생겼을 때 고쳐 줄 사람이 없다. 그래서 건물을 지을 때부터 '이 골조는 언제까지 보수 지원이 되는가'를 확인한다.",
+      "explanation": "<p>서버 OS는 크게 <strong>리눅스 계열</strong>과 <strong>윈도우 서버 계열</strong>로 나뉜다. 어느 쪽이든 감사에서 확인하는 요점은 같다. 버전이 무엇이고, <strong>제조사 지원(EOL/EOS)이 언제까지이며</strong>, 표준 설정(하드닝)이 적용됐는지, 패치가 주기적으로 되는지다.</p><p><strong>RHEL(Red Hat Enterprise Linux)</strong>은 기업용 리눅스의 사실상 표준으로, 유상 구독으로 보안 패치와 기술지원을 받는다. 메이저 버전당 약 10년의 라이프사이클을 가진다. 무상 클론으로 과거에는 CentOS가 널리 쓰였으나 CentOS Linux는 종료되었고, 현재는 <strong>Rocky Linux</strong>와 <strong>AlmaLinux</strong>가 그 자리를 대신하며, 개발 선행 버전으로 CentOS Stream이 있다. 국내 금융·공공은 지원 계약이 필요한 요건 때문에 RHEL 또는 국산 배포판을 쓰는 경우가 많다.</p><p><strong>Ubuntu Server</strong>는 클라우드·컨테이너 환경에서 특히 널리 쓰인다. 2년마다 나오는 <strong>LTS(Long Term Support)</strong> 버전이 5년 무상 보안 지원을 받고, <strong>Ubuntu Pro</strong> 구독으로 추가 5년(합계 10년)과 확장 보안 유지보수(ESM)를 받을 수 있다. 실무에서 '지원 종료'를 이야기할 때는 무상 5년인지 Pro 포함 10년인지 구분해야 한다.</p><p><strong>Windows Server</strong>는 Active Directory, 파일 서버, MS SQL Server, .NET 애플리케이션, 그룹웨어 연동 등 마이크로소프트 생태계의 기반이다. 라이프사이클은 통상 주요 지원 5년 + 연장 지원 5년이며, 이후에는 유상 ESU를 사더라도 한시적이다. 라이선스는 <strong>물리 코어 수 기반</strong>이고 가상화 시 계산 규칙이 복잡해 라이선스 감사(SAM) 이슈가 자주 발생한다.</p><p><strong>표준 이미지와 하드닝.</strong> 실무에서는 OS를 매번 수동 설치하지 않고, 보안 설정이 적용된 <strong>골든 이미지(표준 템플릿)</strong>에서 배포한다. 하드닝 기준으로는 <strong>CIS Benchmark</strong>나 국내 <strong>주요정보통신기반시설 기술적 취약점 분석·평가 기준</strong>(이른바 '취약점 점검 항목')이 널리 쓰이며, 불필요한 서비스 제거, 기본 계정 비활성화, 패스워드 정책, 로그 설정, 방화벽 기본 차단 등이 포함된다. 하드닝 결과는 정기 취약점 점검으로 검증한다.</p><p><strong>감사 관점</strong>의 핵심 질문은 세 가지다. (1) 운영 중인 서버 OS 버전과 지원 종료일이 목록으로 관리되는가(EOL 서버가 몇 대인가), (2) 표준 보안 설정이 정의되고 신규 서버에 일괄 적용되는가, (3) OS 계정·권한과 패치 상태가 주기적으로 점검되는가. 지원 종료 OS는 보안 패치가 더 나오지 않으므로 그 자체로 미조치 취약점이며, 금융권에서는 감독 검사에서 직접 지적되는 항목이다.</p>",
+      "howItWorks": "<ol><li>표준 OS 버전과 하드닝 기준을 정의하고 골든 이미지(또는 Kickstart/Autounattend 자동설치 구성)를 만든다.</li><li>신규 서버 요청이 승인되면 표준 이미지로 배포하고 호스트명·IP·도메인 가입을 설정한다.</li><li>구성관리 도구(Ansible, GPO, SCCM/Intune 등)로 보안 설정과 에이전트(백신·모니터링·로그수집)를 적용한다.</li><li>계정은 중앙 인증(AD/LDAP)과 연동하고 개인 계정 기반으로 부여한다.</li><li>패치 관리 시스템(Satellite, Landscape, WSUS 등)에 등록해 정기 패치 대상에 포함한다.</li><li>자산관리(CMDB)에 OS 종류·버전·EOL 일자·담당자를 등록한다.</li><li>정기적으로 취약점 점검을 수행해 하드닝 기준 준수 여부를 검증하고 미흡 항목을 조치한다.</li><li>EOL 도래 전 업그레이드 또는 교체 계획을 수립·실행한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 운영 서버 표준을 RHEL 9(유상 구독), 사내 도구 서버는 Ubuntu 24.04 LTS, AD·파일서버·MS SQL은 Windows Server 2022로 정한다. 2026년 상반기 EOL 점검에서 Windows Server 2012 R2 2대(이미 지원 종료)와 CentOS 7 서버 6대(2024년 지원 종료)가 확인되어 위험 등급 '높음'으로 등록하고, 3분기까지 Rocky Linux 9와 Windows Server 2022로 이관하는 계획을 CIO 승인으로 진행 중이다. 이전이 불가능한 설비 연동 서버 1대는 망 분리·접근 제한을 보완통제로 적용하고 예외 승인을 연 단위로 갱신한다.</p><pre><code># 리눅스 OS 버전·지원 확인\ncat /etc/os-release\nhostnamectl | grep -E 'Operating System|Kernel'\nsudo subscription-manager status          # RHEL 구독 상태\npro status                                 # Ubuntu Pro 상태\n\n# 윈도우 서버 버전 확인 (PowerShell)\nGet-ComputerInfo | Select WindowsProductName, WindowsVersion, OsBuildNumber\nGet-HotFix | Sort InstalledOn -Descending | Select -First 5\n\n# EOL 관리 대장 예시 (감사 제출)\n호스트명        OS 버전              EOL일자       상태     조치계획\nprd-api-01     RHEL 9.4             2032-05-31   정상     -\nprd-file-01    Windows Server 2022  2031-10-14   정상     -\nlegacy-mes-01  CentOS 7.9           2024-06-30   EOL      2026Q3 Rocky9 이관\nlegacy-erp-01  Windows Server 2012R2 2023-10-10  EOL      망분리+예외승인(2026-12)</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 230' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='20' y='35' width='140' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='90' y='58' text-anchor='middle' fill='currentColor' font-size='11'>표준 골든이미지</text><text x='90' y='76' text-anchor='middle' fill='currentColor' font-size='10'>하드닝 기준 적용</text><line x1='160' y1='65' x2='210' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='210' y='35' width='140' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='280' y='58' text-anchor='middle' fill='currentColor' font-size='11'>서버 배포</text><text x='280' y='76' text-anchor='middle' fill='currentColor' font-size='10'>AD/LDAP 연동·에이전트</text><line x1='350' y1='65' x2='400' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='400' y='35' width='220' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='58' text-anchor='middle' fill='currentColor' font-size='11'>CMDB 등록</text><text x='510' y='76' text-anchor='middle' fill='currentColor' font-size='10'>OS 버전 · EOL 일자 · 담당자</text><rect x='20' y='120' width='185' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='112' y='142' text-anchor='middle' fill='currentColor' font-size='11'>Linux</text><text x='112' y='162' text-anchor='middle' fill='currentColor' font-size='10'>RHEL 구독 10년</text><text x='112' y='179' text-anchor='middle' fill='currentColor' font-size='10'>Ubuntu LTS 5년(+Pro 10년)</text><text x='112' y='196' text-anchor='middle' fill='currentColor' font-size='10'>Rocky/Alma = RHEL 호환</text><rect x='220' y='120' width='185' height='85' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='312' y='142' text-anchor='middle' fill='currentColor' font-size='11'>Windows Server</text><text x='312' y='162' text-anchor='middle' fill='currentColor' font-size='10'>주요 5년 + 연장 5년</text><text x='312' y='179' text-anchor='middle' fill='currentColor' font-size='10'>AD·SQL·.NET 기반</text><text x='312' y='196' text-anchor='middle' fill='currentColor' font-size='10'>코어 기준 라이선스</text><rect x='420' y='120' width='200' height='85' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='520' y='142' text-anchor='middle' fill='currentColor' font-size='11'>감사 확인</text><text x='520' y='162' text-anchor='middle' fill='currentColor' font-size='10'>EOL 서버 대수와 조치계획</text><text x='520' y='179' text-anchor='middle' fill='currentColor' font-size='10'>하드닝 점검 결과</text><text x='520' y='196' text-anchor='middle' fill='currentColor' font-size='10'>패치 적용률</text></svg>",
+      "keyTerms": [
+        {
+          "term": "EOL / EOS",
+          "meaning": "제조사 지원 종료. 이후 보안 패치가 제공되지 않는다"
+        },
+        {
+          "term": "LTS",
+          "meaning": "장기 지원 버전. Ubuntu는 2년마다 출시, 5년(+Pro 5년) 지원"
+        },
+        {
+          "term": "골든 이미지",
+          "meaning": "보안 설정이 적용된 표준 OS 템플릿"
+        },
+        {
+          "term": "하드닝(Hardening)",
+          "meaning": "불필요 서비스 제거 등 OS 보안 강화 설정"
+        },
+        {
+          "term": "CIS Benchmark",
+          "meaning": "OS·미들웨어별 보안 설정 국제 권고 기준"
+        },
+        {
+          "term": "Rocky/AlmaLinux",
+          "meaning": "RHEL과 호환되는 무상 배포판. CentOS Linux의 대체"
+        },
+        {
+          "term": "ESU / ESM",
+          "meaning": "지원 종료 후 유상으로 제공되는 한시적 보안 업데이트"
+        },
+        {
+          "term": "구성관리 도구",
+          "meaning": "Ansible·GPO 등으로 다수 서버 설정을 일괄 적용·유지"
+        }
+      ],
+      "pitfalls": [
+        "지원 종료 OS를 '잘 돌아가니 괜찮다'고 방치. 보안 패치가 더 이상 없으므로 그 자체가 미조치 취약점이다.",
+        "CentOS Linux 종료를 인지하지 못해 수년간 패치 없는 서버를 운영하는 사례.",
+        "Ubuntu LTS의 무상 지원 5년과 Pro 포함 10년을 혼동해 EOL 일자를 잘못 관리하는 경우.",
+        "표준 이미지 없이 서버마다 수동 설치해 설정이 제각각이 되고 하드닝 준수율을 측정할 수 없는 상태.",
+        "Windows Server 라이선스를 가상화 환경에서 코어 기준으로 재계산하지 않아 라이선스 미준수가 되는 문제.",
+        "OS 계정을 로컬로만 관리해 퇴직자 계정이 서버마다 남는 상황."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 운영 중인 서버의 OS 버전·지원 종료일이 목록으로 관리되고 EOL 도래 전 조치 계획이 수립되는가",
+          "[운영] 표준 보안 설정(하드닝) 기준이 정의되고 신규 서버에 일괄 적용되며 준수 여부가 점검되는가",
+          "[접근] OS 계정이 중앙 인증과 연동된 개인 계정으로 관리되고 주기적으로 검토되는가",
+          "[변경] OS 설치·구성 변경이 표준 절차와 변경관리를 통해 수행·기록되는가",
+          "[운영] 지원 종료 OS를 불가피하게 사용하는 경우 위험평가와 보완통제, 예외 승인이 존재하는가"
+        ],
+        "fss": [
+          "전자금융기반시설의 소프트웨어 취약점 점검·조치 요건 이행 여부",
+          "지원이 종료된 운영체제 사용 시 위험 분석과 대체·보완 대책 수립 여부",
+          "정보처리시스템 구성 현황(OS 버전 포함) 관리와 최신성 유지 여부"
+        ],
+        "isms": [
+          "2.10.1 보안시스템 운영 / 2.10.8 패치관리: OS 보안 설정과 패치",
+          "2.11.2 취약점 점검 및 조치: 정기 취약점 점검과 결과 조치",
+          "2.1.3 정보자산 관리: OS 버전·지원기간을 포함한 자산 정보 관리"
+        ],
+        "evidence": [
+          "서버별 OS 버전·EOL 일자 현황표(CMDB export)",
+          "EOL 서버 목록과 이관·업그레이드 계획 승인 문서",
+          "하드닝 기준 문서(CIS/기반시설 점검항목 매핑)와 최근 점검 결과",
+          "표준 이미지·구성관리(Ansible 플레이북, GPO) 설정 증빙",
+          "OS 계정 목록과 최근 권한 검토 결재",
+          "예외 사용 승인 문서와 보완통제 내역"
+        ],
+        "auditorQuestions": [
+          "지원이 종료된 OS를 사용하는 서버가 몇 대인가?",
+          "그 서버들의 위험은 어떻게 평가했고 언제까지 조치할 계획인가?",
+          "신규 서버는 어떤 표준 설정으로 배포되는가?",
+          "하드닝 기준 준수 여부를 어떻게 측정하는가?",
+          "서버 로컬 계정과 AD 계정은 어떻게 구분해 관리하는가?"
+        ],
+        "controlExample": "운영 서버는 승인된 표준 OS 버전과 하드닝 기준에 따라 배포되며, OS 버전과 지원 종료일은 CMDB에서 관리해 분기 1회 EOL 도래 현황을 검토한다. 지원 종료 OS는 위험평가와 보완통제를 거쳐 CIO 승인을 받은 경우에만 한시적으로 운영하고 이관 계획을 추적한다."
+      },
+      "related": [
+        "onprem-linux-basics",
+        "onprem-windows-ad",
+        "onprem-patch-eol",
+        "onprem-systemd-syslog",
+        "onprem-cmdb-license",
+        "onprem-server-hardware"
+      ],
+      "learnMore": [
+        "Red Hat Enterprise Linux Life Cycle",
+        "Ubuntu Release Cycle",
+        "Microsoft Product Lifecycle (Modern/Fixed Policy)",
+        "CIS Benchmarks"
+      ]
+    },
+    {
+      "id": "onprem-linux-basics",
+      "title": "리눅스 기본(권한과 sudo)",
+      "titleEn": "Linux Fundamentals: File Permissions and sudo",
+      "aliases": [
+        "퍼미션",
+        "chmod",
+        "root",
+        "sudo",
+        "su",
+        "그룹",
+        "umask",
+        "setuid"
+      ],
+      "tags": [
+        "linux",
+        "os",
+        "access-control"
+      ],
+      "level": "기초",
+      "oneLiner": "누가 어떤 파일을 읽고 쓰고 실행할 수 있는지, 그리고 관리자 권한을 어떻게 빌리는지",
+      "analogy": "리눅스 권한은 사무실 캐비닛의 열쇠 체계와 같다. 캐비닛마다 '주인(소유자)', '해당 부서(그룹)', '그 외 모든 사람(other)'에게 각각 열람·수정·사용 권한을 따로 정한다. root는 마스터키를 가진 시설관리자다. sudo는 마스터키를 아예 주지 않고, '필요할 때 신청해서 특정 캐비닛만 여는 임시 허가'를 주는 제도이며, 언제 누가 무엇을 열었는지 대장에 자동으로 기록된다.",
+      "explanation": "<p>리눅스 서버 감사의 8할은 <strong>계정·권한·로그</strong>에서 나온다. 그 기초가 파일 권한과 sudo다.</p><p><strong>사용자와 그룹.</strong> 모든 사용자는 UID, 모든 그룹은 GID로 식별된다. 계정 정보는 <code>/etc/passwd</code>, 그룹은 <code>/etc/group</code>, 비밀번호 해시는 <code>/etc/shadow</code>에 있다. <strong>UID 0은 root</strong>로 시스템의 모든 것을 할 수 있다. 감사에서 중요한 점검 하나는 <strong>'UID 0인 계정이 root 외에 또 있는가'</strong>다. 있으면 사실상 숨은 관리자다.</p><p><strong>파일 권한</strong>은 소유자(user)·그룹(group)·기타(other)에 대해 읽기(r=4)·쓰기(w=2)·실행(x=1)을 조합한다. <code>chmod 640 file</code>은 소유자 읽기·쓰기, 그룹 읽기, 기타 없음이다. 디렉터리에서 x는 '들어갈 수 있음'을 뜻한다. <strong>umask</strong>는 새로 만드는 파일의 기본 권한을 결정한다. <strong>777 권한</strong>은 누구나 수정 가능하다는 뜻이라 운영 서버에서는 원칙적으로 금지이며, 취약점 점검의 단골 항목이다.</p><p><strong>특수 권한</strong>도 있다. <strong>setuid</strong>가 걸린 실행 파일은 실행하는 사람이 아니라 파일 소유자(주로 root) 권한으로 동작한다. 필요한 경우도 있지만(passwd 명령 등) 불필요한 setuid 파일은 권한 상승 통로가 되므로 목록을 관리해야 한다. 최신 배포판에서는 더 세밀한 권한을 주는 <strong>capabilities</strong>와, 프로세스 단위 강제 접근통제인 <strong>SELinux(RHEL)</strong>·<strong>AppArmor(Ubuntu)</strong>가 함께 쓰인다. 실무에서 SELinux를 무조건 끄는 관행이 있는데, 보안 기준상 권장되지 않으며 감사에서 사유를 요구받는다.</p><p><strong>sudo</strong>는 이 영역의 핵심 통제다. root 비밀번호를 여러 사람이 공유하면 누가 무엇을 했는지 알 수 없다. 대신 개인 계정으로 로그인한 뒤 <code>sudo</code>로 필요한 명령만 실행하게 하면, <strong>행위자 식별</strong>과 <strong>최소권한</strong>이 동시에 달성되고 모든 실행이 로그(<code>/var/log/secure</code> 또는 <code>auth.log</code>)에 남는다. 설정은 <code>/etc/sudoers</code>(반드시 <code>visudo</code>로 편집)와 <code>/etc/sudoers.d/</code>에 둔다.</p><p><strong>감사에서 가장 자주 나오는 지적</strong>은 이렇다. (1) <code>%wheel ALL=(ALL) NOPASSWD: ALL</code>처럼 사실상 무제한 sudo를 다수에게 부여, (2) root 직접 로그인 허용, (3) 공용 계정(app, oracle 등)으로 여러 사람이 접속해 개인 식별 불가, (4) 퇴직자 계정 잔존, (5) sudo 로그를 서버 로컬에만 두어 공격자가 지울 수 있는 상태. 그래서 통제 설계는 '개인 계정 → 최소 sudo 명령 → 중앙 로그 전송 → 주기적 권한 리뷰'의 사슬로 만든다.</p>",
+      "howItWorks": "<ol><li>사용자가 개인 계정과 SSH 키로 서버에 로그인한다(root 직접 로그인은 차단).</li><li>세션이 열리면 사용자의 UID·GID와 소속 그룹이 확정된다.</li><li>파일에 접근하면 커널이 소유자/그룹/기타 권한 비트를 순서대로 평가해 허용 여부를 결정한다.</li><li>SELinux/AppArmor가 활성화된 경우 추가로 정책 기반 접근통제가 적용된다.</li><li>관리자 작업이 필요하면 <code>sudo &lt;명령&gt;</code>을 실행한다.</li><li>sudo가 <code>/etc/sudoers</code> 규칙을 평가해 해당 사용자에게 그 명령이 허용되는지 확인한다.</li><li>허용되면 비밀번호 재확인(설정에 따라) 후 root 권한으로 명령이 실행된다.</li><li>실행 사실(사용자, 시각, 실행 디렉터리, 명령)이 인증 로그에 기록되고 중앙 로그 서버로 전송된다.</li><li>주기적으로 sudo 권한 목록과 계정 목록을 추출해 인사 정보와 대사·재승인한다.</li></ol>",
+      "example": "<p>커머스 '샵나우'는 운영 리눅스 서버 80대에서 root 직접 로그인을 막고 개인 계정 + SSH 키 인증만 허용한다. 애플리케이션 운영자는 <code>sudo systemctl restart shopnow-api</code>와 로그 조회 명령만 허용받고, 패키지 설치나 사용자 추가는 인프라팀만 가능하다. 2026년 1분기 점검에서 특정 서버에 <code>NOPASSWD: ALL</code> 규칙이 개발자 3명에게 남아 있는 것이 발견되어 회수했고, 이후 sudoers 파일을 Ansible로 형상관리해 서버별 수동 편집을 금지했다.</p><pre><code># 계정·권한 점검 (감사 증빙 추출)\nawk -F: '$3==0 {print $1}' /etc/passwd          # UID 0 계정 (root만 나와야 정상)\nawk -F: '$2==\"\" {print $1}' /etc/shadow          # 빈 비밀번호 계정\nlastlog | awk '$NF!=\"**Never logged in**\"'       # 최근 로그인 현황\ngetent group wheel sudo                          # 관리자 그룹 구성원\n\n# sudo 권한 현황\nsudo grep -rv '^#' /etc/sudoers /etc/sudoers.d/ | grep -v '^$'\nsudo -l -U devuser                               # 특정 사용자의 sudo 허용 명령\n\n# 위험한 권한 파일 점검\nfind / -xdev -perm -0002 -type f 2&gt;/dev/null      # 누구나 쓰기 가능한 파일\nfind / -xdev -perm -4000 -type f 2&gt;/dev/null      # setuid 파일 목록\n\n# 최소권한 sudoers 예시 (/etc/sudoers.d/app-operator)\n%app-operator ALL=(root) /usr/bin/systemctl restart shopnow-api, \\\n                         /usr/bin/systemctl status shopnow-api, \\\n                         /usr/bin/journalctl -u shopnow-api *\nDefaults logfile=/var/log/sudo.log, log_input, log_output</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='45' width='115' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='68' text-anchor='middle' fill='currentColor' font-size='11'>개인 계정</text><text x='72' y='86' text-anchor='middle' fill='currentColor' font-size='10'>kim.op (UID 1043)</text><line x1='130' y1='72' x2='180' y2='72' stroke='currentColor' marker-end='url(#ar)'/><text x='155' y='65' text-anchor='middle' fill='currentColor' font-size='10'>SSH키</text><rect x='180' y='30' width='150' height='85' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='255' y='52' text-anchor='middle' fill='currentColor' font-size='11'>서버 세션</text><text x='255' y='72' text-anchor='middle' fill='currentColor' font-size='10'>root 직접로그인 차단</text><text x='255' y='90' text-anchor='middle' fill='currentColor' font-size='10'>파일권한 rwx 평가</text><text x='255' y='107' text-anchor='middle' fill='currentColor' font-size='10'>+ SELinux 정책</text><line x1='330' y1='55' x2='385' y2='55' stroke='currentColor' marker-end='url(#ar)'/><rect x='385' y='30' width='115' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='442' y='50' text-anchor='middle' fill='currentColor' font-size='11'>일반 작업</text><text x='442' y='68' text-anchor='middle' fill='currentColor' font-size='10'>자기 권한 범위</text><line x1='330' y1='95' x2='385' y2='115' stroke='currentColor' marker-end='url(#ar)'/><text x='352' y='118' text-anchor='middle' fill='currentColor' font-size='10'>sudo</text><rect x='385' y='95' width='115' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='442' y='117' text-anchor='middle' fill='currentColor' font-size='11'>허용 명령만</text><text x='442' y='135' text-anchor='middle' fill='currentColor' font-size='10'>sudoers 규칙 평가</text><line x1='500' y1='122' x2='545' y2='122' stroke='currentColor' marker-end='url(#ar)'/><rect x='520' y='30' width='105' height='120' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='572' y='55' text-anchor='middle' fill='currentColor' font-size='11'>로그</text><text x='572' y='78' text-anchor='middle' fill='currentColor' font-size='10'>/var/log/secure</text><text x='572' y='96' text-anchor='middle' fill='currentColor' font-size='10'>sudo 실행기록</text><text x='572' y='120' text-anchor='middle' fill='currentColor' font-size='10'>→ 중앙 로그서버</text><text x='572' y='140' text-anchor='middle' fill='currentColor' font-size='10'>(삭제 방지)</text><rect x='15' y='170' width='610' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='192' text-anchor='middle' fill='currentColor' font-size='12'>통제 사슬</text><text x='320' y='213' text-anchor='middle' fill='currentColor' font-size='10'>개인 식별 → 최소 sudo 권한 → 중앙 로그 보관 → 분기 권한 리뷰 → 퇴직 시 즉시 삭제</text></svg>",
+      "keyTerms": [
+        {
+          "term": "UID / GID",
+          "meaning": "사용자·그룹 식별 번호. UID 0은 root"
+        },
+        {
+          "term": "rwx 권한",
+          "meaning": "읽기·쓰기·실행 권한. 소유자/그룹/기타 3주체에 각각 부여"
+        },
+        {
+          "term": "umask",
+          "meaning": "새 파일 생성 시 기본 권한을 결정하는 마스크 값"
+        },
+        {
+          "term": "setuid",
+          "meaning": "실행 시 파일 소유자 권한으로 동작. 권한 상승 경로가 될 수 있음"
+        },
+        {
+          "term": "sudo / sudoers",
+          "meaning": "필요한 명령만 상위 권한으로 실행하게 하는 제도와 그 설정 파일"
+        },
+        {
+          "term": "wheel / sudo 그룹",
+          "meaning": "관리자 권한이 부여되는 대표 그룹(RHEL은 wheel, 데비안 계열은 sudo)"
+        },
+        {
+          "term": "SELinux / AppArmor",
+          "meaning": "프로세스 단위 강제 접근통제 시스템"
+        },
+        {
+          "term": "/etc/shadow",
+          "meaning": "비밀번호 해시와 만료 정책이 저장되는 파일(root만 읽기)"
+        }
+      ],
+      "pitfalls": [
+        "NOPASSWD: ALL 형태의 무제한 sudo를 다수에게 부여해 사실상 root를 나눠 주는 상황.",
+        "공용 계정(oracle, app, deploy 등)으로 여러 사람이 접속해 행위자 식별이 불가능한 운영.",
+        "root 직접 로그인을 허용하고 비밀번호를 팀이 공유하는 관행.",
+        "권한 문제를 chmod 777로 해결하는 습관. 취약점 점검에서 즉시 지적된다.",
+        "SELinux를 설치 직후 무조건 permissive/disabled로 바꾸고 사유를 문서화하지 않는 것.",
+        "sudo 로그를 서버 로컬에만 보관해 침해 시 조작·삭제가 가능한 구성.",
+        "퇴직자 OS 계정이 서버마다 로컬로 남아 중앙에서 회수되지 않는 문제."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 서버 계정이 개인별로 부여되고 공용·공유 계정 사용이 통제·문서화되는가",
+          "[접근] root 직접 로그인이 차단되고 관리자 작업이 sudo를 통해 개인 식별 가능한 형태로 수행되는가",
+          "[접근] sudo 권한이 최소 필요 명령으로 제한되고 부여 내역이 주기적으로 검토·재승인되는가",
+          "[접근] 퇴직·인사이동 시 서버 계정이 정해진 기한 내 비활성화·삭제되는가",
+          "[운영] 인증·sudo 로그가 중앙 로그 서버로 전송되어 위변조 방지 상태로 보관되는가"
+        ],
+        "fss": [
+          "정보처리시스템 접근권한의 부여·변경·말소 기록 보존 및 주기적 점검 요건 이행 여부",
+          "관리자 권한 사용에 대한 통제와 접속기록의 보존·점검 여부",
+          "공용 계정 사용 제한 및 불가피한 경우의 보완통제 여부"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.2 사용자 식별: 개인별 계정 부여와 공용계정 통제",
+          "2.5.5 특수 계정 및 권한 관리: 관리자 권한 최소화와 별도 관리",
+          "2.5.6 접근권한 검토: 주기적 권한 적정성 검토",
+          "2.9.4 로그 및 접속기록 관리: 인증·권한 사용 기록 보관"
+        ],
+        "evidence": [
+          "서버별 계정 목록(/etc/passwd export)과 인사 재직자 대사 결과",
+          "UID 0 중복 계정·빈 비밀번호 계정 점검 결과",
+          "sudoers 설정 전체 덤프와 사용자별 sudo -l 결과",
+          "최근 권한 검토 결재 문서(검토자, 회수 내역)",
+          "root 로그인 차단 설정(sshd_config PermitRootLogin no) 캡처",
+          "중앙 로그 서버에 적재된 sudo 실행 로그 샘플과 보존 기간"
+        ],
+        "auditorQuestions": [
+          "운영 서버에 root로 직접 로그인할 수 있는가?",
+          "sudo로 모든 명령을 실행할 수 있는 사람은 몇 명인가?",
+          "공용 계정을 쓰는 시스템이 있는가? 누가 그 비밀번호를 아는가?",
+          "퇴직자의 서버 계정은 언제 어떻게 삭제되는가?",
+          "sudo 실행 기록을 지난 6개월치 조회할 수 있는가?",
+          "SELinux는 어떤 상태이며 비활성화했다면 사유는 무엇인가?"
+        ],
+        "controlExample": "운영 리눅스 서버는 root 직접 로그인을 차단하고 개인 계정과 SSH 키 인증만 허용하며, 관리자 작업은 업무별로 최소화된 sudo 명령으로만 수행된다. 계정과 sudo 권한 목록은 분기 1회 인사 정보와 대사해 부서장 재승인을 받고, 인증·sudo 로그는 중앙 로그 서버로 전송해 1년 이상 보관한다."
+      },
+      "related": [
+        "onprem-ssh-keys",
+        "onprem-systemd-syslog",
+        "onprem-server-access-control",
+        "onprem-server-os",
+        "onprem-patch-eol",
+        "sec-pam"
+      ],
+      "learnMore": [
+        "Red Hat Enterprise Linux Security Hardening Guide",
+        "sudo(8) / sudoers(5) Manual",
+        "CIS Benchmark for Red Hat Enterprise Linux"
+      ]
+    },
+    {
+      "id": "onprem-systemd-syslog",
+      "title": "systemd와 서버 로그",
+      "titleEn": "systemd Services and Linux Logging (journald, rsyslog)",
+      "aliases": [
+        "systemd",
+        "systemctl",
+        "journalctl",
+        "rsyslog",
+        "syslog",
+        "로그 수집",
+        "데몬"
+      ],
+      "tags": [
+        "linux",
+        "operations",
+        "logging"
+      ],
+      "level": "중급",
+      "oneLiner": "서버의 서비스를 켜고 끄고 감시하는 체계와, 그 기록이 남는 로그 구조",
+      "analogy": "systemd는 건물의 중앙 관제실이다. 엘리베이터·조명·환기 같은 설비(서비스)를 순서대로 켜고, 하나가 멈추면 자동으로 다시 돌린다. 로그는 그 관제실이 적는 일지다. journald는 관제실 안의 전자 일지이고, rsyslog는 그 일지를 본사(중앙 로그 서버)로 매일 팩스로 보내는 담당자다. 일지를 관제실 안에만 두면 화재가 나면 일지도 함께 탄다.",
+      "explanation": "<p><strong>systemd</strong>는 현대 리눅스(RHEL 7 이상, Ubuntu 15.04 이상)의 <strong>초기화 시스템이자 서비스 관리자</strong>다. 부팅 시 필요한 서비스를 의존성 순서대로 띄우고, 실행 중 죽으면 재시작하며, 자원 제한(CPU·메모리)과 실행 사용자, 보안 샌드박스 옵션까지 관리한다. 과거 <code>/etc/init.d</code> 스크립트와 <code>service</code> 명령을 대체했다.</p><p><strong>단위(Unit)</strong>라는 개념으로 모든 것을 다룬다. <code>.service</code>(데몬), <code>.timer</code>(cron 대체 스케줄), <code>.socket</code>, <code>.mount</code>, <code>.target</code>(실행 레벨에 해당) 등이 있다. 서비스 정의 파일은 <code>/etc/systemd/system/</code>(관리자 정의, 우선순위 높음)과 <code>/usr/lib/systemd/system/</code>(패키지 제공)에 있다. 감사 관점에서 <strong>서비스가 어떤 계정으로 실행되는가</strong>(User= 지정, root 실행 최소화)와 <strong>부팅 시 자동 실행 서비스 목록</strong>(불필요 서비스 제거)이 점검 대상이다.</p><p><strong>로그는 두 층</strong>이다. <strong>journald</strong>는 systemd가 수집하는 구조화된 바이너리 로그로 <code>journalctl</code>로 조회한다. 기본값에서는 재부팅하면 사라지는 설정(Storage=volatile)일 수 있으므로 <strong>영속 저장 설정</strong>이 필요하다. <strong>rsyslog</strong>(또는 syslog-ng)는 전통적인 텍스트 로그를 <code>/var/log/</code> 아래 파일로 남기고, <strong>원격 전송</strong>을 담당한다. 주요 파일은 <code>/var/log/messages</code>(RHEL)·<code>/var/log/syslog</code>(Ubuntu) 일반 로그, <code>/var/log/secure</code>·<code>auth.log</code> 인증·sudo 기록, <code>/var/log/audit/audit.log</code> 커널 감사(auditd) 기록이다.</p><p><strong>auditd</strong>는 별도로 언급할 가치가 있다. 파일 접근, 명령 실행, 계정 변경 같은 이벤트를 커널 수준에서 규칙 기반으로 기록한다. 개인정보 파일 접근 추적, 설정 파일 변경 감시 같은 정밀한 요구에 쓰이며, 금융권 서버 보안 기준에서 자주 요구된다.</p><p><strong>로그 로테이션</strong>은 <code>logrotate</code>가 담당해 파일이 커지면 압축·보관·삭제한다. 여기서 <strong>보존기간 설정</strong>이 규제 요건과 충돌하는 경우가 많다. 예컨대 개인정보 처리 시스템의 접속기록은 관련 법령·고시에 따라 <strong>최소 1년(일정 요건에서는 2년)</strong> 보관이 요구되는데, 기본 logrotate 설정은 4주만 남기는 경우가 흔하다.</p><p><strong>감사 관점의 핵심</strong>은 '로그가 남는가'보다 <strong>'로그를 서버 관리자가 지울 수 없는가'</strong>다. 서버 관리자가 자기 행위 로그를 삭제할 수 있으면 통제 증거력이 0이다. 그래서 (1) 원격 중앙 로그 서버·SIEM으로 실시간 전송, (2) 전송된 로그의 무결성·보존기간 보장, (3) 로그 점검 활동(주기적 검토 기록)까지 갖춰야 완결된 통제가 된다.</p>",
+      "howItWorks": "<ol><li>부팅 시 systemd가 target에 따라 서비스들을 의존성 순서대로 시작한다.</li><li>각 서비스는 유닛 파일에 정의된 실행 사용자·자원 제한·재시작 정책으로 동작한다.</li><li>서비스가 출력하는 메시지는 journald가 수집해 구조화된 형태로 저장한다.</li><li>rsyslog가 journald와 커널·애플리케이션 로그를 받아 <code>/var/log/</code> 파일로 기록한다.</li><li>auditd는 설정된 감사 규칙에 해당하는 이벤트를 별도 감사 로그로 남긴다.</li><li>rsyslog의 전송 설정에 따라 로그가 TLS로 중앙 로그 서버·SIEM에 실시간 전달된다.</li><li>logrotate가 주기적으로 로컬 로그를 압축·순환하고 정해진 보존기간 후 삭제한다.</li><li>SIEM에서 상관분석 규칙이 이상 이벤트(다수 로그인 실패, 권한 변경 등)를 탐지해 경보한다.</li><li>보안·운영 담당자가 주기적으로 로그를 검토하고 결과를 기록한다.</li></ol>",
+      "example": "<p>핀테크 '페이나우'는 서버 120대의 로그를 rsyslog로 중앙 로그 서버에 TLS 전송하고 SIEM에서 1년간 보관한다. 결제 API는 systemd 서비스 <code>paynow-api.service</code>로 등록되어 전용 계정 <code>svc_api</code>(비로그인 계정)로 실행되며, 비정상 종료 시 자동 재시작된다. 2026년 3월 SIEM 룰이 '동일 계정의 sudo 실패 10회/1분'을 탐지해 조사한 결과 퇴사 예정 직원의 권한 시험 시도로 확인되어 접근권한을 즉시 회수했다.</p><pre><code># 서비스 상태와 자동 실행 목록\nsystemctl status paynow-api\nsystemctl list-unit-files --state=enabled     # 부팅 자동 실행 서비스 (불필요 서비스 점검)\nsystemctl cat paynow-api                      # 유닛 정의 (실행 계정 확인)\n\n# 로그 조회\njournalctl -u paynow-api --since '2026-03-14 09:00' --until '2026-03-14 10:00'\njournalctl -p err -b                          # 이번 부팅의 에러\nsudo tail -n 100 /var/log/secure              # 인증·sudo 기록(RHEL)\n\n# journald 영속 저장 (/etc/systemd/journald.conf)\n[Journal]\nStorage=persistent\nSystemMaxUse=2G\n\n# rsyslog 중앙 전송 (/etc/rsyslog.d/10-remote.conf)\n*.* action(type=\"omfwd\" target=\"log.paynow.local\" port=\"6514\"\n           protocol=\"tcp\" StreamDriverMode=\"1\"\n           StreamDriverAuthMode=\"x509/name\")\n\n# auditd 규칙 예시 (/etc/audit/rules.d/audit.rules)\n-w /etc/passwd -p wa -k identity_change\n-w /etc/sudoers -p wa -k sudo_change\n-w /data/customer/ -p rwa -k pii_access</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='30' width='125' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='77' y='55' text-anchor='middle' fill='currentColor' font-size='11'>애플리케이션</text><rect x='15' y='80' width='125' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='77' y='105' text-anchor='middle' fill='currentColor' font-size='11'>인증/sudo</text><rect x='15' y='130' width='125' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='77' y='155' text-anchor='middle' fill='currentColor' font-size='11'>auditd 규칙</text><line x1='140' y1='50' x2='190' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='100' x2='190' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='150' x2='190' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='190' y='70' width='135' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='257' y='93' text-anchor='middle' fill='currentColor' font-size='11'>journald + rsyslog</text><text x='257' y='113' text-anchor='middle' fill='currentColor' font-size='10'>/var/log/ (로컬)</text><line x1='325' y1='100' x2='380' y2='100' stroke='currentColor' marker-end='url(#ar)'/><text x='352' y='92' text-anchor='middle' fill='currentColor' font-size='10'>TLS</text><rect x='380' y='60' width='150' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='455' y='85' text-anchor='middle' fill='currentColor' font-size='11'>중앙 로그서버</text><text x='455' y='105' text-anchor='middle' fill='currentColor' font-size='10'>SIEM 상관분석</text><text x='455' y='123' text-anchor='middle' fill='currentColor' font-size='10'>보존 1년 이상</text><line x1='530' y1='100' x2='570' y2='100' stroke='currentColor' marker-end='url(#ar)'/><rect x='555' y='60' width='75' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='592' y='90' text-anchor='middle' fill='currentColor' font-size='10'>경보</text><text x='592' y='110' text-anchor='middle' fill='currentColor' font-size='10'>정기</text><text x='592' y='126' text-anchor='middle' fill='currentColor' font-size='10'>검토</text><rect x='15' y='185' width='615' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='322' y='205' text-anchor='middle' fill='currentColor' font-size='11'>핵심: 서버 관리자가 자기 행위 로그를 지울 수 없어야 통제 증거력이 생긴다</text><text x='322' y='223' text-anchor='middle' fill='currentColor' font-size='10'>로컬 로그는 logrotate로 순환 → 중앙 전송본이 법정 보존기간을 충족해야 함</text></svg>",
+      "keyTerms": [
+        {
+          "term": "systemd",
+          "meaning": "서비스 시작·중지·감시를 담당하는 리눅스 초기화 시스템"
+        },
+        {
+          "term": "유닛(Unit)",
+          "meaning": "systemd가 다루는 대상. service/timer/target 등"
+        },
+        {
+          "term": "journald",
+          "meaning": "systemd의 구조화된 로그 수집기. journalctl로 조회"
+        },
+        {
+          "term": "rsyslog",
+          "meaning": "텍스트 로그 기록과 원격 전송을 담당하는 로그 데몬"
+        },
+        {
+          "term": "auditd",
+          "meaning": "커널 수준에서 파일 접근·명령 실행을 규칙 기반으로 기록"
+        },
+        {
+          "term": "logrotate",
+          "meaning": "로그 파일을 압축·순환·삭제해 용량을 관리"
+        },
+        {
+          "term": "systemd timer",
+          "meaning": "cron을 대체하는 systemd 기반 스케줄 실행 단위"
+        },
+        {
+          "term": "서비스 실행 계정",
+          "meaning": "유닛의 User= 지정. root 실행을 최소화해야 함"
+        }
+      ],
+      "pitfalls": [
+        "로그를 서버 로컬에만 보관해 관리자가 삭제 가능하고 침해 시 증적이 사라지는 구성.",
+        "logrotate 기본값(4주)을 그대로 두어 법정 보존기간(접속기록 1년 이상)을 충족하지 못하는 상태.",
+        "journald를 영속 저장으로 설정하지 않아 재부팅 시 로그가 사라지는 문제.",
+        "애플리케이션 서비스를 root로 실행해 침해 시 즉시 시스템 전체 권한이 넘어가는 구성.",
+        "중앙 전송은 설정했으나 전송 실패(디스크 풀, 네트워크 차단)를 감시하지 않아 몇 달간 로그가 끊긴 사례.",
+        "로그 수집만 하고 주기적 검토 활동과 그 기록이 없어 '점검 통제'가 없다고 판단되는 경우."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 서버 로그가 중앙 로그 서버·SIEM으로 전송되어 서버 관리자가 임의 삭제할 수 없도록 보호되는가",
+          "[운영] 인증·권한변경·시스템변경 등 주요 이벤트가 로깅되고 보존기간이 법적 요구를 충족하는가",
+          "[운영] 로그에 대한 주기적 점검(이상징후 검토)이 수행되고 결과가 기록되는가",
+          "[접근] 서비스 실행 계정이 최소권한으로 설정되고 불필요한 자동 실행 서비스가 제거되는가",
+          "[운영] 로그 전송 실패·수집 중단이 모니터링되고 조치되는가"
+        ],
+        "fss": [
+          "전자금융거래 관련 접속기록의 생성·보존(전자금융거래법상 기록 보존 요건) 이행 여부",
+          "정보처리시스템 접속기록을 위변조 방지 조치와 함께 보관하고 정기 점검하는가",
+          "이상징후 탐지·대응 체계(모니터링) 운영 여부"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리: 로그 생성·보관·보호",
+          "2.9.5 로그 및 접속기록 점검: 주기적 점검과 이상행위 대응",
+          "2.10.x 시스템 보안관리: 불필요 서비스 제거와 서비스 계정 최소권한"
+        ],
+        "evidence": [
+          "rsyslog 원격 전송 설정 파일과 중앙 로그 서버 수신 현황",
+          "주요 서버의 로그 보존기간 설정(logrotate, journald, SIEM 정책)",
+          "인증·sudo·권한변경 로그 샘플(기간 지정 추출)",
+          "auditd 규칙 목록과 개인정보 접근 로그 샘플",
+          "정기 로그 점검 결과서(점검자, 점검 항목, 발견 사항, 조치)",
+          "부팅 자동 실행 서비스 목록과 서비스 실행 계정 현황"
+        ],
+        "auditorQuestions": [
+          "서버 관리자가 자신의 접속 로그를 삭제할 수 있는가?",
+          "접속기록은 얼마나 오래 보관하며 법정 요건을 어떻게 충족하는가?",
+          "로그 점검은 누가 얼마나 자주 하며 결과는 어디에 남는가?",
+          "특정 서버의 6개월 전 sudo 기록을 지금 조회할 수 있는가?",
+          "애플리케이션 서비스는 어떤 계정으로 실행되는가?",
+          "로그 전송이 끊기면 어떻게 알게 되는가?"
+        ],
+        "controlExample": "모든 운영 서버의 시스템·인증·감사 로그는 rsyslog를 통해 중앙 로그 서버로 실시간 전송되어 1년 이상 보관되며, 서버 로컬 로그와 별도로 위변조가 불가능하도록 보호된다. 보안담당자는 월 1회 권한 변경·비정상 로그인 등 주요 이벤트를 점검하고 결과를 기록·보고한다."
+      },
+      "related": [
+        "onprem-linux-basics",
+        "onprem-ssh-keys",
+        "onprem-ntp",
+        "onprem-server-access-control",
+        "onprem-gpo-eventlog",
+        "obs-prometheus"
+      ],
+      "learnMore": [
+        "systemd.service(5) / journalctl(1) Manual",
+        "rsyslog Documentation",
+        "Red Hat Security Guide - System Auditing (auditd)"
+      ]
+    },
+    {
+      "id": "onprem-ssh-keys",
+      "title": "SSH와 키 관리",
+      "titleEn": "SSH and Key Management",
+      "aliases": [
+        "SSH",
+        "공개키",
+        "개인키",
+        "authorized_keys",
+        "SSH 접속",
+        "키 인증",
+        "배스천"
+      ],
+      "tags": [
+        "linux",
+        "access-control",
+        "security"
+      ],
+      "level": "중급",
+      "oneLiner": "리눅스 서버에 원격 접속하는 표준 수단과, 비밀번호를 대체하는 키 인증 체계",
+      "analogy": "SSH 키는 도장과 인감증명 같은 관계다. 개인키는 내 손을 떠나면 안 되는 도장이고, 공개키는 서버에 미리 등록해 두는 인감 등록부(authorized_keys)다. 문제는 인감 등록부가 서버마다 따로 있고 아무나 한 줄 추가할 수 있다는 점이다. 퇴사자의 도장이 등록부에 남아 있으면 인사 시스템에서 지워도 서버 문은 그대로 열린다.",
+      "explanation": "<p><strong>SSH(Secure Shell)</strong>는 암호화된 원격 접속 프로토콜(기본 22번 포트)로, 리눅스·유닉스 서버 운영의 표준 통로다. 셸 접속뿐 아니라 파일 전송(SCP/SFTP), 포트 포워딩(터널링), 배포 자동화(Ansible, CI/CD)에도 쓰인다.</p><p><strong>인증 방식</strong>은 크게 비밀번호 인증과 <strong>공개키 인증</strong>이다. 공개키 인증은 사용자가 <strong>키 쌍(개인키/공개키)</strong>을 만들어 공개키를 서버의 <code>~/.ssh/authorized_keys</code>에 등록해 두고, 접속 시 개인키로 서명해 증명한다. 비밀번호보다 안전하고 자동화에 적합해 실무 표준이다. 키 알고리즘은 현재 <strong>ed25519</strong> 또는 RSA 3072/4096비트가 권장되며, 개인키에는 반드시 <strong>패스프레이즈</strong>를 걸어야 한다.</p><p><strong>여기서 감사 이슈가 시작된다.</strong> 공개키는 서버 파일에 '추가'되는 방식이라 중앙 통제가 어렵다. 전형적인 문제는 이렇다. (1) 퇴직자의 공개키가 서버 수십 대에 남아 있다, (2) 개발자가 자기 노트북 키를 운영 서버에 임의로 등록했다, (3) 자동화용 키에 패스프레이즈가 없고 여러 시스템이 같은 키를 공유한다, (4) 어떤 키가 어느 서버에 등록됐는지 아무도 모른다. 즉 <strong>계정 리스트를 회수해도 키가 남으면 접근은 계속 가능</strong>하다.</p><p><strong>통제 방법</strong>은 몇 가지가 있다. 가장 기본은 <strong>배스천(점프)서버 단일 경로 강제</strong>와 <code>authorized_keys</code>를 구성관리 도구(Ansible 등)로 <strong>선언적으로 관리</strong>해 수동 추가를 무효화하는 것이다. 한발 더 나아가면 <strong>인증서 기반 SSH(SSH Certificate)</strong>로 단기(예: 8시간) 인증서를 발급해 만료되면 자동으로 접근이 끊기게 하거나, <strong>PAM/특권접근관리 솔루션</strong>을 통해 세션을 중계하고 녹화한다. AWS의 SSM Session Manager, 국내 서버접근제어 솔루션도 같은 목적이다.</p><p><strong>sshd 보안 설정</strong>도 함께 점검한다. <code>PermitRootLogin no</code>(root 직접 로그인 금지), <code>PasswordAuthentication no</code>(키 인증 강제), <code>AllowUsers/AllowGroups</code>(접속 허용 대상 제한), <code>MaxAuthTries</code>, 유휴 세션 종료, 접속 허용 IP 제한(방화벽·TCP Wrapper), 그리고 <strong>포트 포워딩 허용 여부</strong>다. 포워딩을 열어 두면 사용자가 운영 DB로 가는 터널을 뚫어 망 분리와 접근통제를 우회할 수 있어, 금융권에서는 특히 민감한 항목이다.</p><p><strong>감사 증적</strong>은 <code>/var/log/secure</code>(또는 auth.log)의 로그인 성공·실패 기록, 각 서버의 authorized_keys 수집 결과, 배스천·PAM의 세션 기록이다. 실효성 있는 테스트는 '퇴직자 명단을 뽑아 authorized_keys 전수 검색'이다. 이 테스트에서 걸리는 회사가 매우 많다.</p>",
+      "howItWorks": "<ol><li>사용자가 자신의 PC에서 키 쌍을 생성한다(<code>ssh-keygen -t ed25519</code>, 패스프레이즈 설정).</li><li>신청·승인 절차를 거쳐 공개키가 대상 서버의 해당 계정 authorized_keys에 등록된다(자동화 도구로 배포).</li><li>사용자는 VPN·배스천 서버를 거쳐 대상 서버에 SSH 접속을 시도한다.</li><li>서버는 등록된 공개키로 임의 데이터를 검증하는 챌린지를 보낸다.</li><li>클라이언트가 개인키로 서명해 응답하고, 서버가 검증에 성공하면 세션이 열린다.</li><li>로그인 성공·실패가 인증 로그에 기록되고 중앙 로그 서버로 전송된다.</li><li>세션 중 실행한 명령은 sudo 로그·PAM 세션 녹화로 남는다.</li><li>퇴직·권한 회수 시 계정 비활성화와 함께 모든 서버의 공개키가 제거되고 제거 결과가 검증된다.</li></ol>",
+      "example": "<p>커머스 '샵나우'는 운영 서버 접근을 배스천 서버 2대로 일원화하고, 배스천 로그인은 AD 계정 + OTP, 대상 서버 접속은 SSH 인증서(유효기간 8시간)로 처리한다. 모든 authorized_keys는 Ansible로 관리되어 수동 추가분은 다음 배포 때 자동 삭제된다. 2026년 2월 퇴직자 대상 전수 점검에서 레거시 서버 4대에 2년 전 퇴사자 공개키 2개가 남아 있는 것이 발견됐고(해당 서버는 Ansible 관리 대상 누락), 관리 대상 등록 후 재검증했다.</p><pre><code># 키 생성 (사용자 PC)\nssh-keygen -t ed25519 -C 'kim.op@shopnow' -f ~/.ssh/id_ed25519\n\n# 서버 sshd 보안 설정 (/etc/ssh/sshd_config)\nPermitRootLogin no\nPasswordAuthentication no\nPubkeyAuthentication yes\nAllowGroups ssh-operators\nMaxAuthTries 3\nClientAliveInterval 300\nClientAliveCountMax 2\nAllowTcpForwarding no        # 터널링을 통한 우회 차단\n\n# 전수 점검: 모든 서버의 등록 키 수집 (감사 테스트)\nfor h in $(cat servers.txt); do\n  ssh $h \"for f in /home/*/.ssh/authorized_keys /root/.ssh/authorized_keys; do \\\n    [ -f \\$f ] &amp;&amp; awk -v H=$h -v F=\\$f '{print H\\\",\\\"F\\\",\\\"\\$NF}' \\$f; done\"\ndone &gt; ssh_keys_inventory.csv\n# → 퇴직자 명단(이메일/코멘트)과 대사하여 잔존 키 식별\n\n# 로그인 이력 확인\nsudo grep 'Accepted publickey' /var/log/secure | tail -20\nsudo lastb | head -20        # 실패 로그인</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='55' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='77' text-anchor='middle' fill='currentColor' font-size='11'>운영자 PC</text><text x='67' y='95' text-anchor='middle' fill='currentColor' font-size='10'>개인키(패스프레이즈)</text><line x1='120' y1='82' x2='170' y2='82' stroke='currentColor' marker-end='url(#ar)'/><text x='145' y='75' text-anchor='middle' fill='currentColor' font-size='10'>VPN</text><rect x='170' y='45' width='130' height='75' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='235' y='68' text-anchor='middle' fill='currentColor' font-size='11'>배스천/PAM</text><text x='235' y='87' text-anchor='middle' fill='currentColor' font-size='10'>AD 계정 + OTP</text><text x='235' y='105' text-anchor='middle' fill='currentColor' font-size='10'>세션 녹화</text><line x1='300' y1='82' x2='360' y2='82' stroke='currentColor' marker-end='url(#ar)'/><text x='330' y='75' text-anchor='middle' fill='currentColor' font-size='10'>SSH</text><rect x='360' y='30' width='150' height='115' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='52' text-anchor='middle' fill='currentColor' font-size='11'>운영 서버</text><rect x='372' y='62' width='126' height='32' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='82' text-anchor='middle' fill='currentColor' font-size='10'>authorized_keys</text><text x='435' y='112' text-anchor='middle' fill='currentColor' font-size='10'>PermitRootLogin no</text><text x='435' y='130' text-anchor='middle' fill='currentColor' font-size='10'>PasswordAuth no</text><rect x='530' y='45' width='100' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='580' y='68' text-anchor='middle' fill='currentColor' font-size='10'>인증 로그</text><text x='580' y='86' text-anchor='middle' fill='currentColor' font-size='10'>→ SIEM</text><line x1='510' y1='80' x2='528' y2='75' stroke='currentColor' marker-end='url(#ar)'/><rect x='15' y='165' width='300' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='165' y='187' text-anchor='middle' fill='currentColor' font-size='11'>키 관리의 함정</text><text x='165' y='207' text-anchor='middle' fill='currentColor' font-size='10'>계정을 지워도 공개키가 남으면 접근 가능</text><text x='165' y='223' text-anchor='middle' fill='currentColor' font-size='10'>서버마다 흩어져 중앙 파악이 어렵다</text><rect x='335' y='165' width='295' height='65' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='482' y='187' text-anchor='middle' fill='currentColor' font-size='11'>통제 수단</text><text x='482' y='207' text-anchor='middle' fill='currentColor' font-size='10'>Ansible로 키 선언 관리 · 단기 SSH 인증서</text><text x='482' y='223' text-anchor='middle' fill='currentColor' font-size='10'>배스천 단일 경로 · 퇴직자 키 전수 점검</text></svg>",
+      "keyTerms": [
+        {
+          "term": "키 쌍",
+          "meaning": "개인키(보관)와 공개키(서버 등록)의 한 쌍"
+        },
+        {
+          "term": "authorized_keys",
+          "meaning": "계정별로 접속을 허용할 공개키를 나열한 서버 파일"
+        },
+        {
+          "term": "패스프레이즈",
+          "meaning": "개인키 파일 자체를 보호하는 암호"
+        },
+        {
+          "term": "배스천/점프서버",
+          "meaning": "내부 서버로 가는 유일한 접속 경유지"
+        },
+        {
+          "term": "SSH 인증서",
+          "meaning": "유효기간이 있는 서명으로 접근을 부여해 자동 만료시키는 방식"
+        },
+        {
+          "term": "포트 포워딩",
+          "meaning": "SSH 터널로 다른 포트에 접근하는 기능. 통제 우회 경로가 될 수 있음"
+        },
+        {
+          "term": "ed25519",
+          "meaning": "현재 권장되는 SSH 키 알고리즘"
+        },
+        {
+          "term": "에이전트 포워딩",
+          "meaning": "개인키를 원격 서버에 위임하는 기능. 탈취 위험으로 제한 권고"
+        }
+      ],
+      "pitfalls": [
+        "퇴직자 계정을 지워도 authorized_keys에 공개키가 남아 접근이 계속 가능한 상태.",
+        "개발자가 운영 서버에 자기 키를 임의로 등록하고 승인 기록이 없는 경우.",
+        "자동화(배치·CI/CD)용 키에 패스프레이즈가 없고 여러 시스템이 동일 키를 공유하는 구성.",
+        "PasswordAuthentication을 켜 둔 채 SSH를 인터넷에 노출해 무차별 대입 공격에 노출.",
+        "SSH 포트 포워딩을 허용해 사용자가 운영 DB로 터널을 만들어 접근통제를 우회하는 사례.",
+        "어떤 키가 어느 서버에 등록되어 있는지 전사 목록이 없어 회수 완료를 증명하지 못하는 문제."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 서버 SSH 접근이 배스천 등 지정된 경로로만 허용되고 직접 접근이 차단되는가",
+          "[접근] SSH 공개키 등록·삭제가 승인 절차를 거치고 중앙에서 관리·검증되는가",
+          "[접근] 퇴직·인사이동 시 계정뿐 아니라 등록된 SSH 키까지 회수되는가",
+          "[접근] root 직접 로그인 금지, 비밀번호 인증 비활성화 등 sshd 보안 설정 기준이 적용되는가",
+          "[운영] SSH 로그인 성공·실패 기록이 중앙 로그로 보관되고 이상 접속이 검토되는가"
+        ],
+        "fss": [
+          "정보처리시스템 원격접속을 지정된 단말·경로로 제한하고 이중 인증을 적용하는 요건 이행 여부",
+          "접근권한 말소 시 모든 접근 수단이 회수되는지 확인하는 절차 여부",
+          "접속기록 보존 및 정기 점검 요건 충족 여부"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.6 접근권한 검토",
+          "2.6.6 원격접근 통제: 원격 접속 경로·수단의 제한과 인증 강화",
+          "2.7.2 암호키 관리: SSH 키의 생성·보관·폐기 관리"
+        ],
+        "evidence": [
+          "배스천 서버 구성도와 직접 접근 차단 방화벽 정책",
+          "전 서버 authorized_keys 수집 결과와 퇴직자 명단 대사 결과",
+          "sshd_config 주요 설정값 일괄 수집 결과(PermitRootLogin, PasswordAuthentication 등)",
+          "SSH 키 등록 신청·승인 티켓 샘플",
+          "SSH 로그인 로그(성공·실패) 샘플과 SIEM 보존 설정",
+          "PAM/배스천 세션 기록 샘플"
+        ],
+        "auditorQuestions": [
+          "운영 서버에 배스천을 거치지 않고 접속할 수 있는 경로가 있는가?",
+          "SSH 공개키는 누가 등록하며 승인 기록은 어디에 있는가?",
+          "퇴직자의 SSH 키가 남아 있지 않음을 어떻게 증명할 수 있는가?",
+          "자동화용 키는 어떻게 관리하고 주기적으로 교체하는가?",
+          "SSH 포트 포워딩은 허용되어 있는가?",
+          "비밀번호로 SSH 접속이 가능한 서버가 있는가?"
+        ],
+        "controlExample": "운영 서버 SSH 접근은 배스천 서버를 통해서만 허용되며, 접속은 AD 계정과 OTP 인증 후 유효기간 8시간의 SSH 인증서로 수행된다. 서버의 authorized_keys는 구성관리 도구로 선언적으로 관리되어 승인되지 않은 키는 자동 제거되고, 분기 1회 전 서버 키 목록을 추출해 재직자 명단과 대사한다."
+      },
+      "related": [
+        "onprem-linux-basics",
+        "onprem-server-access-control",
+        "onprem-systemd-syslog",
+        "onprem-vdi-network-separation",
+        "sec-pam",
+        "sec-vault"
+      ],
+      "learnMore": [
+        "OpenSSH Manual (sshd_config)",
+        "NIST IR 7966 Security of Interactive and Automated Access Management Using Secure Shell (SSH)",
+        "CIS Benchmark - SSH Server Configuration"
+      ]
+    },
+    {
+      "id": "onprem-windows-ad",
+      "title": "Active Directory",
+      "titleEn": "Microsoft Active Directory Domain Services",
+      "aliases": [
+        "AD",
+        "도메인",
+        "DC",
+        "도메인 컨트롤러",
+        "Kerberos",
+        "LDAP",
+        "OU",
+        "AD 그룹"
+      ],
+      "tags": [
+        "windows",
+        "identity",
+        "directory"
+      ],
+      "level": "중급",
+      "oneLiner": "윈도우 환경의 계정·권한·인증을 중앙에서 관리하는 디렉터리 서비스",
+      "analogy": "AD는 회사의 인사기록부 겸 출입 관리소다. 직원 명부(계정), 부서 편제(OU), 직책별 권한 묶음(그룹)을 한곳에서 관리하고, 직원이 어느 사무실 문 앞에 서든 이 관리소에 물어보고 문이 열린다. 관리소 자체를 장악당하면 회사 모든 문이 한꺼번에 열리므로, 관리소 열쇠(Domain Admins)는 극소수만 가져야 한다.",
+      "explanation": "<p><strong>Active Directory Domain Services(AD DS)</strong>는 마이크로소프트의 디렉터리 서비스로, 사용자·컴퓨터·그룹·정책 정보를 중앙에서 저장하고 인증·인가를 처리한다. 국내 대부분의 기업이 사내 PC와 윈도우 서버를 AD 도메인에 가입시켜 운영하므로, ITGC 접근통제에서 AD는 사실상 첫 번째 관문이다.</p><p><strong>구조</strong>는 계층적이다. <strong>포리스트(Forest)</strong> 안에 <strong>도메인(Domain)</strong>이 있고, 도메인 안의 객체는 <strong>OU(Organizational Unit)</strong>로 묶어 부서·용도별로 정리한다. 인증과 디렉터리 서비스를 제공하는 서버가 <strong>도메인 컨트롤러(DC)</strong>이며, 장애와 성능을 위해 최소 2대 이상을 두고 서로 복제한다. 조회 프로토콜은 <strong>LDAP</strong>, 인증 프로토콜은 <strong>Kerberos</strong>(구형 NTLM은 단계적 비활성화 권장)다.</p><p><strong>그룹 기반 권한 관리</strong>가 핵심 운영 방식이다. 사용자에게 권한을 직접 주지 않고 그룹에 넣고, 그룹에 파일 공유·애플리케이션·서버 로그인 권한을 부여한다. 그래서 감사에서 <strong>'권한 = 그룹 멤버십'</strong>이 되고, 권한 리뷰는 곧 그룹 구성원 검토가 된다.</p><p><strong>특권 그룹</strong>은 반드시 별도로 봐야 한다. <strong>Domain Admins</strong>(도메인 전체 관리), <strong>Enterprise Admins</strong>(포리스트 전체), <strong>Schema Admins</strong>, <strong>Administrators</strong>, 그리고 서버 로컬 Administrators에 포함된 도메인 그룹이다. 특히 서비스 계정이 Domain Admins에 들어가 있는 경우(설치 편의로 흔함)는 고위험 결함이다. 현대 기준에서는 관리자용 계정을 일반 업무 계정과 분리하고(예: <code>kim.admin</code>), 관리 전용 단말(PAW)에서만 사용하며, <strong>계층 모델(Tier 0/1/2)</strong>로 DC 관리 권한과 일반 서버·PC 관리 권한을 분리한다.</p><p><strong>계정 수명주기</strong>는 입사(생성)→인사이동(그룹 변경)→휴직·장기미사용(비활성화)→퇴사(비활성화 후 일정 기간 뒤 삭제)로 관리한다. HR 시스템과 연동(IAM/프로비저닝)하면 자동화되지만, 국내 다수 기업은 여전히 수기 요청 기반이라 <strong>퇴직자 계정 잔존</strong>이 단골 지적 사항이다. 또한 서비스 계정·공용 계정·벤더 계정은 만료일 설정, 비밀번호 주기 교체, 소유자 지정이 필요하다.</p><p><strong>AD를 노리는 공격</strong>도 알아 둘 만하다. Kerberoasting(서비스 계정 티켓을 받아 오프라인 크래킹), Pass-the-Hash, DCSync, 골든 티켓 등은 모두 AD 권한 탈취를 목표로 한다. 그래서 감사에서는 관리자 그룹 최소화, 서비스 계정 강력 암호, NTLM 사용 축소, DC 보안 로그 모니터링, 그리고 <strong>AD 백업과 복구 시험</strong>(포리스트 복구 계획)을 확인한다.</p>",
+      "howItWorks": "<ol><li>사용자가 도메인 가입 PC에 로그인하면 클라이언트가 DC의 KDC에 인증을 요청한다.</li><li>자격증명이 확인되면 티켓 발급 티켓(TGT)이 발급되어 세션 동안 사용된다.</li><li>파일 서버·애플리케이션에 접근하면 클라이언트가 해당 서비스용 티켓을 요청해 제시한다.</li><li>서비스는 티켓에 담긴 그룹 정보(SID)를 보고 접근 허용 여부를 판단한다.</li><li>관리자가 계정·그룹을 변경하면 변경이 DC 간 복제로 전파된다.</li><li>그룹 정책(GPO)이 로그인·부팅 시 적용되어 보안 설정이 강제된다.</li><li>로그인 성공·실패, 그룹 변경, 계정 잠금 등이 DC 보안 이벤트 로그에 기록된다.</li><li>보안 로그는 SIEM으로 수집되어 특권 그룹 변경 등 고위험 이벤트가 탐지·경보된다.</li></ol>",
+      "example": "<p>제조사 '한빛정밀'은 DC 3대(본사 2, 공장 1)로 사용자 2,100명과 서버 180대를 관리한다. 권한은 <code>APP-ERP-Approver</code>, <code>FS-HR-Read</code>처럼 명명 규칙을 갖춘 그룹으로 부여한다. 2026년 상반기 ITGC 점검에서 Domain Admins 구성원이 11명(협력사 엔지니어 2명 포함)이고, 90일 이상 미사용 계정 87개가 활성 상태로 확인되어, Domain Admins를 4명으로 축소하고 관리 계정을 업무 계정과 분리했으며 미사용 계정 자동 비활성화 스크립트를 도입했다.</p><pre><code># 특권 그룹 구성원 확인\nGet-ADGroupMember -Identity 'Domain Admins' -Recursive |\n  Select SamAccountName, Name, objectClass\nGet-ADGroupMember 'Enterprise Admins'\n\n# 퇴직자/미사용 계정 점검 (감사 핵심 테스트)\n$cut = (Get-Date).AddDays(-90)\nGet-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate, whenCreated, Department |\n  Where {$_.LastLogonDate -lt $cut} |\n  Select SamAccountName, Name, Department, LastLogonDate |\n  Export-Csv dormant_accounts.csv -NoTypeInformation\n\n# 비밀번호 무기한 계정 (서비스 계정 점검)\nGet-ADUser -Filter {PasswordNeverExpires -eq $true -and Enabled -eq $true} |\n  Select SamAccountName, Name\n\n# 특권 그룹 변경 이벤트 (DC 보안 로그)\nGet-WinEvent -LogName Security -FilterXPath \"*[System[(EventID=4728 or EventID=4732 or EventID=4756)]]\" -MaxEvents 100 |\n  Select TimeCreated, Id, Message</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='55' width='105' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='78' text-anchor='middle' fill='currentColor' font-size='11'>사용자 PC</text><text x='67' y='95' text-anchor='middle' fill='currentColor' font-size='10'>도메인 가입</text><line x1='120' y1='80' x2='175' y2='80' stroke='currentColor' marker-end='url(#ar)'/><text x='147' y='72' text-anchor='middle' fill='currentColor' font-size='10'>Kerberos</text><rect x='175' y='40' width='145' height='80' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='247' y='63' text-anchor='middle' fill='currentColor' font-size='11'>도메인 컨트롤러</text><text x='247' y='82' text-anchor='middle' fill='currentColor' font-size='10'>계정 · 그룹 · 정책</text><text x='247' y='100' text-anchor='middle' fill='currentColor' font-size='10'>DC 2대 이상 복제</text><line x1='320' y1='65' x2='375' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='320' y1='95' x2='375' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='375' y='30' width='125' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='437' y='50' text-anchor='middle' fill='currentColor' font-size='11'>파일서버</text><text x='437' y='68' text-anchor='middle' fill='currentColor' font-size='10'>그룹 기반 ACL</text><rect x='375' y='100' width='125' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='437' y='120' text-anchor='middle' fill='currentColor' font-size='11'>업무 시스템</text><text x='437' y='138' text-anchor='middle' fill='currentColor' font-size='10'>SSO 연동</text><rect x='515' y='30' width='115' height='120' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='572' y='53' text-anchor='middle' fill='currentColor' font-size='11'>감사 포인트</text><text x='572' y='75' text-anchor='middle' fill='currentColor' font-size='10'>Domain Admins</text><text x='572' y='91' text-anchor='middle' fill='currentColor' font-size='10'>최소화</text><text x='572' y='111' text-anchor='middle' fill='currentColor' font-size='10'>퇴직·휴면 계정</text><text x='572' y='131' text-anchor='middle' fill='currentColor' font-size='10'>특권그룹 변경 로그</text><rect x='15' y='165' width='615' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='322' y='187' text-anchor='middle' fill='currentColor' font-size='12'>계정 수명주기</text><text x='322' y='208' text-anchor='middle' fill='currentColor' font-size='10'>입사(생성) → 인사이동(그룹 변경) → 장기미사용(비활성) → 퇴사(즉시 비활성 후 삭제)</text><text x='322' y='226' text-anchor='middle' fill='currentColor' font-size='10'>HR 데이터와 AD 계정 목록의 주기적 대사가 통제의 핵심</text></svg>",
+      "keyTerms": [
+        {
+          "term": "도메인 컨트롤러(DC)",
+          "meaning": "AD 데이터를 보유하고 인증을 처리하는 서버"
+        },
+        {
+          "term": "OU",
+          "meaning": "계정·컴퓨터를 조직 단위로 묶는 컨테이너. GPO 적용 단위"
+        },
+        {
+          "term": "Domain Admins",
+          "meaning": "도메인 전체를 관리하는 최고 특권 그룹"
+        },
+        {
+          "term": "Kerberos / TGT",
+          "meaning": "AD의 기본 인증 프로토콜과 그 세션 티켓"
+        },
+        {
+          "term": "보안 그룹",
+          "meaning": "권한 부여의 단위. 사용자를 넣어 권한을 일괄 관리"
+        },
+        {
+          "term": "서비스 계정",
+          "meaning": "애플리케이션·서비스가 사용하는 계정(gMSA 권장)"
+        },
+        {
+          "term": "Tier 모델",
+          "meaning": "DC(Tier0)·서버(Tier1)·PC(Tier2) 관리 권한을 분리하는 설계"
+        },
+        {
+          "term": "Kerberoasting",
+          "meaning": "서비스 계정 티켓을 탈취해 비밀번호를 크래킹하는 공격"
+        },
+        {
+          "term": "gMSA",
+          "meaning": "비밀번호를 AD가 자동 관리하는 그룹 관리 서비스 계정"
+        }
+      ],
+      "pitfalls": [
+        "Domain Admins에 서비스 계정이나 협력사 계정이 포함되어 있는 고위험 상태.",
+        "관리자가 일상 업무와 관리 작업을 같은 계정으로 수행해 피싱 한 번에 도메인이 넘어가는 구조.",
+        "퇴직자 계정을 '나중에 정리'하며 활성 상태로 방치하는 관행.",
+        "서비스 계정에 PasswordNeverExpires를 걸고 수년간 동일 비밀번호를 사용하는 경우.",
+        "AD 백업은 있으나 포리스트 복구 시나리오를 시험해 본 적이 없어 랜섬웨어 시 복구 불가.",
+        "권한을 그룹이 아닌 개인에게 직접 부여해 권한 리뷰가 사실상 불가능해지는 상태.",
+        "DC 보안 이벤트 로그를 SIEM에 보내지 않아 특권 그룹 변경을 탐지하지 못하는 구성."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] AD 계정 생성·변경·삭제가 승인 절차에 따라 수행되고 HR 정보와 주기적으로 대사되는가",
+          "[접근] Domain Admins 등 특권 그룹 구성원이 최소화되고 관리 계정이 업무 계정과 분리되어 있는가",
+          "[접근] 접근권한(그룹 멤버십)이 반기 이상 주기로 검토·재승인되는가",
+          "[접근] 장기 미사용 계정이 식별·비활성화되고 서비스 계정에 소유자와 만료 관리가 적용되는가",
+          "[운영] DC 보안 로그(로그인, 특권 그룹 변경)가 SIEM으로 수집·점검되고 AD 백업·복구 시험이 수행되는가"
+        ],
+        "fss": [
+          "정보처리시스템 사용자 계정의 등록·변경·말소 절차와 기록 보존 요건 이행 여부",
+          "관리자 계정의 최소 부여와 이중 인증 적용 여부",
+          "장기 미사용 계정 관리 및 접속기록 점검 요건 이행 여부"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.2 사용자 식별 / 2.5.3 사용자 인증",
+          "2.5.5 특수 계정 및 권한 관리: 관리자 계정 분리와 최소화",
+          "2.5.6 접근권한 검토: 주기적 권한 적정성 검토",
+          "2.9.4/2.9.5 로그 및 접속기록 관리·점검"
+        ],
+        "evidence": [
+          "전체 AD 계정 목록 export(활성 여부, 최종 로그인일, 부서)와 HR 재직자 대사 결과",
+          "Domain Admins/Enterprise Admins 등 특권 그룹 구성원 목록과 승인 근거",
+          "주요 업무 그룹의 구성원 목록과 최근 권한 검토 결재 문서",
+          "90일 이상 미사용 계정 목록과 조치 내역",
+          "서비스 계정 목록(소유자, 용도, 비밀번호 정책)",
+          "DC 보안 이벤트(4728/4732/4756 등) SIEM 적재 및 경보 설정",
+          "AD 백업 설정과 최근 복구 시험 결과"
+        ],
+        "auditorQuestions": [
+          "Domain Admins 구성원은 몇 명이며 각각 왜 필요한가?",
+          "퇴사자 계정은 며칠 안에 비활성화되며 그 증빙은 무엇인가?",
+          "권한은 개인에게 주는가, 그룹으로 주는가?",
+          "최근 권한 검토는 언제 누가 수행했고 회수된 권한은 몇 건인가?",
+          "관리자 계정과 일반 업무 계정이 분리되어 있는가?",
+          "AD가 랜섬웨어로 손상되면 어떻게 복구하는가? 시험해 봤는가?"
+        ],
+        "controlExample": "AD 계정은 인사 발령에 근거한 승인 요청으로만 생성·변경되며, 퇴직자 계정은 퇴직일에 비활성화되고 월 1회 HR 재직자 명단과 대사한다. Domain Admins 등 특권 그룹은 인프라팀 4인으로 제한하고 관리 전용 계정과 MFA를 사용하며, 특권 그룹 변경 이벤트는 SIEM에서 실시간 탐지해 보안담당자가 검토한다."
+      },
+      "related": [
+        "onprem-gpo-eventlog",
+        "onprem-dns-dhcp",
+        "onprem-server-os",
+        "onprem-mail-exchange",
+        "onprem-vdi-network-separation",
+        "sec-sso-oidc",
+        "onprem-server-access-control"
+      ],
+      "learnMore": [
+        "Microsoft Active Directory Domain Services Documentation",
+        "Microsoft Securing Privileged Access (Tier Model / PAW)",
+        "CIS Microsoft Windows Server Benchmark"
+      ]
+    },
+    {
+      "id": "onprem-gpo-eventlog",
+      "title": "그룹정책과 윈도우 이벤트로그",
+      "titleEn": "Group Policy (GPO) and Windows Event Log",
+      "aliases": [
+        "GPO",
+        "그룹정책",
+        "이벤트로그",
+        "이벤트 뷰어",
+        "보안로그",
+        "gpresult",
+        "감사정책"
+      ],
+      "tags": [
+        "windows",
+        "policy",
+        "logging"
+      ],
+      "level": "중급",
+      "oneLiner": "윈도우 PC·서버의 보안 설정을 중앙에서 강제하고 그 결과를 기록하는 체계",
+      "analogy": "GPO는 회사 취업규칙을 전 직원 컴퓨터에 자동으로 적용하는 장치다. '비밀번호는 최소 12자', '화면보호기 10분', 'USB 사용 금지' 같은 규칙을 사람마다 설정하는 게 아니라 인사기록부(AD)의 부서 편제(OU)에 붙여 두면 로그인할 때마다 저절로 적용된다. 이벤트 로그는 그 규칙이 실제로 지켜졌는지, 누가 언제 무엇을 했는지 적히는 CCTV 녹화본이다.",
+      "explanation": "<p><strong>그룹 정책(Group Policy Object, GPO)</strong>은 Active Directory 환경에서 사용자와 컴퓨터의 설정을 중앙에서 정의해 자동 적용하는 기능이다. 설정 항목이 수천 개에 이르며, 보안 관점에서 중요한 것은 <strong>비밀번호 정책, 계정 잠금 정책, 감사 정책(무엇을 로그로 남길지), 사용자 권한 할당, 소프트웨어 제한, 이동식 매체(USB) 통제, 화면 잠금, 방화벽 설정, 로컬 관리자 그룹 구성</strong> 등이다.</p><p><strong>적용 순서</strong>는 로컬 → 사이트 → 도메인 → OU 순이며, 나중에 적용되는 것이 앞의 것을 덮어쓴다(LSDOU). 여러 GPO가 겹치면 링크 순서와 상속 차단, 강제(Enforced) 설정에 따라 최종 값이 결정되므로, 감사에서는 <strong>정책 문서가 아니라 실제 적용 결과(RSoP)</strong>를 확인해야 한다. <code>gpresult /h</code>로 특정 PC에 최종 적용된 값을 뽑을 수 있다.</p><p><strong>윈도우 이벤트 로그</strong>는 시스템·애플리케이션·보안 채널로 나뉜다. 감사에서 핵심은 <strong>보안(Security) 로그</strong>다. 대표적인 이벤트 ID를 알아 두면 증적 요청이 쉬워진다. 4624(로그온 성공), 4625(로그온 실패), 4720(계정 생성), 4726(계정 삭제), 4728/4732/4756(보안 그룹에 구성원 추가), 4740(계정 잠금), 4672(특권 로그온), 1102(감사 로그 삭제)다. 특히 <strong>1102는 누군가 로그를 지웠다는 뜻</strong>이라 즉시 경보 대상이다.</p><p><strong>감사 정책(Audit Policy)</strong>을 켜지 않으면 이런 이벤트가 아예 기록되지 않는다. 기본 설정만으로는 부족한 경우가 많아 <strong>고급 감사 정책(Advanced Audit Policy)</strong>으로 계정 관리, 로그온/로그오프, 객체 접근, 정책 변경, 권한 사용 항목을 활성화한다. 다만 모든 것을 켜면 로그량이 폭증하므로 필요한 범위를 정해야 한다.</p><p><strong>로그 보존과 중앙 수집</strong>이 그다음 문제다. 로컬 이벤트 로그는 크기가 차면 덮어쓰므로 며칠 만에 사라질 수 있다. 그래서 <strong>Windows Event Forwarding(WEF)</strong>이나 SIEM 에이전트로 중앙에 수집하고 법정 보존기간(접속기록 통상 1년 이상)을 충족시킨다.</p><p><strong>실무 보완 도구</strong>로 <strong>LAPS(Windows LAPS)</strong>가 있다. 모든 PC의 로컬 Administrator 비밀번호를 동일하게 쓰는 관행은 한 대만 뚫려도 전사 확산으로 이어지는데, LAPS는 PC마다 다른 무작위 비밀번호를 자동 생성·보관·교체해 이 문제를 해결한다. 감사에서 로컬 관리자 비밀번호 관리 방식을 물었을 때 LAPS 적용 여부가 좋은 답이 된다.</p>",
+      "howItWorks": "<ol><li>관리자가 그룹 정책 관리 콘솔(GPMC)에서 GPO를 만들고 설정값을 정의한다.</li><li>GPO를 도메인 또는 특정 OU에 링크한다(예: '서버' OU에 서버 보안 기준 GPO).</li><li>컴퓨터는 부팅 시, 사용자는 로그온 시 정책을 내려받아 적용한다(이후 약 90분 주기로 갱신).</li><li>적용 충돌 시 LSDOU 순서와 Enforced·상속차단 설정에 따라 최종값이 결정된다.</li><li>감사 정책이 활성화되어 있으면 로그온·계정변경·객체접근 등의 이벤트가 보안 로그에 기록된다.</li><li>WEF 또는 SIEM 에이전트가 이벤트를 중앙 수집 서버로 전달한다.</li><li>SIEM이 상관 규칙으로 특권 그룹 변경(4732), 감사로그 삭제(1102) 등을 탐지해 경보한다.</li><li>정기적으로 gpresult·RSoP로 실제 적용 상태를 표본 점검하고 결과를 증적으로 남긴다.</li></ol>",
+      "example": "<p>보험사 '세이프라이프'는 PC용·서버용 GPO를 분리해 적용한다. PC에는 비밀번호 최소 12자·90일 주기, 화면잠금 10분, USB 저장장치 읽기전용, 로컬 관리자 비밀번호 LAPS 관리, 서버에는 고급 감사 정책 전면 활성화와 Windows 방화벽 기본 차단을 적용한다. 2026년 4월 SIEM에서 이벤트 1102(보안 로그 삭제)가 파일 서버 한 대에서 발생해 조사한 결과, 벤더 엔지니어가 디스크 공간 확보를 위해 수동 삭제한 것으로 확인됐고, 이후 벤더 작업 시 로그 삭제 금지를 계약 부속 조항에 명시하고 로그를 중앙 수집으로 이중화했다.</p><pre><code># 특정 PC/서버에 실제 적용된 정책 확인 (감사 증적)\ngpresult /scope computer /h C:\\temp\\rsop_srv01.html\ngpresult /r\n\n# 도메인 GPO 목록과 링크 상태\nGet-GPO -All | Select DisplayName, GpoStatus, ModificationTime\nGet-GPOReport -All -ReportType Html -Path C:\\temp\\all_gpo.html\n\n# 비밀번호 정책 확인\nGet-ADDefaultDomainPasswordPolicy\nGet-ADFineGrainedPasswordPolicy -Filter *\n\n# 핵심 보안 이벤트 추출\n$ids = 4624,4625,4720,4726,4732,4740,4672,1102\nGet-WinEvent -FilterHashtable @{LogName='Security'; Id=$ids;\n  StartTime=(Get-Date).AddDays(-30)} |\n  Select TimeCreated, Id, MachineName,\n         @{n='User';e={$_.Properties[1].Value}} |\n  Export-Csv security_events.csv -NoTypeInformation\n\n# 이벤트 1102(로그 삭제)는 발생 즉시 경보 대상</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='40' width='130' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='80' y='63' text-anchor='middle' fill='currentColor' font-size='11'>GPO 정의</text><text x='80' y='82' text-anchor='middle' fill='currentColor' font-size='10'>비밀번호·감사·USB</text><line x1='145' y1='70' x2='195' y2='70' stroke='currentColor' marker-end='url(#ar)'/><text x='170' y='63' text-anchor='middle' fill='currentColor' font-size='10'>링크</text><rect x='195' y='40' width='120' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='255' y='63' text-anchor='middle' fill='currentColor' font-size='11'>OU</text><text x='255' y='82' text-anchor='middle' fill='currentColor' font-size='10'>PC / 서버 분리</text><line x1='315' y1='70' x2='365' y2='70' stroke='currentColor' marker-end='url(#ar)'/><rect x='365' y='30' width='130' height='80' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='430' y='52' text-anchor='middle' fill='currentColor' font-size='11'>단말·서버</text><text x='430' y='72' text-anchor='middle' fill='currentColor' font-size='10'>부팅/로그온 시 적용</text><text x='430' y='90' text-anchor='middle' fill='currentColor' font-size='10'>90분 주기 갱신</text><line x1='430' y1='110' x2='430' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='330' y='140' width='200' height='60' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='430' y='162' text-anchor='middle' fill='currentColor' font-size='11'>보안 이벤트 로그</text><text x='430' y='182' text-anchor='middle' fill='currentColor' font-size='10'>4624·4625·4732·1102</text><line x1='530' y1='170' x2='570' y2='170' stroke='currentColor' marker-end='url(#ar)'/><rect x='545' y='140' width='85' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='587' y='163' text-anchor='middle' fill='currentColor' font-size='10'>WEF/SIEM</text><text x='587' y='182' text-anchor='middle' fill='currentColor' font-size='10'>1년 보관</text><rect x='15' y='140' width='290' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='162' text-anchor='middle' fill='currentColor' font-size='11'>감사 증적은 정책 문서가 아니라</text><text x='160' y='182' text-anchor='middle' fill='currentColor' font-size='10'>gpresult 실제 적용 결과(RSoP)로 확인</text><text x='320' y='225' text-anchor='middle' fill='currentColor' font-size='10'>LAPS: PC별 로컬 관리자 비밀번호를 서로 다르게 자동 관리</text></svg>",
+      "keyTerms": [
+        {
+          "term": "GPO",
+          "meaning": "AD에서 설정을 중앙 정의해 자동 적용하는 그룹 정책 객체"
+        },
+        {
+          "term": "LSDOU",
+          "meaning": "로컬→사이트→도메인→OU 순서로 정책이 적용되는 규칙"
+        },
+        {
+          "term": "RSoP / gpresult",
+          "meaning": "특정 대상에 최종 적용된 정책 결과를 확인하는 방법"
+        },
+        {
+          "term": "감사 정책",
+          "meaning": "어떤 이벤트를 보안 로그로 남길지 정하는 설정"
+        },
+        {
+          "term": "이벤트 ID 4732",
+          "meaning": "보안 그룹에 구성원이 추가된 이벤트(특권 부여 추적)"
+        },
+        {
+          "term": "이벤트 ID 1102",
+          "meaning": "보안 감사 로그가 삭제된 이벤트. 즉시 경보 대상"
+        },
+        {
+          "term": "WEF",
+          "meaning": "Windows Event Forwarding. 이벤트를 중앙 수집기로 전달"
+        },
+        {
+          "term": "LAPS",
+          "meaning": "PC별 로컬 관리자 비밀번호를 자동 생성·보관·교체하는 기능"
+        }
+      ],
+      "pitfalls": [
+        "정책 문서만 있고 실제 적용 결과를 확인하지 않아, 상속 차단으로 일부 OU에 미적용된 상태를 모르는 경우.",
+        "감사 정책을 켜지 않아 계정 생성·그룹 변경 이벤트가 애초에 기록되지 않는 상황.",
+        "이벤트 로그 크기가 작아 며칠 만에 덮어써져 감사 대상 기간 로그가 없는 문제.",
+        "모든 PC의 로컬 Administrator 비밀번호를 동일하게 사용해 한 대 침해가 전사로 확산되는 구조.",
+        "GPO 변경을 변경관리 없이 수행해 전사 장애(예: 잘못된 방화벽 정책 배포)를 유발하는 사례.",
+        "USB 통제·소프트웨어 제한 정책을 만들었지만 예외 그룹이 계속 늘어 사실상 무력화된 상태."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 비밀번호·계정잠금 정책이 회사 기준에 따라 GPO로 강제되고 실제 적용 상태가 검증되는가",
+          "[변경] GPO 생성·수정이 변경관리 절차를 통해 승인·기록되고 백업이 유지되는가",
+          "[운영] 감사 정책이 활성화되어 계정·권한·로그온 이벤트가 기록되는가",
+          "[운영] 윈도우 이벤트 로그가 중앙 수집되어 법정 보존기간을 충족하며 삭제 이벤트가 탐지되는가",
+          "[접근] 로컬 관리자 계정 비밀번호가 단말별로 다르게 관리(LAPS 등)되는가"
+        ],
+        "fss": [
+          "이용자·관리자 비밀번호 생성·변경 기준 등 전자금융감독규정상 인증 관련 요건 충족 여부",
+          "정보처리시스템 접속기록의 생성·보존·점검 요건 이행 여부",
+          "단말기 보안대책(화면보호, 이동식 매체 통제) 적용 여부"
+        ],
+        "isms": [
+          "2.5.3 사용자 인증 / 2.5.4 비밀번호 관리: 비밀번호 정책의 기술적 강제",
+          "2.9.4 로그 및 접속기록 관리 / 2.9.5 점검",
+          "2.10.6 업무용 단말기기 보안: 단말 보안 설정과 매체 통제"
+        ],
+        "evidence": [
+          "GPO 목록과 각 GPO의 주요 설정 리포트(Get-GPOReport)",
+          "대표 PC·서버의 gpresult 결과(실제 적용값)",
+          "도메인 비밀번호 정책 설정 화면",
+          "고급 감사 정책 설정 상태와 주요 이벤트 샘플",
+          "이벤트 로그 중앙 수집 구성과 보존기간 설정",
+          "LAPS 적용 현황과 비밀번호 열람 권한자 목록",
+          "GPO 변경 이력과 대응 변경 티켓"
+        ],
+        "auditorQuestions": [
+          "비밀번호 정책은 무엇이며 기술적으로 강제되고 있음을 어떻게 증명하는가?",
+          "특정 서버에 실제 적용된 정책을 지금 뽑아 볼 수 있는가?",
+          "계정 생성·그룹 추가 이벤트가 기록되고 있는가? 최근 30일치를 볼 수 있는가?",
+          "보안 로그가 삭제되면 알 수 있는가?",
+          "PC의 로컬 관리자 비밀번호는 어떻게 관리하는가?",
+          "GPO를 변경할 수 있는 사람은 누구이며 변경 기록은 어디에 있는가?"
+        ],
+        "controlExample": "윈도우 단말과 서버의 보안 설정(비밀번호, 계정잠금, 감사 정책, 이동식 매체 통제)은 GPO로 중앙 강제되며, GPO 변경은 변경관리 승인 후 수행하고 분기 1회 표본 단말의 실제 적용 결과를 점검한다. 보안 이벤트 로그는 중앙 수집 서버로 전달되어 1년 이상 보관되고, 감사 로그 삭제(1102) 등 고위험 이벤트는 실시간 경보된다."
+      },
+      "related": [
+        "onprem-windows-ad",
+        "onprem-systemd-syslog",
+        "onprem-server-access-control",
+        "onprem-vdi-network-separation",
+        "onprem-patch-eol",
+        "onprem-server-os"
+      ],
+      "learnMore": [
+        "Microsoft Group Policy Documentation",
+        "Microsoft Advanced Security Audit Policy Settings",
+        "Windows LAPS Documentation",
+        "CIS Microsoft Windows Benchmarks"
+      ]
+    },
+    {
+      "id": "onprem-server-access-control",
+      "title": "서버접근제어 솔루션",
+      "titleEn": "Server Access Control / Privileged Access Management",
+      "aliases": [
+        "서버접근제어",
+        "PAM",
+        "특권접근관리",
+        "차크라맥스",
+        "하이웨어",
+        "세션 녹화",
+        "명령어 통제"
+      ],
+      "tags": [
+        "access-control",
+        "security",
+        "compliance"
+      ],
+      "level": "심화",
+      "oneLiner": "운영 서버로 가는 모든 접속을 한 곳으로 모아 승인·통제·녹화하는 솔루션",
+      "analogy": "서버접근제어 솔루션은 은행 금고로 들어가는 유일한 복도에 세운 검문소다. 신분 확인(개인 인증)과 오늘의 작업 허가서(승인)를 확인하고, 통과 후에는 복도 CCTV가 손동작 하나까지 녹화한다. 위험한 물건(rm -rf, DB 계정 변경 같은 명령)은 아예 반입 금지 목록에 올려 차단한다. 검문소를 우회하는 샛길이 하나라도 있으면 이 모든 게 무의미해진다.",
+      "explanation": "<p><strong>서버접근제어(또는 특권접근관리, PAM)</strong> 솔루션은 사용자가 운영 서버·DB·네트워크 장비에 접근할 때 반드시 거치도록 강제하는 중계 시스템이다. 국내에서는 규제 대응 목적으로 널리 도입되어 있고, 금융권에서는 사실상 필수 인프라다. 대표 제품으로 ChakraMax, HiWare, Netand, SecureGate 등 국산 솔루션과 CyberArk·BeyondTrust 같은 외산 PAM이 있으며, 클라우드에서는 AWS SSM Session Manager·Teleport 같은 도구가 유사 역할을 한다.</p><p><strong>해결하는 문제</strong>는 명확하다. 리눅스 서버에 <code>oracle</code>, <code>app</code>, <code>root</code> 같은 공용 계정이 있고 여러 사람이 그 비밀번호를 알고 있으면 (1) 누가 했는지 알 수 없고 (2) 비밀번호가 유출돼도 추적이 불가능하며 (3) 퇴직자가 계속 접근할 수 있다. 서버접근제어는 <strong>사용자는 자기 개인 계정으로 솔루션에 로그인하고, 솔루션이 서버의 공용 계정 비밀번호를 대신 입력</strong>해 접속을 열어 준다. 사용자는 실제 비밀번호를 모른 채 작업하고, 모든 행위는 개인에게 귀속된다.</p><p><strong>주요 기능</strong>은 이렇다. <strong>계정 금고(Vault)</strong>가 특권 계정 비밀번호를 보관하고 주기적으로 자동 교체한다. <strong>세션 중계와 녹화</strong>로 화면 영상과 입력 명령 텍스트를 모두 저장한다. <strong>명령어 통제</strong>로 금지 명령(<code>rm -rf /</code>, <code>shutdown</code> 등)을 차단하거나 결재를 요구한다. <strong>작업 승인(워크플로)</strong>으로 사전 신청·승인된 시간대에만 접속을 허용한다. <strong>DB 접근제어</strong> 모듈은 SQL 구문을 가로채 개인정보 조회 시 마스킹하거나 대량 조회를 차단한다. 접속 결과는 리포트로 산출되어 감사에 제출된다.</p><p><strong>구축 방식</strong>은 사용자가 솔루션에 먼저 접속해 서버를 고르는 <strong>게이트웨이형</strong>과, 네트워크 경로상에서 투명하게 가로채는 <strong>인라인/프록시형</strong>이 있다. 어느 쪽이든 <strong>우회 경로 차단</strong>이 성패를 가른다. 방화벽에서 서버의 SSH·RDP 포트를 솔루션 IP에서만 허용해야 하며, 이 설정이 없으면 감사에서 '통제 설계는 있으나 운영 효과 없음'으로 판정된다.</p><p><strong>감사 관점</strong>에서 이 솔루션은 ITGC 접근통제의 증적 창고다. 감사인이 요구하는 전형적 산출물은 (1) 대상 서버 등록 현황(전체 운영 서버 대비 커버리지), (2) 사용자·권한 목록과 주기적 검토, (3) 기간별 접속 이력(누가, 언제, 어떤 서버에, 어떤 계정으로), (4) 특정 세션의 녹화·명령 로그 샘플, (5) 금지 명령 차단 이력, (6) 우회 접근 시도 탐지 여부다. 반대로 흔한 결함은 <strong>일부 서버만 등록</strong>, <strong>예외 IP가 다수 허용</strong>, <strong>승인 없이 상시 접근 가능한 상시권한</strong>, <strong>녹화 보존기간 부족</strong>이다.</p>",
+      "howItWorks": "<ol><li>운영 서버·DB·장비를 솔루션에 자산으로 등록하고 특권 계정 비밀번호를 금고에 저장한다.</li><li>방화벽에서 해당 자산의 SSH/RDP/DB 포트를 솔루션 IP에서만 접근 가능하도록 제한한다.</li><li>사용자가 개인 계정과 MFA로 솔루션에 로그인한다.</li><li>필요 시 작업 신청(대상 서버, 사유, 시간대)을 올리고 승인권자가 결재한다.</li><li>승인된 시간에 사용자가 대상 서버를 선택하면 솔루션이 금고의 비밀번호로 대신 로그인한다.</li><li>세션이 열리고 화면 녹화와 입력 명령 기록이 시작된다.</li><li>금지 명령을 입력하면 차단되거나 추가 승인 요청이 발생한다.</li><li>세션 종료 후 접속 이력·녹화본이 저장되고 보존기간 동안 보관된다.</li><li>보안담당자가 주기적으로 접속 이력을 점검하고 이상 접속을 조사한다.</li><li>특권 계정 비밀번호는 정책 주기에 따라 자동 변경된다.</li></ol>",
+      "example": "<p>은행 '한강은행'은 운영 서버 620대와 DB 84개를 서버접근제어 솔루션에 등록하고, 서버의 SSH 포트는 솔루션 IP 2개에서만 허용한다. 개발자는 상시 접근 권한이 없고, 장애 대응 시 긴급 신청(사후 2시간 내 승인 필수)으로만 접속한다. 2026년 1분기 점검에서 커버리지가 97%였고 미등록 서버 18대(신규 구축분)가 확인되어 자산 등록 프로세스를 구축 체크리스트에 포함시켰다. 또한 DB 접근제어에서 고객 주민번호 컬럼 조회 시 자동 마스킹이 적용되며, 마스킹 해제 조회는 별도 결재와 사유 입력이 필요하다.</p><pre><code># 감사 요청 산출물 목록 (실무 체크리스트)\n1) 자산 등록 현황: 서버 목록 vs CMDB 운영서버 목록 → 커버리지 %\n2) 사용자/권한 목록: 사번, 이름, 부서, 접근가능 서버군, 부여일, 최종검토일\n3) 접속 이력: 기간, 사용자, 대상서버, 사용계정, 접속시간, 세션ID, 신청번호\n4) 세션 녹화 샘플: 감사인이 지정한 세션 3건 재생\n5) 금지명령 차단 이력\n6) 우회 접속 시도: 방화벽 로그에서 솔루션 IP 외 출발지의 22/3389 접속 시도\n\n# 우회 차단 검증 (방화벽 정책 확인)\n허용: src=10.250.20.11,10.250.20.12 (PAM)  dst=서버존  port=22,3389\n차단: 그 외 모든 출발지 → 이 정책이 없으면 통제 무효\n\n# 대사 쿼리 개념 (접속이력 vs 작업신청)\nSELECT s.session_id, s.user_id, s.target_host, s.start_time, s.request_no\nFROM pam_session s\nLEFT JOIN work_request r ON s.request_no = r.request_no\nWHERE r.request_no IS NULL          -- 신청 없이 접속한 세션\n  AND s.start_time BETWEEN '2026-01-01' AND '2026-03-31';</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='60' width='105' height='55' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='82' text-anchor='middle' fill='currentColor' font-size='11'>운영자/개발자</text><text x='67' y='100' text-anchor='middle' fill='currentColor' font-size='10'>개인계정+MFA</text><line x1='120' y1='87' x2='175' y2='87' stroke='currentColor' marker-end='url(#ar)'/><rect x='175' y='35' width='160' height='110' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='255' y='57' text-anchor='middle' fill='currentColor' font-size='11'>서버접근제어(PAM)</text><text x='255' y='77' text-anchor='middle' fill='currentColor' font-size='10'>① 작업신청·승인</text><text x='255' y='94' text-anchor='middle' fill='currentColor' font-size='10'>② 계정금고 대리로그인</text><text x='255' y='111' text-anchor='middle' fill='currentColor' font-size='10'>③ 세션 녹화</text><text x='255' y='130' text-anchor='middle' fill='currentColor' font-size='10'>④ 금지명령 차단</text><line x1='335' y1='87' x2='395' y2='87' stroke='currentColor' marker-end='url(#ar)'/><text x='365' y='79' text-anchor='middle' fill='currentColor' font-size='10'>22/3389</text><rect x='395' y='40' width='135' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='462' y='62' text-anchor='middle' fill='currentColor' font-size='11'>운영 서버/DB</text><text x='462' y='82' text-anchor='middle' fill='currentColor' font-size='10'>공용계정 비밀번호는</text><text x='462' y='99' text-anchor='middle' fill='currentColor' font-size='10'>사용자가 모름</text><text x='462' y='122' text-anchor='middle' fill='currentColor' font-size='10'>주기적 자동 변경</text><rect x='548' y='40' width='82' height='100' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='589' y='65' text-anchor='middle' fill='currentColor' font-size='10'>접속이력</text><text x='589' y='85' text-anchor='middle' fill='currentColor' font-size='10'>녹화본</text><text x='589' y='105' text-anchor='middle' fill='currentColor' font-size='10'>보존</text><text x='589' y='125' text-anchor='middle' fill='currentColor' font-size='10'>1년 이상</text><line x1='530' y1='90' x2='546' y2='90' stroke='currentColor' marker-end='url(#ar)'/><rect x='15' y='170' width='615' height='65' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='322' y='192' text-anchor='middle' fill='currentColor' font-size='12'>성패를 가르는 한 가지: 우회 경로 차단</text><text x='322' y='213' text-anchor='middle' fill='currentColor' font-size='10'>방화벽에서 서버 SSH/RDP를 PAM IP에서만 허용해야 통제가 실제로 작동한다</text><text x='322' y='229' text-anchor='middle' fill='currentColor' font-size='10'>등록 누락 서버·예외 IP·상시 권한이 흔한 결함</text></svg>",
+      "keyTerms": [
+        {
+          "term": "계정 금고(Vault)",
+          "meaning": "특권 계정 비밀번호를 보관하고 자동 교체하는 저장소"
+        },
+        {
+          "term": "대리 로그인",
+          "meaning": "사용자는 비밀번호를 모른 채 솔루션이 대신 인증해 주는 방식"
+        },
+        {
+          "term": "세션 녹화",
+          "meaning": "작업 화면과 입력 명령을 저장해 사후 검증 가능하게 하는 기능"
+        },
+        {
+          "term": "명령어 통제",
+          "meaning": "위험 명령을 차단하거나 추가 승인을 요구하는 기능"
+        },
+        {
+          "term": "작업 승인(워크플로)",
+          "meaning": "사전 신청·승인된 범위·시간에만 접근을 허용하는 절차"
+        },
+        {
+          "term": "DB 접근제어",
+          "meaning": "SQL을 가로채 마스킹·차단·기록하는 기능"
+        },
+        {
+          "term": "커버리지",
+          "meaning": "전체 운영 자산 중 솔루션에 등록된 비율. 감사 핵심 지표"
+        },
+        {
+          "term": "우회 경로",
+          "meaning": "솔루션을 거치지 않고 서버에 직접 접속 가능한 통로"
+        }
+      ],
+      "pitfalls": [
+        "솔루션은 도입했으나 방화벽에서 직접 접속을 막지 않아 우회가 가능한 상태. 통제 효과가 없다고 판정된다.",
+        "신규 구축 서버를 등록하지 않아 커버리지에 구멍이 생기는 문제. 서버 구축 체크리스트에 포함해야 한다.",
+        "모든 운영자에게 상시 접근 권한을 부여해 '승인 후 접근' 원칙이 형식화되는 경우.",
+        "세션 녹화 보존기간이 짧아 감사 대상 기간의 증적이 이미 삭제된 상황.",
+        "긴급 접근(비상 계정) 절차에 사후 승인·검토 단계가 없어 사실상 무통제 경로가 되는 사례.",
+        "DB 접근제어에서 개인정보 마스킹 예외가 광범위하게 열려 있는 구성.",
+        "접속 이력을 쌓기만 하고 주기적 점검(이상 접속 검토) 기록이 없어 탐지 통제가 부재한 상태."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 운영 서버·DB에 대한 접근이 접근제어 솔루션을 통해서만 가능하며 우회 경로가 차단되어 있는가",
+          "[접근] 전체 운영 자산 대비 솔루션 등록 커버리지가 관리되고 미등록 자산이 식별·조치되는가",
+          "[접근] 사용자 권한이 최소 범위로 부여되고 주기적으로 검토·재승인되는가",
+          "[접근] 작업 신청·승인 절차가 실제로 운영되며 승인 없는 접속이 탐지되는가",
+          "[운영] 접속 이력과 세션 녹화가 법정 보존기간 이상 보관되고 주기적으로 점검되는가",
+          "[접근] 특권 계정 비밀번호가 금고에서 관리되고 주기적으로 자동 변경되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 정보처리시스템 접근통제 및 접속기록 보존·점검 요건 이행 여부",
+          "관리자·운영자 접근에 대한 이중 인증과 작업 승인 절차 운영 여부",
+          "개인신용정보 조회에 대한 접근통제·기록 및 이상 조회 점검 여부",
+          "외부 위탁·유지보수 인력의 시스템 접근 통제와 작업 감독 여부"
+        ],
+        "isms": [
+          "2.5.5 특수 계정 및 권한 관리: 특권 계정의 별도 통제",
+          "2.6.2 정보시스템 접근 / 2.6.6 원격접근 통제",
+          "2.9.4 로그 및 접속기록 관리 / 2.9.5 로그 및 접속기록 점검",
+          "3.x 개인정보 처리 단계별 보호: 개인정보 조회 통제와 기록"
+        ],
+        "evidence": [
+          "솔루션 등록 자산 목록과 CMDB 운영 자산 목록 대사 결과(커버리지)",
+          "서버 SSH/RDP 포트에 대한 방화벽 정책(솔루션 IP만 허용) 설정 캡처",
+          "사용자·권한 목록과 최근 권한 검토 결재",
+          "감사 기간 접속 이력 export(사용자, 대상, 계정, 시간, 신청번호)",
+          "지정 세션의 녹화 재생 및 명령 로그",
+          "금지 명령 차단 이력, 긴급 접근 사용 이력과 사후 승인 문서",
+          "특권 계정 비밀번호 변경 주기 설정과 변경 이력"
+        ],
+        "auditorQuestions": [
+          "솔루션을 거치지 않고 운영 서버에 접속할 수 있는 경로가 있는가? 방화벽 정책으로 보여 달라.",
+          "운영 서버 중 솔루션에 등록되지 않은 자산은 몇 대인가?",
+          "접속은 매번 승인을 받는가, 아니면 상시 권한인가?",
+          "지난 분기 중 승인 없이 이루어진 접속이 있는가? 어떻게 확인했는가?",
+          "특정 날짜의 특정 작업 세션을 재생해 볼 수 있는가?",
+          "공용 계정 비밀번호는 누가 알고 있으며 얼마나 자주 바뀌는가?",
+          "긴급 상황에서의 접근 절차와 사후 검토는 어떻게 이루어지는가?"
+        ],
+        "controlExample": "운영 서버 및 DB에 대한 모든 접근은 서버접근제어 솔루션을 통해서만 가능하며, 서버의 SSH/RDP 포트는 솔루션 IP에서만 허용되도록 방화벽으로 강제한다. 접근은 사전 승인된 작업 요청에 근거해 개인 계정과 MFA로 수행되고, 전 세션은 녹화되어 1년 이상 보관되며 보안담당자가 월 1회 접속 이력을 점검해 이상 접속을 조사한다."
+      },
+      "related": [
+        "onprem-ssh-keys",
+        "onprem-linux-basics",
+        "onprem-bmc",
+        "onprem-windows-ad",
+        "onprem-network-appliance",
+        "sec-pam",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "NIST SP 800-53 AC-6 Least Privilege / AU-14 Session Audit",
+        "금융보안원 계정관리 및 접근통제 가이드",
+        "CyberArk / BeyondTrust Privileged Access Management 문서"
+      ]
+    },
+    {
+      "id": "onprem-patch-eol",
+      "title": "패치 관리와 EOL",
+      "titleEn": "Patch Management and End-of-Life",
+      "aliases": [
+        "패치",
+        "보안업데이트",
+        "취약점 조치",
+        "EOL",
+        "EOS",
+        "WSUS",
+        "Satellite",
+        "정기점검"
+      ],
+      "tags": [
+        "operations",
+        "security",
+        "vulnerability"
+      ],
+      "level": "중급",
+      "oneLiner": "알려진 취약점을 정해진 절차로 수정하고 지원 종료 자산을 관리하는 활동",
+      "analogy": "패치 관리는 자동차 리콜 정비와 같다. 제조사가 결함을 발표하면 정비소에 예약하고, 중요도에 따라 '당장 주행 금지' 수준인지 '다음 정기점검 때'인지 판단한다. 예약과 정비 기록이 남아야 나중에 사고가 났을 때 관리 책임을 설명할 수 있다. EOL은 그 차종의 부품 생산이 끝나 이제 리콜 자체가 없는 상태다. 겉보기엔 잘 달려도 결함이 발견되면 고칠 방법이 없다.",
+      "explanation": "<p><strong>패치 관리(Patch Management)</strong>는 OS·미들웨어·애플리케이션·펌웨어의 보안 결함을 공급자가 배포한 수정본으로 고치는 주기적 활동이다. ITGC에서는 변경관리와 운영관리에 걸쳐 있고, ISMS-P에서는 독립 인증기준(패치관리, 취약점 점검)으로 존재한다. 실제 침해사고 상당수가 '이미 패치가 나와 있었으나 적용하지 않은 취약점'을 통해 발생하므로 실효성이 매우 중요하다.</p><p><strong>프로세스</strong>는 대개 이렇게 돈다. (1) <strong>취약점 인지</strong> — 공급사 공지, KISA 보안공지, CVE·KEV 목록, 취약점 스캐너 결과. (2) <strong>영향도 평가</strong> — 자산 목록과 대조해 영향받는 시스템을 식별하고 <strong>CVSS 점수</strong>와 실제 노출도(인터넷 노출, 인증 필요 여부)를 함께 고려해 등급을 매긴다. (3) <strong>일정 수립</strong> — 등급별 SLA(예: 긴급 7일 이내, 높음 30일, 보통 90일)를 적용한다. (4) <strong>테스트</strong> — 개발·검증 환경에 먼저 적용해 영향도를 확인한다. (5) <strong>변경 승인</strong> — 변경관리 티켓으로 승인받고 롤백 계획을 준비한다. (6) <strong>적용과 검증</strong> — 정해진 작업 시간에 적용하고 서비스 정상성을 확인한다. (7) <strong>보고</strong> — 적용률(패치 커버리지)과 미적용 사유를 기록한다.</p><p><strong>도구</strong>로는 윈도우의 WSUS·Microsoft Configuration Manager(구 SCCM)·Intune, 리눅스의 Red Hat Satellite·Ubuntu Landscape·yum/apt 저장소 미러, 그리고 통합 취약점 관리 도구(Tenable, Qualys, Rapid7)가 쓰인다. 컨테이너 환경에서는 OS 패치 대신 <strong>이미지 재빌드와 재배포</strong>로 해결하는 점이 다르다.</p><p><strong>EOL/EOS 관리</strong>는 패치 관리의 쌍둥이다. 지원이 끝난 소프트웨어는 새 취약점이 나와도 수정본이 없다. 따라서 (1) 자산별 지원 종료일을 CMDB에서 관리하고, (2) 도래 6~12개월 전 업그레이드 계획을 세우며, (3) 불가피하게 계속 써야 한다면 <strong>위험 수용 결재 + 보완통제</strong>(망 분리, 접근 제한, 가상 패치, 모니터링 강화)를 문서화해야 한다. 대표 사례가 생산설비 연동 서버, 오래된 상용 패키지, 금융 단말 소프트웨어다.</p><p><strong>감사에서 자주 확인하는 수치</strong>는 세 가지다. <strong>패치 적용률</strong>(대상 대비 적용 서버 비율), <strong>SLA 준수율</strong>(등급별 기한 내 조치 비율), <strong>EOL 자산 수와 조치 계획 이행률</strong>이다. 취약점 점검 결과 보고서만 있고 조치 완료 증적이 없거나, 매 분기 같은 미조치 항목이 반복 등장하는 경우가 전형적 지적 사항이다.</p>",
+      "howItWorks": "<ol><li>취약점 정보를 정기적으로 수집한다(공급사 공지, KISA, CVE 피드, 스캐너 정기 실행).</li><li>자산 목록과 대조해 영향받는 시스템과 버전을 식별한다.</li><li>CVSS와 노출도·업무 중요도를 고려해 위험 등급과 조치 기한을 부여한다.</li><li>검증 환경에 패치를 적용해 애플리케이션 호환성과 성능 영향을 시험한다.</li><li>변경관리 티켓으로 작업 일정·영향 범위·롤백 계획을 승인받는다.</li><li>정해진 작업 시간대에 패치를 배포하고 재기동한다(무중단이 필요하면 순차 적용).</li><li>적용 후 버전 확인과 서비스 정상성 검증을 수행하고 결과를 티켓에 기록한다.</li><li>스캐너 재점검으로 취약점 해소를 확인하고 미조치 항목은 사유·보완통제와 함께 예외 등록한다.</li><li>월/분기 단위로 적용률·SLA 준수율을 리포트해 경영진에 보고한다.</li></ol>",
+      "example": "<p>커머스 '샵나우'는 매월 둘째 주 목요일 야간을 정기 패치 창구(Patch Window)로 운영한다. 등급별 SLA는 긴급 7일, 높음 30일, 보통 90일이다. 2026년 2월 널리 쓰이는 웹 프레임워크의 원격코드실행 취약점(CVSS 9.8)이 공개되자 긴급 절차를 발동해 영향 서버 22대를 48시간 내 패치했고, 패치가 불가능한 레거시 서버 2대는 WAF 가상 패치 룰과 접근 IP 제한을 보완통제로 적용한 뒤 4주 후 애플리케이션을 교체했다. 분기 보고에서 전체 패치 적용률 98.4%, SLA 준수율 96%를 CISO에게 보고했다.</p><pre><code># 리눅스 패치 대상 확인·적용 (RHEL)\nsudo dnf updateinfo list security\nsudo dnf update --security -y\nsudo needs-restarting -r        # 재부팅 필요 여부\n\n# Ubuntu\nsudo apt update &amp;&amp; apt list --upgradable\nsudo unattended-upgrade --dry-run -d\n\n# 윈도우 패치 현황 (PowerShell)\nGet-HotFix | Sort InstalledOn -Descending | Select -First 10\nGet-WindowsUpdateLog\n\n# 패치 관리 리포트 항목 (감사 제출)\n기간 | 대상자산수 | 적용완료 | 적용률 | 등급별 SLA 준수율 |\n미조치 목록(자산, 취약점, 사유, 보완통제, 예외승인자, 재검토일)\n\n# EOL 관리 대장\n자산 | 소프트웨어 | 현재버전 | EOL일자 | 잔여일 | 이관계획 | 상태 | 승인자</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='40' width='105' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='60' text-anchor='middle' fill='currentColor' font-size='11'>취약점 인지</text><text x='67' y='78' text-anchor='middle' fill='currentColor' font-size='10'>공지·CVE·스캔</text><line x1='120' y1='65' x2='155' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='155' y='40' width='105' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='207' y='60' text-anchor='middle' fill='currentColor' font-size='11'>영향도 평가</text><text x='207' y='78' text-anchor='middle' fill='currentColor' font-size='10'>자산 대조·등급</text><line x1='260' y1='65' x2='295' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='295' y='40' width='105' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='347' y='60' text-anchor='middle' fill='currentColor' font-size='11'>테스트·승인</text><text x='347' y='78' text-anchor='middle' fill='currentColor' font-size='10'>변경관리 티켓</text><line x1='400' y1='65' x2='435' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='435' y='40' width='105' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='487' y='60' text-anchor='middle' fill='currentColor' font-size='11'>적용·검증</text><text x='487' y='78' text-anchor='middle' fill='currentColor' font-size='10'>롤백 계획 보유</text><line x1='540' y1='65' x2='575' y2='65' stroke='currentColor' marker-end='url(#ar)'/><rect x='560' y='40' width='70' height='50' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='595' y='62' text-anchor='middle' fill='currentColor' font-size='10'>적용률</text><text x='595' y='80' text-anchor='middle' fill='currentColor' font-size='10'>보고</text><rect x='60' y='125' width='250' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='185' y='147' text-anchor='middle' fill='currentColor' font-size='11'>등급별 SLA 예시</text><text x='185' y='167' text-anchor='middle' fill='currentColor' font-size='10'>긴급(CVSS 9+) 7일 · 높음 30일</text><text x='185' y='185' text-anchor='middle' fill='currentColor' font-size='10'>보통 90일 · 기한 초과 시 예외 결재</text><rect x='340' y='125' width='250' height='75' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='465' y='147' text-anchor='middle' fill='currentColor' font-size='11'>EOL 자산</text><text x='465' y='167' text-anchor='middle' fill='currentColor' font-size='10'>패치가 더 이상 나오지 않음</text><text x='465' y='185' text-anchor='middle' fill='currentColor' font-size='10'>= 위험수용 결재 + 보완통제 필수</text><text x='320' y='230' text-anchor='middle' fill='currentColor' font-size='10'>점검 보고서만 있고 조치 증적이 없으면 통제 미비로 판정된다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "CVE",
+          "meaning": "공개된 취약점에 부여되는 국제 식별 번호"
+        },
+        {
+          "term": "CVSS",
+          "meaning": "취약점 심각도를 0~10으로 표준화한 점수"
+        },
+        {
+          "term": "KEV",
+          "meaning": "실제 악용이 확인된 취약점 목록. 우선 조치 기준으로 활용"
+        },
+        {
+          "term": "패치 창구(Patch Window)",
+          "meaning": "서비스 영향을 고려해 정해 둔 정기 작업 시간대"
+        },
+        {
+          "term": "가상 패치",
+          "meaning": "WAF·IPS 룰로 공격을 차단해 임시로 위험을 낮추는 보완통제"
+        },
+        {
+          "term": "EOL / EOS / EOSL",
+          "meaning": "지원 종료, 판매 종료, 서비스·지원 완전 종료"
+        },
+        {
+          "term": "예외 승인(위험 수용)",
+          "meaning": "조치 불가 항목을 사유·보완통제와 함께 승인받아 관리"
+        },
+        {
+          "term": "패치 적용률",
+          "meaning": "대상 자산 대비 패치가 적용된 비율. 핵심 관리 지표"
+        }
+      ],
+      "pitfalls": [
+        "취약점 점검은 매년 하지만 조치 완료 증적이 없어 '점검만 하는 통제'가 되는 경우.",
+        "미조치 항목이 매 분기 동일하게 반복 등장하고 예외 승인도 없는 상태.",
+        "서버 OS만 패치하고 미들웨어·라이브러리·네트워크 장비 펌웨어는 관리 범위에서 누락하는 문제.",
+        "테스트 없이 운영에 바로 패치를 적용해 장애를 유발하거나, 반대로 두려움 때문에 수년간 미적용하는 양극단.",
+        "EOL 자산을 목록으로만 관리하고 위험 수용 결재나 보완통제 없이 방치하는 것.",
+        "신규 구축 서버가 패치 관리 시스템에 등록되지 않아 관리 사각지대가 생기는 사례."
+      ],
+      "audit": {
+        "itgc": [
+          "[변경] 패치 적용이 변경관리 절차(영향도 평가·테스트·승인·롤백계획)를 따라 수행·기록되는가",
+          "[운영] 취약점 등급별 조치 기한(SLA)이 정의되고 준수율이 측정·보고되는가",
+          "[운영] 패치 관리 대상에 전체 운영 자산이 포함되며 신규 자산이 자동 편입되는가",
+          "[운영] 미조치 취약점에 대해 사유·보완통제·재검토 일정이 포함된 예외 승인이 존재하는가",
+          "[운영] 지원 종료(EOL) 자산 현황이 관리되고 교체 계획이 수립·이행되는가"
+        ],
+        "fss": [
+          "전자금융기반시설 취약점 분석·평가를 연 1회 이상 수행하고 결과에 따라 보완조치를 이행했는가",
+          "취약점 분석·평가 결과와 이행계획을 금융감독원에 보고하는 절차를 준수했는가",
+          "지원 종료 소프트웨어 사용에 대한 위험 분석과 대체 계획이 있는가"
+        ],
+        "isms": [
+          "2.10.8 패치관리: 최신 패치 적용과 적용 곤란 시 보완대책",
+          "2.11.2 취약점 점검 및 조치: 정기 점검과 결과 조치·이력 관리",
+          "2.9.1 변경관리: 패치 적용의 변경 절차 준수"
+        ],
+        "evidence": [
+          "패치 관리 정책·절차 문서(등급별 SLA 포함)",
+          "최근 분기 패치 적용률 리포트와 미적용 자산 목록",
+          "취약점 점검 결과보고서와 조치 완료 증적(재점검 결과 포함)",
+          "미조치 항목의 예외 승인 문서(사유, 보완통제, 재검토일)",
+          "패치 적용 변경 티켓 샘플(테스트 결과, 승인, 롤백 계획)",
+          "EOL 자산 대장과 교체 계획 승인 문서"
+        ],
+        "auditorQuestions": [
+          "긴급 취약점이 공개되면 며칠 안에 조치하는 기준이 있는가?",
+          "최근 긴급 패치 사례와 실제 소요 기간은?",
+          "현재 미조치 취약점은 몇 건이며 각각 왜 조치되지 않았는가?",
+          "패치 관리 대상에서 빠진 자산이 있는가? 어떻게 확인하는가?",
+          "지원 종료 소프트웨어를 쓰는 시스템과 그 보완통제는 무엇인가?",
+          "패치 적용 전 테스트는 어떻게 하며 롤백 계획은 있는가?"
+        ],
+        "controlExample": "취약점은 등급에 따라 긴급 7일, 높음 30일, 보통 90일 이내에 조치하는 것을 원칙으로 하며, 패치 적용은 검증 환경 테스트와 변경관리 승인을 거쳐 수행된다. 기한 내 조치가 불가한 항목은 보완통제와 재검토 일정을 포함한 예외 승인을 받고, 월 1회 패치 적용률과 SLA 준수율을 정보보호책임자에게 보고한다."
+      },
+      "related": [
+        "onprem-server-os",
+        "onprem-network-appliance",
+        "onprem-bmc",
+        "onprem-cmdb-license",
+        "plat-change-management",
+        "onprem-linux-basics"
+      ],
+      "learnMore": [
+        "NIST SP 800-40 Guide to Enterprise Patch Management Planning",
+        "KISA 보안공지 및 소프트웨어 취약점 신고포상제",
+        "주요정보통신기반시설 취약점 분석·평가 기준"
+      ]
+    },
+    {
+      "id": "onprem-ntp",
+      "title": "NTP와 로그 시각 정합성",
+      "titleEn": "NTP and Log Time Consistency",
+      "aliases": [
+        "NTP",
+        "시간 동기화",
+        "chrony",
+        "타임서버",
+        "UTC",
+        "타임스탬프",
+        "시각 동기화"
+      ],
+      "tags": [
+        "infrastructure",
+        "logging",
+        "compliance"
+      ],
+      "level": "중급",
+      "oneLiner": "모든 서버의 시계를 같은 기준으로 맞춰 로그 순서를 신뢰할 수 있게 만드는 기반",
+      "analogy": "NTP는 공항의 표준시계와 같다. 모든 게이트의 시계가 표준시계에 맞춰져 있어야 '몇 시에 탑승했고 몇 시에 이륙했다'는 기록이 앞뒤가 맞는다. 시계가 제각각이면 '출발 기록이 도착 기록보다 나중'인 이상한 일지가 만들어지고, 사고 조사에서 그 일지는 증거로 쓸 수 없게 된다.",
+      "explanation": "<p><strong>NTP(Network Time Protocol)</strong>는 네트워크를 통해 컴퓨터 시계를 표준 시각에 맞추는 프로토콜이다. 지루해 보이지만 <strong>모든 로그 기반 통제의 전제 조건</strong>이라 감사에서 반드시 확인된다. 침해사고 조사, 거래 순서 확인, 여러 시스템 로그의 교차 검증, 전자 증거의 증거력 모두가 '시각이 맞다'는 가정 위에 서 있다.</p><p><strong>왜 시계가 틀어지는가.</strong> 컴퓨터의 시계는 수정 발진기 기반이라 온도·부하에 따라 하루에 수 초씩 어긋난다. 가상 서버는 호스트 부하와 스냅샷 복원 등으로 더 크게 틀어질 수 있다. 며칠만 지나도 시스템 간 수십 초 차이가 생겨 로그 상관분석이 무의미해진다.</p><p><strong>계층 구조.</strong> NTP는 <strong>Stratum</strong>이라는 계층으로 정확도를 표현한다. GPS·원자시계 같은 기준 시계가 Stratum 0, 그에 직접 연결된 서버가 Stratum 1, 그 서버에서 시각을 받는 서버가 Stratum 2다. 기업 환경에서는 보통 <strong>내부 NTP 서버 2~3대</strong>를 두고, 이들이 외부 신뢰 소스(한국표준과학연구원 KRISS의 <code>time.kriss.re.kr</code>, 공용 NTP 풀, 또는 자체 GPS 수신기)와 동기화한 뒤 사내 모든 서버·장비·단말이 내부 NTP를 바라보게 한다. 금융권·기반시설은 외부 인터넷 의존을 줄이기 위해 <strong>GPS 기반 자체 타임서버</strong>를 두는 경우가 많다.</p><p><strong>구현.</strong> 최신 리눅스는 <code>chrony</code>(RHEL 8+ 기본)나 <code>systemd-timesyncd</code>를 사용하고, 윈도우는 도메인 환경에서 DC(PDC 에뮬레이터)가 시각 기준이 되어 도메인 가입 단말이 자동 동기화된다. 즉 윈도우 환경에서는 <strong>DC의 시각 소스가 올바른지</strong>가 핵심 점검 포인트다.</p><p><strong>시간대(Time Zone) 문제</strong>도 중요하다. 서버는 UTC로, 로그는 KST로, 애플리케이션은 브라우저 로컬 시각으로 표시되면 같은 사건이 세 가지 시각으로 보인다. 그래서 실무 권장은 <strong>시스템·로그는 UTC 또는 KST로 전사 통일하고 오프셋을 명시(ISO 8601, 예: 2026-09-14T09:12:33+09:00)</strong>하는 것이다. 감사 증적을 제출할 때 시간대 표기가 없으면 감사인이 시각 정합성을 확인할 수 없다.</p><p><strong>감사 관점</strong>에서 확인 항목은 명확하다. (1) 전사 표준 NTP 서버가 지정되고 모든 서버·장비·보안장비·DB가 이를 사용하는가, (2) 실제 시각 오차가 허용 범위(통상 1초 이내) 안에 있는가, (3) NTP 동기화 실패가 모니터링되는가, (4) 로그의 시간대 표기가 일관되는가, (5) 사용자가 서버 시각을 임의로 바꿀 수 없는가(시각 변경도 감사 이벤트로 기록). 실무에서는 '서버는 맞지만 네트워크 장비·보안장비는 NTP 미설정'인 경우가 흔하며, 이 경우 방화벽 로그와 서버 로그를 대조하는 조사가 불가능해진다.</p>",
+      "howItWorks": "<ol><li>내부 NTP 서버가 외부 신뢰 시각 소스(GPS 수신기 또는 공인 타임서버)와 동기화한다.</li><li>사내 서버·장비·단말은 내부 NTP 서버 2대 이상을 시각 소스로 설정한다.</li><li>클라이언트가 주기적으로 NTP 서버에 질의하고 왕복 지연을 계산해 오차를 추정한다.</li><li>오차가 작으면 시계 속도를 미세 조정(slew)하고, 크면 즉시 보정(step)한다.</li><li>애플리케이션·OS가 로그를 남길 때 보정된 시각으로 타임스탬프를 기록한다.</li><li>로그가 중앙 로그 서버·SIEM에 모이면 여러 시스템의 이벤트를 시간순으로 상관분석할 수 있다.</li><li>모니터링 시스템이 각 서버의 시각 오차와 동기화 상태를 수집해 임계치 초과 시 경보한다.</li></ol>",
+      "example": "<p>은행 '한강은행'은 GPS 수신 타임서버 2대를 전산센터에 두고, 모든 서버·네트워크 장비·보안장비·ATM·단말이 이를 참조한다. 시각 오차 임계치는 500ms이며 초과 시 경보가 발생한다. 2026년 1월 침해 의심 사건 조사에서 방화벽 로그·웹서버 로그·DB 접근제어 로그를 초 단위로 정렬해 공격 경로를 재구성할 수 있었던 것은 전 구간 시각이 일치했기 때문이다. 반면 같은 조사에서 한 협력사 관리 장비가 NTP 미설정으로 3분 42초 어긋나 있어 별도 보정 작업이 필요했고, 이후 장비 도입 체크리스트에 NTP 설정 항목을 추가했다.</p><pre><code># 리눅스 시각 동기화 상태 확인 (chrony)\nchronyc sources -v\nchronyc tracking          # Last offset, RMS offset 확인\ntimedatectl               # 시간대와 NTP 활성 여부\n\n# 설정 예시 (/etc/chrony.conf)\nserver ntp1.hangang.local iburst\nserver ntp2.hangang.local iburst\nmakestep 1.0 3\nrtcsync\n\n# 윈도우\nw32tm /query /status\nw32tm /query /source\nw32tm /stripchart /computer:ntp1.hangang.local /samples:5 /dataonly\n\n# 전사 오차 점검 스크립트 개념 (감사 증빙)\nfor h in $(cat all_hosts.txt); do\n  echo \"$h $(ssh $h chronyc tracking | grep 'Last offset')\"\ndone &gt; ntp_offset_report.txt\n# → 허용 임계치(예: 1초) 초과 서버 목록을 조치 대상으로 관리</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 240' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='240' y='20' width='160' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='40' text-anchor='middle' fill='currentColor' font-size='11'>기준 시각 (Stratum 0)</text><text x='320' y='57' text-anchor='middle' fill='currentColor' font-size='10'>GPS / 공인 타임서버</text><line x1='320' y1='65' x2='320' y2='90' stroke='currentColor' marker-end='url(#ar)'/><rect x='230' y='90' width='180' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='320' y='110' text-anchor='middle' fill='currentColor' font-size='11'>내부 NTP 서버 2대</text><text x='320' y='127' text-anchor='middle' fill='currentColor' font-size='10'>사내 표준 시각</text><line x1='250' y1='135' x2='120' y2='165' stroke='currentColor' marker-end='url(#ar)'/><line x1='310' y1='135' x2='280' y2='165' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='135' x2='450' y2='165' stroke='currentColor' marker-end='url(#ar)'/><line x1='395' y1='135' x2='570' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='35' y='165' width='140' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105' y='192' text-anchor='middle' fill='currentColor' font-size='10'>서버 · DB</text><rect x='200' y='165' width='140' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='270' y='192' text-anchor='middle' fill='currentColor' font-size='10'>네트워크 장비</text><rect x='365' y='165' width='140' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='435' y='192' text-anchor='middle' fill='currentColor' font-size='10'>보안장비 · PAM</text><rect x='520' y='165' width='105' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='572' y='192' text-anchor='middle' fill='currentColor' font-size='10'>단말 · ATM</text><text x='30' y='232' fill='currentColor' font-size='10'>한 구간이라도 동기화가 빠지면 그 장비의 로그는 상관분석에서 사실상 쓸 수 없다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "NTP",
+          "meaning": "네트워크로 시각을 동기화하는 표준 프로토콜"
+        },
+        {
+          "term": "Stratum",
+          "meaning": "기준 시계로부터의 거리 계층. 숫자가 작을수록 정확"
+        },
+        {
+          "term": "chrony",
+          "meaning": "최신 리눅스의 기본 NTP 클라이언트·서버 구현"
+        },
+        {
+          "term": "오프셋(Offset)",
+          "meaning": "기준 시각과 로컬 시계의 차이"
+        },
+        {
+          "term": "slew / step",
+          "meaning": "시계를 서서히 보정 / 즉시 점프해 보정"
+        },
+        {
+          "term": "PDC 에뮬레이터",
+          "meaning": "AD 도메인에서 시각 기준 역할을 하는 DC"
+        },
+        {
+          "term": "ISO 8601",
+          "meaning": "시간대 오프셋을 포함한 표준 시각 표기 형식"
+        },
+        {
+          "term": "타임스탬프 정합성",
+          "meaning": "여러 시스템 로그의 시각이 서로 신뢰 가능하게 맞는 상태"
+        }
+      ],
+      "pitfalls": [
+        "서버는 NTP를 설정했지만 네트워크·보안장비, 스토리지, 출입통제 시스템은 빠뜨려 로그 대조가 불가능한 경우.",
+        "가상 서버가 호스트 시각과 NTP를 동시에 참조해 시계가 흔들리는 구성.",
+        "시간대 표기 없이 로그를 제출해 감사인이 KST인지 UTC인지 판단할 수 없는 상황.",
+        "NTP 서버 1대만 운영해 그 서버 장애 시 전사 시각이 서서히 틀어지는 구조.",
+        "동기화 실패를 모니터링하지 않아 수개월간 어긋난 상태를 사고 조사 때 처음 발견하는 사례.",
+        "관리자가 서버 시각을 수동으로 변경할 수 있고 그 행위가 로그로 남지 않는 설정."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 전사 표준 시각 소스가 지정되고 모든 서버·DB·네트워크·보안장비가 이를 사용하는가",
+          "[운영] 시각 동기화 상태와 오차가 모니터링되고 임계치 초과 시 조치되는가",
+          "[운영] 로그의 타임스탬프가 일관된 시간대로 기록되어 시스템 간 상관분석이 가능한가",
+          "[접근] 시스템 시각의 임의 변경이 제한되고 변경 행위가 로그로 기록되는가"
+        ],
+        "fss": [
+          "전자금융거래 기록의 시각 정확성 확보 및 거래 순서 입증 가능성",
+          "정보처리시스템 접속기록의 시각 동기화와 위변조 방지 조치 여부",
+          "전산센터 내 시스템 간 시각 동기화 체계 운영 여부"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리: 로그 시각 동기화와 정확성 확보",
+          "2.9.5 로그 및 접속기록 점검: 상관분석 가능한 기록 확보",
+          "2.10.x 시스템 보안관리: 시각 동기화 설정 표준"
+        ],
+        "evidence": [
+          "표준 NTP 서버 구성도와 상위 시각 소스(GPS·공인 서버) 증빙",
+          "주요 서버·장비의 NTP 설정과 현재 오프셋 수집 결과",
+          "NTP 동기화 상태 모니터링 대시보드와 경보 설정",
+          "로그 샘플의 타임스탬프 형식(시간대 포함) 확인",
+          "시스템 시각 변경 권한 제한 설정과 변경 이벤트 로그"
+        ],
+        "auditorQuestions": [
+          "전사 시각 기준은 무엇이며 어디서 받아 오는가?",
+          "네트워크 장비와 보안장비도 동일한 NTP를 사용하는가?",
+          "현재 서버들의 시각 오차는 얼마인가? 확인해 줄 수 있는가?",
+          "시각 동기화가 끊기면 누가 알게 되는가?",
+          "로그의 시각은 KST인가 UTC인가? 어디에 명시되어 있는가?"
+        ],
+        "controlExample": "전사 시스템은 전산센터 내 GPS 기반 내부 NTP 서버 2대를 표준 시각 소스로 사용하며, 서버·DB·네트워크·보안장비를 포함한 모든 자산에 동기화를 적용한다. 시각 오차는 모니터링 시스템에서 상시 수집해 500ms를 초과하면 경보·조치하고, 시스템 시각 변경 권한은 시스템 관리자에 한정하며 변경 이벤트는 로그로 기록한다."
+      },
+      "related": [
+        "onprem-systemd-syslog",
+        "onprem-gpo-eventlog",
+        "onprem-dns-dhcp",
+        "onprem-server-access-control",
+        "obs-prometheus",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "RFC 5905 Network Time Protocol Version 4",
+        "chrony Documentation",
+        "한국표준과학연구원 표준시각 서비스 안내"
+      ]
+    },
+    {
+      "id": "onprem-vdi-network-separation",
+      "title": "VDI와 망분리",
+      "titleEn": "VDI/DaaS and Network Separation",
+      "aliases": [
+        "VDI",
+        "가상데스크톱",
+        "DaaS",
+        "망분리",
+        "내부망",
+        "인터넷망",
+        "망연계",
+        "논리적 망분리"
+      ],
+      "tags": [
+        "endpoint",
+        "security",
+        "compliance",
+        "regulation"
+      ],
+      "level": "심화",
+      "oneLiner": "업무망과 인터넷망을 분리하고 가상 데스크톱으로 그 경계를 구현하는 방식",
+      "analogy": "망분리는 은행 창구 직원 책상에 컴퓨터를 두 대 놓는 것과 같다. 한 대는 고객 계좌를 다루는 업무용(인터넷 안 됨), 다른 한 대는 메일과 웹 검색용이다. 두 대 사이에 USB로 파일을 옮길 수 없고, 꼭 옮겨야 하면 검열대(망연계 시스템)를 거쳐 승인을 받는다. VDI는 책상에 진짜 컴퓨터를 두 대 놓는 대신, 한 화면에서 다른 방(서버실)에 있는 가상 PC 화면만 끌어와 보여 주는 방식이다.",
+      "explanation": "<p><strong>망분리(Network Separation)</strong>는 내부 업무망과 인터넷망을 분리해, 외부에서 유입되는 악성코드가 업무 시스템에 닿지 못하게 하고 내부 정보가 인터넷으로 나가지 못하게 하는 통제다. 국내에서는 <strong>전자금융감독규정</strong>에 따라 금융회사의 전산실·정보처리시스템 및 관련 업무 단말에 대해 망분리가 요구되어 왔고, 개인정보 처리자에 대해서도 개인정보 다운로드·파기 등 특정 업무 담당자에 대한 망분리 요건이 있다. 최근 몇 년간 클라우드 활용을 위해 규제가 일부 완화·유연화되는 흐름이 있으나(중요도 기반 차등 적용 논의), <strong>핵심 업무 영역의 분리 원칙 자체는 유지</strong>된다고 보는 것이 안전하다.</p><p><strong>구현 방식은 두 가지</strong>다. <strong>물리적 망분리</strong>는 PC를 두 대 두거나 한 PC에 두 개의 네트워크를 물리적으로 분리해 쓰는 방식으로 가장 강력하지만 비용·공간 부담이 크다. <strong>논리적 망분리</strong>는 가상화를 이용해 한 대의 단말에서 두 환경을 쓰게 하는 방식이며, 다시 <strong>SBC/VDI 방식</strong>(서버의 가상 PC 화면만 전송)과 <strong>CBC 방식</strong>(단말 안에 가상 영역을 만들어 격리)으로 나뉜다.</p><p><strong>VDI(Virtual Desktop Infrastructure)</strong>는 사용자의 데스크톱을 데이터센터의 가상 머신에서 실행하고, 단말에는 화면 픽셀과 키보드·마우스 입력만 오가는 구조다. 대표 솔루션은 Citrix(현 Citrix DaaS), VMware Horizon(현 Omnissa Horizon), Microsoft AVD/Windows 365, 국내 틸론·이노그리드 등이 있다. 클라우드형으로 제공되면 <strong>DaaS(Desktop as a Service)</strong>다. 장점은 데이터가 단말에 남지 않고(유출 위험 감소), 패치·백신 관리가 중앙화되며, 원격근무·외주 인력 통제에 유리하다는 점이다.</p><p><strong>망연계 시스템</strong>은 분리된 두 망 사이에 꼭 필요한 데이터만 통제된 방식으로 옮기는 장치다. 파일 전송은 <strong>망연계 솔루션</strong>이 결재·바이러스 검사·확장자 제한·키워드 필터를 거쳐 처리하고, 모든 전송 내역이 기록된다. 메일·문서 반출도 동일하게 통제 대상이다. 감사에서는 <strong>'망연계를 통하지 않는 우회 경로가 있는가'</strong>가 핵심이다. 흔한 우회 경로는 USB·외장디스크, 개인 클라우드 업로드, 스마트폰 테더링, 화면 촬영, 그리고 VDI 세션의 클립보드·드라이브 매핑·프린터 리디렉션 허용이다.</p><p><strong>감사 관점</strong>의 확인 사항은 이렇다. (1) 망분리 대상 업무·인원이 규정에 따라 식별되고 실제로 적용되는가, (2) VDI 세션의 클립보드 복사, 로컬 드라이브 매핑, USB 리디렉션, 프린터, 화면캡처가 정책으로 차단되는가, (3) 망연계 전송이 승인·기록·검사되는가, (4) 예외 단말(개발 테스트, 외부 협력사)이 관리되는가, (5) VDI 마스터 이미지의 변경관리와 사용자별 권한, (6) VDI 접속 기록과 세션 로그 보존이다. 실무에서는 '망분리는 되어 있는데 VDI 클립보드가 양방향 허용'이어서 사실상 자료 반출이 자유로운 사례가 자주 발견된다.</p>",
+      "howItWorks": "<ol><li>업무망과 인터넷망을 물리 또는 논리적으로 분리하고 방화벽으로 상호 접근을 차단한다.</li><li>사용자는 업무용 단말(또는 VDI 클라이언트)에서 개인 계정과 MFA로 인증한다.</li><li>커넥션 브로커가 사용자에게 할당된 가상 데스크톱 풀에서 세션을 배정한다.</li><li>가상 데스크톱이 데이터센터에서 실행되고 단말에는 화면·입력만 전송된다.</li><li>세션 정책에 따라 클립보드·USB·드라이브 매핑·프린터·캡처가 제한된다.</li><li>인터넷이 필요한 업무는 별도 인터넷망 환경(또는 별도 VDI 풀)에서 수행한다.</li><li>파일을 망 간 이동해야 하면 망연계 시스템에 업로드하고 결재·검사 후 반대편으로 전달된다.</li><li>모든 접속·전송·반출 내역이 로그로 기록되어 보안팀이 주기적으로 점검한다.</li><li>마스터 이미지 변경(패치·소프트웨어 설치)은 변경관리 절차로 승인·배포된다.</li></ol>",
+      "example": "<p>증권사 '미래파이낸스'는 본사 임직원 1,800명 중 고객정보 취급·매매 관련 업무자 950명에게 망분리를 적용한다. 업무는 VDI(Windows 가상 데스크톱, 클립보드·USB·로컬 드라이브 전면 차단)에서, 인터넷·메일은 별도 인터넷망 PC에서 수행한다. 자료 반출은 망연계 시스템을 통해 팀장 결재 + 보안 검사 후에만 가능하다. 2026년 상반기 점검에서 개발팀 VDI 풀 일부에 '단방향 클립보드(인터넷망→업무망)'가 허용되어 있었는데, 설정 오류로 양방향이 열린 계정 14개가 발견되어 즉시 차단하고 해당 기간 전송 이력을 소급 점검했다.</p><pre><code># VDI 세션 정책 점검 항목 (감사 체크리스트)\n[ ] 클립보드 복사/붙여넣기: 차단 또는 단방향\n[ ] 클라이언트 드라이브 매핑: 차단\n[ ] USB 리디렉션: 차단(예외 시 승인·목록 관리)\n[ ] 프린터 리디렉션: 차단 또는 지정 프린터만\n[ ] 화면 캡처/녹화 방지: 적용\n[ ] 유휴 세션 자동 종료: 15분\n[ ] 동시 접속 제한 및 접속 허용 IP·단말 제한\n\n# Citrix 정책 확인 (PowerShell)\nGet-BrokerDesktopGroup | Select Name, DesktopKind, SessionSupport\nGet-ConfigRegisteredServiceInstance\n# 정책 필터: ClientDriveRedirection, ClientClipboardWriteAllowedFormats\n\n# 망연계 전송 이력 점검 쿼리(개념)\nSELECT req_no, requester, approver, filename, size, direction,\n       virus_scan_result, sent_at\nFROM interlock_transfer\nWHERE sent_at BETWEEN '2026-01-01' AND '2026-06-30'\n  AND (approver IS NULL OR virus_scan_result &lt;&gt; 'CLEAN');</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 250' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' markerWidth='8' markerHeight='8' refX='6' refY='3' orient='auto'><path d='M0,0 L6,3 L0,6 z' fill='currentColor'/></marker></defs><rect x='15' y='60' width='115' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='85' text-anchor='middle' fill='currentColor' font-size='11'>사용자 단말</text><text x='72' y='104' text-anchor='middle' fill='currentColor' font-size='10'>화면·입력만</text><text x='72' y='120' text-anchor='middle' fill='currentColor' font-size='10'>데이터 미저장</text><line x1='130' y1='80' x2='185' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='130' y1='110' x2='185' y2='165' stroke='currentColor' marker-end='url(#ar)'/><rect x='185' y='25' width='170' height='75' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='270' y='48' text-anchor='middle' fill='currentColor' font-size='11'>업무망 VDI</text><text x='270' y='67' text-anchor='middle' fill='currentColor' font-size='10'>클립보드·USB 차단</text><text x='270' y='85' text-anchor='middle' fill='currentColor' font-size='10'>고객정보 처리</text><rect x='185' y='140' width='170' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='270' y='163' text-anchor='middle' fill='currentColor' font-size='11'>인터넷망</text><text x='270' y='182' text-anchor='middle' fill='currentColor' font-size='10'>메일·웹 검색</text><text x='270' y='199' text-anchor='middle' fill='currentColor' font-size='10'>업무 시스템 접근 불가</text><line x1='355' y1='63' x2='405' y2='100' stroke='currentColor' marker-end='url(#ar)'/><line x1='355' y1='175' x2='405' y2='135' stroke='currentColor' marker-end='url(#ar)'/><rect x='405' y='95' width='140' height='70' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='475' y='118' text-anchor='middle' fill='currentColor' font-size='11'>망연계 시스템</text><text x='475' y='137' text-anchor='middle' fill='currentColor' font-size='10'>결재+바이러스검사</text><text x='475' y='154' text-anchor='middle' fill='currentColor' font-size='10'>전송 전건 기록</text><rect x='560' y='95' width='70' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='595' y='122' text-anchor='middle' fill='currentColor' font-size='10'>전송이력</text><text x='595' y='142' text-anchor='middle' fill='currentColor' font-size='10'>정기점검</text><line x1='545' y1='130' x2='558' y2='130' stroke='currentColor' marker-end='url(#ar)'/><text x='320' y='235' text-anchor='middle' fill='currentColor' font-size='10'>감사 핵심: 망연계를 거치지 않는 우회 경로(USB·클립보드·개인클라우드·촬영)의 차단 여부</text></svg>",
+      "keyTerms": [
+        {
+          "term": "물리적 망분리",
+          "meaning": "업무용·인터넷용 단말이나 회선을 물리적으로 분리"
+        },
+        {
+          "term": "논리적 망분리",
+          "meaning": "가상화로 한 단말에서 두 환경을 격리해 사용"
+        },
+        {
+          "term": "VDI / SBC",
+          "meaning": "데이터센터의 가상 데스크톱 화면만 단말에 전송하는 방식"
+        },
+        {
+          "term": "DaaS",
+          "meaning": "클라우드 사업자가 제공하는 관리형 가상 데스크톱 서비스"
+        },
+        {
+          "term": "커넥션 브로커",
+          "meaning": "사용자에게 가상 데스크톱 세션을 배정·중계하는 구성 요소"
+        },
+        {
+          "term": "망연계 시스템",
+          "meaning": "분리된 망 사이의 파일·데이터 전송을 통제·기록하는 장치"
+        },
+        {
+          "term": "리디렉션",
+          "meaning": "클립보드·USB·드라이브·프린터를 세션에 연결하는 기능. 통제 대상"
+        },
+        {
+          "term": "마스터 이미지",
+          "meaning": "VDI 데스크톱의 원본 템플릿. 변경관리 대상"
+        },
+        {
+          "term": "비영속 데스크톱",
+          "meaning": "로그아웃 시 초기화되는 VDI. 잔존 데이터 위험 감소"
+        }
+      ],
+      "pitfalls": [
+        "망분리는 구축했으나 VDI 클립보드·드라이브 매핑이 양방향 허용이어서 사실상 자료 반출이 자유로운 상태.",
+        "망연계 시스템 외에 USB·개인 클라우드·스마트폰 테더링 같은 우회 경로가 통제되지 않는 문제.",
+        "망분리 대상 업무·인원 기준이 문서화되지 않아 적용 범위를 설명하지 못하는 경우.",
+        "예외 단말(개발·테스트·협력사 PC)이 목록과 승인 없이 늘어나는 현상.",
+        "VDI 마스터 이미지 변경을 변경관리 없이 적용해 전사 단말에 동시 영향을 주는 사고.",
+        "VDI 접속 로그·망연계 전송 로그의 보존기간이 짧아 사후 조사가 불가능한 상황.",
+        "규제 완화 논의를 근거로 실제 적용 요건을 확인하지 않고 망분리를 임의로 해제하는 판단."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 망분리 대상 업무·인원 기준이 정의되고 실제 적용 현황이 관리되는가",
+          "[접근] VDI 세션 정책(클립보드·USB·드라이브·프린터·캡처)이 통제되고 예외가 승인·관리되는가",
+          "[접근] 망 간 자료 전송이 망연계 시스템을 통해 승인·검사·기록되며 우회 경로가 차단되는가",
+          "[변경] VDI 마스터 이미지 및 정책 변경이 변경관리 절차로 승인·배포되는가",
+          "[운영] VDI 접속 이력과 망연계 전송 이력이 보존되고 주기적으로 점검되는가"
+        ],
+        "fss": [
+          "전자금융감독규정상 전산실 및 정보처리시스템 관련 단말에 대한 망분리 요건 이행 여부",
+          "내부망 단말의 인터넷 접속 차단 및 예외 승인 관리 여부",
+          "망 간 자료 전송 시 통제 절차와 기록 보존 여부",
+          "클라우드·원격근무 환경 적용 시 중요도 평가와 안전성 확보조치 이행 여부"
+        ],
+        "isms": [
+          "2.6.1 네트워크 접근 / 2.6.7 인터넷 접속 통제: 망분리와 인터넷 접속 제한",
+          "2.10.6 업무용 단말기기 보안: 단말 매체 통제와 자료 반출 통제",
+          "2.9.4/2.9.5 로그 및 접속기록 관리·점검"
+        ],
+        "evidence": [
+          "망분리 대상 업무·인원 기준 문서와 현재 적용 대상자 목록",
+          "네트워크 구성도(업무망·인터넷망·망연계 구간)",
+          "VDI 정책 설정 캡처(클립보드·USB·드라이브·프린터·캡처 차단)",
+          "예외 승인 목록(예외 단말·사용자·사유·기한)",
+          "망연계 전송 이력 export(신청자, 승인자, 파일, 검사 결과, 일시)",
+          "VDI 접속 로그 샘플과 보존기간 설정",
+          "마스터 이미지 변경 이력과 변경 티켓"
+        ],
+        "auditorQuestions": [
+          "망분리 대상은 누구이며 그 기준은 무엇인가?",
+          "VDI에서 파일을 내 PC로 복사할 수 있는가? 시연해 줄 수 있는가?",
+          "업무망에서 인터넷망으로 자료를 옮기려면 어떤 절차를 거치는가?",
+          "USB나 개인 클라우드를 통한 반출은 어떻게 차단되는가?",
+          "망분리가 적용되지 않는 예외 단말은 몇 대이며 승인은 누가 했는가?",
+          "VDI 접속 기록은 얼마나 보관하며 점검은 누가 하는가?",
+          "마스터 이미지에 소프트웨어를 추가하려면 어떤 승인이 필요한가?"
+        ],
+        "controlExample": "고객정보 취급 업무 담당자는 업무망 VDI에서만 업무를 수행하며, VDI 세션의 클립보드·로컬 드라이브·USB·프린터 리디렉션은 전면 차단된다. 망 간 자료 전송은 망연계 시스템을 통해 부서장 승인과 악성코드 검사를 거친 경우에만 허용되고, 전송 이력과 VDI 접속 이력은 1년 이상 보관되어 보안담당자가 월 1회 점검한다."
+      },
+      "related": [
+        "onprem-vlan",
+        "onprem-network-appliance",
+        "onprem-windows-ad",
+        "onprem-gpo-eventlog",
+        "onprem-physical-security",
+        "comp-fss-egfs",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "전자금융감독규정 및 시행세칙(망분리 관련 조항)",
+        "금융분야 클라우드컴퓨팅서비스 이용 가이드",
+        "Citrix / Omnissa Horizon Security Configuration Guide",
+        "개인정보의 안전성 확보조치 기준"
+      ]
+    }
+  ]
+}

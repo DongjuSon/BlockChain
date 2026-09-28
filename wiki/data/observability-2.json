@@ -1,0 +1,1666 @@
+{
+  "category": "observability",
+  "categoryLabel": "관측성·모니터링·SRE·장애대응",
+  "entries": [
+    {
+      "id": "obs-opentelemetry",
+      "title": "OpenTelemetry",
+      "titleEn": "OpenTelemetry (OTel)",
+      "aliases": [
+        "OTel",
+        "오픈텔레메트리",
+        "OTLP",
+        "otel collector",
+        "계측 표준",
+        "벤더 중립 계측"
+      ],
+      "tags": [
+        "observability",
+        "standard",
+        "instrumentation",
+        "cncf"
+      ],
+      "level": "중급",
+      "oneLiner": "메트릭·로그·트레이스를 벤더 중립으로 만들고 보내는 업계 표준",
+      "analogy": "전기 콘센트 규격과 같다. 예전에는 나라마다(=관측 벤더마다) 플러그 모양이 달라서 기기를 바꾸면 선을 전부 새로 사야 했다. OpenTelemetry는 '220V 220핀' 같은 공통 규격을 정해서, 앱은 한 번만 꽂고 뒤쪽 발전소(Datadog이든 Grafana든)는 마음대로 갈아끼우게 해준다.",
+      "explanation": "<p><strong>OpenTelemetry(OTel)</strong>는 애플리케이션에서 관측 신호(트레이스·메트릭·로그)를 <strong>어떻게 만들고, 어떤 형식으로, 어떤 프로토콜로 보낼지</strong>를 정한 CNCF의 오픈 표준이자 그 구현체(SDK + Collector)다. 쿠버네티스 다음으로 CNCF에서 활동이 활발한 프로젝트이며, 2026년 현재 사실상 업계 표준 지위를 굳혔다.</p><p><strong>왜 필요한가.</strong> 예전에는 Datadog을 쓰면 dd-trace 에이전트를, New Relic을 쓰면 newrelic-agent를, Jaeger를 쓰면 jaeger-client를 코드에 심어야 했다. 벤더를 바꾸면 수백 개 마이크로서비스의 계측 코드를 전부 갈아엎어야 했고, 이것이 사실상 <strong>벤더 락인(vendor lock-in)</strong>이었다. OTel은 \"계측은 표준으로, 저장·조회는 자유롭게\"를 목표로 이 결합을 끊었다.</p><p><strong>구성요소는 네 덩어리</strong>다. (1) <strong>API/SDK</strong> — Java, Go, Python, Node.js, .NET 등 언어별 라이브러리. 코드에서 스팬을 만들고 메트릭을 올린다. (2) <strong>자동 계측(auto-instrumentation)</strong> — 코드를 한 줄도 안 고치고 에이전트를 붙이면 HTTP 서버, JDBC, Kafka 클라이언트 같은 흔한 라이브러리가 자동으로 계측된다. Java는 <code>-javaagent</code>, 쿠버네티스는 OTel Operator의 어노테이션 주입으로 한다. (3) <strong>OTLP(OpenTelemetry Protocol)</strong> — gRPC(4317) 또는 HTTP(4318)로 신호를 실어 나르는 전송 규격. (4) <strong>Collector</strong> — 신호를 받아서 가공(필터·마스킹·샘플링)하고 여러 백엔드로 나눠 보내는 중계 서버.</p><p><strong>Collector가 실무의 핵심</strong>이다. 파이프라인이 <code>receivers → processors → exporters</code> 구조로 되어 있어서, 예를 들어 \"OTLP로 받아서 → 카드번호 속성을 지우고 → 꼬리 샘플링으로 에러 트레이스만 남기고 → Tempo와 Datadog에 동시에 보낸다\"를 설정 파일 하나로 구성한다. 배포 형태는 각 노드에 하나씩 두는 <strong>에이전트(DaemonSet) 모드</strong>와, 중앙에 여러 대 두는 <strong>게이트웨이(Deployment) 모드</strong>를 섞어 쓴다.</p><p><strong>시맨틱 컨벤션(Semantic Conventions)</strong>도 OTel의 큰 자산이다. \"HTTP 응답 코드는 <code>http.response.status_code</code>, DB 시스템은 <code>db.system</code>\"처럼 속성 이름을 표준화해서, 팀마다 제각각인 라벨 때문에 대시보드를 못 만드는 문제를 없앤다. 신호 성숙도는 트레이스가 가장 안정적이고, 메트릭이 그다음, 로그는 기존 로그 파이프라인을 감싸는 브리지 형태로 자리를 잡아가는 중이다.</p><p>쉽게 말하면, 앱에는 OTel SDK만 붙이고, 모든 신호를 OTel Collector로 모은 뒤, 거기서 원하는 저장소로 뿌리는 구조다. 감사 관점에서 <strong>Collector는 개인정보 마스킹과 로그 라우팅이 실제로 집행되는 단일 지점</strong>이라 통제 포인트로서 가치가 매우 크다.</p>",
+      "howItWorks": "<ol><li>애플리케이션 기동 시 OTel SDK(또는 자동 계측 에이전트)가 로드되어 HTTP 핸들러, DB 드라이버, 메시지 클라이언트를 후킹한다.</li><li>요청이 들어오면 SDK가 trace ID/span ID를 생성하거나, 들어온 <code>traceparent</code> 헤더에서 이어받는다(컨텍스트 전파, W3C Trace Context).</li><li>처리 구간마다 스팬이 만들어지고 속성(<code>http.route</code>, <code>db.statement</code> 등)이 붙는다. 메트릭 계측기는 요청 수·지연을 누적한다.</li><li>SDK가 배치로 모아 OTLP(gRPC 4317 / HTTP 4318)로 같은 노드의 Collector(에이전트)에 전송한다.</li><li>Collector의 processors가 순서대로 동작한다 — <code>attributes</code>로 민감 속성 삭제, <code>resource</code>로 클러스터·환경 라벨 추가, <code>tail_sampling</code>으로 에러·느린 트레이스만 선별, <code>batch</code>로 압축.</li><li>exporters가 백엔드로 내보낸다. 트레이스는 Tempo/Jaeger, 메트릭은 Prometheus remote write/Mimir, 로그는 Loki/OpenSearch로 각각 또는 동시에 전송된다.</li><li>Grafana 등 조회 도구에서 trace ID를 공통 키로 세 신호를 오가며 원인을 좁힌다.</li></ol>",
+      "example": "<p>가상의 핀테크 '페이링크'는 결제·정산·회원 등 40여 개 마이크로서비스를 EKS에서 운영한다. 기존에는 Datadog APM 에이전트를 직접 심었는데, 연 라이선스 비용이 커져 일부 서비스는 자체 Tempo로 옮기기로 했다. 계측을 OTel로 통일한 뒤에는 앱을 재배포하지 않고 Collector 설정만 바꿔 \"결제 도메인은 Datadog, 내부 배치 도메인은 Tempo\"로 라우팅했다. 동시에 <code>card.number</code>, <code>user.ssn</code> 속성을 Collector 단계에서 제거하도록 강제해 모든 백엔드에 개인정보가 나가지 않게 만들었다.</p><p>OTel Collector 설정 예:</p><pre><code>receivers:\n  otlp:\n    protocols:\n      grpc: { endpoint: 0.0.0.0:4317 }\n      http: { endpoint: 0.0.0.0:4318 }\n\nprocessors:\n  attributes/scrub:\n    actions:\n      - key: card.number\n        action: delete\n      - key: user.ssn\n        action: delete\n      - key: http.request.header.authorization\n        action: delete\n  resource/env:\n    attributes:\n      - key: deployment.environment\n        value: prod\n        action: upsert\n  tail_sampling:\n    decision_wait: 10s\n    policies:\n      - name: errors-always\n        type: status_code\n        status_code: { status_codes: [ERROR] }\n      - name: slow-always\n        type: latency\n        latency: { threshold_ms: 1000 }\n      - name: baseline-10pct\n        type: probabilistic\n        probabilistic: { sampling_percentage: 10 }\n  batch: { timeout: 5s, send_batch_size: 8192 }\n\nexporters:\n  otlp/tempo:\n    endpoint: tempo-distributor.obs.svc:4317\n    tls: { insecure: true }\n  datadog:\n    api: { site: datadoghq.com, key: ${env:DD_API_KEY} }\n\nservice:\n  pipelines:\n    traces:\n      receivers: [otlp]\n      processors: [attributes/scrub, resource/env, tail_sampling, batch]\n      exporters: [otlp/tempo, datadog]</code></pre><p>쿠버네티스에서 Java 앱에 코드 수정 없이 자동 계측을 주입하는 예:</p><pre><code>apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: payment-api\nspec:\n  template:\n    metadata:\n      annotations:\n        instrumentation.opentelemetry.io/inject-java: \"obs/default-instrumentation\"\n    spec:\n      containers:\n        - name: app\n          image: registry.internal/payment-api:2026.09.1</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='15' y='40' width='110' height='50' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='70' y='62' text-anchor='middle' fill='currentColor' font-size='12'>결제 API</text><text x='70' y='79' text-anchor='middle' fill='currentColor' font-size='11'>OTel SDK</text><rect x='15' y='120' width='110' height='50' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='70' y='142' text-anchor='middle' fill='currentColor' font-size='12'>정산 배치</text><text x='70' y='159' text-anchor='middle' fill='currentColor' font-size='11'>자동 계측</text><rect x='15' y='200' width='110' height='50' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='70' y='222' text-anchor='middle' fill='currentColor' font-size='12'>회원 서비스</text><text x='70' y='239' text-anchor='middle' fill='currentColor' font-size='11'>OTel SDK</text><rect x='200' y='90' width='170' height='115' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='285' y='112' text-anchor='middle' fill='currentColor' font-size='12'>OTel Collector</text><text x='285' y='134' text-anchor='middle' fill='currentColor' font-size='11'>receivers: OTLP</text><text x='285' y='153' text-anchor='middle' fill='currentColor' font-size='11'>processors: 마스킹</text><text x='285' y='172' text-anchor='middle' fill='currentColor' font-size='11'>+ 샘플링 + batch</text><text x='285' y='191' text-anchor='middle' fill='currentColor' font-size='11'>exporters</text><line x1='125' y1='65' x2='198' y2='110' stroke='currentColor' marker-end='url(#ar)'/><line x1='125' y1='145' x2='198' y2='145' stroke='currentColor' marker-end='url(#ar)'/><line x1='125' y1='225' x2='198' y2='185' stroke='currentColor' marker-end='url(#ar)'/><text x='160' y='85' text-anchor='middle' fill='currentColor' font-size='10'>OTLP</text><rect x='450' y='30' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535' y='57' text-anchor='middle' fill='currentColor' font-size='12'>Tempo (트레이스)</text><rect x='450' y='105' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535' y='132' text-anchor='middle' fill='currentColor' font-size='12'>Mimir (메트릭)</text><rect x='450' y='180' width='170' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535' y='207' text-anchor='middle' fill='currentColor' font-size='12'>Loki (로그)</text><rect x='450' y='250' width='170' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='535' y='276' text-anchor='middle' fill='currentColor' font-size='12'>Datadog (SaaS)</text><line x1='370' y1='120' x2='448' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='140' x2='448' y2='128' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='160' x2='448' y2='200' stroke='currentColor' marker-end='url(#ar)'/><line x1='370' y1='180' x2='448' y2='268' stroke='currentColor' marker-end='url(#ar)'/><text x='285' y='230' text-anchor='middle' fill='currentColor' font-size='11'>개인정보 삭제가</text><text x='285' y='247' text-anchor='middle' fill='currentColor' font-size='11'>집행되는 단일 지점</text></svg>",
+      "keyTerms": [
+        {
+          "term": "OTLP",
+          "meaning": "OpenTelemetry 전용 전송 프로토콜. gRPC 4317, HTTP 4318 포트를 쓴다"
+        },
+        {
+          "term": "Collector",
+          "meaning": "신호를 받아 가공하고 여러 백엔드로 내보내는 중계 서버"
+        },
+        {
+          "term": "자동 계측(Auto-instrumentation)",
+          "meaning": "코드 수정 없이 에이전트만 붙여 흔한 라이브러리를 자동으로 계측하는 방식"
+        },
+        {
+          "term": "시맨틱 컨벤션",
+          "meaning": "속성 이름을 표준화한 규약. http.route, db.system 등"
+        },
+        {
+          "term": "컨텍스트 전파(Context propagation)",
+          "meaning": "traceparent 헤더로 서비스 간에 trace ID를 이어 넘기는 것"
+        },
+        {
+          "term": "꼬리 샘플링(Tail sampling)",
+          "meaning": "트레이스가 끝난 뒤 에러·지연 여부를 보고 저장 여부를 정하는 샘플링"
+        },
+        {
+          "term": "processor",
+          "meaning": "Collector 파이프라인에서 필터·마스킹·배치를 수행하는 단계"
+        },
+        {
+          "term": "리소스 속성(Resource attributes)",
+          "meaning": "서비스명·환경·클러스터처럼 신호 전체에 붙는 공통 식별 정보"
+        }
+      ],
+      "pitfalls": [
+        "자동 계측만 켜고 비즈니스 맥락 속성(주문번호 해시, 가맹점 ID 등급)을 안 넣어 트레이스를 봐도 업무적으로 해석이 안 된다.",
+        "Collector 없이 앱에서 SaaS 백엔드로 직접 쏘게 두면 마스킹·샘플링을 강제할 지점이 사라지고, 앱마다 API 키가 뿌려진다.",
+        "헤드 샘플링(요청 시작 시 확률로 결정)만 쓰면 정작 장애 난 에러 트레이스가 버려진다. 꼬리 샘플링을 함께 검토해야 한다.",
+        "db.statement 속성에 SQL 원문이 그대로 들어가 파라미터에 주민번호·계좌번호가 저장소로 흘러간다.",
+        "Collector를 단일 인스턴스로 운영하다가 그 서버가 죽으면 전체 관측이 멈춘다. 게이트웨이 모드는 반드시 다중화·큐잉 설정이 필요하다.",
+        "SDK 버전과 Collector 버전 호환을 무시하고 올리다 특정 신호만 조용히 유실되는 경우가 잦다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 재무보고에 영향을 주는 시스템(결제·정산·회계 인터페이스)이 OTel 계측 대상에 포함되어 있고, 계측 누락 시 탐지 절차가 있는지",
+          "[변경] Collector 설정(파이프라인, exporter 대상, 마스킹 규칙)이 코드로 관리되고 Git PR 승인·배포 이력이 남는지 — 마스킹 규칙 삭제가 무단으로 일어나면 개인정보 유출 경로가 된다",
+          "[접근] Collector가 보유한 백엔드 API 키(Datadog 키 등)가 Secret으로 관리되고 평문 ConfigMap에 노출되지 않는지",
+          "[운영] 신호 유실(드롭) 메트릭을 모니터링하고, 유실 발생 시 조치 절차가 있는지 — 증적 자체가 사라지는 위험",
+          "[ITAC] 트레이스 속성에 거래 식별자를 남길 때 원본 값이 아닌 해시/마스킹 값을 쓰도록 표준이 정의되어 있는지"
+        ],
+        "fss": [
+          "관측 데이터를 해외 리전 SaaS로 내보내는 경우, 전자금융감독규정 제14조의2 클라우드컴퓨팅서비스 이용절차에 따른 중요도 평가·안전성 확보조치·보고 대상 여부를 판단했는지",
+          "전송되는 신호에 개인신용정보가 포함되지 않도록 Collector 마스킹 규칙으로 기술적 통제를 구현했는지",
+          "전산자료 접근기록 보존 요건을 OTel로 수집한 로그가 충족하는지(보존기간·무결성 포함), 또는 별도 감사로그 경로가 있는지"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 — 표준 계측으로 수집되는 로그의 항목·보존 기준이 정의되어 있는지",
+          "2.10.1 보안시스템 운영 — Collector 및 관측 인프라의 운영 책임자와 설정 변경 절차가 정의되어 있는지",
+          "3.2.1 개인정보 현황관리 / 3.2.4 개인정보 목적 외 이용 제한 — 관측 신호에 개인정보가 수집되지 않도록 설계·점검하는지",
+          "2.6.1 네트워크 접근 — Collector의 수신 포트(4317/4318)가 내부망으로만 노출되는지"
+        ],
+        "evidence": [
+          "OTel Collector 설정 파일(YAML) 전체 export와 해당 파일의 Git 커밋/PR 승인 이력",
+          "마스킹·속성 삭제 processor 설정 화면과, 실제 백엔드에서 해당 속성이 조회되지 않음을 보여주는 검색 결과",
+          "계측 대상 서비스 목록과 실제 수신 중인 service.name 목록의 대사표",
+          "Collector의 신호 수신/드롭 메트릭 대시보드 캡처(otelcol_exporter_send_failed_spans 등)",
+          "exporter에 사용된 API 키가 Kubernetes Secret/외부 Vault에서 주입됨을 보여주는 매니페스트"
+        ],
+        "auditorQuestions": [
+          "결제 관련 서비스 중 관측 계측이 누락된 서비스가 있는지 어떻게 확인하십니까?",
+          "트레이스나 로그에 카드번호·주민번호가 들어가지 않도록 어느 단계에서 어떻게 막고 있습니까?",
+          "Collector 설정을 바꾸려면 누가 승인합니까? 최근 6개월 변경 이력을 보여주실 수 있습니까?",
+          "관측 데이터가 해외 SaaS로 전송된다면 어떤 데이터가 어디로 나가는지 목록이 있습니까?",
+          "신호가 유실되고 있는지는 어떻게 알 수 있습니까?"
+        ],
+        "controlExample": "전사 애플리케이션의 관측 신호는 OpenTelemetry SDK로 계측되어 OTel Collector를 반드시 경유하며, Collector 파이프라인에는 카드번호·주민등록번호·인증 헤더를 삭제하는 processor가 적용된다. Collector 설정은 Git으로 관리되고 변경 시 플랫폼팀 리더 승인 PR을 거치며, 신호 전송 실패율은 상시 모니터링되어 임계치 초과 시 SRE에게 알림이 발송된다."
+      },
+      "related": [
+        "obs-three-pillars",
+        "obs-jaeger-tempo",
+        "obs-apm",
+        "obs-prometheus",
+        "obs-loki",
+        "obs-log-pipeline",
+        "obs-newrelic-dynatrace",
+        "k8s-pod"
+      ],
+      "learnMore": [
+        "OpenTelemetry Documentation — Concepts",
+        "OpenTelemetry Collector — Configuration",
+        "W3C Trace Context Specification",
+        "CNCF OpenTelemetry Project"
+      ]
+    },
+    {
+      "id": "obs-jaeger-tempo",
+      "title": "Jaeger / Tempo (분산 추적)",
+      "titleEn": "Distributed Tracing with Jaeger and Grafana Tempo",
+      "aliases": [
+        "분산추적",
+        "distributed tracing",
+        "예거",
+        "템포",
+        "trace",
+        "span",
+        "Zipkin",
+        "트레이싱 백엔드"
+      ],
+      "tags": [
+        "observability",
+        "tracing",
+        "microservices"
+      ],
+      "level": "중급",
+      "oneLiner": "요청 하나가 여러 서비스를 지나며 어디서 시간을 썼는지 보여주는 도구",
+      "analogy": "택배 배송 조회와 같다. 주문 하나에 운송장 번호(trace ID)가 붙고, 집하장·허브·배송기사 각 단계(span)마다 도착·출발 시각이 찍힌다. '왜 늦었지?'를 물으면 옥천허브에서 14시간 머물렀다는 걸 한눈에 보여주는 화면, 그게 트레이스 뷰다.",
+      "explanation": "<p><strong>분산 추적(Distributed Tracing)</strong>은 사용자의 요청 한 건이 API 게이트웨이 → 인증 서비스 → 주문 서비스 → 결제 서비스 → DB → 외부 카드사로 흘러가는 전 경로를, 각 구간의 소요 시간과 함께 하나의 타임라인으로 이어 붙여 보는 기술이다. 마이크로서비스 이전에는 서버 한 대의 프로파일러로 충분했지만, 수십 개 서비스로 쪼개진 뒤로는 \"느린데 누가 범인인지\" 알 방법이 이것밖에 없다.</p><p><strong>핵심 데이터 모델</strong>은 간단하다. <strong>트레이스(Trace)</strong>는 요청 한 건 전체이고 고유한 trace ID를 갖는다. <strong>스팬(Span)</strong>은 그 안의 작업 한 구간으로, span ID·부모 span ID·시작/종료 시각·속성(attributes)·이벤트를 갖는다. 스팬들이 부모-자식으로 이어져 나무(tree) 구조를 이루고, 화면에서는 이를 가로 막대들이 계단식으로 쌓인 <strong>폭포수 뷰(waterfall)</strong>로 그린다. 서비스 간에 trace ID를 넘기는 방법은 W3C의 <code>traceparent</code> HTTP 헤더가 표준이다.</p><p><strong>Jaeger</strong>는 Uber가 만들어 CNCF에 기부한 오픈소스 트레이싱 백엔드다. 2026년 현재 Jaeger v2는 내부를 OpenTelemetry Collector 기반으로 재구성했고, 저장소로 Cassandra, Elasticsearch/OpenSearch를 쓴다. 자체 UI가 훌륭하고 서비스 의존성 그래프를 그려준다.</p><p><strong>Grafana Tempo</strong>는 접근 방식이 다르다. 트레이스를 <strong>인덱싱하지 않고 객체 스토리지(S3/GCS)에 통째로 저장</strong>해 비용을 극단적으로 낮춘다. \"trace ID를 알면 즉시 꺼내준다\"가 기본이고, 속성으로 검색하고 싶으면 TraceQL이라는 질의 언어를 쓴다. 로그(Loki)·메트릭(Prometheus)과 Grafana에서 한 화면으로 엮이는 것이 최대 강점이다. 쉽게 말해 <strong>Jaeger는 검색이 강하고, Tempo는 보관 비용이 압도적으로 싸다.</strong></p><p><strong>샘플링</strong>이 운영의 전부라 해도 과언이 아니다. 모든 요청을 저장하면 비용이 감당이 안 되므로 일부만 남긴다. <strong>헤드 샘플링</strong>은 요청 시작 시점에 확률(예: 1%)로 결정해 단순하지만, 정작 실패한 요청이 버려질 수 있다. <strong>꼬리 샘플링</strong>은 트레이스가 끝난 뒤 \"에러가 났거나 1초 이상 걸린 건 무조건 저장, 나머지는 1%\"처럼 결정해 훨씬 유용하지만 Collector가 트레이스를 잠시 메모리에 모아야 해서 자원을 더 쓴다.</p><p>감사 관점에서 트레이스는 <strong>양날의 칼</strong>이다. \"이 이체 요청이 어떤 시스템을 어떤 순서로 거쳤는가\"를 보여주는 훌륭한 처리 무결성 증적이지만, 동시에 요청 파라미터·SQL·헤더가 속성에 그대로 담기면 개인정보 저장소가 되어버린다. 그래서 <strong>무엇을 스팬 속성으로 남길지에 대한 표준</strong>이 통제 항목이 된다.</p>",
+      "howItWorks": "<ol><li>사용자가 <code>POST /payments</code>를 호출하면 진입점(API 게이트웨이 또는 첫 서비스)이 새 trace ID를 만들고 루트 스팬을 연다.</li><li>다음 서비스를 호출할 때 HTTP 헤더에 <code>traceparent: 00-4bf92f3577b34da6...-00f067aa0ba902b7-01</code>을 실어 보낸다.</li><li>받은 서비스는 그 trace ID를 이어받아 자식 스팬을 만들고, DB 쿼리·Kafka 발행 같은 하위 작업마다 다시 자식 스팬을 판다.</li><li>각 스팬이 끝날 때 종료 시각과 상태(OK/ERROR)가 확정되고, SDK가 배치로 OTel Collector에 OTLP로 보낸다.</li><li>Collector가 꼬리 샘플링 정책을 적용한다 — 같은 trace ID의 스팬을 10초간 모아 보고, 에러/지연이 있으면 전부 저장, 아니면 확률적으로 버린다.</li><li>저장소에 기록된다. Tempo는 S3의 블록에 append하고 trace ID 기준 블룸 필터만 만든다. Jaeger는 Elasticsearch/Cassandra에 스팬을 색인한다.</li><li>조회 시 Grafana/Jaeger UI가 trace ID로 스팬들을 모아 부모-자식 관계로 정렬하고 폭포수 뷰로 그린다. 로그의 trace_id 필드를 클릭해 바로 이 화면으로 점프하는 것이 전형적인 장애 분석 동선이다.</li></ol>",
+      "example": "<p>가상 커머스 '마켓링크'에서 주문 완료 API의 p99가 1.2초에서 4.5초로 올랐다. Grafana 대시보드에서 지연 상승을 확인한 뒤 Tempo의 TraceQL로 느린 트레이스만 뽑았다. 폭포수 뷰를 보니 전체 4.4초 중 3.9초가 <code>inventory-service</code>의 <code>SELECT ... FOR UPDATE</code> 스팬에서 소비되었고, 같은 상품 ID에 락 경합이 걸린 것이 원인이었다. 재고 차감을 비관적 락에서 원자적 UPDATE로 바꿔 p99가 0.9초로 내려갔다.</p><p>느린 결제 트레이스만 찾는 TraceQL 예:</p><pre><code>{ resource.service.name = \"payment-api\"\n  &amp;&amp; span.http.route = \"/v1/payments\"\n  &amp;&amp; duration &gt; 2s }\n| select(span.db.system, span.http.response.status_code)</code></pre><p>에러가 있는 트레이스만 찾기:</p><pre><code>{ status = error &amp;&amp; resource.deployment.environment = \"prod\" }</code></pre><p>Tempo를 S3 백엔드로 구성하고 보존기간을 두는 설정 예:</p><pre><code>storage:\n  trace:\n    backend: s3\n    s3:\n      bucket: marketlink-tempo-prod\n      endpoint: s3.ap-northeast-2.amazonaws.com\n      region: ap-northeast-2\ncompactor:\n  compaction:\n    block_retention: 720h   # 30일 보존\noverrides:\n  defaults:\n    ingestion:\n      rate_limit_bytes: 20000000</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='20' y='24' fill='currentColor' font-size='12'>trace_id = 4bf92f35...  (폭포수 뷰)</text><line x1='20' y1='34' x2='620' y2='34' stroke='currentColor'/><rect x='20' y='45' width='560' height='24' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='28' y='62' fill='currentColor' font-size='11'>gateway  POST /payments   4.4s</text><rect x='60' y='79' width='480' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='68' y='96' fill='currentColor' font-size='11'>order-service  createOrder   4.1s</text><rect x='100' y='113' width='120' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='108' y='130' fill='currentColor' font-size='11'>auth  0.1s</text><rect x='230' y='113' width='300' height='24' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='238' y='130' fill='currentColor' font-size='11'>inventory  SELECT FOR UPDATE  3.9s</text><rect x='100' y='147' width='90' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='108' y='164' fill='currentColor' font-size='11'>redis  8ms</text><rect x='540' y='79' width='60' height='24' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='546' y='96' fill='currentColor' font-size='11'>pay 0.3s</text><text x='20' y='196' fill='currentColor' font-size='12'>수집 경로</text><rect x='20' y='206' width='110' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='75' y='232' text-anchor='middle' fill='currentColor' font-size='11'>앱 SDK (스팬)</text><rect x='175' y='206' width='130' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='240' y='226' text-anchor='middle' fill='currentColor' font-size='11'>OTel Collector</text><text x='240' y='242' text-anchor='middle' fill='currentColor' font-size='11'>꼬리 샘플링</text><rect x='350' y='206' width='120' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='410' y='232' text-anchor='middle' fill='currentColor' font-size='11'>Tempo / Jaeger</text><rect x='515' y='206' width='105' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='567' y='232' text-anchor='middle' fill='currentColor' font-size='11'>Grafana UI</text><line x1='130' y1='227' x2='173' y2='227' stroke='currentColor' marker-end='url(#ar)'/><line x1='305' y1='227' x2='348' y2='227' stroke='currentColor' marker-end='url(#ar)'/><line x1='470' y1='227' x2='513' y2='227' stroke='currentColor' marker-end='url(#ar)'/><text x='240' y='270' text-anchor='middle' fill='currentColor' font-size='11'>에러·1s 초과는 무조건 저장, 나머지 1%</text></svg>",
+      "keyTerms": [
+        {
+          "term": "트레이스(Trace)",
+          "meaning": "요청 한 건의 전체 처리 과정. 고유 trace ID로 식별된다"
+        },
+        {
+          "term": "스팬(Span)",
+          "meaning": "트레이스 안의 한 작업 구간. 시작·종료 시각과 속성을 갖는다"
+        },
+        {
+          "term": "traceparent",
+          "meaning": "W3C 표준 HTTP 헤더. 서비스 간에 trace ID를 넘기는 수단"
+        },
+        {
+          "term": "폭포수 뷰(Waterfall)",
+          "meaning": "스팬을 시간축 막대로 계단식으로 그린 화면"
+        },
+        {
+          "term": "TraceQL",
+          "meaning": "Tempo의 트레이스 검색 질의 언어"
+        },
+        {
+          "term": "헤드/꼬리 샘플링",
+          "meaning": "시작 시점 확률로 정하느냐, 끝난 뒤 에러·지연을 보고 정하느냐의 차이"
+        },
+        {
+          "term": "서비스 그래프(Service graph)",
+          "meaning": "트레이스를 집계해 그린 서비스 간 호출 관계도"
+        },
+        {
+          "term": "컨텍스트 전파",
+          "meaning": "비동기·메시지 큐를 넘어갈 때도 trace ID를 이어 붙이는 처리"
+        }
+      ],
+      "pitfalls": [
+        "Kafka·SQS 같은 비동기 경계에서 컨텍스트 전파를 구현하지 않아 트레이스가 중간에 끊긴다.",
+        "스팬 속성에 요청 본문(JSON body)이나 SQL 원문을 통째로 넣어 개인정보와 저장 비용이 동시에 폭발한다.",
+        "샘플링률 100%로 운영하다 스토리지 비용이 로그보다 커진다. 반대로 0.1%로 낮춰 정작 장애 트레이스가 하나도 없다.",
+        "Tempo를 쓰면서 trace ID 없이 속성만으로 검색하려다 느리다고 불평한다. Tempo는 로그·메트릭에서 trace ID로 점프하는 동선이 전제다.",
+        "트레이스 보존기간을 30일로 두고, 그보다 오래된 장애를 소급 조사하려다 데이터가 없어 곤란해진다.",
+        "서비스명(service.name)을 팀마다 제각각 지어(payment, pay-api, PaymentSvc) 의존성 그래프가 쪼개진다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 결제·정산 등 핵심 거래 경로에 대해 트레이스가 수집되고 있으며, 장애 원인 분석에 실제로 활용된 이력이 있는지",
+          "[접근] 트레이스 조회 권한이 역할 기반으로 제한되어 있는지 — 트레이스에는 요청 파라미터가 담길 수 있어 일반 조회 권한 남발은 정보 유출 경로가 된다",
+          "[변경] 스팬 속성 표준(무엇을 남기고 무엇을 금지하는지)이 문서화되어 있고, 위반 시 탐지 장치가 있는지",
+          "[운영] 트레이스 보존기간이 장애 소급 조사 및 감사 요구 기간을 충족하는지",
+          "[ITAC] 거래 처리 순서·재시도 여부를 트레이스로 확인할 수 있어 처리 무결성 증적으로 활용 가능한지"
+        ],
+        "fss": [
+          "트레이스에 전자금융거래 관련 개인신용정보(계좌번호, 카드번호, 주민번호)가 저장되지 않도록 기술적 통제가 있는지",
+          "트레이스 저장소가 클라우드 객체 스토리지인 경우 암호화(SSE-KMS)와 접근통제가 적용되었는지",
+          "장애 원인 분석 결과를 금융감독당국 보고(전자금융 사고 보고)에 활용할 때 트레이스 기록의 시각 동기화(NTP)가 보장되는지"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 — 트레이스를 로그성 기록으로 볼 경우 보존·보호 기준이 적용되는지",
+          "2.10.8 패치관리/2.10.1 보안시스템 운영 — 트레이싱 백엔드의 버전 관리와 운영 책임이 정의되었는지",
+          "3.2.1 개인정보 현황관리 — 트레이스 저장소가 개인정보 처리 시스템 목록에 포함되어야 하는지 판단했는지",
+          "2.6.1 네트워크 접근 — Tempo/Jaeger UI가 사내망 또는 SSO 뒤에만 노출되는지"
+        ],
+        "evidence": [
+          "샘플링 정책 설정 파일(tail_sampling policies) export와 적용 일자",
+          "Tempo/Jaeger 보존기간 설정(block_retention, ES ILM policy) 캡처",
+          "트레이스 UI 접근 권한 목록(Grafana 팀·역할 매핑, SSO 그룹)",
+          "스팬 속성 표준 문서와, 금지 속성이 실제로 저장되지 않음을 보여주는 TraceQL 검색 결과",
+          "특정 장애 건에 대한 실제 트레이스 스크린샷과 포스트모템 문서의 연결",
+          "트레이스 저장 버킷의 암호화 설정 및 버킷 정책"
+        ],
+        "auditorQuestions": [
+          "결제 트랜잭션의 처리 경로를 시스템으로 재구성해 보여주실 수 있습니까?",
+          "트레이스에 개인정보가 담기지 않도록 어떤 규칙이 있고 누가 점검합니까?",
+          "트레이스는 얼마나 보관되며, 6개월 전 장애를 다시 조사해야 한다면 데이터가 남아 있습니까?",
+          "트레이스 조회는 누가 할 수 있고 그 권한은 어떻게 부여됩니까?",
+          "샘플링 때문에 정작 중요한 실패 요청이 누락되지는 않습니까?"
+        ],
+        "controlExample": "운영 환경의 분산 추적은 OTel Collector의 꼬리 샘플링 정책에 따라 에러 또는 1초 초과 트레이스를 100% 저장하고 정상 트레이스는 10%만 저장하며, 저장 데이터는 KMS로 암호화된 S3에 30일 보존된다. 트레이스 조회 권한은 SRE·개발 리드 그룹으로 제한되고 반기별로 재검토된다."
+      },
+      "related": [
+        "obs-opentelemetry",
+        "obs-three-pillars",
+        "obs-apm",
+        "obs-grafana",
+        "obs-loki",
+        "obs-red-use-golden-signals",
+        "app-msa"
+      ],
+      "learnMore": [
+        "Grafana Tempo Documentation — TraceQL",
+        "Jaeger Documentation — Architecture",
+        "OpenTelemetry — Traces Concepts",
+        "W3C Trace Context"
+      ]
+    },
+    {
+      "id": "obs-apm",
+      "title": "APM (애플리케이션 성능 모니터링)",
+      "titleEn": "Application Performance Monitoring / Management",
+      "aliases": [
+        "APM",
+        "애플리케이션 성능 관리",
+        "성능 모니터링",
+        "트랜잭션 모니터링",
+        "제니퍼",
+        "핀포인트",
+        "pinpoint"
+      ],
+      "tags": [
+        "observability",
+        "apm",
+        "performance"
+      ],
+      "level": "중급",
+      "oneLiner": "앱 내부 코드 수준까지 성능과 오류를 들여다보는 모니터링 계층",
+      "analogy": "자동차 정비소의 진단기(OBD 스캐너)와 같다. 계기판(인프라 메트릭)은 '엔진 과열'까지만 알려주지만, 진단기를 꽂으면 몇 번 실린더의 어떤 센서가 어떤 코드로 오류를 내는지까지 나온다. APM은 서버 CPU가 아니라 '어느 메서드, 어느 SQL이 느린가'를 짚어준다.",
+      "explanation": "<p><strong>APM(Application Performance Monitoring)</strong>은 서버·네트워크 같은 인프라가 아니라 <strong>애플리케이션 코드 내부</strong>를 관측 대상으로 삼는 계층이다. 트랜잭션(사용자 요청) 단위로 응답시간·처리량·오류율을 집계하고, 느린 요청은 메서드 호출 스택과 SQL 단위까지 쪼개 보여준다.</p><p><strong>왜 필요한가.</strong> 인프라 메트릭만 보면 \"CPU 40%, 메모리 60%, 다 정상인데 사용자는 느리다\"는 상황을 설명할 수 없다. 실제 원인은 N+1 쿼리, 커넥션 풀 고갈, 외부 API 타임아웃, GC 스톱 같은 코드·런타임 레벨에 있다. APM은 이 층을 비춘다.</p><p><strong>핵심 기능은 다섯 가지</strong>다. (1) <strong>트랜잭션 추적</strong> — URL/엔드포인트별 응답시간 분포와 느린 트랜잭션의 호출 스택. (2) <strong>DB 모니터링</strong> — 실행된 SQL을 정규화해 느린 쿼리 순위, 호출 횟수, 커넥션 풀 상태를 보여준다. (3) <strong>외부 호출 추적</strong> — 결제사·인증사 등 외부 API 구간의 지연과 실패율. (4) <strong>런타임 진단</strong> — JVM 힙/GC, .NET CLR, Node 이벤트 루프 지연, 스레드 덤프. (5) <strong>에러 추적</strong> — 예외 스택 트레이스를 유형별로 묶어 빈도·영향 사용자 수 집계.</p><p><strong>도구 지형</strong>은 이렇다. 상용 SaaS로는 Datadog APM, New Relic, Dynatrace, Elastic APM이 있고, 국내 온프레미스 강자로 <strong>제니퍼(JENNIFER)</strong>가 금융권에서 널리 쓰인다. 오픈소스로는 네이버가 만든 <strong>핀포인트(Pinpoint)</strong>, SkyWalking이 있다. 2026년 현재 신규 구축은 대부분 <strong>OpenTelemetry로 계측하고 백엔드를 자유롭게 고르는</strong> 방향으로 간다. APM과 분산 추적의 경계는 사실상 사라졌고, APM은 \"트레이스 + 런타임 프로파일 + 에러 추적을 묶어 제품화한 것\"으로 이해하면 된다.</p><p><strong>APM은 감사 관점에서 특히 흥미롭다.</strong> 코드 내부를 보는 도구이므로 SQL 원문, 요청 파라미터, HTTP 헤더가 화면에 노출될 수 있다. 개발자가 운영 DB의 실제 데이터를 조회하는 권한이 없어도, APM 화면에서 <code>SELECT * FROM members WHERE ssn='...'</code> 같은 바인딩 값을 볼 수 있다면 <strong>접근통제가 우회</strong>되는 셈이다. 그래서 APM의 SQL 바인딩 변수 수집 여부, 마스킹, 조회 권한이 반드시 통제 항목에 들어간다.</p><p>쉽게 말하면 APM은 \"느린 이유를 코드 한 줄까지 짚어주는 도구\"이고, 그 대가로 \"운영 데이터를 들여다볼 수 있는 창문\"이 하나 더 생기는 것이다. 편익과 위험을 같이 관리해야 한다.</p>",
+      "howItWorks": "<ol><li>애플리케이션 기동 시 APM 에이전트가 바이트코드 계측(Java는 <code>-javaagent</code>로 클래스 로딩 시 코드 삽입)으로 주요 진입점과 라이브러리를 후킹한다.</li><li>요청이 들어오면 트랜잭션이 시작되고, 컨트롤러 → 서비스 → 리포지토리 → JDBC 호출까지 각 구간의 시작·종료 시각이 기록된다.</li><li>SQL은 파라미터를 <code>?</code>로 치환한 정규화 형태로 집계되고(설정에 따라 바인딩 값도 수집), 외부 HTTP 호출은 대상 호스트별로 분류된다.</li><li>예외가 발생하면 스택 트레이스가 잡히고 동일 유형끼리 지문(fingerprint)으로 묶인다.</li><li>에이전트가 수집한 데이터를 샘플링·집계해 수집 서버(SaaS 또는 온프레미스 Collector)로 주기적으로 전송한다.</li><li>백엔드가 엔드포인트별 통계, Apdex 점수, 오류율을 계산하고 기준선(baseline) 대비 이탈을 탐지한다.</li><li>임계치 초과 또는 이상 탐지 시 알림이 발송되고, 담당자는 느린 트랜잭션 상세 → 호출 스택 → 해당 SQL/외부 호출 순으로 원인을 좁힌다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'의 회원 조회 API가 오후 피크 시간마다 p95 응답시간이 300ms에서 2.8초로 튀었다. 인프라 메트릭은 CPU 35%로 평온했다. APM 트랜잭션 상세를 열어보니 한 요청에서 <code>SELECT ... FROM member_grade WHERE member_id = ?</code>가 <strong>247회</strong> 호출되고 있었다. 전형적인 N+1 문제였고, JPA 연관관계를 지연 로딩에서 배치 페치로 바꿔 호출을 1회로 줄이자 p95가 210ms로 내려갔다. 같은 화면에서 HikariCP 활성 커넥션이 상한 20에 붙어 있었던 것도 함께 확인됐다.</p><p>APM 에이전트에서 SQL 바인딩 변수 수집을 끄고 민감 파라미터를 마스킹하는 설정 예(Elastic APM 기준):</p><pre><code># elasticapm.properties\nservice_name=member-api\nenvironment=prod\napplication_packages=com.paylink\n# SQL 파라미터 원문 수집 금지\nspan_stack_trace_min_duration=50ms\n# HTTP 바디 수집 금지 (기본 off 유지)\ncapture_body=off\n# 민감 헤더/폼 필드 마스킹\nsanitize_field_names=password,passwd,pwd,secret,*key,*token,*session*,set-cookie,authorization,ssn,card_no,account_no\ntransaction_sample_rate=0.2</code></pre><p>느린 트랜잭션 상위를 뽑는 Datadog APM 쿼리 예:</p><pre><code>service:member-api env:prod\n| top 10 by p95(@duration)\n  facet @resource_name\n  where @http.status_code:&gt;=200</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 290' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='30' width='150' height='200' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='52' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션 (JVM)</text><rect x='35' y='66' width='120' height='28' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='95' y='85' text-anchor='middle' fill='currentColor' font-size='11'>Controller</text><rect x='35' y='102' width='120' height='28' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='95' y='121' text-anchor='middle' fill='currentColor' font-size='11'>Service</text><rect x='35' y='138' width='120' height='28' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='95' y='157' text-anchor='middle' fill='currentColor' font-size='11'>Repository</text><rect x='35' y='174' width='120' height='28' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='95' y='193' text-anchor='middle' fill='currentColor' font-size='11'>JDBC / HTTP</text><text x='95' y='219' text-anchor='middle' fill='currentColor' font-size='11'>+ APM 에이전트</text><rect x='245' y='40' width='150' height='55' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='62' text-anchor='middle' fill='currentColor' font-size='11'>트랜잭션 통계</text><text x='320' y='80' text-anchor='middle' fill='currentColor' font-size='11'>p95 / 처리량 / 오류율</text><rect x='245' y='110' width='150' height='55' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='132' text-anchor='middle' fill='currentColor' font-size='11'>SQL 프로파일</text><text x='320' y='150' text-anchor='middle' fill='currentColor' font-size='11'>느린 쿼리 / N+1</text><rect x='245' y='180' width='150' height='55' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='202' text-anchor='middle' fill='currentColor' font-size='11'>런타임 / 에러</text><text x='320' y='220' text-anchor='middle' fill='currentColor' font-size='11'>GC · 스레드 · 예외</text><line x1='170' y1='95' x2='243' y2='67' stroke='currentColor' marker-end='url(#ar)'/><line x1='170' y1='135' x2='243' y2='137' stroke='currentColor' marker-end='url(#ar)'/><line x1='170' y1='180' x2='243' y2='207' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='70' width='155' height='70' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='542' y='98' text-anchor='middle' fill='currentColor' font-size='12'>APM 콘솔</text><text x='542' y='118' text-anchor='middle' fill='currentColor' font-size='11'>조회권한 통제 대상</text><line x1='395' y1='67' x2='463' y2='90' stroke='currentColor' marker-end='url(#ar)'/><line x1='395' y1='137' x2='463' y2='108' stroke='currentColor' marker-end='url(#ar)'/><line x1='395' y1='207' x2='463' y2='128' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='175' width='155' height='62' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='542' y='198' text-anchor='middle' fill='currentColor' font-size='11'>바인딩 값·헤더는</text><text x='542' y='216' text-anchor='middle' fill='currentColor' font-size='11'>수집 단계에서 마스킹</text><line x1='542' y1='140' x2='542' y2='173' stroke='currentColor' marker-end='url(#ar)'/><text x='320' y='268' text-anchor='middle' fill='currentColor' font-size='11'>인프라가 정상인데 느린 이유를 코드 레벨에서 설명한다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "트랜잭션(Transaction)",
+          "meaning": "APM에서 추적하는 사용자 요청 처리 단위. 보통 HTTP 엔드포인트 하나"
+        },
+        {
+          "term": "Apdex",
+          "meaning": "만족 기준 응답시간 대비 사용자 만족도를 0~1로 환산한 지표"
+        },
+        {
+          "term": "바이트코드 계측",
+          "meaning": "클래스 로딩 시점에 코드를 자동 삽입해 계측하는 기법. 소스 수정이 필요 없다"
+        },
+        {
+          "term": "N+1 쿼리",
+          "meaning": "목록 1건 조회 후 항목마다 추가 쿼리가 나가 호출이 폭증하는 안티패턴"
+        },
+        {
+          "term": "커넥션 풀(Connection pool)",
+          "meaning": "DB 연결을 미리 만들어 재사용하는 저장소. 고갈되면 요청이 대기한다"
+        },
+        {
+          "term": "기준선(Baseline)",
+          "meaning": "평소 패턴을 학습해 만든 정상 범위. 이탈 시 이상으로 판단"
+        },
+        {
+          "term": "에러 그룹핑",
+          "meaning": "같은 유형의 예외를 지문으로 묶어 빈도·영향도를 집계하는 기능"
+        },
+        {
+          "term": "샘플 레이트",
+          "meaning": "전체 트랜잭션 중 상세를 저장하는 비율. 비용과 관측 깊이의 균형점"
+        }
+      ],
+      "pitfalls": [
+        "APM 화면에서 SQL 바인딩 값을 그대로 볼 수 있게 두어, DB 접근권한이 없는 개발자가 운영 데이터를 조회하는 우회 경로가 된다.",
+        "capture_body를 켜 두어 요청 JSON 전체(계좌번호 포함)가 APM 서버에 저장된다.",
+        "에이전트를 전 서비스에 붙이며 오버헤드(보통 2~7%)를 고려하지 않아 피크 시간에 오히려 지연이 늘어난다.",
+        "APM 알림을 '평균 응답시간' 기준으로 걸어, 소수 사용자가 겪는 심각한 지연(p99)을 놓친다.",
+        "APM과 별도로 OTel도 붙여 이중 계측이 되면서 스팬이 중복 생성되고 비용이 두 배가 된다.",
+        "에이전트 버전 업그레이드를 변경관리 없이 진행해 특정 프레임워크와 충돌, 운영 장애를 유발한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] APM 콘솔 조회 권한이 최소권한으로 부여되고 반기/분기 사용자 접근 검토(UAR) 대상에 포함되는지 — APM은 사실상 운영 데이터 열람 창구가 될 수 있다",
+          "[접근] SQL 바인딩 변수·HTTP 바디·헤더 수집이 기본 비활성 또는 마스킹되도록 표준 설정이 강제되는지",
+          "[변경] APM 에이전트 설치·버전 변경·샘플링 설정 변경이 변경관리 절차를 거치는지",
+          "[운영] 성능 임계치와 알림 기준이 정의되어 있고, 발생한 알림에 대한 조치 기록이 남는지",
+          "[ITAC] 배치·인터페이스의 처리 건수/실패율을 APM 트랜잭션 지표로 확인해 자동화 통제의 유효성을 뒷받침하는지"
+        ],
+        "fss": [
+          "APM이 SaaS인 경우 거래·고객정보가 포함될 수 있는 데이터의 국외 이전 여부를 검토하고 전자금융감독규정 제14조의2 클라우드 이용절차를 적용했는지",
+          "개인신용정보가 APM에 저장되지 않도록 마스킹·수집 제한 조치를 적용하고 그 유효성을 정기 점검하는지",
+          "전자금융 거래 지연·오류를 인지하는 수단으로 APM 지표가 활용되며, 장애 인지 시각의 근거로 쓰일 수 있는지"
+        ],
+        "isms": [
+          "2.5.1 사용자 계정 관리 / 2.5.6 접근권한 검토 — APM 콘솔 계정과 권한이 관리·검토 대상인지",
+          "2.9.4 로그 및 접속기록 관리 — APM이 수집한 데이터의 보존기간과 보호조치가 정의되어 있는지",
+          "3.2.4 개인정보 목적 외 이용 제한 — 성능 분석 목적으로 수집한 데이터에 개인정보가 포함되지 않도록 관리하는지",
+          "2.10.1 보안시스템 운영 — APM 서버·에이전트의 운영 책임과 변경 절차가 정의되었는지"
+        ],
+        "evidence": [
+          "APM 콘솔 사용자·역할 목록 export와 최근 접근권한 검토 결과지",
+          "에이전트 표준 설정 파일(마스킹 항목, capture_body, 샘플레이트) 및 배포 파이프라인에서 강제되는 근거",
+          "APM 화면에서 민감 필드가 마스킹되어 표시되는 스크린샷",
+          "성능 알림 정책 목록과 최근 3개월 알림 발생·조치 이력",
+          "APM 에이전트 버전 변경에 대한 변경요청서(RFC)와 승인 기록",
+          "SaaS APM 사용 시 데이터 처리 위탁/국외이전 검토 문서"
+        ],
+        "auditorQuestions": [
+          "APM 콘솔에 접근할 수 있는 사람은 누구이며 그 목록을 어떻게 관리합니까?",
+          "APM에서 실제 고객 데이터(주민번호, 계좌번호)를 볼 수 있습니까? 막고 있다면 어떻게 확인합니까?",
+          "성능 저하 알림이 발생했을 때의 처리 절차와 최근 사례를 보여주실 수 있습니까?",
+          "APM 에이전트를 운영 서버에 설치하거나 업그레이드할 때 어떤 승인을 받습니까?",
+          "APM이 수집한 데이터는 얼마나 보관되며 어디에 저장됩니까?"
+        ],
+        "controlExample": "운영 애플리케이션의 APM 에이전트는 표준 설정 템플릿으로만 배포되며, SQL 바인딩 변수 및 HTTP 요청 본문 수집은 비활성화되고 인증 헤더·식별정보 필드는 마스킹된다. APM 콘솔 접근 권한은 SRE 및 서비스 담당 개발자로 제한되어 분기별 접근권한 검토를 수행하고 그 결과를 보관한다."
+      },
+      "related": [
+        "obs-jaeger-tempo",
+        "obs-opentelemetry",
+        "obs-newrelic-dynatrace",
+        "obs-red-use-golden-signals",
+        "obs-performance-testing",
+        "obs-datadog",
+        "db-postgresql"
+      ],
+      "learnMore": [
+        "Elastic APM Documentation — Agent configuration",
+        "Datadog APM Documentation",
+        "Apache SkyWalking Documentation",
+        "Pinpoint (Naver) GitHub Documentation"
+      ]
+    },
+    {
+      "id": "obs-newrelic-dynatrace",
+      "title": "New Relic / Dynatrace",
+      "titleEn": "New Relic and Dynatrace (Commercial Observability Platforms)",
+      "aliases": [
+        "뉴렐릭",
+        "다이나트레이스",
+        "상용 APM",
+        "SaaS 모니터링",
+        "OneAgent",
+        "Davis AI"
+      ],
+      "tags": [
+        "observability",
+        "saas",
+        "apm",
+        "vendor"
+      ],
+      "level": "중급",
+      "oneLiner": "에이전트 하나로 전 계층을 자동 수집하는 상용 관측 플랫폼",
+      "analogy": "종합병원 건강검진 패키지와 같다. 직접 여러 병원(Prometheus, Loki, Jaeger)을 예약해 다니는 대신, 한 곳에 가서 채혈 한 번 하면 알아서 수십 가지 검사를 하고 '이 수치가 비정상이며 아마 이 원인'이라는 소견서까지 준다. 대신 비용이 비싸고 그 병원 시스템에 기록이 묶인다.",
+      "explanation": "<p><strong>New Relic</strong>과 <strong>Dynatrace</strong>는 메트릭·로그·트레이스·실사용자 모니터링(RUM)·인프라·보안까지 한 플랫폼에서 제공하는 상용 SaaS 관측 도구다. Datadog과 함께 시장 상위 3사로 묶이며, 금융·대기업에서 \"직접 운영하지 않고 사는\" 선택지로 자주 검토된다.</p><p><strong>Dynatrace의 특징</strong>은 <strong>OneAgent</strong>와 <strong>Davis AI</strong>다. OneAgent를 호스트에 한 번 설치하면 그 위에서 도는 프로세스를 자동 인식해 애플리케이션·컨테이너·DB·네트워크 계층을 스스로 계측한다. 수집된 데이터로 <strong>Smartscape</strong>라는 실시간 의존성 토폴로지를 자동으로 그리고, Davis AI가 수천 개 이상 징후를 하나의 <strong>문제(Problem)</strong>로 묶어 \"근본 원인은 결제 서비스의 특정 파드 메모리 누수\"라고 단정해 준다. 알림 노이즈를 줄이려는 설계가 제품 철학의 중심이다. 최근에는 Grail이라는 자체 데이터 레이크로 로그·이벤트를 함께 담고 DQL로 질의한다.</p><p><strong>New Relic의 특징</strong>은 <strong>모든 데이터를 NRDB라는 단일 저장소</strong>에 넣고 <strong>NRQL</strong>이라는 SQL 유사 언어로 질의하는 구조다. 메트릭도, 로그도, 트레이스도, 브라우저 이벤트도 같은 문법으로 조인해서 볼 수 있어 분석 자유도가 높다. 과금 모델이 \"수집한 데이터 GB + 사용자 수\" 기반으로 단순화되어 있고 무료 티어가 넉넉한 편이다.</p><p><strong>선택 기준</strong>은 대체로 이렇게 갈린다. 자동화·근본원인 추론과 온프레미스 혼합 환경까지의 커버리지를 중시하면 Dynatrace, 데이터 자유도·쿼리 유연성·비용 예측 가능성을 중시하면 New Relic, 클라우드 네이티브 생태계 통합과 대시보드 편의를 중시하면 Datadog을 고른다. 세 제품 모두 2026년 현재 <strong>OTLP 수집을 지원</strong>하므로, 계측은 OpenTelemetry로 하고 백엔드만 상용 제품을 쓰는 하이브리드가 권장 패턴이다.</p><p><strong>비용이 가장 큰 리스크</strong>다. 호스트 수, 수집 데이터량, 커스텀 메트릭 카디널리티, 로그 보존 기간에 따라 월 비용이 예고 없이 몇 배로 뛴다. 개발자가 디버그 로그를 켜 두거나 메트릭 라벨에 user_id를 넣은 배포 한 번이 수천만 원짜리 청구서가 되는 사고가 실제로 흔하다.</p><p><strong>감사 관점의 핵심</strong>은 세 가지다. 첫째, 관측 데이터가 <strong>해외 리전</strong>으로 나가는 국외 이전 문제. 둘째, 벤더 콘솔이 운영 데이터를 볼 수 있는 <strong>또 하나의 접근 경로</strong>라는 점. 셋째, 이 플랫폼이 장애 인지·대응의 근거 기록을 보관하는 곳이므로 <strong>기록의 보존기간과 무결성</strong>이 통제 대상이 된다는 점이다.</p>",
+      "howItWorks": "<ol><li>호스트(VM 또는 쿠버네티스 노드)에 OneAgent(Dynatrace) 또는 인프라 에이전트(New Relic)를 설치한다. 쿠버네티스에서는 Operator/Helm으로 DaemonSet 형태로 배포된다.</li><li>에이전트가 실행 중인 프로세스를 스캔해 JVM·Node·.NET·Go 등을 식별하고, 필요한 경우 프로세스 재시작 없이 또는 재시작 시점에 코드 계측을 주입한다.</li><li>애플리케이션 트랜잭션, 호스트 메트릭, 컨테이너 메트릭, 로그 파일, 네트워크 연결 정보가 동시에 수집된다.</li><li>수집 데이터는 TLS로 벤더의 리전 엔드포인트(예: ap-northeast-2 또는 us-east-1)로 전송된다. 폐쇄망은 ActiveGate/프라이빗 미니언 같은 중계 컴포넌트를 둔다.</li><li>백엔드가 서비스 간 호출 관계를 자동으로 그려 토폴로지를 만들고, 지표의 정상 범위를 학습해 기준선을 세운다.</li><li>이상이 감지되면 관련된 여러 신호를 하나의 Problem/Issue로 묶고, 영향 받는 사용자 수와 추정 근본 원인을 붙여 알림한다.</li><li>알림은 Slack·PagerDuty·이메일로 라우팅되고, 담당자는 콘솔에서 토폴로지 → 서비스 → 트랜잭션 → 코드/SQL 순으로 파고든다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'는 온프레미스 SAP ERP와 AWS EKS 마이크로서비스가 공존한다. 오픈소스 스택으로는 SAP 쪽 가시성이 떨어져 Dynatrace를 도입했다. 도입 3주 뒤, 월말 정산 시각에 결제 승인 지연이 발생했는데 Davis AI가 \"정산 배치가 SAP DB의 특정 테이블에 장시간 락을 걸었고, 이로 인해 결제 조회 API의 커넥션 풀이 고갈됨\"을 하나의 Problem으로 묶어 제시했다. 수동으로는 두 시스템을 오가며 찾아야 했을 인과관계였다.</p><p>New Relic NRQL로 결제 API의 오류율과 p95를 함께 보는 예:</p><pre><code>SELECT percentile(duration, 95) AS 'p95',\n       percentage(count(*), WHERE error IS true) AS 'error_rate'\nFROM Transaction\nWHERE appName = 'payment-api' AND environment = 'prod'\nFACET name\nSINCE 1 hour ago TIMESERIES 1 minute</code></pre><p>쿠버네티스에 Dynatrace OneAgent를 배포하며 민감 데이터 캡처를 제한하는 설정 예:</p><pre><code>apiVersion: dynatrace.com/v1beta3\nkind: DynaKube\nmetadata:\n  name: paylink-prod\n  namespace: dynatrace\nspec:\n  apiUrl: https://abc12345.live.dynatrace.com/api\n  oneAgent:\n    cloudNativeFullStack:\n      env:\n        - name: DT_CAPTURE_REQUEST_ATTRIBUTES\n          value: \"false\"\n  activeGate:\n    capabilities: [routing, kubernetes-monitoring]\n    resources:\n      requests: { cpu: 500m, memory: 512Mi }</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 280' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><text x='95' y='24' text-anchor='middle' fill='currentColor' font-size='12'>사내 인프라</text><rect x='20' y='36' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='61' text-anchor='middle' fill='currentColor' font-size='11'>EKS 노드 + 에이전트</text><rect x='20' y='86' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='111' text-anchor='middle' fill='currentColor' font-size='11'>온프레 SAP + 에이전트</text><rect x='20' y='136' width='150' height='40' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='95' y='161' text-anchor='middle' fill='currentColor' font-size='11'>DB / 네트워크</text><rect x='215' y='80' width='105' height='55' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='267' y='103' text-anchor='middle' fill='currentColor' font-size='11'>중계 게이트웨이</text><text x='267' y='121' text-anchor='middle' fill='currentColor' font-size='11'>(ActiveGate)</text><line x1='170' y1='56' x2='213' y2='95' stroke='currentColor' marker-end='url(#ar)'/><line x1='170' y1='106' x2='213' y2='106' stroke='currentColor' marker-end='url(#ar)'/><line x1='170' y1='156' x2='213' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='320' y1='107' x2='395' y2='107' stroke='currentColor' marker-end='url(#ar)' stroke-dasharray='5 3'/><text x='357' y='98' text-anchor='middle' fill='currentColor' font-size='10'>TLS</text><text x='357' y='128' text-anchor='middle' fill='currentColor' font-size='10'>국외이전 검토</text><rect x='400' y='30' width='220' height='160' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='52' text-anchor='middle' fill='currentColor' font-size='12'>벤더 SaaS 백엔드</text><rect x='415' y='64' width='190' height='30' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='510' y='84' text-anchor='middle' fill='currentColor' font-size='11'>토폴로지 자동 생성</text><rect x='415' y='100' width='190' height='30' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='510' y='120' text-anchor='middle' fill='currentColor' font-size='11'>AI 이상탐지 · 근본원인</text><rect x='415' y='136' width='190' height='30' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='510' y='156' text-anchor='middle' fill='currentColor' font-size='11'>단일 Problem 으로 묶음</text><rect x='400' y='210' width='105' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='452' y='236' text-anchor='middle' fill='currentColor' font-size='11'>Slack / PagerDuty</text><rect x='520' y='210' width='100' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='570' y='236' text-anchor='middle' fill='currentColor' font-size='11'>온콜 담당자</text><line x1='510' y1='190' x2='460' y2='208' stroke='currentColor' marker-end='url(#ar)'/><line x1='505' y1='231' x2='518' y2='231' stroke='currentColor' marker-end='url(#ar)'/><text x='200' y='215' text-anchor='middle' fill='currentColor' font-size='11'>과금: 호스트 수 ×</text><text x='200' y='233' text-anchor='middle' fill='currentColor' font-size='11'>수집 GB × 보존기간</text></svg>",
+      "keyTerms": [
+        {
+          "term": "OneAgent",
+          "meaning": "Dynatrace의 단일 에이전트. 호스트에 설치하면 상위 계층을 자동 계측한다"
+        },
+        {
+          "term": "Davis AI",
+          "meaning": "Dynatrace의 이상탐지·근본원인 추론 엔진"
+        },
+        {
+          "term": "Smartscape",
+          "meaning": "자동 생성되는 실시간 서비스 의존성 토폴로지 맵"
+        },
+        {
+          "term": "NRQL",
+          "meaning": "New Relic의 SQL 유사 질의 언어. 모든 신호를 같은 문법으로 조회"
+        },
+        {
+          "term": "NRDB",
+          "meaning": "New Relic이 모든 텔레메트리를 담는 단일 데이터베이스"
+        },
+        {
+          "term": "RUM(Real User Monitoring)",
+          "meaning": "실제 사용자 브라우저·앱에서 측정한 체감 성능 데이터"
+        },
+        {
+          "term": "ActiveGate / 프라이빗 미니언",
+          "meaning": "폐쇄망에서 수집·합성 모니터링을 중계하는 벤더 컴포넌트"
+        },
+        {
+          "term": "커스텀 메트릭 카디널리티",
+          "meaning": "직접 만든 메트릭의 라벨 조합 수. 과금과 성능을 좌우한다"
+        }
+      ],
+      "pitfalls": [
+        "PoC 때 호스트 5대로 산정한 비용이 실제 오토스케일 환경에서 수십 배가 되어 예산이 무너진다. 노드 오토스케일과 과금 단위를 반드시 함께 본다.",
+        "벤더 락인을 피하려고 도입했는데 계측을 벤더 전용 에이전트로만 해서 결국 이전이 불가능해진다. OTLP 수집 경로를 함께 확보해야 한다.",
+        "기본 설정에서 요청 속성·쿼리 파라미터 캡처가 켜져 있어 개인정보가 해외 리전으로 나간다.",
+        "AI가 묶어준 근본원인을 무비판적으로 신뢰해 실제 원인을 놓친다. 추론은 가설이지 결론이 아니다.",
+        "SaaS 콘솔 계정을 SSO 없이 개별 ID로 만들고 퇴사자 계정이 남는다. 접근권한 검토 대상에서 누락되기 쉽다.",
+        "로그를 전량 전송하면서 수집 GB 과금이 폭증한다. 파이프라인 단계에서 샘플링·필터링을 먼저 해야 한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 벤더 콘솔 계정이 사내 SSO/IdP와 연동되고, 입퇴사·조직이동 시 자동 회수되는지. 로컬 계정이 있다면 별도 검토 대상인지",
+          "[접근] 콘솔 내 역할(관리자·조회자·API 키 소유자)이 최소권한으로 부여되고 접근권한 검토 대상에 포함되는지",
+          "[변경] 에이전트 설치·업그레이드, 데이터 캡처 설정 변경이 변경관리 절차를 따르는지",
+          "[운영] 장애 인지·대응 기록(Problem, 알림 이력)이 보존되고 감사 증빙으로 추출 가능한지",
+          "[운영] API 키·라이선스 토큰의 발급·회수 관리와 유출 시 절차가 있는지"
+        ],
+        "fss": [
+          "관측 데이터가 국내가 아닌 리전에 저장되는 경우 개인신용정보 국외 이전 요건과 전자금융감독규정 제14조의2 클라우드컴퓨팅서비스 이용절차(중요도 평가, 안전성 확보조치, 감독당국 보고)를 충족했는지",
+          "클라우드 이용에 따른 위탁·재위탁 관리와 벤더에 대한 정기 평가(보안 인증 확인, SOC 2·ISO 27001 보고서 수령)를 수행하는지",
+          "장애 인지 시각과 대응 기록이 전자금융사고 보고 근거로 활용될 수 있도록 관리되는지"
+        ],
+        "isms": [
+          "2.3.1~2.3.4 외부자 보안 — 클라우드 관측 서비스 제공자에 대한 계약상 보안요구사항, 점검, 계약 종료 시 데이터 파기 조항이 있는지",
+          "2.5.1 사용자 계정 관리 / 2.5.6 접근권한 검토 — 벤더 콘솔 계정 관리 체계",
+          "3.3.x 개인정보 제공·위탁 — 관측 목적으로 개인정보가 벤더에 전달되는지 여부와 고지·동의 필요성 검토",
+          "2.9.4 로그 및 접속기록 관리 — SaaS에 저장되는 로그의 보존기간과 접근기록 관리"
+        ],
+        "evidence": [
+          "벤더 콘솔 사용자 목록 export(역할 포함)와 SSO 연동 설정 화면",
+          "데이터 저장 리전 설정 화면과 계약서상 데이터 처리 위치 조항",
+          "에이전트 표준 배포 매니페스트(민감 데이터 캡처 비활성화 항목 포함)",
+          "최근 분기 발생한 Problem/Issue 목록과 조치 결과 export",
+          "벤더의 제3자 보안 인증서(SOC 2 Type II, ISO 27001) 및 연간 재평가 기록",
+          "API 키 목록과 발급·폐기 이력"
+        ],
+        "auditorQuestions": [
+          "이 SaaS에 어떤 데이터가 전송되며 어느 나라 리전에 저장됩니까?",
+          "콘솔 계정은 어떻게 생성·회수되고, 퇴사자 계정이 남아 있지 않다는 것을 어떻게 보이시겠습니까?",
+          "개인정보가 수집되지 않도록 어떤 설정을 적용했고 누가 그것을 점검합니까?",
+          "벤더에 대한 보안성 평가는 얼마나 자주 하며 최근 결과는 무엇입니까?",
+          "월 비용이 급증했을 때 이를 감지하고 통제하는 장치가 있습니까?",
+          "계약이 종료되면 축적된 관측 데이터는 어떻게 처리됩니까?"
+        ],
+        "controlExample": "상용 관측 SaaS의 콘솔 접근은 사내 SSO를 통해서만 가능하며 관리자 역할은 플랫폼팀 3인으로 제한된다. 에이전트는 요청 파라미터·본문 캡처를 비활성화한 표준 매니페스트로만 배포되고, 데이터 저장 리전 및 벤더 보안 인증 현황은 연 1회 재평가하여 결과를 보관한다."
+      },
+      "related": [
+        "obs-apm",
+        "obs-datadog",
+        "obs-opentelemetry",
+        "obs-finops-observability",
+        "obs-jaeger-tempo",
+        "comp-fss-egfs",
+        "obs-status-page"
+      ],
+      "learnMore": [
+        "Dynatrace Documentation — DynaKube configuration",
+        "New Relic Documentation — NRQL reference",
+        "전자금융감독규정 제14조의2 (클라우드컴퓨팅서비스 이용절차)",
+        "OpenTelemetry — Vendor backends supporting OTLP"
+      ]
+    },
+    {
+      "id": "obs-log-pipeline",
+      "title": "로그 수집 파이프라인 설계",
+      "titleEn": "Log Collection Pipeline Design",
+      "aliases": [
+        "로그 파이프라인",
+        "로그 수집",
+        "Fluent Bit",
+        "Fluentd",
+        "Vector",
+        "로그 에이전트",
+        "log shipping"
+      ],
+      "tags": [
+        "observability",
+        "logging",
+        "architecture"
+      ],
+      "level": "중급",
+      "oneLiner": "앱이 뱉은 로그를 모아 가공해 저장소까지 안전하게 나르는 구조",
+      "analogy": "우유 집유 체계와 같다. 각 목장(서버·컨테이너)에서 나온 원유를 집유차(에이전트)가 돌며 걷고, 집유소(중계 서버)에서 이물질을 거르고 성분을 표시(파싱·라벨링)한 뒤, 공장(로그 저장소)으로 보낸다. 중간에 차가 못 오면 목장 탱크에 잠시 보관(버퍼)해야 우유가 버려지지 않는다.",
+      "explanation": "<p><strong>로그 수집 파이프라인</strong>은 애플리케이션·시스템·네트워크 장비가 만들어내는 로그를 <strong>수집(collect) → 가공(parse/enrich/filter) → 버퍼(buffer) → 전송(ship) → 저장(store)</strong>하는 일련의 흐름이다. 관측성의 세 신호 중 로그는 양이 압도적으로 많고 개인정보가 섞일 위험이 가장 커서, 파이프라인 설계가 곧 비용 통제이자 컴플라이언스 통제가 된다.</p><p><strong>수집 단계</strong>. 컨테이너 환경의 정석은 <strong>앱이 stdout/stderr로만 쓰고</strong>, 쿠버네티스가 그것을 노드의 <code>/var/log/pods/</code>에 파일로 떨어뜨리면, 노드마다 DaemonSet으로 뜬 에이전트가 그 파일을 tail하는 방식이다. 에이전트로는 <strong>Fluent Bit</strong>(C로 작성, 메모리 수십 MB로 가볍다), <strong>Fluentd</strong>(Ruby, 플러그인이 많다), <strong>Vector</strong>(Rust, 변환 언어 VRL이 강력하다), Promtail/Grafana Alloy(Loki용)가 쓰인다. 레거시 VM·네트워크 장비는 <strong>syslog(RFC 5424)</strong>로 밀어 넣는다.</p><p><strong>가공 단계</strong>가 설계의 심장이다. 여기서 네 가지를 한다. (1) <strong>파싱</strong> — 비정형 텍스트를 JSON 필드로 쪼갠다. 애초에 앱이 <strong>구조화 로그(structured log, JSON)</strong>로 찍으면 이 단계가 거의 필요 없어 훨씬 낫다. (2) <strong>보강(enrich)</strong> — 쿠버네티스 메타데이터(네임스페이스, 파드, 컨테이너, 노드), 환경, 서비스명, trace ID를 붙인다. (3) <strong>마스킹/삭제</strong> — 카드번호·주민번호·토큰을 정규식으로 치환한다. <strong>여기가 개인정보 통제의 마지막 방어선</strong>이다. (4) <strong>라우팅/샘플링</strong> — 감사로그는 WORM 저장소로, 디버그 로그는 7일 보존 저장소로, DEBUG 레벨은 아예 드롭한다.</p><p><strong>버퍼와 신뢰성</strong>. 저장소가 잠시 죽거나 느려질 때 로그를 버리지 않으려면 버퍼가 필요하다. 메모리 버퍼는 빠르지만 파드가 죽으면 날아가고, <strong>파일 버퍼(디스크)</strong>는 재시작에도 살아남는다. 규모가 크면 중간에 <strong>Kafka</strong>를 두어 생산자와 소비자를 분리한다 — 저장소 장애가 앱에 역압(backpressure)을 주지 않게 하고, 여러 소비자(SIEM, 데이터레이크, 로그검색)가 같은 스트림을 나눠 쓸 수 있다.</p><p>쉽게 말하면 좋은 파이프라인은 <strong>\"앱은 그냥 JSON 한 줄 찍고 잊는다. 나머지는 파이프라인이 알아서 한다\"</strong>를 보장한다. 앱이 로그 전송 로직을 직접 갖고 있으면(예: 앱에서 Elasticsearch로 직접 HTTP 전송) 저장소가 느릴 때 앱이 같이 느려지고, 마스킹을 앱마다 따로 구현해야 해서 반드시 구멍이 생긴다.</p><p><strong>감사 관점</strong>에서 파이프라인은 \"증적이 만들어져서 보관 장소에 도달하기까지의 사슬\"이다. 감사인은 <strong>유실 가능성</strong>(버퍼 넘침으로 로그가 버려졌는가), <strong>변조 가능성</strong>(중간에서 로그를 지우거나 바꿀 수 있는가), <strong>누락 탐지</strong>(특정 서버 로그가 3일째 안 들어오는 걸 아는가)를 묻는다.</p>",
+      "howItWorks": "<ol><li>애플리케이션이 JSON 한 줄을 stdout으로 출력한다. 예: <code>{\"ts\":\"2026-09-14T10:32:11Z\",\"level\":\"ERROR\",\"svc\":\"payment-api\",\"trace_id\":\"4bf9...\",\"msg\":\"card gateway timeout\"}</code></li><li>컨테이너 런타임이 이를 노드의 로그 파일에 기록하고, 파일이 일정 크기를 넘으면 회전(rotate)한다.</li><li>노드의 Fluent Bit DaemonSet이 해당 파일을 tail하며 새 줄을 읽고, 어디까지 읽었는지 오프셋을 디스크에 기록한다(재시작 시 중복·누락 방지).</li><li>kubernetes 필터가 파드 라벨·네임스페이스·컨테이너 이름을 조회해 레코드에 붙인다.</li><li>마스킹 필터가 정규식으로 카드번호·주민번호 패턴을 치환하고, 금지 필드를 삭제한다.</li><li>라우팅 규칙에 따라 목적지가 갈린다 — 감사성 로그는 Kafka의 audit 토픽, 일반 앱 로그는 Loki, 보안 이벤트는 SIEM 수집기로 향한다.</li><li>전송 실패 시 파일 버퍼에 쌓이며 지수 백오프로 재시도한다. 버퍼 상한에 도달하면 드롭 또는 차단 중 설정된 정책이 작동하고, 이 드롭 건수 자체가 메트릭으로 노출된다.</li><li>저장소가 수신해 색인하고, 보존 정책(ILM/ISM, Loki retention)에 따라 기간이 지나면 삭제하거나 저비용 계층으로 옮긴다.</li><li>파이프라인 자체의 건강(수신량, 드롭 수, 재시도 수, 지연)이 Prometheus 메트릭으로 수집되어 대시보드와 알림에 연결된다.</li></ol>",
+      "example": "<p>가상 커머스 '마켓링크'는 EKS 40개 노드에서 하루 1.2TB의 로그를 만든다. 초기에는 전량을 OpenSearch로 보내 월 스토리지 비용이 컸고, 개인정보 마스킹은 팀마다 제각각이었다. 파이프라인을 재설계해 (1) DEBUG 레벨은 운영 환경에서 드롭, (2) 접근·권한변경·결제승인 로그는 <code>audit</code> 토픽으로 분리해 1년 보존 WORM 버킷에, (3) 나머지 앱 로그는 Loki에 14일 보존, (4) 마스킹은 Fluent Bit 필터 한 곳에서만 정의하도록 바꿨다. 결과적으로 저장 비용이 62% 줄고 마스킹 누락 위험이 한 지점으로 수렴했다.</p><p>Fluent Bit 설정 예 (마스킹 + 분기 라우팅 + 파일 버퍼):</p><pre><code>[SERVICE]\n    Flush             5\n    storage.path      /var/log/flb-storage/\n    storage.sync      normal\n    storage.backlog.mem_limit  256M\n    Health_Check      On\n\n[INPUT]\n    Name              tail\n    Path              /var/log/containers/*.log\n    Parser            cri\n    Tag               kube.*\n    DB                /var/log/flb_kube.db\n    Mem_Buf_Limit     64MB\n    storage.type      filesystem\n    Skip_Long_Lines   On\n\n[FILTER]\n    Name              kubernetes\n    Match             kube.*\n    Merge_Log         On\n    Keep_Log          Off\n    Labels            On\n\n[FILTER]\n    Name              modify\n    Match             kube.*\n    Remove            authorization\n    Remove            set-cookie\n\n[FILTER]\n    Name              lua\n    Match             kube.*\n    script            mask.lua\n    call              mask_pii\n\n[FILTER]\n    Name              grep\n    Match             kube.*\n    Exclude           level DEBUG\n\n[OUTPUT]\n    Name              loki\n    Match             kube.*\n    Host              loki-gateway.obs.svc\n    Labels            job=fluentbit, cluster=prod\n    storage.total_limit_size  5G\n    Retry_Limit       10\n\n[OUTPUT]\n    Name              kafka\n    Match             kube.audit.*\n    Brokers           kafka-0.audit:9092\n    Topics            security-audit\n    rdkafka.acks      all</code></pre><p>마스킹 Lua 스크립트의 핵심부:</p><pre><code>function mask_pii(tag, ts, record)\n  local m = record[\"log\"] or record[\"message\"]\n  if m then\n    m = string.gsub(m, \"%d%d%d%d%-?%d%d%d%d%-?%d%d%d%d%-?%d%d%d%d\", \"****-****-****-****\")\n    m = string.gsub(m, \"%d%d%d%d%d%d%-[1-4]%d%d%d%d%d%d\", \"######-#******\")\n    record[\"log\"] = m\n  end\n  return 2, ts, record\nend</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='15' y='55' width='100' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='65' y='75' text-anchor='middle' fill='currentColor' font-size='11'>앱 파드</text><text x='65' y='92' text-anchor='middle' fill='currentColor' font-size='11'>stdout JSON</text><rect x='15' y='120' width='100' height='45' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='65' y='140' text-anchor='middle' fill='currentColor' font-size='11'>레거시 VM</text><text x='65' y='157' text-anchor='middle' fill='currentColor' font-size='11'>syslog</text><rect x='160' y='50' width='140' height='140' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='230' y='72' text-anchor='middle' fill='currentColor' font-size='12'>수집 에이전트</text><text x='230' y='94' text-anchor='middle' fill='currentColor' font-size='11'>1. 파싱</text><text x='230' y='113' text-anchor='middle' fill='currentColor' font-size='11'>2. k8s 메타 보강</text><text x='230' y='132' text-anchor='middle' fill='currentColor' font-size='11'>3. PII 마스킹</text><text x='230' y='151' text-anchor='middle' fill='currentColor' font-size='11'>4. 라우팅/샘플링</text><text x='230' y='174' text-anchor='middle' fill='currentColor' font-size='11'>+ 파일 버퍼</text><line x1='115' y1='77' x2='158' y2='95' stroke='currentColor' marker-end='url(#ar)'/><line x1='115' y1='142' x2='158' y2='140' stroke='currentColor' marker-end='url(#ar)'/><rect x='345' y='95' width='95' height='50' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='392' y='117' text-anchor='middle' fill='currentColor' font-size='11'>Kafka</text><text x='392' y='135' text-anchor='middle' fill='currentColor' font-size='11'>버퍼·분배</text><line x1='300' y1='120' x2='343' y2='120' stroke='currentColor' marker-end='url(#ar)'/><rect x='490' y='20' width='140' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='40' text-anchor='middle' fill='currentColor' font-size='11'>Loki (앱로그 14일)</text><text x='560' y='55' text-anchor='middle' fill='currentColor' font-size='10'>비용 최적</text><rect x='490' y='90' width='140' height='42' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='560' y='110' text-anchor='middle' fill='currentColor' font-size='11'>WORM 버킷</text><text x='560' y='125' text-anchor='middle' fill='currentColor' font-size='10'>감사로그 1년+</text><rect x='490' y='160' width='140' height='42' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='560' y='180' text-anchor='middle' fill='currentColor' font-size='11'>SIEM</text><text x='560' y='195' text-anchor='middle' fill='currentColor' font-size='10'>보안 상관분석</text><line x1='440' y1='108' x2='488' y2='45' stroke='currentColor' marker-end='url(#ar)'/><line x1='440' y1='118' x2='488' y2='111' stroke='currentColor' marker-end='url(#ar)'/><line x1='440' y1='130' x2='488' y2='178' stroke='currentColor' marker-end='url(#ar)'/><rect x='160' y='215' width='280' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='300' y='236' text-anchor='middle' fill='currentColor' font-size='11'>파이프라인 자체 메트릭: 수신량 · 드롭수 · 재시도 · 지연</text><text x='300' y='253' text-anchor='middle' fill='currentColor' font-size='11'>드롭 발생 = 증적 유실 → 알림 필수</text><line x1='230' y1='190' x2='230' y2='213' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "구조화 로그(Structured log)",
+          "meaning": "JSON 등 기계가 파싱 가능한 형태로 남기는 로그. 파이프라인 비용을 크게 줄인다"
+        },
+        {
+          "term": "DaemonSet 에이전트",
+          "meaning": "쿠버네티스 노드마다 한 개씩 뜨는 로그 수집 파드"
+        },
+        {
+          "term": "버퍼(Buffer)",
+          "meaning": "저장소 장애 시 로그를 임시 보관하는 메모리/디스크 공간"
+        },
+        {
+          "term": "역압(Backpressure)",
+          "meaning": "하류가 느릴 때 상류로 전해지는 처리 지연. 앱까지 느려지면 설계 실패다"
+        },
+        {
+          "term": "보강(Enrichment)",
+          "meaning": "로그에 네임스페이스·서비스·환경 등 맥락 정보를 덧붙이는 처리"
+        },
+        {
+          "term": "로그 회전(Rotation)",
+          "meaning": "파일이 일정 크기·기간을 넘으면 새 파일로 갈아타고 오래된 것을 지우는 것"
+        },
+        {
+          "term": "오프셋 DB",
+          "meaning": "에이전트가 파일을 어디까지 읽었는지 기록해 중복·누락을 막는 저장소"
+        },
+        {
+          "term": "라우팅(Routing)",
+          "meaning": "로그 성격에 따라 목적지 저장소와 보존기간을 다르게 보내는 것"
+        }
+      ],
+      "pitfalls": [
+        "앱이 로그를 로컬 파일에만 쓰고 stdout으로 안 내보내, 파드가 재시작되면 로그가 통째로 사라진다.",
+        "메모리 버퍼만 쓰다가 저장소 장애 30분 동안 로그가 전부 유실되고, 하필 그 시간대가 장애 구간이라 원인 분석이 불가능해진다.",
+        "마스킹을 각 애플리케이션 코드에 맡겨 신규 서비스 하나가 규칙을 빠뜨리고 카드번호를 그대로 찍는다.",
+        "드롭 카운터를 모니터링하지 않아 매일 조용히 몇 %씩 로그가 버려지고 있는 걸 감사 때 처음 안다.",
+        "멀티라인 스택트레이스를 한 줄씩 쪼개 수집해 예외 로그가 조각나고 검색이 안 된다.",
+        "로그 볼륨이 큰 특정 서비스 하나가 파이프라인을 점유해 다른 서비스 로그까지 지연된다(노이지 네이버). 서비스별 레이트 리밋이 필요하다.",
+        "에이전트가 노드 파일시스템을 hostPath로 읽는 권한을 과도하게 갖도록 두어 컨테이너 탈출 위험을 만든다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 재무보고 관련 시스템의 로그가 빠짐없이 수집되고 있음을 대사(수집 대상 목록 vs 실제 수신 중인 소스)로 정기 확인하는지",
+          "[운영] 로그 드롭·전송 실패가 모니터링되고, 임계치 초과 시 알림과 조치 기록이 남는지 — 증적 유실은 통제 결함이다",
+          "[변경] 파이프라인 설정(파싱·마스킹·라우팅·보존)이 코드로 관리되고 변경 시 승인 이력이 남는지",
+          "[접근] 파이프라인 설정 변경 권한과 원본 로그 접근 권한이 분리·제한되어 있는지",
+          "[ITAC] 인터페이스·배치의 성공/실패 로그가 자동으로 수집되어 자동화 통제의 운영 증적으로 활용 가능한지"
+        ],
+        "fss": [
+          "전자금융감독규정상 전산자료 보존 및 접근기록 관리 요건을 충족하도록 로그 종류별 보존기간이 정의·집행되는지",
+          "개인신용정보가 로그에 평문으로 남지 않도록 수집 단계에서 마스킹이 강제되고 그 유효성을 정기 점검하는지",
+          "로그 전송 구간이 암호화(TLS)되고, 클라우드 SaaS로 전송되는 경우 클라우드 이용 절차상 검토를 거쳤는지",
+          "로그 수집 중단 시 인지 및 복구 절차가 업무연속성 관점에서 정의되어 있는지"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 — 수집 대상 로그의 범위·항목·보존기간이 정의되고 실제 적용되는지",
+          "2.9.5 로그 및 접속기록 점검 — 수집된 로그를 주기적으로 점검하고 이상 징후를 처리하는지",
+          "2.7.1 암호정책 적용 — 로그 전송·저장 구간 암호화 적용 여부",
+          "2.6.1 네트워크 접근 — syslog 수신 포트 등 수집 경로가 허용된 네트워크로만 제한되는지",
+          "3.2.1 개인정보 현황관리 — 로그에 포함되는 개인정보 항목을 파악·관리하는지"
+        ],
+        "evidence": [
+          "로그 수집 대상 시스템 목록과 실제 수신 소스 목록의 대사 결과(월/분기)",
+          "Fluent Bit/Vector 등 파이프라인 설정 파일 export 및 Git 변경 이력",
+          "마스킹 규칙 정의서와 저장소에서 실제 마스킹되어 보이는 로그 샘플",
+          "파이프라인 드롭/재시도 메트릭 대시보드 캡처 및 최근 임계치 초과 시 조치 티켓",
+          "로그 종류별 라우팅·보존기간 매트릭스 문서",
+          "로그 전송 구간 TLS 설정 근거(인증서, 설정 스니펫)"
+        ],
+        "auditorQuestions": [
+          "결제 시스템의 로그가 하나도 빠짐없이 중앙에 들어오고 있다는 것을 어떻게 증명하십니까?",
+          "로그가 유실될 수 있는 지점은 어디이며 그것을 어떻게 감지합니까?",
+          "로그에서 개인정보를 지우는 규칙은 누가 정의하고 어디에 적용되어 있습니까?",
+          "로그 종류별로 보존기간이 다르다면 그 기준과 실제 설정을 보여주실 수 있습니까?",
+          "파이프라인 설정을 바꿀 수 있는 사람은 누구입니까?"
+        ],
+        "controlExample": "전 운영 시스템의 로그는 노드 단위 수집 에이전트를 통해서만 중앙으로 전송되며, 에이전트 설정에는 카드번호·주민등록번호 마스킹 필터와 로그 성격별 라우팅 규칙이 포함된다. 설정은 Git으로 형상관리되어 변경 시 플랫폼팀 승인 PR이 필요하며, 로그 드롭률은 상시 모니터링되어 0.1% 초과 시 SRE에게 알림이 발송되고 조치 결과가 티켓으로 기록된다."
+      },
+      "related": [
+        "obs-log-retention-integrity",
+        "obs-audit-vs-app-log",
+        "obs-siem-central-log",
+        "obs-loki",
+        "obs-elk-efk",
+        "obs-opentelemetry",
+        "db-kafka"
+      ],
+      "learnMore": [
+        "Fluent Bit Documentation — Pipeline",
+        "Vector Documentation — VRL and Sinks",
+        "Kubernetes Documentation — Logging Architecture",
+        "OpenTelemetry — Logs Data Model"
+      ]
+    },
+    {
+      "id": "obs-log-retention-integrity",
+      "title": "로그 보존정책과 무결성 (WORM·해시)",
+      "titleEn": "Log Retention Policy and Integrity (WORM, Hashing)",
+      "aliases": [
+        "로그 보존",
+        "보존기간",
+        "WORM",
+        "Object Lock",
+        "로그 무결성",
+        "변조방지",
+        "해시체인",
+        "immutable log"
+      ],
+      "tags": [
+        "observability",
+        "logging",
+        "compliance",
+        "integrity"
+      ],
+      "level": "심화",
+      "oneLiner": "로그를 정해진 기간 지우지도 바꾸지도 못하게 보관하는 체계",
+      "analogy": "법원의 증거물 보관실과 같다. 증거는 봉인 테이프를 붙여 넣고(WORM), 누가 언제 꺼냈는지 대장에 남기며(접근기록), 봉인이 뜯긴 흔적이 있으면 증거 능력을 잃는다(해시 불일치). 보관 기간이 지나기 전에는 담당자 본인도 폐기할 수 없다.",
+      "explanation": "<p>로그는 \"남겼다\"만으로는 감사 증적이 되지 못한다. 감사인이 묻는 것은 세 가지다. <strong>(1) 필요한 기간 동안 남아 있는가(보존), (2) 그 사이 아무도 바꾸지 못했는가(무결성), (3) 바꾸려 한 시도가 있었다면 알 수 있는가(탐지).</strong> 이 세 가지를 설계로 보장하는 것이 로그 보존·무결성 체계다.</p><p><strong>보존기간(Retention)</strong>은 법규·계약·내부정책 중 가장 긴 것을 따른다. 한국 금융 환경에서 자주 등장하는 기준은 전자금융거래법상 전자금융거래 기록 보존(거래 내용에 따라 1년 또는 5년), 전자금융감독규정상 접근기록 보존, 개인정보보호법상 개인정보처리시스템 접속기록 보존(원칙 1년, 특정 요건 시 2년), 상법·세법상 장부·증빙 보존(대체로 5년 또는 10년)이다. SOX 대응 관점에서는 <strong>회계연도 전체와 감사 수행기간을 덮는 최소 1년, 실무적으로는 7년</strong>을 잡는 곳이 많다. 중요한 건 <strong>로그 종류별로 기간이 다르다</strong>는 점이다. 디버그 로그를 7년 보관할 이유는 없고, 권한변경 감사로그를 14일만 보관하면 통제 결함이다.</p><p><strong>무결성(Integrity)</strong>은 세 겹으로 만든다. <strong>첫째, WORM(Write Once Read Many)</strong> — 한 번 쓰면 못 지우는 저장소다. AWS S3의 <strong>Object Lock</strong>(Compliance 모드에서는 루트 계정조차 보존기간 내 삭제 불가), Azure Blob Immutable Storage, 전용 WORM 어플라이언스가 여기 해당한다. <strong>둘째, 해시/체인</strong> — 로그 블록마다 SHA-256 해시를 계산하고, 각 블록 해시에 이전 블록 해시를 포함시켜 사슬로 엮으면 중간 한 줄만 바뀌어도 이후 전부가 깨진다. AWS CloudTrail의 <strong>로그 파일 무결성 검증(digest 파일 + 체인)</strong>이 이 방식의 표준 사례다. <strong>셋째, 권한 분리</strong> — 로그를 생성하는 주체(운영자)와 로그를 보관·삭제할 수 있는 주체(보안팀/감사팀)를 분리한다. DBA가 자기 DB 감사로그를 지울 수 있으면 그 로그는 증거 가치가 없다.</p><p><strong>계층화(Tiering)</strong>로 비용을 맞춘다. 최근 14~30일은 즉시 검색 가능한 뜨거운 계층(OpenSearch hot, Loki 최근 블록), 그 이후 90일은 따뜻한 계층, 1년 이후는 S3 Glacier 같은 차가운 계층에 압축 보관한다. 단 <strong>차가운 계층에 있어도 감사 요청 시 합리적 시간 내에 복원해 제출할 수 있어야</strong> 한다. \"있긴 한데 꺼내는 데 2주 걸립니다\"는 감사에서 통하지 않는다.</p><p><strong>합법적 보류(Legal Hold)</strong>도 알아둘 개념이다. 소송·조사·감독당국 검사가 시작되면 해당 기간의 로그는 보존기간이 끝나도 <strong>자동 삭제를 멈춰야</strong> 한다. S3 Object Lock의 Legal Hold 플래그가 이 용도다. 반대로 <strong>개인정보는 보존기간이 끝나면 반드시 파기해야</strong> 하므로, \"영구 보관\"은 안전한 선택이 아니라 그 자체가 위반이 될 수 있다.</p><p>쉽게 말하면, <strong>지우면 안 되는 로그는 지울 수 없게 만들고, 지워야 하는 로그는 자동으로 지워지게 만들며, 둘 다 그 설정이 문서와 일치함을 증명할 수 있어야 한다.</strong></p>",
+      "howItWorks": "<ol><li>로그 분류 체계를 먼저 만든다 — 감사로그(접근·권한변경·거래승인), 시스템 로그, 애플리케이션 로그, 디버그 로그로 나누고 각각 보존기간과 저장 위치를 표로 확정한다.</li><li>수집 파이프라인이 로그 성격별로 목적지를 분기한다. 감사성 로그는 일반 로그 저장소를 거치지 않고 별도 WORM 버킷 경로로 직행한다.</li><li>WORM 버킷은 생성 시점에 Object Lock을 활성화하고, 기본 보존 모드(Governance 또는 Compliance)와 기간을 설정한다. Compliance 모드는 이후 누구도 기간을 줄일 수 없다.</li><li>객체가 업로드될 때마다 저장소가 보존 만료일(retain-until-date)을 개체 메타데이터에 기록하고, 그 전까지 DELETE/PUT을 거부한다.</li><li>주기적으로(예: 매시간) 해당 시간대 로그 파일들의 SHA-256 해시를 계산하고, 이전 시간대의 다이제스트 해시를 포함한 새 다이제스트 파일을 만들어 함께 저장한다.</li><li>검증 시에는 다이제스트 체인을 처음부터 재계산해 현재 파일들의 해시와 대조한다. 하나라도 불일치하면 변조 또는 유실로 판정한다.</li><li>버킷 자체에 대한 접근(GetObject, PutObjectRetention, DeleteObject 시도)은 CloudTrail 데이터 이벤트로 별도 기록되어 또 다른 계정의 로그 저장소에 남는다.</li><li>보존기간이 만료되면 수명주기 정책이 객체를 삭제한다. 단 Legal Hold가 걸린 객체는 해제 전까지 삭제되지 않는다.</li><li>분기별로 정책 문서와 실제 버킷 설정·수명주기 규칙을 대사하고, 해시 검증 실행 결과를 증빙으로 보관한다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'는 SOX 대상 시스템의 감사로그를 별도 AWS 계정(log-archive)의 S3 버킷에 Object Lock Compliance 모드 7년으로 보관한다. 운영 계정의 어떤 역할도 이 버킷에 삭제 권한이 없고, 쓰기 전용 권한만 크로스 계정으로 부여된다. 2026년 3월 내부감사에서 \"작년 9월 권한 변경 이력\"을 요청받았을 때, Glacier에서 복원해 해시 체인 검증을 통과한 원본과 검증 스크립트 출력을 함께 제출했다.</p><p>Object Lock이 걸린 로그 아카이브 버킷을 Terraform으로 정의한 예:</p><pre><code>resource \"aws_s3_bucket\" \"audit_logs\" {\n  bucket              = \"paylink-audit-archive-prod\"\n  object_lock_enabled = true\n}\n\nresource \"aws_s3_bucket_object_lock_configuration\" \"audit_logs\" {\n  bucket = aws_s3_bucket.audit_logs.id\n  rule {\n    default_retention {\n      mode = \"COMPLIANCE\"   # 루트 계정도 기간 내 삭제 불가\n      days = 2555           # 7년\n    }\n  }\n}\n\nresource \"aws_s3_bucket_lifecycle_configuration\" \"audit_logs\" {\n  bucket = aws_s3_bucket.audit_logs.id\n  rule {\n    id     = \"tier-and-expire\"\n    status = \"Enabled\"\n    transition { days = 30  storage_class = \"STANDARD_IA\" }\n    transition { days = 180 storage_class = \"GLACIER_IR\" }\n    expiration { days = 2556 }\n  }\n}\n\nresource \"aws_s3_bucket_policy\" \"deny_delete\" {\n  bucket = aws_s3_bucket.audit_logs.id\n  policy = jsonencode({\n    Version = \"2012-10-17\"\n    Statement = [{\n      Sid       = \"DenyAllDeletes\"\n      Effect    = \"Deny\"\n      Principal = \"*\"\n      Action    = [\"s3:DeleteObject\", \"s3:DeleteObjectVersion\",\n                   \"s3:PutObjectRetention\", \"s3:PutBucketObjectLockConfiguration\"]\n      Resource  = \"${aws_s3_bucket.audit_logs.arn}/*\"\n    }]\n  })\n}</code></pre><p>CloudTrail 로그 무결성을 검증하는 명령 예:</p><pre><code>aws cloudtrail validate-logs \\\n  --trail-arn arn:aws:cloudtrail:ap-northeast-2:111122223333:trail/org-trail \\\n  --start-time 2025-09-01T00:00:00Z \\\n  --end-time   2025-09-30T23:59:59Z\n\n# 출력 예\n# Validating log files for trail org-trail between ...\n# Results requested for 2025-09-01 to 2025-09-30\n# Results found for 2025-09-01 to 2025-09-30:\n# 720/720 digest files valid\n# 21456/21456 log files valid</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='15' y='95' width='110' height='55' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='70' y='118' text-anchor='middle' fill='currentColor' font-size='11'>로그 파이프라인</text><text x='70' y='136' text-anchor='middle' fill='currentColor' font-size='11'>성격별 분기</text><rect x='185' y='25' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='45' text-anchor='middle' fill='currentColor' font-size='11'>디버그 로그</text><text x='260' y='62' text-anchor='middle' fill='currentColor' font-size='10'>7일 후 자동 삭제</text><rect x='185' y='95' width='150' height='45' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='260' y='115' text-anchor='middle' fill='currentColor' font-size='11'>앱 로그</text><text x='260' y='132' text-anchor='middle' fill='currentColor' font-size='10'>30~90일</text><rect x='185' y='165' width='150' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='260' y='186' text-anchor='middle' fill='currentColor' font-size='11'>감사 로그</text><text x='260' y='204' text-anchor='middle' fill='currentColor' font-size='10'>접근·권한변경·승인</text><line x1='125' y1='110' x2='183' y2='55' stroke='currentColor' marker-end='url(#ar)'/><line x1='125' y1='120' x2='183' y2='117' stroke='currentColor' marker-end='url(#ar)'/><line x1='125' y1='138' x2='183' y2='185' stroke='currentColor' marker-end='url(#ar)'/><rect x='395' y='150' width='230' height='125' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='172' text-anchor='middle' fill='currentColor' font-size='12'>별도 계정 WORM 버킷</text><text x='510' y='194' text-anchor='middle' fill='currentColor' font-size='11'>Object Lock COMPLIANCE 7년</text><text x='510' y='214' text-anchor='middle' fill='currentColor' font-size='11'>쓰기 전용 크로스계정 권한</text><text x='510' y='234' text-anchor='middle' fill='currentColor' font-size='11'>해시 다이제스트 체인</text><text x='510' y='254' text-anchor='middle' fill='currentColor' font-size='11'>Legal Hold 시 만료 정지</text><line x1='335' y1='192' x2='393' y2='195' stroke='currentColor' marker-end='url(#ar)'/><rect x='395' y='40' width='230' height='75' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='510' y='62' text-anchor='middle' fill='currentColor' font-size='11'>해시 체인 검증</text><text x='510' y='82' text-anchor='middle' fill='currentColor' font-size='11'>H(n) = SHA256( 로그n + H(n-1) )</text><text x='510' y='102' text-anchor='middle' fill='currentColor' font-size='11'>한 줄만 바뀌어도 이후 전부 불일치</text><line x1='510' y1='148' x2='510' y2='118' stroke='currentColor' marker-end='url(#ar)'/><text x='70' y='185' text-anchor='middle' fill='currentColor' font-size='11'>운영자는 쓰기만,</text><text x='70' y='203' text-anchor='middle' fill='currentColor' font-size='11'>삭제 권한 없음</text><text x='70' y='221' text-anchor='middle' fill='currentColor' font-size='11'>(권한 분리)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "WORM",
+          "meaning": "Write Once Read Many. 한 번 쓰면 보존기간 동안 변경·삭제가 불가능한 저장 방식"
+        },
+        {
+          "term": "Object Lock Compliance 모드",
+          "meaning": "AWS S3에서 루트 계정조차 보존기간 내 삭제·기간단축이 불가능한 설정"
+        },
+        {
+          "term": "Governance 모드",
+          "meaning": "특별 권한을 가진 주체는 해제 가능한 완화된 WORM 모드"
+        },
+        {
+          "term": "해시 체인(Hash chain)",
+          "meaning": "각 블록 해시에 이전 해시를 포함시켜 중간 변조를 탐지 가능하게 만든 구조"
+        },
+        {
+          "term": "다이제스트 파일(Digest)",
+          "meaning": "일정 구간 로그 파일들의 해시를 모아둔 검증용 파일"
+        },
+        {
+          "term": "Legal Hold",
+          "meaning": "소송·조사 시 보존기간 만료와 무관하게 삭제를 정지시키는 플래그"
+        },
+        {
+          "term": "계층화(Tiering)",
+          "meaning": "접근 빈도에 따라 hot/warm/cold 저장소로 옮겨 비용을 낮추는 것"
+        },
+        {
+          "term": "ILM/ISM 정책",
+          "meaning": "Elasticsearch/OpenSearch에서 인덱스 수명주기를 자동 관리하는 규칙"
+        },
+        {
+          "term": "보존 최소기간 vs 최대기간",
+          "meaning": "감사는 최소기간을, 개인정보보호는 최대기간(파기 의무)을 요구한다. 둘 다 지켜야 한다"
+        }
+      ],
+      "pitfalls": [
+        "\"로그는 많을수록 좋으니 전부 영구 보관\"으로 가다가 개인정보 파기 의무 위반이 된다. 무제한 보관은 통제가 아니라 위험이다.",
+        "감사로그를 운영 계정의 같은 버킷에 두어, 침해가 발생하면 공격자가 로그부터 지운다. 계정 분리가 핵심이다.",
+        "Object Lock을 Governance 모드로 걸어두고 감사인에게 'WORM 적용'이라고 설명하지만, 실은 특정 권한자가 해제할 수 있음을 설명하지 않는다.",
+        "버킷 생성 후에는 Object Lock을 켤 수 없다는 점을 몰라 뒤늦게 버킷을 다시 만들어야 한다(활성화는 생성 시점에만 가능).",
+        "해시 체인을 만들어 두고 한 번도 검증을 돌리지 않는다. 검증 실행 기록이 없으면 무결성 주장의 근거가 약하다.",
+        "Glacier Deep Archive에 넣어 비용은 줄였는데 복원에 12시간 이상 걸려 감사 마감에 못 맞춘다.",
+        "로그 서버의 시각이 NTP 동기화되지 않아 타임스탬프가 어긋나고, 여러 시스템 로그를 시간순으로 엮을 수 없게 된다.",
+        "보존정책 문서에는 1년이라 써 있는데 실제 ILM 설정은 90일인 문서-현실 불일치가 감사에서 가장 흔한 지적이다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 로그 종류별 보존기간이 정책 문서에 정의되어 있고, 실제 저장소 설정(수명주기 규칙, ILM/ISM)과 일치함을 정기 대사하는지",
+          "[접근] 감사로그 저장소에 대한 삭제·변경 권한이 운영 담당자에게서 분리되어 있고, 별도 계정/역할로만 관리되는지",
+          "[운영] 로그 무결성 검증(해시 체인 검증, WORM 설정 확인)을 주기적으로 수행하고 그 결과를 보관하는지",
+          "[변경] 보존정책·수명주기 규칙 변경이 승인 절차를 거치며, 기간 단축 변경은 특히 엄격히 통제되는지",
+          "[운영] 법적 보류(Legal Hold) 발동·해제 절차와 책임자가 정의되어 있는지",
+          "[ITAC] 재무 데이터 변경 이력(거래 승인, 마스터 변경) 로그가 회계기간 전체를 덮는 기간 동안 보존되는지"
+        ],
+        "fss": [
+          "전자금융거래법상 전자금융거래 기록 보존의무 기간(거래 유형에 따라 1년 또는 5년)을 충족하도록 로그가 보관되는지",
+          "전자금융감독규정상 전산자료 보호 및 접근기록 관리 요건에 따라 접근기록이 위·변조되지 않도록 보관되는지",
+          "감독당국 검사 시 요청 자료를 적시에 제출할 수 있도록 아카이브 복원 절차와 소요시간이 검증되어 있는지",
+          "로그 보관 매체가 클라우드인 경우 암호화(KMS) 및 키 관리 주체가 명확한지"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 — 접속기록을 최소 1년(특정 개인정보처리시스템은 2년) 보관하고 위·변조·도난·분실되지 않도록 보호하는지",
+          "2.9.5 로그 및 접속기록 점검 — 보관된 기록을 주기적으로 점검하는지",
+          "2.7.1 암호정책 적용 / 2.7.2 암호키 관리 — 로그 저장 암호화와 키 관리 체계",
+          "3.4.1 개인정보 파기 — 보존기간이 끝난 개인정보 포함 로그가 실제로 파기되는지",
+          "2.5.2 사용자 식별 / 2.5.6 접근권한 검토 — 로그 저장소 접근 권한의 최소화와 정기 검토"
+        ],
+        "evidence": [
+          "로그 종류별 보존기간 정책 문서(승인 서명 포함)와 실제 버킷 Object Lock·수명주기 설정 화면 캡처",
+          "감사로그 아카이브 버킷의 버킷 정책·IAM 정책 export(삭제 Deny 확인)",
+          "최근 수행한 로그 무결성 검증 실행 결과(예: aws cloudtrail validate-logs 출력) 및 수행 일자·수행자",
+          "감사로그 계정과 운영 계정의 분리 구조도 및 크로스계정 권한 설정",
+          "보존기간 만료 로그의 파기 실행 증적(수명주기 규칙 적용 결과, 삭제 리포트)",
+          "Legal Hold 적용·해제 이력",
+          "아카이브 복원 테스트 결과(요청 시각, 복원 완료 시각)"
+        ],
+        "auditorQuestions": [
+          "어떤 로그를 몇 년 보관하며 그 기준은 무엇입니까? 문서와 실제 설정이 같다는 걸 어떻게 확인합니까?",
+          "운영자가 자신의 행위가 기록된 로그를 지울 수 있습니까? 없다면 기술적으로 어떻게 막고 있습니까?",
+          "로그가 변조되지 않았음을 어떻게 증명하십니까? 최근 검증을 언제 수행했습니까?",
+          "보존기간이 지난 개인정보 포함 로그는 실제로 파기됩니까? 그 증적이 있습니까?",
+          "1년 전 특정 날짜의 권한 변경 로그를 지금 제출하는 데 얼마나 걸립니까?",
+          "소송이나 감독당국 조사가 시작되면 로그 삭제를 멈추는 절차가 있습니까?"
+        ],
+        "controlExample": "SOX 대상 시스템의 감사로그는 운영 계정과 분리된 로그 아카이브 계정의 S3 버킷에 Object Lock COMPLIANCE 모드로 7년간 보관되며, 운영 계정의 어떤 역할도 삭제 권한을 갖지 않는다. 로그 파일 무결성은 다이제스트 해시 체인으로 보호되고 분기 1회 검증을 수행하여 결과를 보안팀이 보관하며, 보존기간이 만료된 로그는 수명주기 정책에 따라 자동 파기된다."
+      },
+      "related": [
+        "obs-log-pipeline",
+        "obs-audit-vs-app-log",
+        "obs-siem-central-log",
+        "obs-incident-evidence-sox",
+        "awssec-cloudtrail",
+        "awssec-kms",
+        "comp-sox-itgc"
+      ],
+      "learnMore": [
+        "AWS S3 Documentation — Object Lock",
+        "AWS CloudTrail — Validating log file integrity",
+        "개인정보의 안전성 확보조치 기준 (접속기록 보관 및 점검)",
+        "전자금융감독규정 — 전산자료 보호"
+      ]
+    },
+    {
+      "id": "obs-audit-vs-app-log",
+      "title": "감사로그 vs 애플리케이션 로그",
+      "titleEn": "Audit Log vs Application Log",
+      "aliases": [
+        "감사로그",
+        "audit log",
+        "접근기록",
+        "애플리케이션 로그",
+        "운영로그",
+        "감사추적",
+        "audit trail"
+      ],
+      "tags": [
+        "observability",
+        "logging",
+        "compliance",
+        "itgc"
+      ],
+      "level": "중급",
+      "oneLiner": "누가 무엇을 했는지의 증거와, 시스템이 어떻게 돌았는지의 기록은 다르다",
+      "analogy": "은행 창구의 CCTV와 직원 업무일지의 차이와 같다. 업무일지는 '오늘 창구가 붐볐다, 프린터가 말썽이었다'처럼 일하는 데 필요한 메모(애플리케이션 로그)다. CCTV는 '몇 시 몇 분에 누가 금고에 들어갔다'를 증명하기 위한 것이고, 직원이 임의로 지울 수 없어야 의미가 있다(감사로그).",
+      "explanation": "<p>개발자가 남기는 로그와 감사인이 요구하는 로그는 <strong>목적, 형식, 보관 방식, 접근 권한이 전부 다르다.</strong> 이 둘을 구분하지 못하면 \"로그 다 남기고 있습니다\"라고 말했는데 감사 지적을 받는 일이 생긴다.</p><p><strong>애플리케이션 로그(운영 로그)</strong>는 개발자가 시스템을 디버깅하고 운영하기 위해 남긴다. 대상은 <strong>시스템의 동작</strong>이다. \"캐시 미스 발생\", \"커넥션 풀 대기 120ms\", \"NullPointerException at line 42\" 같은 내용이다. 형식은 자유롭고, 레벨(DEBUG/INFO/WARN/ERROR)로 양을 조절하며, 보존기간은 짧고(7~30일), 지워져도 큰 문제가 아니다. 개발자가 필요할 때 로그 레벨을 바꾸는 것도 정상이다.</p><p><strong>감사로그(Audit Log, 감사추적)</strong>는 <strong>사람 또는 시스템 주체의 행위</strong>를 증명하기 위해 남긴다. 반드시 담아야 하는 요소가 정해져 있다 — <strong>누가(주체 식별자), 언제(정확한 타임스탬프, 타임존 포함), 어디서(출발지 IP·단말), 무엇을(대상 자원), 어떻게(수행한 행위·이전값·이후값), 결과(성공/실패)</strong>. 형식은 표준화되어야 하고, 보존기간이 길며(1년~7년), <strong>행위자 본인이 지울 수 없어야</strong> 하고, 조회 자체도 기록되어야 한다.</p><p><strong>ITGC에서 감사로그가 필요한 대표 영역</strong>은 이렇다. <strong>[접근]</strong> 로그인 성공·실패, 권한 부여·회수, 특권계정 사용, 세션 시작·종료. <strong>[변경]</strong> 프로그램 배포, 설정 변경, DB 스키마 변경, 마스터 데이터 변경. <strong>[운영]</strong> 배치 실행 결과, 백업·복구 수행, 장애 조치. <strong>[ITAC]</strong> 거래 승인, 한도 초과 승인, 수동 분개(manual journal entry) 등록·승인.</p><p><strong>실무에서 가장 흔한 오해</strong>는 \"애플리케이션 로그에 다 찍히니까 그게 감사로그다\"라는 것이다. 그러나 애플리케이션 로그는 (1) 개발자가 로그 레벨을 올려 언제든 사라질 수 있고, (2) 코드 리팩터링 중 로그 문장이 조용히 삭제될 수 있고, (3) 형식이 일정치 않아 기계적 분석이 어렵고, (4) 보존기간이 짧으며, (5) 운영자 본인이 저장소를 지울 수 있다. 그래서 감사로그는 <strong>별도의 코드 경로, 별도의 전송 경로, 별도의 저장소</strong>로 설계해야 한다. 많은 조직이 <strong>감사 이벤트를 DB 테이블 또는 전용 토픽에 트랜잭션과 함께 기록</strong>하고, 그것을 WORM 저장소로 복제한다.</p><p><strong>SAP 같은 ERP</strong>에서는 이 구분이 제품 안에 이미 들어 있다. 애플리케이션 로그(SLG1)와 별개로 <strong>보안 감사 로그(SM19/SM20, 최신은 RSAU_CONFIG/RSAU_READ_LOG)</strong>, 테이블 변경 로그(SCU3), 문서 변경 이력(CDHDR/CDPOS), 전송 요청 이력(STMS)이 각각 다른 목적으로 존재한다. 클라우드에서는 <strong>CloudTrail(AWS API 호출 전체), Kubernetes Audit Log(API 서버 요청), DB Audit(pgaudit, MySQL audit plugin)</strong>이 감사로그 계층을 담당한다.</p><p>쉽게 말하면 이렇다. <strong>애플리케이션 로그는 '고치기 위해' 남기고, 감사로그는 '증명하기 위해' 남긴다.</strong> 앞의 것은 지워도 되고, 뒤의 것은 지워지면 안 된다.</p>",
+      "howItWorks": "<ol><li>설계 단계에서 감사 대상 이벤트 목록을 정의한다. 예: 로그인, 권한변경, 한도변경, 대량조회, 거래취소, 마스터 수정 — 각각에 대해 필수 필드(주체·시각·대상·전후값·결과)를 명세한다.</li><li>애플리케이션에서 감사 이벤트는 일반 로거가 아니라 전용 감사 API(예: <code>auditService.record(...)</code>)를 호출한다. 이 호출은 개발자가 임의로 제거하면 코드리뷰에서 걸리도록 표준화한다.</li><li>감사 이벤트는 비즈니스 트랜잭션과 같은 DB 트랜잭션에 기록되거나(강한 일관성), 아웃박스 패턴으로 별도 토픽에 발행된다.</li><li>수집 파이프라인이 감사 토픽/테이블을 읽어 일반 로그 저장소가 아닌 <strong>감사 전용 저장소</strong>(WORM 버킷, SIEM)로 보낸다.</li><li>저장소에는 쓰기 전용 권한만 부여되고, 삭제 권한은 보안팀의 별도 역할만 갖는다. 저장소 자체의 조회·삭제 시도 또한 상위 감사 로그(CloudTrail 데이터 이벤트)에 남는다.</li><li>애플리케이션 로그는 별도로 Loki/OpenSearch에 14~30일 보존되며, 개발자가 자유롭게 조회한다. 두 로그는 trace ID와 타임스탬프로 상호 참조할 수 있게 해 둔다.</li><li>분기별로 감사로그 완전성 점검을 수행한다 — 샘플 거래를 골라 실제 감사로그에 남았는지, 누락된 이벤트 유형이 없는지 대사한다.</li><li>정기 검토(예: 월별 특권계정 사용 내역, 비업무시간 접근)를 수행하고 검토 서명과 예외 조치 이력을 보관한다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'의 관리자 콘솔에서 운영자가 고객의 이체 한도를 500만원에서 5,000만원으로 변경했다. 애플리케이션 로그에는 <code>INFO LimitService updated limit for member 88213</code> 한 줄이 남았을 뿐, 이전 값도 변경자도 없었다. 감사에서 \"누가 왜 한도를 올렸나\"를 답할 수 없어 지적을 받았다. 개선 후에는 감사 이벤트를 별도로 남긴다.</p><p>감사 이벤트 JSON 표준 예:</p><pre><code>{\n  \"event_id\": \"9f1c3d2a-...\",\n  \"event_type\": \"MEMBER_LIMIT_CHANGED\",\n  \"occurred_at\": \"2026-09-14T10:32:11.482+09:00\",\n  \"actor\": { \"id\": \"eddie.kim\", \"type\": \"OPERATOR\",\n             \"auth\": \"SSO/OIDC\", \"src_ip\": \"10.42.3.18\",\n             \"session_id\": \"sess-77a1\" },\n  \"target\": { \"type\": \"MEMBER\", \"id\": \"88213\" },\n  \"action\": \"UPDATE\",\n  \"before\": { \"daily_transfer_limit\": 5000000 },\n  \"after\":  { \"daily_transfer_limit\": 50000000 },\n  \"reason_code\": \"VIP_UPGRADE\",\n  \"approval_ticket\": \"CHG-2026-0914-031\",\n  \"result\": \"SUCCESS\",\n  \"trace_id\": \"4bf92f3577b34da6\"\n}</code></pre><p>PostgreSQL에서 DB 레벨 감사로그를 켜는 예(pgaudit):</p><pre><code>-- 운영 DB 파라미터\nALTER SYSTEM SET shared_preload_libraries = 'pgaudit';\nALTER SYSTEM SET pgaudit.log = 'role, ddl, write';\nALTER SYSTEM SET pgaudit.log_parameter = off;   -- 파라미터 원문 저장 금지(개인정보)\nALTER SYSTEM SET pgaudit.log_relation = on;\n\n-- 특정 민감 테이블은 읽기까지 감사\nCREATE ROLE auditor NOINHERIT;\nALTER TABLE member_pii OWNER TO app_owner;\nGRANT SELECT ON member_pii TO auditor;\nALTER SYSTEM SET pgaudit.role = 'auditor';</code></pre><p>쿠버네티스 API 서버 감사 정책 예:</p><pre><code>apiVersion: audit.k8s.io/v1\nkind: Policy\nrules:\n  - level: RequestResponse\n    resources:\n      - group: \"rbac.authorization.k8s.io\"\n        resources: [\"clusterrolebindings\", \"rolebindings\"]\n  - level: Metadata\n    resources:\n      - group: \"\"\n        resources: [\"secrets\", \"configmaps\"]\n  - level: None\n    users: [\"system:kube-proxy\"]</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='110' width='120' height='70' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='80' y='138' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션</text><text x='80' y='158' text-anchor='middle' fill='currentColor' font-size='11'>두 경로로 기록</text><rect x='215' y='25' width='180' height='100' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='305' y='47' text-anchor='middle' fill='currentColor' font-size='12'>애플리케이션 로그</text><text x='305' y='68' text-anchor='middle' fill='currentColor' font-size='11'>목적: 디버깅·운영</text><text x='305' y='87' text-anchor='middle' fill='currentColor' font-size='11'>형식: 자유, 레벨 조절</text><text x='305' y='106' text-anchor='middle' fill='currentColor' font-size='11'>보존: 7~30일, 삭제 가능</text><rect x='215' y='165' width='180' height='115' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='305' y='187' text-anchor='middle' fill='currentColor' font-size='12'>감사 로그</text><text x='305' y='208' text-anchor='middle' fill='currentColor' font-size='11'>목적: 행위 증명</text><text x='305' y='227' text-anchor='middle' fill='currentColor' font-size='11'>필수: 누가·언제·어디서</text><text x='305' y='246' text-anchor='middle' fill='currentColor' font-size='11'>무엇을·전후값·결과</text><text x='305' y='265' text-anchor='middle' fill='currentColor' font-size='11'>보존: 1~7년, 삭제 불가</text><line x1='140' y1='130' x2='213' y2='80' stroke='currentColor' marker-end='url(#ar)'/><line x1='140' y1='160' x2='213' y2='210' stroke='currentColor' marker-end='url(#ar)'/><rect x='455' y='45' width='165' height='60' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='537' y='70' text-anchor='middle' fill='currentColor' font-size='11'>Loki / OpenSearch</text><text x='537' y='90' text-anchor='middle' fill='currentColor' font-size='11'>개발자 자유 조회</text><rect x='455' y='185' width='165' height='75' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='537' y='208' text-anchor='middle' fill='currentColor' font-size='11'>WORM 저장소 / SIEM</text><text x='537' y='228' text-anchor='middle' fill='currentColor' font-size='11'>쓰기 전용 권한</text><text x='537' y='248' text-anchor='middle' fill='currentColor' font-size='11'>조회 자체도 기록</text><line x1='395' y1='75' x2='453' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='395' y1='220' x2='453' y2='220' stroke='currentColor' marker-end='url(#ar)'/><line x1='537' y1='185' x2='537' y2='110' stroke='currentColor' stroke-dasharray='4 3' marker-end='url(#ar)'/><text x='537' y='150' text-anchor='middle' fill='currentColor' font-size='10'>trace_id 로 상호 참조</text><text x='80' y='215' text-anchor='middle' fill='currentColor' font-size='11'>감사 이벤트는</text><text x='80' y='233' text-anchor='middle' fill='currentColor' font-size='11'>전용 API로만 기록</text><text x='80' y='251' text-anchor='middle' fill='currentColor' font-size='11'>(삭제 시 리뷰에서 탐지)</text></svg>",
+      "keyTerms": [
+        {
+          "term": "감사추적(Audit trail)",
+          "meaning": "행위를 시간순으로 재구성할 수 있게 하는 기록의 사슬"
+        },
+        {
+          "term": "주체 식별자(Actor)",
+          "meaning": "행위를 한 사람·서비스를 특정하는 계정 ID. 공용계정이면 식별이 깨진다"
+        },
+        {
+          "term": "전후값(Before/After)",
+          "meaning": "변경 전과 후의 값. 재무 데이터 변경 감사에서 특히 중요하다"
+        },
+        {
+          "term": "아웃박스 패턴",
+          "meaning": "비즈니스 트랜잭션과 같은 DB에 이벤트를 쓰고 별도 프로세스가 발행해 유실을 막는 기법"
+        },
+        {
+          "term": "pgaudit",
+          "meaning": "PostgreSQL에서 DDL·DML·권한 사용을 감사 로그로 남기는 확장 모듈"
+        },
+        {
+          "term": "Kubernetes Audit Policy",
+          "meaning": "API 서버 요청 중 무엇을 어느 상세 수준으로 기록할지 정의하는 규칙"
+        },
+        {
+          "term": "RSAU_CONFIG (구 SM19)",
+          "meaning": "SAP 보안 감사 로그 설정 트랜잭션. 구 명칭 SM19/SM20"
+        },
+        {
+          "term": "CDHDR/CDPOS",
+          "meaning": "SAP의 문서 변경 이력 테이블. 마스터 데이터 변경 전후값을 담는다"
+        },
+        {
+          "term": "완전성 점검",
+          "meaning": "감사 대상 이벤트가 실제로 빠짐없이 기록되는지 표본으로 대사하는 활동"
+        }
+      ],
+      "pitfalls": [
+        "애플리케이션 로그를 감사로그로 제출했다가 '개발자가 지울 수 있지 않나요'라는 질문 한 번에 증거 능력을 잃는다.",
+        "감사로그에 주체가 'system' 또는 공용 서비스 계정으로만 남아 실제 사람을 특정할 수 없다.",
+        "변경 후 값만 남기고 이전 값을 안 남겨 '무엇이 바뀌었는지'를 증명하지 못한다.",
+        "실패한 시도(로그인 실패, 권한 거부)를 기록하지 않아 침해 시도 탐지가 불가능하다. 실패야말로 중요한 감사 이벤트다.",
+        "감사로그에 개인정보 원문을 그대로 넣어 로그 저장소가 개인정보처리시스템이 되어버린다. 식별자는 최소화하고 필요시 해시·마스킹한다.",
+        "타임스탬프에 타임존이 없거나 서버 로컬시간이라, 여러 시스템 로그를 시간순으로 합칠 수 없다.",
+        "DB 감사(pgaudit)를 켜면서 log_parameter를 on으로 두어 WHERE 절의 주민번호가 로그에 그대로 쌓인다.",
+        "감사로그를 남기기만 하고 정기 검토(리뷰)를 하지 않는다. ISMS-P와 ITGC 모두 '기록'과 '점검'을 별개 통제로 본다."
+      ],
+      "audit": {
+        "itgc": [
+          "[접근] 로그인 성공/실패, 권한 부여·회수, 특권계정 사용이 감사로그로 기록되고 정기 검토되는지",
+          "[변경] 프로그램·설정·DB 스키마 변경 시 수행자·승인자·일시가 감사로그로 남고 변경요청서와 대사 가능한지",
+          "[운영] 감사로그가 애플리케이션 로그와 물리적·논리적으로 분리 저장되고, 행위자가 삭제할 수 없는지",
+          "[ITAC] 거래 승인·한도 변경·수동 분개 등 재무영향 행위에 대해 전후값을 포함한 감사로그가 존재하는지",
+          "[운영] 감사로그 기록 누락(로깅 중단, 필드 누락)을 탐지하는 모니터링이 있는지",
+          "[접근] 감사로그 조회 행위 자체가 기록되고 조회 권한이 최소화되어 있는지"
+        ],
+        "fss": [
+          "전자금융감독규정상 접근기록(전산실 출입, 시스템 접속, 중요 정보 조회)의 생성·보존·점검 의무를 충족하는지",
+          "전자금융거래 기록의 보존의무 기간과 항목이 감사로그 설계에 반영되었는지",
+          "특권계정(DBA, OS 관리자)의 행위가 본인이 통제할 수 없는 경로로 기록되는지 — 계정관리 시스템(PAM) 연동 여부",
+          "개인신용정보 대량 조회·다운로드가 감사로그로 남고 이상징후로 모니터링되는지"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 — 개인정보처리시스템 접속기록에 계정, 접속일시, 접속지 정보, 수행업무가 포함되고 보관되는지",
+          "2.9.5 로그 및 접속기록 점검 — 월 1회 이상 접속기록을 점검하고 이상 발견 시 조치하는지",
+          "2.5.5 특수 계정 및 권한 관리 — 특권계정 사용 이력이 기록·검토되는지",
+          "2.11.3 이상행위 분석 및 모니터링 — 감사로그 기반 이상행위 탐지 규칙이 운영되는지",
+          "3.2.1 개인정보 현황관리 — 감사로그 내 개인정보 항목이 파악·최소화되었는지"
+        ],
+        "evidence": [
+          "감사 대상 이벤트 정의서(이벤트 유형별 필수 필드 명세)와 개발 표준 문서",
+          "실제 감사로그 샘플 export(권한변경 1건, 한도변경 1건, 로그인 실패 1건) — 전후값·주체·IP 포함 확인",
+          "감사로그 저장소 접근권한 목록과 삭제 권한 부재를 보여주는 IAM/버킷 정책",
+          "월별 접속기록 점검 결과지(점검자, 점검일, 이상 건수, 조치 내역, 승인 서명)",
+          "표본 거래 대사표 — 업무 시스템의 변경 이력과 감사로그의 일치 여부",
+          "DB 감사(pgaudit 등) 및 Kubernetes Audit Policy 설정 export",
+          "감사로그 조회 이력(누가 언제 무엇을 조회했는지)"
+        ],
+        "auditorQuestions": [
+          "고객 이체 한도를 변경하면 어떤 기록이 어디에 남습니까? 실제 한 건을 뽑아 보여주실 수 있습니까?",
+          "그 로그에 변경 전 값도 남아 있습니까? 변경한 사람의 개인 계정이 식별됩니까?",
+          "개발자나 DBA가 자신의 행위 기록을 지울 수 있습니까?",
+          "감사로그가 어느 순간부터 안 쌓이고 있다면 그것을 어떻게 알아차립니까?",
+          "접속기록 점검은 누가 얼마나 자주 하고, 최근 점검에서 무엇을 발견했습니까?",
+          "감사로그를 조회할 수 있는 사람은 누구이며 그 조회도 기록됩니까?"
+        ],
+        "controlExample": "재무영향 거래(한도 변경, 거래 취소, 수동 분개)에 대한 감사로그는 애플리케이션의 전용 감사 API를 통해 주체·일시·출발지 IP·대상·변경 전후값·승인 티켓번호와 함께 기록되며, 운영 로그와 분리된 WORM 저장소에 7년간 보관된다. 보안팀은 월 1회 특권계정 사용 및 비업무시간 접근 내역을 점검하고 점검 결과와 예외 조치 내역을 승인 서명과 함께 보관한다."
+      },
+      "related": [
+        "obs-log-retention-integrity",
+        "obs-log-pipeline",
+        "obs-siem-central-log",
+        "obs-incident-evidence-sox",
+        "awssec-cloudtrail",
+        "sec-pam",
+        "comp-sox-itgc",
+        "onprem-sap-basis"
+      ],
+      "learnMore": [
+        "Kubernetes Documentation — Auditing",
+        "PostgreSQL pgaudit Documentation",
+        "SAP Note — Security Audit Log (RSAU_CONFIG)",
+        "개인정보의 안전성 확보조치 기준 제8조 (접속기록의 보관 및 점검)"
+      ]
+    },
+    {
+      "id": "obs-siem-central-log",
+      "title": "중앙 로그서버와 SIEM 연계",
+      "titleEn": "Central Log Server and SIEM Integration",
+      "aliases": [
+        "SIEM",
+        "통합로그",
+        "중앙로그서버",
+        "보안관제",
+        "Splunk",
+        "Sentinel",
+        "상관분석",
+        "SOC"
+      ],
+      "tags": [
+        "observability",
+        "security",
+        "siem",
+        "logging"
+      ],
+      "level": "심화",
+      "oneLiner": "흩어진 로그를 한곳에 모아 보안 위협을 규칙·상관분석으로 탐지하는 체계",
+      "analogy": "도시 통합관제센터와 같다. 각 골목 CCTV, 차량번호 인식기, 112 신고, 지하철 개찰구 기록이 제각각 있으면 아무것도 못 본다. 한 화면에 모아놓고 '같은 차량이 30분 만에 다른 구를 세 번 지났다'처럼 <strong>서로 다른 출처를 엮어야</strong> 비로소 이상이 보인다. SIEM이 그 관제센터다.",
+      "explanation": "<p><strong>중앙 로그서버</strong>는 서버·네트워크 장비·보안장비·애플리케이션·클라우드의 로그를 한 곳에 모으는 인프라이고, <strong>SIEM(Security Information and Event Management)</strong>은 그 위에서 <strong>보안 관점의 탐지·상관분석·대응</strong>을 수행하는 시스템이다. 관측성 스택(Loki/Grafana)이 \"장애를 고치기 위한 도구\"라면 SIEM은 \"침해를 찾아내고 증명하기 위한 도구\"다. 데이터 원천은 상당 부분 겹치지만 목적·보존기간·권한 체계가 다르다.</p><p><strong>왜 중앙화가 필수인가.</strong> 공격자는 침입 후 <strong>가장 먼저 로컬 로그를 지운다</strong>. 로그가 서버 안에만 있으면 증거가 함께 사라진다. 또 침해는 대개 여러 시스템에 걸친 <strong>흔적의 조합</strong>으로만 보인다 — VPN에서 심야 로그인 + 평소 접근하지 않던 DB 조회 + 대용량 S3 다운로드가 각각은 정상이지만 한 사람이 30분 안에 다 했다면 이상이다. 이 조합을 찾는 것이 <strong>상관분석(correlation)</strong>이다.</p><p><strong>수집 대상</strong>은 보통 이렇게 잡는다. (1) 인증·인가 — IdP(SSO/OIDC), AD/LDAP, VPN, PAM. (2) 클라우드 — CloudTrail, GuardDuty, VPC Flow Logs, Kubernetes Audit. (3) 보안장비 — 방화벽, IPS, WAF, EDR, DLP. (4) 시스템 — OS 로그(Windows Event, Linux auditd), DB 감사로그. (5) 애플리케이션 — 감사 이벤트, 결제·거래 로그. 이들을 공통 스키마(예: OCSF, ECS)로 정규화(normalization)해야 규칙을 쓸 수 있다.</p><p><strong>제품 지형</strong>은 Splunk Enterprise Security(전통 강자, 검색이 강력하지만 비싸다), Microsoft Sentinel(클라우드 네이티브, KQL 사용, Azure/M365 연동이 압도적), Elastic Security(오픈소스 기반, ELK 자산 재활용), IBM QRadar, 그리고 국내 금융권에서 여전히 많이 보이는 국산 통합로그관리 솔루션들이 있다. 최근에는 <strong>SOAR(자동 대응)</strong>와 결합해 \"탐지되면 자동으로 계정을 잠그고 티켓을 만든다\"까지 자동화한다.</p><p><strong>관측성 스택과 SIEM의 관계</strong>를 정리하면 이렇다. 요즘은 로그 파이프라인(Fluent Bit/Vector/Kafka)을 <strong>하나로 두고 분기</strong>한다 — 같은 스트림에서 앱 로그는 Loki로, 보안 관련 로그는 SIEM으로. 이렇게 하면 수집 에이전트를 두 벌 깔지 않아도 되고, 마스킹 규칙도 한 곳에서 관리한다. 다만 <strong>SIEM은 라이선스가 수집량(GB/day) 기준</strong>인 경우가 많아, 무엇을 보낼지 선별하는 것이 비용 설계의 핵심이다.</p><p><strong>감사에서 SIEM이 갖는 의미</strong>는 크다. ISMS-P 2.11.3(이상행위 분석 및 모니터링), 2.9.5(로그 점검), 전자금융감독규정의 침해사고 대응 요건을 실질적으로 충족시키는 시스템이기 때문이다. 감사인은 \"모으고 있다\"를 넘어 <strong>\"탐지 규칙이 몇 개이고, 지난 분기 몇 건 탐지되어 어떻게 처리했는가\"</strong>를 묻는다. 알람을 모두 무시하고 있다면 SIEM은 비싼 로그 창고일 뿐이다.</p>",
+      "howItWorks": "<ol><li>각 원천에 수집기를 붙인다 — 서버는 에이전트(Splunk UF, Elastic Agent, Fluent Bit), 네트워크 장비는 syslog, 클라우드는 API/S3 연동, SaaS는 커넥터를 사용한다.</li><li>로그가 중앙 수집 계층(또는 Kafka)에 도착하면 파서가 원본을 공통 필드로 정규화한다. 예: 여러 벤더의 \"소스 IP\" 필드명을 모두 <code>source.ip</code>로 통일.</li><li>보강(enrichment) 단계에서 IP에 지리정보·위협 인텔리전스(악성 IP 목록)를, 계정에 부서·직급·재직 상태를 붙인다. 퇴직자 계정 사용 탐지는 이 보강 없이는 불가능하다.</li><li>탐지 규칙 엔진이 스트림을 평가한다. 단순 규칙(5분 내 로그인 실패 10회), 임계 규칙, 상관 규칙(서로 다른 소스의 이벤트 조합), 행위 기반(UEBA, 평소 패턴 대비 이탈)이 함께 돈다.</li><li>규칙이 맞으면 <strong>알람(Alert)</strong>이 생성되고 심각도가 부여된다. 유사 알람은 하나의 <strong>인시던트(Incident)</strong>로 묶인다.</li><li>SOC 분석가(또는 SOAR 플레이북)가 인시던트를 받아 분류(triage)한다 — 오탐이면 규칙 튜닝, 진성이면 대응 절차 발동.</li><li>자동 대응이 설정된 경우 SOAR가 IdP API로 계정을 비활성화하거나, 방화벽에 차단 규칙을 넣거나, ITSM에 티켓을 생성한다.</li><li>모든 알람·처리 이력은 SIEM 안에 남아 감사 증적이 되고, 원본 로그는 정해진 보존기간(예: 검색 가능 90일 + 아카이브 7년) 정책에 따라 계층 이동한다.</li><li>정기적으로 탐지 규칙의 유효성을 검증한다 — 모의 공격(퍼플팀)이나 Atomic Red Team 같은 테스트로 \"이 규칙이 실제로 울리는가\"를 확인하고 결과를 기록한다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'에서 새벽 3시 12분, 퇴직 처리된 지 5일 된 개발자 계정으로 VPN 접속이 발생하고, 이어 운영 DB 조회 권한이 없는 그 계정이 읽기 전용 리플리카에 접속을 시도했다. SIEM의 상관 규칙이 <code>퇴직자 계정 사용</code> + <code>비업무시간 접속</code> + <code>평소와 다른 접속 국가</code>를 한 인시던트로 묶어 심각도 High로 올렸고, SOAR 플레이북이 즉시 IdP에서 계정을 비활성화하고 보안팀 온콜에 PagerDuty로 호출했다. 조사 결과 퇴직자 계정 회수 배치가 실패했는데 실패 알림이 없어 방치된 것이 근본 원인이었다.</p><p>Microsoft Sentinel의 KQL 탐지 규칙 예 (퇴직자 계정 활동):</p><pre><code>let terminated = HR_Employees_CL\n    | where Status_s == \"TERMINATED\"\n    | where TerminationDate_t &lt; now()\n    | project UserPrincipalName = upn_s, TerminationDate_t;\nSigninLogs\n| where TimeGenerated &gt; ago(1d)\n| where ResultType == 0\n| join kind=inner terminated on UserPrincipalName\n| where TimeGenerated &gt; TerminationDate_t\n| project TimeGenerated, UserPrincipalName, IPAddress,\n          Location, AppDisplayName, TerminationDate_t\n| order by TimeGenerated desc</code></pre><p>Splunk에서 짧은 시간 내 대량 개인정보 조회를 탐지하는 예:</p><pre><code>index=app_audit event_type=MEMBER_PII_READ\n| bin _time span=5m\n| stats dc(target_member_id) AS unique_members,\n        values(src_ip) AS ips BY _time, actor_id\n| where unique_members &gt; 200\n| eval severity=if(unique_members&gt;1000,\"critical\",\"high\")\n| table _time, actor_id, unique_members, ips, severity</code></pre><p>Fluent Bit에서 보안 관련 로그만 SIEM으로 분기하는 설정 예:</p><pre><code>[FILTER]\n    Name    rewrite_tag\n    Match   kube.*\n    Rule    $event_type ^(LOGIN_|PERM_|PII_|PRIV_) siem.$0 false\n\n[OUTPUT]\n    Name        http\n    Match       siem.*\n    Host        siem-collector.sec.internal\n    Port        8088\n    URI         /services/collector/event\n    Format      json\n    tls         On\n    Header      Authorization Splunk ${SPLUNK_HEC_TOKEN}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 310' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='12' y='25' width='108' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='66' y='46' text-anchor='middle' fill='currentColor' font-size='11'>IdP / VPN / PAM</text><rect x='12' y='65' width='108' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='66' y='86' text-anchor='middle' fill='currentColor' font-size='11'>CloudTrail · k8s</text><rect x='12' y='105' width='108' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='66' y='126' text-anchor='middle' fill='currentColor' font-size='11'>방화벽 · WAF · EDR</text><rect x='12' y='145' width='108' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='66' y='166' text-anchor='middle' fill='currentColor' font-size='11'>DB 감사 · OS</text><rect x='12' y='185' width='108' height='32' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='66' y='206' text-anchor='middle' fill='currentColor' font-size='11'>앱 감사 이벤트</text><rect x='160' y='75' width='105' height='95' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='212' y='100' text-anchor='middle' fill='currentColor' font-size='11'>정규화</text><text x='212' y='120' text-anchor='middle' fill='currentColor' font-size='11'>공통 스키마</text><text x='212' y='140' text-anchor='middle' fill='currentColor' font-size='11'>+ 보강</text><text x='212' y='158' text-anchor='middle' fill='currentColor' font-size='10'>인사·위협인텔</text><line x1='120' y1='41' x2='158' y2='90' stroke='currentColor' marker-end='url(#ar)'/><line x1='120' y1='81' x2='158' y2='105' stroke='currentColor' marker-end='url(#ar)'/><line x1='120' y1='121' x2='158' y2='121' stroke='currentColor' marker-end='url(#ar)'/><line x1='120' y1='161' x2='158' y2='140' stroke='currentColor' marker-end='url(#ar)'/><line x1='120' y1='201' x2='158' y2='158' stroke='currentColor' marker-end='url(#ar)'/><rect x='300' y='55' width='140' height='135' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='370' y='78' text-anchor='middle' fill='currentColor' font-size='12'>탐지 엔진</text><text x='370' y='100' text-anchor='middle' fill='currentColor' font-size='11'>단순 임계 규칙</text><text x='370' y='120' text-anchor='middle' fill='currentColor' font-size='11'>상관 규칙</text><text x='370' y='140' text-anchor='middle' fill='currentColor' font-size='11'>UEBA 행위기반</text><text x='370' y='165' text-anchor='middle' fill='currentColor' font-size='10'>퇴직자+심야+해외IP</text><text x='370' y='181' text-anchor='middle' fill='currentColor' font-size='10'>= 하나의 인시던트</text><line x1='265' y1='122' x2='298' y2='122' stroke='currentColor' marker-end='url(#ar)'/><rect x='480' y='30' width='145' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='552' y='52' text-anchor='middle' fill='currentColor' font-size='11'>SOC 분석가</text><text x='552' y='71' text-anchor='middle' fill='currentColor' font-size='11'>분류 · 오탐 튜닝</text><rect x='480' y='105' width='145' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='552' y='127' text-anchor='middle' fill='currentColor' font-size='11'>SOAR 자동대응</text><text x='552' y='146' text-anchor='middle' fill='currentColor' font-size='11'>계정잠금 · 차단 · 티켓</text><line x1='440' y1='100' x2='478' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='440' y1='130' x2='478' y2='130' stroke='currentColor' marker-end='url(#ar)'/><rect x='300' y='225' width='325' height='60' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='462' y='248' text-anchor='middle' fill='currentColor' font-size='11'>원본 보존: 검색 가능 90일 + 아카이브 7년 (WORM)</text><text x='462' y='268' text-anchor='middle' fill='currentColor' font-size='11'>알람·처리 이력 = ISMS-P 2.11.3 / 2.9.5 증빙</text><line x1='370' y1='190' x2='370' y2='223' stroke='currentColor' marker-end='url(#ar)'/><text x='150' y='248' text-anchor='middle' fill='currentColor' font-size='11'>SIEM 라이선스는</text><text x='150' y='266' text-anchor='middle' fill='currentColor' font-size='11'>GB/day 기준 → 선별 전송</text></svg>",
+      "keyTerms": [
+        {
+          "term": "SIEM",
+          "meaning": "보안 이벤트를 모아 탐지·분석·대응하는 시스템"
+        },
+        {
+          "term": "상관분석(Correlation)",
+          "meaning": "서로 다른 출처의 이벤트를 엮어 단독으로는 안 보이는 이상을 찾는 분석"
+        },
+        {
+          "term": "정규화(Normalization)",
+          "meaning": "벤더마다 다른 필드명을 공통 스키마(ECS, OCSF)로 통일하는 처리"
+        },
+        {
+          "term": "보강(Enrichment)",
+          "meaning": "IP에 위협 인텔, 계정에 인사 정보를 붙여 판단 근거를 늘리는 것"
+        },
+        {
+          "term": "UEBA",
+          "meaning": "사용자·개체 행위 분석. 평소 패턴 대비 이탈로 이상을 탐지"
+        },
+        {
+          "term": "SOAR",
+          "meaning": "탐지 후 대응을 플레이북으로 자동화하는 시스템"
+        },
+        {
+          "term": "오탐(False positive)",
+          "meaning": "실제 위협이 아닌데 울린 알람. 많으면 알람 자체가 무시된다"
+        },
+        {
+          "term": "미탐(False negative)",
+          "meaning": "실제 위협인데 탐지하지 못한 경우. 규칙 검증이 필요한 이유"
+        },
+        {
+          "term": "HEC / 커넥터",
+          "meaning": "SIEM으로 로그를 밀어 넣는 수집 엔드포인트"
+        },
+        {
+          "term": "퍼플팀 검증",
+          "meaning": "모의 공격을 실행해 탐지 규칙이 실제로 작동하는지 확인하는 활동"
+        }
+      ],
+      "pitfalls": [
+        "로그만 모으고 탐지 규칙이 10개도 안 되는 '비싼 로그 창고'가 된다. 감사인은 규칙 수와 탐지·처리 실적을 본다.",
+        "오탐이 하루 수백 건 쌓여 분석가가 전부 무시하게 되고, 진짜 침해 알람도 함께 묻힌다.",
+        "인사 정보(재직 상태, 부서)를 SIEM에 연동하지 않아 퇴직자 계정 활동 같은 기본 탐지를 못 한다.",
+        "라이선스 비용 때문에 로그를 줄이다가 하필 중요한 원천(DB 감사, 특권계정 세션)을 제외한다.",
+        "시각 동기화가 안 된 장비 로그가 섞여 상관분석 타임라인이 어긋난다. NTP는 SIEM 전제조건이다.",
+        "탐지 규칙을 만든 뒤 한 번도 유효성 검증(모의공격)을 하지 않아, 실제로는 작동하지 않는 규칙이 목록에만 존재한다.",
+        "SIEM에 개인정보가 마스킹 없이 적재되어 SIEM 자체가 개인정보처리시스템이 되고 접근통제 부담이 커진다.",
+        "관측성 스택(Grafana)과 SIEM에 동일 로그를 두 벌 수집해 비용이 두 배가 된다. 파이프라인 분기로 해결한다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] SOX 대상 시스템의 접근·변경 로그가 SIEM 또는 중앙 로그서버로 빠짐없이 전송되는지, 전송 중단을 탐지하는 장치가 있는지",
+          "[접근] SIEM 접근 권한이 보안팀·감사팀으로 제한되고, 운영자가 자신의 행위 로그를 삭제·수정할 수 없는지",
+          "[운영] 탐지 규칙 목록과 심각도 기준이 문서화되어 있고, 발생한 알람의 처리 이력(분류·조치·종결)이 보관되는지",
+          "[변경] 탐지 규칙의 추가·수정·비활성화가 승인 절차를 거치는지 — 규칙을 몰래 끄면 탐지 공백이 생긴다",
+          "[운영] 특권계정 사용, 퇴직자 계정 활동, 비업무시간 접근에 대한 탐지 규칙이 존재하고 실제로 작동하는지",
+          "[접근] SIEM으로의 로그 전송 경로에 사용되는 토큰·인증서가 안전하게 관리되는지"
+        ],
+        "fss": [
+          "전자금융감독규정상 침해사고 탐지·대응 체계의 일환으로 통합 로그 관리 및 이상징후 모니터링이 운영되는지",
+          "전산자료 접근기록이 중앙에서 위·변조 불가능하게 보관되고 정기 점검되는지",
+          "24시간 관제(자체 SOC 또는 위탁 관제) 체계가 있고, 위탁 시 수탁사 관리·감독이 이루어지는지",
+          "중요 침해사고 발생 시 감독당국 보고 절차와 SIEM 기록의 연계가 정의되어 있는지"
+        ],
+        "isms": [
+          "2.9.4 로그 및 접속기록 관리 — 중앙 집중 수집·보관 및 위변조 방지 조치",
+          "2.9.5 로그 및 접속기록 점검 — 정기 점검 주기·방법·책임자 및 이상 발견 시 조치",
+          "2.11.3 이상행위 분석 및 모니터링 — 탐지 규칙 운영, 알람 처리, 규칙 유효성 검증",
+          "2.11.1 사고 예방 및 대응체계 구축 / 2.11.5 사고 대응 및 복구 — SIEM 탐지와 침해사고 대응 절차의 연계",
+          "2.3.2 외부자 계약 시 보안 — 관제 위탁 시 계약상 보안요구사항과 점검"
+        ],
+        "evidence": [
+          "SIEM 수집 원천 목록(시스템명, 로그 종류, 수집 방식, 일평균 볼륨)과 수집 중단 감지 대시보드",
+          "탐지 규칙 목록 export(규칙명, 심각도, 최종 수정일, 활성 여부)",
+          "최근 분기 알람 통계와 표본 인시던트 처리 티켓(탐지 → 분류 → 조치 → 종결)",
+          "SIEM 사용자·역할 목록과 접근권한 검토 결과",
+          "탐지 규칙 변경 이력(추가·수정·비활성화 각각의 승인 기록)",
+          "퍼플팀/모의공격을 통한 탐지 규칙 유효성 검증 보고서",
+          "인사 시스템 연동 설정(재직 상태 동기화 주기) 및 퇴직자 계정 활동 탐지 규칙 실행 결과",
+          "로그 보존기간 설정과 아카이브 이관 증적"
+        ],
+        "auditorQuestions": [
+          "어떤 시스템의 로그를 SIEM으로 보내고 있으며, 빠진 시스템은 무엇이고 왜 빠졌습니까?",
+          "특정 서버의 로그가 3일째 안 들어오고 있다면 그것을 언제 어떻게 알아차립니까?",
+          "현재 운영 중인 탐지 규칙은 몇 개이며, 지난 분기에 몇 건이 탐지되어 어떻게 처리되었습니까?",
+          "퇴직자 계정이 사용되면 탐지됩니까? 실제로 그 규칙이 작동하는지 검증해 본 적이 있습니까?",
+          "탐지 규칙을 비활성화하려면 누구의 승인이 필요합니까?",
+          "SIEM에 저장된 로그를 조회하거나 삭제할 수 있는 사람은 누구입니까?",
+          "오탐이 많은 규칙은 어떻게 관리합니까?"
+        ],
+        "controlExample": "인증·클라우드·보안장비·DB 감사·애플리케이션 감사 로그는 중앙 파이프라인을 통해 SIEM으로 실시간 전송되며, 원천별 수집 중단은 30분 이상 미수신 시 보안팀에 자동 알림된다. 퇴직자 계정 사용·특권계정 비업무시간 접근 등 핵심 탐지 규칙은 반기 1회 모의 시나리오로 유효성을 검증하고, 발생한 알람은 심각도 기준에 따라 분류·조치되어 처리 이력이 SIEM과 ITSM에 보관된다."
+      },
+      "related": [
+        "obs-log-pipeline",
+        "obs-audit-vs-app-log",
+        "obs-log-retention-integrity",
+        "obs-incident-response",
+        "obs-alert-design",
+        "sec-pam",
+        "awssec-cloudtrail",
+        "comp-isms-p"
+      ],
+      "learnMore": [
+        "Microsoft Sentinel Documentation — Analytics rules",
+        "Splunk Enterprise Security — Correlation searches",
+        "Elastic Security — Detection rules",
+        "OCSF (Open Cybersecurity Schema Framework)"
+      ]
+    },
+    {
+      "id": "obs-red-use-golden-signals",
+      "title": "핵심지표 (RED · USE · Golden Signals)",
+      "titleEn": "Key Monitoring Metrics: RED, USE, and the Four Golden Signals",
+      "aliases": [
+        "RED",
+        "USE",
+        "골든시그널",
+        "Golden Signals",
+        "핵심지표",
+        "4대 지표",
+        "모니터링 지표 체계"
+      ],
+      "tags": [
+        "observability",
+        "metrics",
+        "sre",
+        "methodology"
+      ],
+      "level": "기초",
+      "oneLiner": "무엇을 재야 하는지 알려주는 세 가지 표준 지표 묶음",
+      "analogy": "병원 응급실의 활력징후(바이탈 사인)와 같다. 환자가 들어오면 무조건 체온·맥박·혈압·호흡을 먼저 잰다. 증상이 무엇이든 이 네 가지부터 본다는 합의가 있어서 누가 당직이어도 같은 판단을 내린다. RED/USE/Golden Signals는 시스템의 활력징후 목록이다.",
+      "explanation": "<p>모니터링을 처음 구축할 때 가장 흔한 실패는 <strong>\"뭘 봐야 할지 몰라서 전부 다 그린다\"</strong>이다. 대시보드에 위젯이 80개인데 장애가 나면 아무도 어디를 볼지 모른다. 이 문제를 해결하려고 업계가 합의한 것이 세 가지 지표 체계다. 셋은 경쟁 관계가 아니라 <strong>보는 대상이 다르다</strong>.</p><p><strong>Four Golden Signals(4대 황금 신호)</strong>는 구글 SRE 책에서 나온 가장 유명한 틀이다. <strong>지연(Latency)</strong> — 요청 처리에 걸리는 시간. 중요한 건 성공한 요청과 실패한 요청의 지연을 <strong>분리</strong>해야 한다는 점이다(빠르게 실패한 500 응답이 평균을 낮춰 착시를 만든다). <strong>트래픽(Traffic)</strong> — 초당 요청 수, 초당 트랜잭션 수 같은 수요의 크기. <strong>오류(Errors)</strong> — 실패율. HTTP 5xx뿐 아니라 \"200인데 응답 내용이 틀린\" 경우까지 포함해야 한다. <strong>포화도(Saturation)</strong> — 자원이 얼마나 꽉 찼는가. CPU·메모리·디스크·커넥션 풀·큐 깊이. 가장 어렵고 가장 예측력이 높은 지표다.</p><p><strong>RED 메서드</strong>는 <strong>요청 기반 서비스(마이크로서비스, API)</strong>에 특화된 축약판이다. <strong>Rate</strong>(초당 요청 수), <strong>Errors</strong>(초당 실패 수 또는 실패율), <strong>Duration</strong>(응답시간 분포). 모든 서비스가 이 세 개만 똑같이 내보내면, 서비스가 200개여도 <strong>동일한 대시보드 템플릿 하나</strong>로 전부 볼 수 있다. 이 일관성이 RED의 진짜 가치다.</p><p><strong>USE 메서드</strong>는 브렌던 그레그가 제안한 <strong>자원(리소스) 기반</strong> 틀이다. 모든 자원(CPU, 메모리, 디스크, 네트워크, 커넥션 풀)에 대해 <strong>Utilization</strong>(사용률), <strong>Saturation</strong>(대기·큐 적체 정도), <strong>Errors</strong>(자원 수준 오류: 디스크 I/O 에러, 패킷 드롭)를 본다. RED가 \"사용자가 뭘 겪는가\"라면 USE는 \"자원이 어떤 상태인가\"다.</p><p><strong>실무 조합</strong>은 이렇게 한다. 사용자 쪽(서비스)은 RED/Golden Signals로 보고 <strong>알림은 여기에만</strong> 건다. 자원 쪽은 USE로 보되 <strong>대부분 알림이 아니라 진단용 대시보드</strong>로 둔다. \"CPU 80%\"는 장애가 아니다 — 사용자가 아무 문제 없으면 그냥 자원을 잘 쓰고 있는 것이다. 알림은 <strong>증상(사용자가 겪는 문제)</strong>에 걸고, 원인(자원)은 조사할 때 본다. 이것이 <strong>증상 기반 알림(symptom-based alerting)</strong> 원칙이다.</p><p><strong>백분위수(percentile)를 반드시 쓴다.</strong> 평균 응답시간 200ms는 거짓말을 한다 — 99%가 50ms이고 1%가 15초여도 평균은 200ms다. p50(중앙값), p95, p99를 함께 봐야 \"소수가 겪는 심각한 지연\"이 보인다. 사용자 1,000만 명 서비스에서 p99는 10만 명의 경험이다.</p><p><strong>배치·큐 시스템</strong>에는 이 틀이 그대로 안 맞으므로 변형을 쓴다. 큐는 <strong>깊이(backlog), 소비 지연(consumer lag), 처리량, DLQ 적재량</strong>을, 배치는 <strong>시작 여부·소요시간·처리 건수·실패 건수</strong>를 본다. 감사 관점에서는 이 배치 지표가 ITAC(자동화 통제) 유효성의 직접 증거가 된다.</p>",
+      "howItWorks": "<ol><li>서비스 계측 표준을 정한다 — 모든 HTTP 서버는 <code>http_server_requests_total{service,route,status}</code> 카운터와 <code>http_server_request_duration_seconds</code> 히스토그램을 반드시 노출하도록 공통 라이브러리/미들웨어에 넣는다.</li><li>Prometheus가 각 서비스의 /metrics를 주기적으로 스크레이프해 시계열로 저장한다.</li><li>Rate는 <code>rate(요청수[5m])</code>로, Errors는 <code>5xx rate / 전체 rate</code>로, Duration은 히스토그램 버킷에서 <code>histogram_quantile(0.99, ...)</code>로 계산한다.</li><li>대시보드는 서비스명을 변수로 받는 <strong>템플릿 하나</strong>로 만들고, 모든 서비스가 같은 화면 배치를 갖게 한다.</li><li>USE 지표는 node_exporter(호스트), cAdvisor(컨테이너), 애플리케이션 풀 메트릭에서 수집해 별도 진단 대시보드에 배치한다.</li><li>알림은 RED/Golden Signals 기준으로만 건다 — 예: \"결제 API의 5분간 오류율이 2%를 초과\", \"p99 지연이 1초를 5분간 초과\".</li><li>알림이 울리면 담당자는 RED 대시보드에서 어떤 서비스·어떤 라우트가 문제인지 좁히고, USE 대시보드로 넘어가 자원 포화 여부를 확인하고, 트레이스로 구간을 특정한다.</li><li>주기적으로 대시보드와 알림을 리뷰해 한 번도 보지 않은 위젯과 한 번도 울리지 않은(또는 매번 무시된) 알림을 제거한다.</li></ol>",
+      "example": "<p>가상 커머스 '마켓링크'는 마이크로서비스 180개를 운영하며, 예전에는 팀마다 대시보드를 따로 만들어 장애 때 화면 찾는 데만 10분이 걸렸다. RED를 표준으로 삼고 공통 미들웨어에 메트릭을 넣은 뒤, Grafana에 서비스 변수 하나짜리 템플릿 대시보드를 만들었다. 이제 어떤 서비스든 같은 URL 패턴으로 같은 화면을 본다. 알림도 \"오류율 > 1% 5분 지속\", \"p99 > SLO 임계\" 두 종류로 통일했더니 월 알림 건수가 1,400건에서 90건으로 줄었다.</p><p>RED 지표 PromQL 예:</p><pre><code># Rate — 초당 요청 수 (라우트별)\nsum by (route) (\n  rate(http_server_requests_total{service=\"payment-api\", env=\"prod\"}[5m])\n)\n\n# Errors — 오류율 (%)\n100 * (\n  sum(rate(http_server_requests_total{service=\"payment-api\", status=~\"5..\"}[5m]))\n  /\n  sum(rate(http_server_requests_total{service=\"payment-api\"}[5m]))\n)\n\n# Duration — p99 (성공 요청만)\nhistogram_quantile(0.99,\n  sum by (le, route) (\n    rate(http_server_request_duration_seconds_bucket{\n      service=\"payment-api\", status!~\"5..\"\n    }[5m])\n  )\n)</code></pre><p>USE 지표 예 (자원 포화도):</p><pre><code># 커넥션 풀 포화도 — 활성/최대\nhikaricp_connections_active{service=\"payment-api\"}\n  / hikaricp_connections_max{service=\"payment-api\"}\n\n# CPU 대기(Saturation) — 실행 대기 중인 프로세스\nnode_load1 / count by (instance) (node_cpu_seconds_total{mode=\"idle\"})\n\n# Kafka 소비 지연\nsum by (consumergroup, topic) (kafka_consumergroup_lag)</code></pre><p>증상 기반 알림 규칙 예:</p><pre><code>groups:\n  - name: payment-api-red\n    rules:\n      - alert: PaymentApiHighErrorRate\n        expr: |\n          100 * (\n            sum(rate(http_server_requests_total{service=\"payment-api\",status=~\"5..\"}[5m]))\n            / sum(rate(http_server_requests_total{service=\"payment-api\"}[5m]))\n          ) &gt; 1\n        for: 5m\n        labels: { severity: page, team: payments }\n        annotations:\n          summary: \"결제 API 오류율 1% 초과 (현재 {{ $value | printf \\\"%.2f\\\" }}%)\"\n          runbook: \"https://wiki.internal/runbook/payment-api-errors\"</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='20' width='190' height='115' rx='10' fill='var(--dg-accent)' stroke='currentColor'/><text x='115' y='44' text-anchor='middle' fill='currentColor' font-size='12'>RED — 서비스 관점</text><text x='115' y='68' text-anchor='middle' fill='currentColor' font-size='11'>Rate: 초당 요청 수</text><text x='115' y='88' text-anchor='middle' fill='currentColor' font-size='11'>Errors: 실패율</text><text x='115' y='108' text-anchor='middle' fill='currentColor' font-size='11'>Duration: p50/p95/p99</text><text x='115' y='128' text-anchor='middle' fill='currentColor' font-size='10'>→ 알림은 여기에만</text><rect x='20' y='160' width='190' height='115' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='115' y='184' text-anchor='middle' fill='currentColor' font-size='12'>USE — 자원 관점</text><text x='115' y='208' text-anchor='middle' fill='currentColor' font-size='11'>Utilization: 사용률</text><text x='115' y='228' text-anchor='middle' fill='currentColor' font-size='11'>Saturation: 대기·큐</text><text x='115' y='248' text-anchor='middle' fill='currentColor' font-size='11'>Errors: I/O·드롭</text><text x='115' y='268' text-anchor='middle' fill='currentColor' font-size='10'>→ 진단용 대시보드</text><rect x='255' y='75' width='170' height='145' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='340' y='99' text-anchor='middle' fill='currentColor' font-size='12'>Golden Signals</text><text x='340' y='123' text-anchor='middle' fill='currentColor' font-size='11'>Latency 지연</text><text x='340' y='143' text-anchor='middle' fill='currentColor' font-size='11'>Traffic 수요</text><text x='340' y='163' text-anchor='middle' fill='currentColor' font-size='11'>Errors 오류</text><text x='340' y='183' text-anchor='middle' fill='currentColor' font-size='11'>Saturation 포화도</text><text x='340' y='206' text-anchor='middle' fill='currentColor' font-size='10'>RED + 포화도</text><line x1='210' y1='78' x2='253' y2='120' stroke='currentColor' marker-end='url(#ar)'/><line x1='210' y1='218' x2='253' y2='180' stroke='currentColor' marker-end='url(#ar)'/><rect x='465' y='30' width='160' height='80' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='545' y='54' text-anchor='middle' fill='currentColor' font-size='11'>증상 알림</text><text x='545' y='74' text-anchor='middle' fill='currentColor' font-size='11'>사용자가 겪는 문제</text><text x='545' y='94' text-anchor='middle' fill='currentColor' font-size='11'>→ 호출(page)</text><rect x='465' y='135' width='160' height='80' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='545' y='159' text-anchor='middle' fill='currentColor' font-size='11'>원인 지표</text><text x='545' y='179' text-anchor='middle' fill='currentColor' font-size='11'>CPU 80% 자체는</text><text x='545' y='199' text-anchor='middle' fill='currentColor' font-size='11'>장애가 아니다</text><line x1='425' y1='120' x2='463' y2='75' stroke='currentColor' marker-end='url(#ar)'/><line x1='425' y1='175' x2='463' y2='175' stroke='currentColor' marker-end='url(#ar)'/><text x='340' y='250' text-anchor='middle' fill='currentColor' font-size='11'>평균 금지 — 백분위수로 본다</text><text x='340' y='270' text-anchor='middle' fill='currentColor' font-size='11'>p99 1% = 사용자 10만 명의 경험</text></svg>",
+      "keyTerms": [
+        {
+          "term": "Golden Signals",
+          "meaning": "지연·트래픽·오류·포화도. 구글 SRE가 제시한 4대 모니터링 지표"
+        },
+        {
+          "term": "RED",
+          "meaning": "Rate·Errors·Duration. 요청 기반 서비스용 지표 세트"
+        },
+        {
+          "term": "USE",
+          "meaning": "Utilization·Saturation·Errors. 자원 기반 지표 세트"
+        },
+        {
+          "term": "포화도(Saturation)",
+          "meaning": "자원이 얼마나 꽉 찼는지. 큐 길이·대기 시간으로 측정한다"
+        },
+        {
+          "term": "백분위수(Percentile)",
+          "meaning": "p99는 '요청 100건 중 가장 느린 1건 수준'. 평균보다 사용자 체감에 가깝다"
+        },
+        {
+          "term": "히스토그램(Histogram)",
+          "meaning": "구간별 건수를 쌓아 백분위수를 계산할 수 있게 하는 메트릭 유형"
+        },
+        {
+          "term": "증상 기반 알림",
+          "meaning": "원인(CPU)이 아니라 사용자가 겪는 증상(오류율·지연)에 알림을 거는 원칙"
+        },
+        {
+          "term": "소비 지연(Consumer lag)",
+          "meaning": "큐에서 아직 처리하지 못한 메시지 수. 배치·스트림의 포화도 지표"
+        },
+        {
+          "term": "대시보드 템플릿",
+          "meaning": "서비스명을 변수로 받아 모든 서비스에 같은 화면을 제공하는 방식"
+        }
+      ],
+      "pitfalls": [
+        "평균 응답시간만 대시보드에 그려 소수 사용자가 겪는 심각한 지연을 놓친다.",
+        "실패한 요청(빠른 5xx)까지 섞어 지연을 계산해 지표가 오히려 좋아 보이는 착시가 생긴다.",
+        "CPU·메모리 임계치에 호출(page) 알림을 걸어 한밤중에 불려 나가지만 사용자는 아무 영향이 없다.",
+        "서비스마다 메트릭 이름과 라벨이 달라 공통 대시보드를 못 만들고, 장애 때 화면 찾다가 시간을 쓴다.",
+        "포화도를 아예 측정하지 않아 '평소엔 멀쩡한데 피크에 갑자기 무너지는' 패턴의 예측이 불가능하다.",
+        "히스토그램 버킷을 기본값으로 두어 p99가 '10초 이상' 같은 뭉뚱그린 값만 나온다. 서비스 SLO에 맞춰 버킷을 조정해야 한다.",
+        "배치·큐 시스템에 RED를 억지로 적용하고 정작 consumer lag과 DLQ를 안 본다.",
+        "지표는 만들었는데 정상 범위 기준이 없어, 숫자를 봐도 좋은 건지 나쁜 건지 판단할 수 없다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 재무보고 관련 시스템별로 정상 운영을 판단하는 핵심지표와 임계치가 정의되어 있고 문서화되어 있는지",
+          "[운영] 지표 임계치 초과 시 알림이 발송되고 조치된 기록이 남는지 — 지표만 있고 대응이 없으면 통제로 인정되지 않는다",
+          "[ITAC] 인터페이스·배치의 처리 건수·실패 건수·소요시간 지표가 수집되어 자동화 통제의 정상 작동 증거로 활용되는지",
+          "[변경] 지표 정의·임계치 변경이 승인 절차를 거치는지 — 임계치를 완화하면 탐지 공백이 생긴다",
+          "[운영] 지표 수집이 중단된 경우(메트릭 미수신)를 탐지하는 장치가 있는지"
+        ],
+        "fss": [
+          "전자금융거래의 정상 처리 여부를 상시 감시할 수 있는 지표 체계가 갖춰져 있는지",
+          "서비스 지연·오류를 장애로 인지하는 객관적 기준(지표와 임계치)이 사전에 정의되어 장애 인지 시각의 근거가 되는지",
+          "거래 처리 건수·실패 건수의 급격한 변동을 이상징후로 감지하는 체계가 있는지"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리 — 성능·용량 지표를 정의하고 임계치 초과 시 대응 절차가 있는지",
+          "2.9.3 백업 및 복구관리 / 2.9.1 변경관리와 연계 — 변경 후 지표 확인 절차",
+          "2.11.3 이상행위 분석 및 모니터링 — 지표 기반 이상 탐지 운영",
+          "2.9.5 로그 및 접속기록 점검 — 지표와 로그를 연계한 점검 활동"
+        ],
+        "evidence": [
+          "시스템별 핵심지표 정의서(지표명, 산식, 임계치, 담당자)",
+          "Grafana 표준 대시보드 스크린샷(RED 지표가 표시되는 화면)",
+          "Prometheus 알림 규칙 파일 export(expr, for, severity 포함)",
+          "최근 3개월 임계치 초과 알림 목록과 조치 티켓",
+          "배치·인터페이스 지표 대시보드 및 실패 건 처리 이력",
+          "임계치 변경 이력과 승인 기록"
+        ],
+        "auditorQuestions": [
+          "결제 서비스가 정상인지 비정상인지를 어떤 숫자로 판단합니까? 그 기준값은 누가 정했습니까?",
+          "평균이 아니라 p99를 보고 계십니까? 왜 그렇게 하십니까?",
+          "임계치를 초과했을 때 실제로 알림이 갔고 누군가 조치했다는 기록을 보여주실 수 있습니까?",
+          "메트릭 수집 자체가 멈추면 어떻게 알아차립니까?",
+          "임계치를 완화한 적이 있습니까? 그때 승인은 누가 했습니까?"
+        ],
+        "controlExample": "운영 서비스는 공통 계측 라이브러리를 통해 요청 수·오류율·응답시간 분포(RED) 지표를 표준 이름으로 노출하며, 서비스별 임계치는 SLO 문서에 정의되어 Prometheus 알림 규칙으로 구현된다. 임계치 초과 시 온콜 담당자에게 자동 호출되고 조치 결과는 ITSM 티켓으로 기록되며, 임계치 변경은 서비스 오너 승인 후 Git PR로만 반영된다."
+      },
+      "related": [
+        "obs-sli-slo-sla",
+        "obs-alert-design",
+        "obs-promql",
+        "obs-prometheus",
+        "obs-grafana",
+        "obs-apm",
+        "obs-capacity-planning",
+        "obs-batch-monitoring"
+      ],
+      "learnMore": [
+        "Google SRE Book — Monitoring Distributed Systems (Four Golden Signals)",
+        "Brendan Gregg — The USE Method",
+        "Grafana Labs — The RED Method",
+        "Prometheus Documentation — Histograms and summaries"
+      ]
+    },
+    {
+      "id": "obs-sli-slo-sla",
+      "title": "SLI · SLO · SLA와 에러 버짓",
+      "titleEn": "SLI, SLO, SLA and Error Budget",
+      "aliases": [
+        "SLO",
+        "SLI",
+        "SLA",
+        "에러버짓",
+        "error budget",
+        "서비스수준목표",
+        "가용성 목표",
+        "번레이트"
+      ],
+      "tags": [
+        "observability",
+        "sre",
+        "reliability",
+        "slo"
+      ],
+      "level": "중급",
+      "oneLiner": "신뢰성을 숫자로 약속하고 그 여유분을 예산처럼 쓰는 체계",
+      "analogy": "월 통신 데이터 요금제와 같다. 100GB(에러 버짓)를 받아놓고, 아껴 쓰면 월말에 마음껏 영상을 볼 수 있고(새 기능 배포), 초반에 다 써버리면 속도 제한이 걸려 조심해야 한다(배포 동결). 중요한 건 '0GB만 써야 한다'가 아니라 '정해진 만큼은 써도 된다'는 발상의 전환이다.",
+      "explanation": "<p><strong>SLI(Service Level Indicator, 서비스 수준 지표)</strong>는 신뢰성을 나타내는 <strong>측정값</strong>이다. \"지난 5분간 성공한 요청 수 ÷ 전체 요청 수\" 같은 비율이 전형적이다. <strong>SLO(Service Level Objective, 서비스 수준 목표)</strong>는 그 SLI가 <strong>일정 기간 동안 유지해야 할 목표치</strong>다. \"30일 롤링 윈도우 기준 가용성 99.9%\"처럼 쓴다. <strong>SLA(Service Level Agreement, 서비스 수준 협약)</strong>는 고객과의 <strong>계약</strong>이고, 못 지키면 <strong>환불·배상 같은 금전적 결과</strong>가 따른다.</p><p>세 개의 관계는 이렇게 정리한다. <strong>SLI는 사실, SLO는 목표, SLA는 약속(그리고 벌칙)</strong>이다. 실무 원칙은 <strong>SLO를 SLA보다 엄격하게</strong> 잡는 것이다. 고객 SLA가 99.5%라면 내부 SLO는 99.9%로 두어, 내부 목표를 깨도 계약 위반까지는 완충 구간이 있게 만든다.</p><p><strong>에러 버짓(Error Budget)</strong>이 이 체계의 핵심 발명이다. SLO가 99.9%면 <strong>0.1%는 실패해도 된다</strong>는 뜻이고, 30일 기준으로 약 43분이다. 이 43분이 <strong>예산</strong>이다. 남아 있으면 새 기능을 적극 배포하고 실험해도 된다. 다 써버리면 <strong>배포를 멈추고 안정화에 집중</strong>한다. 이 규칙을 <strong>에러 버짓 정책(error budget policy)</strong>이라 부르고, 개발팀과 운영팀이 \"안정성 vs 속도\"를 감정이 아니라 숫자로 협상하게 만든다. 100% 가용성을 목표로 삼지 않는 이유도 여기 있다 — 마지막 0.1%를 없애는 비용이 그 가치를 넘어서고, 사용자는 어차피 자기 네트워크 때문에 그 차이를 느끼지 못한다.</p><p><strong>SLI를 제대로 정의하는 것이 가장 어렵다.</strong> 흔한 함정은 서버 관점으로 재는 것이다 — \"서버가 살아 있었나\"는 사용자 경험과 무관할 수 있다. 좋은 SLI는 <strong>사용자 여정(user journey) 단위</strong>다. \"결제 요청이 3초 안에 성공 응답을 받았는가\"처럼 <strong>가용성과 지연을 하나로 묶은</strong> 정의가 실용적이다. 측정 지점도 중요하다 — 서버 로그 기준인지, 로드밸런서 기준인지, 실제 브라우저(RUM) 기준인지에 따라 숫자가 크게 달라진다.</p><p><strong>번 레이트(Burn rate) 알림</strong>이 SLO 운영의 실전 기술이다. 에러 버짓을 정상 속도로 쓰면 30일에 딱 맞게 소진된다(번 레이트 1). 갑자기 14.4배 속도로 타고 있다면 <strong>2시간 만에 한 달치 예산이 사라진다</strong>는 뜻이니 즉시 호출해야 한다. 반면 2배 속도라면 며칠 여유가 있으니 티켓으로 충분하다. 이렇게 <strong>여러 시간창을 조합한 다중 번레이트 알림</strong>이 \"임계치 하나\" 방식보다 훨씬 노이즈가 적고 놓침도 적다.</p><p><strong>감사 관점에서 SLO는 매우 유용하다.</strong> ITGC의 [운영] 영역은 \"시스템이 안정적으로 운영되고 장애가 적시에 처리되는가\"를 본다. SLO/에러 버짓 체계가 있으면 \"우리는 정상 여부를 이렇게 정의하고, 이렇게 측정하며, 이 기준을 넘으면 이런 조치를 한다\"를 문서와 데이터로 한 번에 보여줄 수 있다. 금융권이라면 SLA 위반이 <strong>고객 배상 및 감독당국 보고 트리거</strong>와 연결되므로 재무적 영향까지 갖는다.</p>",
+      "howItWorks": "<ol><li>서비스의 핵심 사용자 여정을 고른다. 예: \"결제 승인 요청\", \"주문 조회\", \"로그인\". 모든 API가 아니라 <strong>사용자에게 중요한 몇 개</strong>만 고른다.</li><li>각 여정에 SLI를 정의한다. 예: <em>가용성 SLI</em> = (상태코드가 5xx가 아닌 요청 수) / (전체 요청 수). <em>지연 SLI</em> = (3초 이내 응답한 요청 수) / (전체 요청 수).</li><li>목표(SLO)와 측정 기간(윈도우)을 정한다. 예: 30일 롤링 기준 가용성 99.9%, 지연 SLO 99%.</li><li>에러 버짓을 계산한다. 30일 = 43,200분. 99.9% SLO → 허용 실패 시간 43.2분, 또는 요청 기준으로 전체 요청의 0.1%.</li><li>모니터링 시스템이 SLI를 지속 계산하고, 버짓 소진율(consumed %)과 번 레이트를 산출한다.</li><li>번 레이트가 임계를 넘으면 알림한다 — 예: 1시간 창에서 14.4배 &amp; 5분 창에서도 14.4배면 즉시 호출(page), 6시간 창에서 6배면 티켓 생성.</li><li>버짓이 소진되면 에러 버짓 정책이 발동한다 — 신규 기능 배포 동결, 신뢰성 개선 작업 우선순위 상향, 원인 분석 및 개선 과제 등록.</li><li>윈도우가 롤링되면서 오래된 실패가 빠져나가면 버짓이 서서히 회복되고, 정상 배포가 재개된다.</li><li>분기마다 SLO 자체를 재검토한다 — 늘 여유가 넘치면 목표가 너무 느슨한 것이고, 늘 소진되면 목표가 비현실적이거나 시스템에 구조적 문제가 있는 것이다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'의 결제 승인 API는 고객사와의 SLA가 월 99.5%다. 내부 SLO는 99.9%로 잡았다. 2026년 8월, 외부 카드사 연동 장애로 12분간 오류율이 40%까지 올라 그 달 에러 버짓의 62%를 한 번에 썼다. 남은 버짓이 16분뿐이어서 에러 버짓 정책에 따라 결제 도메인의 신규 기능 배포를 2주간 동결하고, 카드사 호출에 서킷 브레이커와 대체 채널 폴백을 구현하는 작업을 최우선으로 올렸다. 9월에는 버짓 소진이 18%에 그쳤다.</p><p>가용성 SLI를 Prometheus 레코딩 룰로 계산하는 예:</p><pre><code>groups:\n  - name: slo-payment-api\n    interval: 30s\n    rules:\n      # 성공 요청 비율 (SLI)\n      - record: sli:payment_availability:ratio_rate5m\n        expr: |\n          sum(rate(http_server_requests_total{service=\"payment-api\",env=\"prod\",status!~\"5..\"}[5m]))\n          /\n          sum(rate(http_server_requests_total{service=\"payment-api\",env=\"prod\"}[5m]))\n\n      - record: sli:payment_availability:ratio_rate1h\n        expr: |\n          sum(rate(http_server_requests_total{service=\"payment-api\",env=\"prod\",status!~\"5..\"}[1h]))\n          /\n          sum(rate(http_server_requests_total{service=\"payment-api\",env=\"prod\"}[1h]))\n\n      # 30일 에러버짓 잔량 (%)\n      - record: slo:payment_error_budget_remaining:ratio30d\n        expr: |\n          1 - (\n            (1 - sum(rate(http_server_requests_total{service=\"payment-api\",status!~\"5..\"}[30d]))\n               / sum(rate(http_server_requests_total{service=\"payment-api\"}[30d])))\n            / 0.001\n          )</code></pre><p>다중 번레이트 알림 규칙 예 (SLO 99.9% 기준):</p><pre><code>      - alert: PaymentSLOFastBurn\n        # 1h 창 14.4배 &amp; 5m 창 14.4배 → 2일 내 전체 소진 속도\n        expr: |\n          (1 - sli:payment_availability:ratio_rate1h) &gt; (14.4 * 0.001)\n          and\n          (1 - sli:payment_availability:ratio_rate5m) &gt; (14.4 * 0.001)\n        for: 2m\n        labels: { severity: page, team: payments }\n        annotations:\n          summary: \"결제 SLO 급속 소진 — 에러버짓 2시간 내 고갈 예상\"\n          runbook: \"https://wiki.internal/runbook/payment-slo-burn\"\n\n      - alert: PaymentSLOSlowBurn\n        expr: |\n          (1 - sli:payment_availability:ratio_rate6h) &gt; (6 * 0.001)\n        for: 30m\n        labels: { severity: ticket, team: payments }</code></pre><p>SLO 문서의 핵심 부분 예:</p><pre><code>서비스: 결제 승인 API (payment-api)\n사용자 여정: POST /v1/payments (승인 요청)\nSLI(가용성): 5xx가 아닌 응답 비율, ALB 액세스로그 기준\nSLI(지연):   3초 이내 응답 비율\nSLO:  가용성 99.9% / 지연 99.0%  (30일 롤링)\n에러버짓: 43.2분 상당 (월)\n정책: 버짓 50% 소진 → 원인분석 과제 등록\n      버짓 90% 소진 → 신규 기능 배포 동결, 안정화 전담\n      SLA(99.5%) 위반 시 → 고객 통지 및 배상 절차, 감독보고 검토\n오너: 결제플랫폼팀 / 검토주기: 분기</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='20' y='25' width='170' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105' y='45' text-anchor='middle' fill='currentColor' font-size='11'>SLI — 측정값</text><text x='105' y='63' text-anchor='middle' fill='currentColor' font-size='10'>성공요청 / 전체요청</text><rect x='20' y='90' width='170' height='48' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='105' y='110' text-anchor='middle' fill='currentColor' font-size='11'>SLO — 내부 목표</text><text x='105' y='128' text-anchor='middle' fill='currentColor' font-size='10'>30일 99.9%</text><rect x='20' y='155' width='170' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='105' y='175' text-anchor='middle' fill='currentColor' font-size='11'>SLA — 고객 계약</text><text x='105' y='193' text-anchor='middle' fill='currentColor' font-size='10'>99.5% 위반 시 배상</text><line x1='105' y1='73' x2='105' y2='88' stroke='currentColor' marker-end='url(#ar)'/><line x1='105' y1='138' x2='105' y2='153' stroke='currentColor' marker-end='url(#ar)'/><text x='105' y='225' text-anchor='middle' fill='currentColor' font-size='10'>SLO를 SLA보다 엄격하게</text><text x='105' y='243' text-anchor='middle' fill='currentColor' font-size='10'>→ 완충 구간 확보</text><text x='400' y='30' text-anchor='middle' fill='currentColor' font-size='12'>에러 버짓 (30일 = 43.2분)</text><rect x='250' y='45' width='340' height='34' rx='4' fill='var(--dg-box)' stroke='currentColor'/><rect x='250' y='45' width='95' height='34' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='297' y='67' text-anchor='middle' fill='currentColor' font-size='11'>소진 28%</text><text x='470' y='67' text-anchor='middle' fill='currentColor' font-size='11'>잔여 → 배포 자유</text><text x='250' y='105' fill='currentColor' font-size='11'>번 레이트(소진 속도)에 따른 대응</text><rect x='250' y='118' width='340' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='262' y='138' fill='currentColor' font-size='11'>14.4배 (1h) → 즉시 호출(page)  · 2시간 내 고갈</text><rect x='250' y='154' width='340' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='262' y='174' fill='currentColor' font-size='11'>6배 (6h) → 티켓 생성 · 당일 대응</text><rect x='250' y='190' width='340' height='30' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='262' y='210' fill='currentColor' font-size='11'>1배 → 정상. 예산대로 쓰는 중</text><rect x='250' y='232' width='340' height='50' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='420' y='253' text-anchor='middle' fill='currentColor' font-size='11'>버짓 90% 소진 → 신규 배포 동결</text><text x='420' y='272' text-anchor='middle' fill='currentColor' font-size='11'>안정성과 속도를 숫자로 협상</text><line x1='190' y1='115' x2='248' y2='62' stroke='currentColor' marker-end='url(#ar)'/></svg>",
+      "keyTerms": [
+        {
+          "term": "SLI",
+          "meaning": "신뢰성을 나타내는 측정 지표. 보통 좋은 이벤트 / 전체 이벤트의 비율"
+        },
+        {
+          "term": "SLO",
+          "meaning": "SLI가 일정 기간 유지해야 할 내부 목표치"
+        },
+        {
+          "term": "SLA",
+          "meaning": "고객과의 계약상 수준. 위반 시 금전적 보상이 따른다"
+        },
+        {
+          "term": "에러 버짓",
+          "meaning": "SLO가 허용하는 실패 허용량. 100% - SLO"
+        },
+        {
+          "term": "번 레이트(Burn rate)",
+          "meaning": "에러 버짓 소진 속도. 1배면 기간에 딱 맞게 소진"
+        },
+        {
+          "term": "롤링 윈도우",
+          "meaning": "최근 N일을 계속 이동하며 보는 측정 기간. 달력 월 기준보다 실전적"
+        },
+        {
+          "term": "사용자 여정(User journey)",
+          "meaning": "SLI를 정의하는 단위. 개별 API가 아니라 사용자가 달성하려는 목적"
+        },
+        {
+          "term": "에러 버짓 정책",
+          "meaning": "버짓 소진 시 무엇을 할지(배포 동결 등) 사전에 합의한 규칙"
+        },
+        {
+          "term": "완충 구간",
+          "meaning": "내부 SLO와 고객 SLA 사이의 여유. 계약 위반 전에 대응할 시간을 준다"
+        }
+      ],
+      "pitfalls": [
+        "SLO를 100% 또는 99.99%로 과하게 잡아 늘 위반 상태가 되고, 결국 아무도 신경 쓰지 않는 숫자가 된다.",
+        "SLI를 서버 헬스체크(pod ready) 기준으로 정의해, 파드는 살아 있는데 사용자는 전부 에러를 받는 상황을 놓친다.",
+        "모든 API에 SLO를 만들어 200개가 되고, 관리도 협상도 불가능해진다. 핵심 여정 3~5개로 시작해야 한다.",
+        "에러 버짓 정책을 문서로만 만들고 실제 소진 시 배포를 멈춘 적이 한 번도 없다. 그러면 SLO는 장식이다.",
+        "SLA(계약)와 SLO(내부 목표)를 같은 값으로 잡아, 내부 목표를 깨는 순간 이미 계약 위반이 된다.",
+        "단일 임계치 알림(오류율 > 1%)만 쓰다가 짧고 심한 장애는 못 잡고 길고 약한 열화에는 계속 울린다.",
+        "계획된 정기점검(계획 다운타임)을 SLI 계산에서 제외할지 말지를 사전에 합의하지 않아 사후에 논쟁이 생긴다.",
+        "측정 지점을 정하지 않아 서버 로그 기준 99.95%와 RUM 기준 99.2%가 충돌하고, 어느 쪽이 진실인지 다툰다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 핵심 시스템별 서비스 수준 목표와 측정 방법이 문서화되고 승인되어 있는지",
+          "[운영] SLO 위반 및 에러 버짓 소진 시 조치(배포 동결, 개선 과제 등록)가 실제로 수행된 증적이 있는지",
+          "[변경] SLO·임계치·에러버짓 정책의 변경이 승인 절차를 거치는지 — 목표를 낮추는 변경은 특히 근거 확인 필요",
+          "[운영] SLA가 존재하는 고객·서비스에 대해 위반 여부를 주기적으로 산출·보고하고, 배상 발생 시 회계 처리와 연계되는지",
+          "[운영] SLO 측정 데이터의 원천(액세스 로그, 메트릭)이 신뢰 가능하고 변조되지 않는지"
+        ],
+        "fss": [
+          "전자금융거래의 안정적 운영을 위한 서비스 수준 관리 체계가 있고, 장애 판정 기준이 사전에 정의되어 있는지",
+          "SLA 미달로 인한 이용자 손해 발생 시 배상 절차 및 감독당국 보고 기준이 마련되어 있는지",
+          "외부 위탁(클라우드, 결제대행)에 대한 서비스 수준 요구사항이 계약에 반영되고 정기적으로 이행 점검되는지",
+          "중요 전자금융업무의 가용성 목표가 업무연속성계획(BCP)의 RTO/RPO와 정합성을 갖는지"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리 — 성능 목표와 장애 판단 기준의 정의, 초과 시 대응 절차",
+          "2.3.2 외부자 계약 시 보안 / 2.3.3 외부자 보안 이행 관리 — 위탁 서비스의 SLA 관리",
+          "2.1.3 정보자산 관리 — 서비스별 중요도에 따른 차등 목표 설정",
+          "2.11.5 사고 대응 및 복구 — SLO 위반이 사고로 이어질 때의 대응 연계"
+        ],
+        "evidence": [
+          "서비스별 SLO 정의서(SLI 산식, 목표치, 측정 윈도우, 오너, 승인자, 승인일)",
+          "Grafana SLO 대시보드 캡처 — 최근 30일 SLI 추이와 에러버짓 잔량",
+          "번레이트 알림 규칙 설정 파일과 최근 발생 이력",
+          "에러버짓 소진으로 배포를 동결한 사례의 의사결정 기록(회의록, 티켓)",
+          "고객 SLA 이행 리포트(월/분기)와 위반 시 통지·배상 처리 문서",
+          "SLO 재검토 회의록(분기) 및 목표 조정 승인 기록"
+        ],
+        "auditorQuestions": [
+          "이 서비스가 '정상'이라는 것을 어떤 숫자로 정의하고 계십니까?",
+          "지난 분기 그 목표를 달성했습니까? 못했다면 무엇을 하셨습니까?",
+          "에러 버짓이 소진되면 실제로 배포를 멈춥니까? 그렇게 한 사례가 있습니까?",
+          "고객과 맺은 SLA와 내부 목표는 어떻게 다르며, SLA 위반 시 어떤 절차가 작동합니까?",
+          "SLO를 완화한 적이 있습니까? 누가 승인했고 근거는 무엇이었습니까?",
+          "SLO 계산에 쓰는 데이터가 정확하다는 것을 어떻게 보장합니까?"
+        ],
+        "controlExample": "핵심 서비스별로 사용자 여정 기준의 SLI와 30일 롤링 SLO가 정의되어 서비스 오너 승인을 받아 문서화되며, 에러 버짓 소진율은 대시보드로 상시 모니터링된다. 버짓 90% 이상 소진 시 해당 도메인의 신규 기능 배포를 동결하고 안정화 과제를 우선 수행하며, 동결·해제 결정과 근거는 티켓으로 기록되어 분기 운영 검토에 보고된다."
+      },
+      "related": [
+        "obs-red-use-golden-signals",
+        "obs-availability-math",
+        "obs-alert-design",
+        "obs-incident-response",
+        "obs-postmortem",
+        "obs-deployment-monitoring",
+        "obs-status-page",
+        "obs-prometheus"
+      ],
+      "learnMore": [
+        "Google SRE Workbook — Implementing SLOs",
+        "Google SRE Workbook — Alerting on SLOs",
+        "Grafana Labs — SLO and error budget dashboards",
+        "Sloth / OpenSLO — SLO as code"
+      ]
+    },
+    {
+      "id": "obs-alert-design",
+      "title": "알림 설계 (노이즈와 심각도)",
+      "titleEn": "Alert Design: Noise Reduction and Severity Tiering",
+      "aliases": [
+        "알림설계",
+        "alerting",
+        "알람 피로",
+        "alert fatigue",
+        "심각도",
+        "severity",
+        "노이즈",
+        "알림 튜닝"
+      ],
+      "tags": [
+        "observability",
+        "alerting",
+        "sre",
+        "operations"
+      ],
+      "level": "중급",
+      "oneLiner": "울릴 가치가 있는 것만 울리게 만드는 설계 원칙",
+      "analogy": "자동차 계기판 경고등과 같다. 엔진 경고등은 빨간색으로 즉시 차를 세우라는 뜻이고, 워셔액 부족은 노란색으로 언젠가 채우라는 뜻이다. 만약 워셔액 부족도 빨간 불로 삐삐 울린다면 운전자는 곧 모든 경고를 무시하게 되고, 정작 엔진이 망가질 때 알아채지 못한다.",
+      "explanation": "<p>모니터링 시스템의 실패는 대개 <strong>못 봐서</strong>가 아니라 <strong>너무 많이 봐서</strong> 일어난다. 하루 300건 알림이 오는 팀에서 사람들은 곧 알림 채널을 음소거하고, 그 안에 섞인 진짜 장애 알림도 함께 묻힌다. 이것이 <strong>알림 피로(alert fatigue)</strong>이고, 알림 설계의 목표는 <strong>건수를 줄이면서 놓치지 않는 것</strong>이다.</p><p><strong>제1원칙: 사람을 부르는 알림은 사람이 즉시 할 수 있는 조치가 있을 때만 만든다.</strong> \"CPU 85%\"를 새벽 3시에 받아봐야 할 일이 없다면 그건 알림이 아니라 대시보드 항목이다. 구글 SRE의 표현대로 <strong>모든 호출(page)에는 긴급성·실행 가능성·판단 필요성</strong>이 있어야 한다. 자동으로 고칠 수 있는 것은 자동화하고, 사람이 봐도 할 게 없으면 지운다.</p><p><strong>제2원칙: 원인이 아니라 증상에 건다.</strong> 디스크 사용률, 메모리, 파드 재시작 횟수는 원인 지표다. 이것들에 전부 알림을 걸면 하나의 장애가 15개 알림을 만든다. 반면 \"결제 성공률 저하\", \"주문 API p99 3초 초과\" 같은 <strong>사용자 증상</strong>에 걸면 장애 하나에 알림 하나다. 원인 지표는 조사할 때 대시보드에서 본다.</p><p><strong>제3원칙: 심각도를 두세 단계로 명확히 나눈다.</strong> 실무에서 잘 작동하는 구분은 이렇다. <strong>P1/Critical(호출)</strong> — 지금 즉시, 새벽에도 사람을 깨운다. 고객 영향이 있고 수 분 내 대응이 필요하다. <strong>P2/Warning(티켓)</strong> — 업무시간 내 대응. 악화 추세이거나 이중화된 한쪽이 죽은 상태. <strong>P3/Info(기록)</strong> — 알림 채널에 남기기만 하고 아무도 깨우지 않는다. 이 구분이 <strong>전달 채널과 짝지어져야</strong> 한다 — P1은 전화/푸시, P2는 티켓 시스템, P3은 Slack 채널.</p><p><strong>노이즈를 줄이는 구체적 기법</strong>은 여럿이다. <strong>지속시간 조건(for)</strong> — 순간 스파이크가 아니라 5분 이상 지속될 때만 울린다. <strong>그룹화</strong> — 같은 클러스터의 30개 파드 알림을 하나로 묶는다. <strong>억제(inhibition)</strong> — 클러스터 전체 장애 알림이 떠 있으면 그 하위 서비스 알림은 억누른다. <strong>침묵(silence)</strong> — 계획된 점검 중에는 알림을 끈다. <strong>다중 번레이트</strong> — SLO 기반으로 심각도를 자동 결정한다. <strong>디바운스/플래핑 방지</strong> — 임계치를 오르내리며 반복 알림하는 것을 막는다.</p><p><strong>모든 알림에는 런북 링크와 소유 팀이 붙어야 한다.</strong> 알림 문구에 \"무슨 일이 일어났는가, 영향은 무엇인가, 첫 조치는 무엇인가\"가 없으면 받은 사람이 검색부터 시작해야 하고 대응 시간이 몇 배로 늘어난다.</p><p><strong>알림도 관리 대상</strong>이다. 분기마다 <strong>알림 리뷰</strong>를 한다 — 가장 많이 울린 알림 top 10, 한 번도 안 울린 알림, 울렸지만 조치 없이 종료된 알림(=오탐)을 뽑아 튜닝하거나 삭제한다. 감사 관점에서도 이 리뷰 기록은 \"모니터링 통제가 유지관리되고 있다\"는 좋은 증거다.</p><p><strong>감사가 특히 주목하는 지점</strong>은 두 가지다. 첫째, <strong>알림을 끄는 행위(silence, 규칙 비활성화)가 통제되는가</strong> — 임의로 알림을 꺼두면 탐지 공백이 생기고, 이는 침해나 장애 은폐로 이어질 수 있다. 둘째, <strong>알림이 발생한 뒤 실제로 조치됐다는 기록이 남는가</strong> — 울리기만 하고 아무도 처리하지 않았다면 통제는 설계만 있고 운영은 없는 상태다.</p>",
+      "howItWorks": "<ol><li>서비스별 SLO와 핵심지표(RED)를 먼저 정의하고, 그로부터 알림 조건을 도출한다. 알림을 먼저 만들고 지표를 찾는 순서는 거의 항상 노이즈를 낳는다.</li><li>각 알림 규칙에 <code>severity</code>, <code>team</code>, <code>runbook</code> 라벨/주석을 필수로 붙인다. 라벨 없는 규칙은 CI에서 거부한다.</li><li>Prometheus가 규칙을 평가해 조건이 참이면 <strong>pending</strong> 상태가 되고, <code>for</code> 기간을 넘겨 계속 참이면 <strong>firing</strong>으로 전환해 Alertmanager로 보낸다.</li><li>Alertmanager가 <code>group_by</code>(예: alertname, cluster, service)로 알림을 묶고, <code>group_wait</code> 동안 기다려 같은 그룹의 알림을 한 통으로 합친다.</li><li>억제 규칙이 적용된다 — 예: <code>ClusterDown</code>이 firing이면 같은 클러스터의 모든 <code>ServiceDown</code>을 억제한다.</li><li>라우팅 트리가 심각도·팀·시간대에 따라 목적지를 정한다 — severity=page는 PagerDuty로, severity=ticket은 Jira/ServiceNow로, severity=info는 Slack 채널로.</li><li>PagerDuty/Opsgenie가 온콜 스케줄을 조회해 현재 당번에게 푸시·전화하고, 일정 시간 내 확인(ack)이 없으면 에스컬레이션한다.</li><li>담당자가 확인하면 알림 상태가 기록되고, 조치 후 조건이 해소되면 <strong>resolved</strong> 알림이 발송되며 인시던트가 종결된다.</li><li>분기별로 알림 통계(발생 건수, 오탐률, 평균 확인 시간)를 뽑아 규칙을 튜닝하고, 튜닝·비활성화 이력을 승인과 함께 기록한다.</li></ol>",
+      "example": "<p>가상 커머스 '마켓링크'의 SRE팀은 월 1,400건 알림을 받고 있었고 그중 온콜 호출이 210건이었다. 분석해 보니 63%가 \"파드 재시작\", \"노드 메모리 80%\" 같은 원인 지표 알림이었고 실제 고객 영향은 없었다. 개편 후 (1) 원인 지표 알림을 전부 대시보드로 강등, (2) SLO 번레이트 기반 알림 2종만 호출로 승격, (3) 억제 규칙으로 클러스터 장애 시 하위 알림 차단, (4) 모든 규칙에 런북 링크 의무화. 결과 월 호출이 210건에서 17건으로 줄었고, 평균 확인 시간(MTTA)이 11분에서 3분으로 짧아졌다.</p><p>Alertmanager 라우팅·억제 설정 예:</p><pre><code>route:\n  receiver: slack-noise\n  group_by: ['alertname', 'cluster', 'service']\n  group_wait: 30s\n  group_interval: 5m\n  repeat_interval: 4h\n  routes:\n    - matchers: [ severity = \"page\" ]\n      receiver: pagerduty-oncall\n      group_wait: 10s\n      repeat_interval: 1h\n      continue: false\n    - matchers: [ severity = \"ticket\" ]\n      receiver: servicenow\n      repeat_interval: 24h\n    - matchers: [ severity = \"info\" ]\n      receiver: slack-noise\n\ninhibit_rules:\n  # 클러스터 전체 장애 시 개별 서비스 알림 억제\n  - source_matchers: [ alertname = \"ClusterUnreachable\" ]\n    target_matchers: [ severity =~ \"page|ticket\" ]\n    equal: ['cluster']\n  # 심각한 알림이 있으면 같은 서비스의 경고는 억제\n  - source_matchers: [ severity = \"page\" ]\n    target_matchers: [ severity = \"ticket\" ]\n    equal: ['service', 'cluster']\n\nreceivers:\n  - name: pagerduty-oncall\n    pagerduty_configs:\n      - routing_key_file: /etc/alertmanager/secrets/pd-key\n        severity: critical\n        description: '{{ .CommonAnnotations.summary }}'\n        links:\n          - href: '{{ .CommonAnnotations.runbook }}'\n            text: 'Runbook'</code></pre><p>잘 쓴 알림 규칙과 잘못 쓴 규칙의 대비:</p><pre><code># 나쁜 예 — 원인 지표, 즉시성 없음, 런북 없음\n- alert: HighMemory\n  expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes &lt; 0.2\n  labels: { severity: page }\n\n# 좋은 예 — 사용자 증상, 지속조건, 팀·런북·영향 명시\n- alert: CheckoutSuccessRateDegraded\n  expr: |\n    sum(rate(checkout_completed_total[5m]))\n    / sum(rate(checkout_started_total[5m])) &lt; 0.97\n  for: 5m\n  labels:\n    severity: page\n    team: commerce\n    service: checkout\n  annotations:\n    summary: \"결제 완료율 97% 미만 (현재 {{ $value | humanizePercentage }})\"\n    impact: \"주문 시도 100건 중 3건 이상 실패 — 매출 직접 영향\"\n    runbook: \"https://wiki.internal/runbook/checkout-degraded\"\n    dashboard: \"https://grafana.internal/d/checkout-red\"</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='15' y='95' width='105' height='60' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='67' y='118' text-anchor='middle' fill='currentColor' font-size='11'>규칙 평가</text><text x='67' y='137' text-anchor='middle' fill='currentColor' font-size='10'>조건 + for 5m</text><rect x='160' y='70' width='130' height='110' rx='10' fill='var(--dg-accent)' stroke='currentColor'/><text x='225' y='93' text-anchor='middle' fill='currentColor' font-size='11'>노이즈 축소</text><text x='225' y='114' text-anchor='middle' fill='currentColor' font-size='10'>그룹화 (한 통으로)</text><text x='225' y='132' text-anchor='middle' fill='currentColor' font-size='10'>억제 (상위 장애 시)</text><text x='225' y='150' text-anchor='middle' fill='currentColor' font-size='10'>침묵 (계획 점검)</text><text x='225' y='168' text-anchor='middle' fill='currentColor' font-size='10'>중복 제거</text><line x1='120' y1='125' x2='158' y2='125' stroke='currentColor' marker-end='url(#ar)'/><rect x='340' y='25' width='135' height='58' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='407' y='47' text-anchor='middle' fill='currentColor' font-size='11'>P1 / page</text><text x='407' y='66' text-anchor='middle' fill='currentColor' font-size='10'>고객 영향 · 즉시</text><rect x='340' y='96' width='135' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='407' y='118' text-anchor='middle' fill='currentColor' font-size='11'>P2 / ticket</text><text x='407' y='137' text-anchor='middle' fill='currentColor' font-size='10'>업무시간 대응</text><rect x='340' y='167' width='135' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='407' y='189' text-anchor='middle' fill='currentColor' font-size='11'>P3 / info</text><text x='407' y='208' text-anchor='middle' fill='currentColor' font-size='10'>기록만, 호출 없음</text><line x1='290' y1='105' x2='338' y2='60' stroke='currentColor' marker-end='url(#ar)'/><line x1='290' y1='125' x2='338' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='290' y1='148' x2='338' y2='192' stroke='currentColor' marker-end='url(#ar)'/><rect x='510' y='25' width='115' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='567' y='50' text-anchor='middle' fill='currentColor' font-size='10'>PagerDuty</text><text x='567' y='68' text-anchor='middle' fill='currentColor' font-size='10'>전화 · 푸시</text><rect x='510' y='96' width='115' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='567' y='121' text-anchor='middle' fill='currentColor' font-size='10'>ITSM 티켓</text><text x='567' y='139' text-anchor='middle' fill='currentColor' font-size='10'>조치 기록</text><rect x='510' y='167' width='115' height='58' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='567' y='192' text-anchor='middle' fill='currentColor' font-size='10'>Slack 채널</text><text x='567' y='210' text-anchor='middle' fill='currentColor' font-size='10'>참고용</text><line x1='475' y1='54' x2='508' y2='54' stroke='currentColor' marker-end='url(#ar)'/><line x1='475' y1='125' x2='508' y2='125' stroke='currentColor' marker-end='url(#ar)'/><line x1='475' y1='196' x2='508' y2='196' stroke='currentColor' marker-end='url(#ar)'/><rect x='15' y='240' width='610' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='320' y='260' text-anchor='middle' fill='currentColor' font-size='11'>원칙: 증상에만 알림 · 조치 불가능하면 알림 아님 · 모든 알림에 런북 링크</text><text x='320' y='279' text-anchor='middle' fill='currentColor' font-size='11'>분기 리뷰: 최다 발생 · 미발생 · 조치없이 종료(오탐) 규칙 튜닝 + 침묵 설정 통제</text></svg>",
+      "keyTerms": [
+        {
+          "term": "알림 피로(Alert fatigue)",
+          "meaning": "알림이 너무 많아 사람들이 전부 무시하게 되는 상태"
+        },
+        {
+          "term": "호출(Page)",
+          "meaning": "사람을 즉시 깨우는 최고 심각도 알림"
+        },
+        {
+          "term": "그룹화(Grouping)",
+          "meaning": "관련된 여러 알림을 한 통의 통지로 묶는 것"
+        },
+        {
+          "term": "억제(Inhibition)",
+          "meaning": "상위 원인 알림이 떠 있으면 하위 결과 알림을 보내지 않는 규칙"
+        },
+        {
+          "term": "침묵(Silence)",
+          "meaning": "계획된 작업 중 특정 알림을 일시적으로 끄는 기능. 통제 대상이다"
+        },
+        {
+          "term": "플래핑(Flapping)",
+          "meaning": "임계치를 오르내리며 알림이 반복 발생·해소되는 현상"
+        },
+        {
+          "term": "MTTA",
+          "meaning": "Mean Time To Acknowledge. 알림 발생부터 담당자 확인까지의 평균 시간"
+        },
+        {
+          "term": "오탐률",
+          "meaning": "발생 알림 중 실제 조치가 필요 없었던 비율. 알림 품질의 핵심 지표"
+        },
+        {
+          "term": "런북 링크",
+          "meaning": "알림에 첨부되는 대응 절차 문서 주소. 없으면 대응 시간이 크게 늘어난다"
+        }
+      ],
+      "pitfalls": [
+        "\"혹시 모르니 일단 알림 걸자\"로 시작해 규칙이 수백 개가 되고, 결국 전 채널이 음소거된다.",
+        "심각도 라벨은 붙였는데 모든 알림이 같은 Slack 채널로 가서 구분이 무의미해진다.",
+        "임계치를 고정값(예: 요청 1000건)으로 두어 트래픽이 늘면 상시 발생하는 알림이 된다. 비율 기반으로 가야 한다.",
+        "for 조건 없이 즉시 발화하게 해 배포 중 순간 스파이크마다 온콜이 깨어난다.",
+        "침묵(silence)을 만료 기한 없이 걸어두고 잊어버려, 몇 달 동안 해당 알림이 죽어 있는 걸 아무도 모른다.",
+        "알림 문구가 'CheckoutError firing' 한 줄이라 받은 사람이 영향 범위도 첫 조치도 알 수 없다.",
+        "알림 규칙을 개인이 콘솔에서 직접 수정해 변경 이력이 남지 않는다. 코드로 관리해야 한다.",
+        "해소(resolved) 알림을 끄지 않아 알림 건수가 두 배가 되고, 반대로 완전히 끄면 상황 종료를 아무도 모른다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 핵심 시스템에 대한 알림 규칙 목록과 심각도 기준, 담당 팀이 문서화되어 있는지",
+          "[운영] 발생한 P1/P2 알림에 대해 확인·조치·종결 기록이 ITSM 등에 남고 추적 가능한지",
+          "[변경] 알림 규칙의 추가·수정·삭제가 코드로 관리되고 승인 이력이 남는지 — 임계치 완화나 규칙 삭제는 탐지 공백을 만든다",
+          "[운영] 알림 침묵(silence)·비활성화의 사유·기간·승인자가 기록되고, 장기 침묵을 주기적으로 검토하는지",
+          "[운영] 알림 채널(PagerDuty, 메일, 메신저) 자체의 장애 시 대체 통지 수단이 있는지",
+          "[운영] 분기별 알림 유효성 검토(오탐 튜닝, 미발생 규칙 점검)를 수행하고 결과를 보관하는지"
+        ],
+        "fss": [
+          "전자금융 서비스 장애를 적시에 인지할 수 있도록 장애 탐지 알림 체계가 구축·운영되는지",
+          "장애 인지 시각이 객관적으로 입증 가능한지 — 알림 발생 시각 기록이 감독당국 보고의 근거가 된다",
+          "야간·휴일을 포함한 24시간 알림 수신·대응 체계가 있는지",
+          "중요 알림의 누락·지연을 방지하기 위한 이중화 및 점검 절차가 있는지"
+        ],
+        "isms": [
+          "2.9.2 성능 및 장애관리 — 장애 탐지 기준과 통보 절차의 정의 및 운영",
+          "2.11.1 사고 예방 및 대응체계 구축 — 침해사고 탐지 알림과 대응 체계의 연계",
+          "2.11.3 이상행위 분석 및 모니터링 — 이상징후 알림의 운영과 처리",
+          "2.9.5 로그 및 접속기록 점검 — 점검 결과에 따른 알림·조치 연계"
+        ],
+        "evidence": [
+          "알림 규칙 전체 export(규칙명, 조건식, 지속시간, 심각도, 담당팀, 런북 링크)",
+          "Alertmanager/알림 도구의 라우팅·억제 설정 파일",
+          "최근 분기 P1 알림 목록과 각 건의 확인 시각·조치자·종결 시각",
+          "알림 규칙 변경 이력(Git 커밋·PR 승인 기록)",
+          "현재 적용 중인 침묵(silence) 목록과 각각의 사유·만료일·승인자",
+          "분기 알림 리뷰 회의록(오탐 top 10, 튜닝 결정 사항)",
+          "알림 전달 경로 이중화 구성 및 최근 통지 테스트 결과"
+        ],
+        "auditorQuestions": [
+          "지난 분기 몇 건의 긴급 알림이 발생했고, 각각 언제 누가 확인해서 어떻게 처리했습니까?",
+          "알림을 일시적으로 끌 수 있습니까? 누가 끌 수 있고 그 기록이 남습니까?",
+          "현재 꺼져 있는 알림이 있습니까? 언제부터 왜 꺼져 있습니까?",
+          "알림 임계치를 완화한 사례가 있다면 누가 승인했습니까?",
+          "PagerDuty나 메일 시스템이 죽으면 장애를 어떻게 인지합니까?",
+          "오탐이 많은 알림은 어떻게 관리하며, 최근에 어떤 규칙을 튜닝했습니까?"
+        ],
+        "controlExample": "운영 서비스의 알림 규칙은 Git으로 형상관리되며 심각도·담당팀·런북 링크 라벨이 필수로 검증된 뒤에만 배포된다. P1 알림은 온콜 호출 도구로 전달되어 15분 내 확인되지 않으면 상위자로 자동 에스컬레이션되고, 모든 P1/P2 알림의 확인·조치·종결 기록은 ITSM에 보관된다. 알림 침묵은 최대 7일의 만료기한과 사유 입력이 강제되며, 분기별로 알림 유효성 검토를 수행해 결과를 보관한다."
+      },
+      "related": [
+        "obs-alertmanager",
+        "obs-sli-slo-sla",
+        "obs-oncall-paging",
+        "obs-incident-response",
+        "obs-red-use-golden-signals",
+        "obs-runbook-playbook",
+        "obs-siem-central-log"
+      ],
+      "learnMore": [
+        "Google SRE Book — Being On-Call / Practical Alerting",
+        "Prometheus Alertmanager Documentation — Routing and inhibition",
+        "Google SRE Workbook — Alerting on SLOs",
+        "PagerDuty — Alert fatigue and severity levels"
+      ]
+    },
+    {
+      "id": "obs-oncall-paging",
+      "title": "On-call과 PagerDuty / Opsgenie",
+      "titleEn": "On-call Rotation and Paging Tools (PagerDuty, Opsgenie)",
+      "aliases": [
+        "온콜",
+        "당직",
+        "on-call",
+        "PagerDuty",
+        "Opsgenie",
+        "에스컬레이션",
+        "호출체계",
+        "당번표"
+      ],
+      "tags": [
+        "observability",
+        "sre",
+        "operations",
+        "incident"
+      ],
+      "level": "중급",
+      "oneLiner": "24시간 누군가는 반드시 응답하도록 만드는 당번·호출 체계",
+      "analogy": "병원 응급실 당직 체계와 같다. 주치의가 퇴근해도 당직의가 있고, 당직의가 5분 내 응답하지 않으면 상급 전문의에게 자동으로 연결되며, 당직표는 미리 공지되어 누가 책임자인지 모두가 안다. 누구를 부를지 전화번호부를 뒤지는 순간 이미 실패다.",
+      "explanation": "<p><strong>온콜(On-call)</strong>은 정해진 기간 동안 시스템 장애에 <strong>1차로 응답할 책임을 지는 당번</strong> 제도다. <strong>PagerDuty</strong>와 <strong>Opsgenie</strong>(Atlassian), Grafana OnCall, Splunk On-Call 같은 도구가 이 체계를 자동화한다. 모니터링 시스템이 \"뭔가 잘못됐다\"를 감지하면, 호출 도구가 \"지금 이 순간 책임자가 누구인지\"를 계산해 <strong>전화·SMS·푸시로 끝까지 사람을 찾아낸다.</strong></p><p><strong>핵심 구성요소는 네 가지</strong>다. (1) <strong>스케줄(Schedule)</strong> — 누가 언제 당번인지의 달력. 주간 교대(weekly rotation)가 일반적이고, 글로벌 팀은 시간대별로 넘기는 <strong>팔로우 더 선(follow-the-sun)</strong> 방식을 쓴다. (2) <strong>에스컬레이션 정책(Escalation policy)</strong> — 1차 당번이 5분 내 확인(ack)하지 않으면 2차로, 15분 내 응답이 없으면 매니저로 올린다. (3) <strong>서비스/라우팅</strong> — 어떤 알림이 어느 팀의 어느 스케줄로 가는지 매핑. (4) <strong>통지 규칙(Notification rules)</strong> — 개인별로 \"먼저 푸시, 2분 후 SMS, 5분 후 전화\" 같은 순서를 설정한다.</p><p><strong>온콜은 제도이자 노동 문제</strong>다. 잘못 설계하면 번아웃과 이직으로 이어진다. 건강한 온콜의 조건은 이렇다. <strong>보상</strong> — 당직 수당 또는 대체 휴무. <strong>부하 상한</strong> — 구글 SRE는 한 교대(12시간)당 사건 2건을 넘지 않도록 권고한다. 그 이상이면 알림 설계나 시스템 안정성에 문제가 있는 것이다. <strong>수면 보호</strong> — 새벽 호출은 P1만. <strong>권한</strong> — 온콜 담당자는 롤백·스케일아웃·트래픽 전환을 독자적으로 실행할 권한이 있어야 한다. 권한 없이 책임만 지우면 대응이 지연된다. <strong>인수인계</strong> — 교대 시 진행 중 이슈를 넘기는 핸드오프 문서.</p><p><strong>온콜과 ITGC의 접점</strong>이 여기서 생긴다. 온콜 담당자에게 주는 <strong>긴급 권한</strong>이 통제의 구멍이 되기 쉽다. 새벽 3시에 운영 DB를 고쳐야 하는데 승인자가 자고 있으면? 이를 위해 <strong>비상 접근(break-glass) 절차</strong>를 만든다 — 사전 승인된 비상 계정을 PAM(특권접근관리)에서 꺼내 쓰되, 세션이 전부 녹화되고, 사용 즉시 알림이 발송되며, <strong>사후 24~48시간 내에 정식 승인과 검토</strong>를 받는다. 감사인은 반드시 \"비상 권한 사용 건수와 각각의 사후 승인 기록\"을 요구한다.</p><p><strong>측정 지표</strong>로는 <strong>MTTA</strong>(알림에서 확인까지), <strong>MTTR</strong>(확인에서 복구까지), 교대당 호출 건수, 업무시간 외 호출 비율, 에스컬레이션 발생률을 본다. 에스컬레이션이 자주 일어난다면 1차 당번이 응답하지 못하는 구조적 이유(통지 설정 오류, 과부하, 권한 부족)를 찾아야 한다.</p><p>쉽게 말하면 온콜 체계의 목표는 <strong>\"장애가 났을 때 누구에게 연락할지 고민하는 시간을 0으로 만드는 것\"</strong>이다. 그리고 감사 관점에서는 <strong>\"그 연락이 실제로 닿았고, 조치됐고, 기록이 남았음\"</strong>을 증명하는 체계다.</p>",
+      "howItWorks": "<ol><li>팀별로 온콜 스케줄을 만든다. 예: 결제플랫폼팀 5명이 주 단위로 순환하며, 매주 수요일 오전 10시에 교대한다.</li><li>에스컬레이션 정책을 정의한다 — 1단계: 현재 당번에게 즉시 통지, 5분 내 미확인 시 2단계: 백업 당번, 추가 10분 미확인 시 3단계: 팀 리드와 SRE 매니저 동시 호출.</li><li>Alertmanager 또는 모니터링 도구가 severity=page 알림을 호출 도구의 서비스 통합 엔드포인트(routing key)로 보낸다.</li><li>호출 도구가 중복 제거(dedup key로 같은 문제의 반복 알림을 하나의 인시던트로 병합)하고 인시던트를 생성한다.</li><li>현재 시각 기준 스케줄을 조회해 당번을 특정하고, 그 사람의 통지 규칙에 따라 푸시 → SMS → 전화 순으로 연락한다.</li><li>담당자가 앱에서 <strong>Acknowledge</strong>를 누르면 에스컬레이션 타이머가 멈추고 상태가 \"대응 중\"이 된다.</li><li>담당자는 알림에 첨부된 런북과 대시보드 링크로 상황을 파악하고, 필요 시 전용 채널(Slack war room)을 자동 생성해 관계자를 소집한다.</li><li>더 넓은 대응이 필요하면 다른 팀을 추가 호출하거나 인시던트 지휘관(IC)을 지정해 승격한다.</li><li>조치가 끝나면 <strong>Resolve</strong> 처리하고, 인시던트 타임라인(발생·확인·조치·종결 시각과 참여자, 대화 기록)이 자동 보존된다.</li><li>교대 시 진행 중 이슈와 주의사항을 핸드오프 노트로 남기고, 주간/월간으로 호출 통계를 리뷰해 알림 튜닝과 시스템 개선 과제를 도출한다.</li></ol>",
+      "example": "<p>가상 핀테크 '페이링크'는 SRE 6명과 개발팀 4개가 각각 온콜을 운영한다. 2026년 7월 새벽 2시 47분, 결제 승인 오류율 SLO 급속 소진 알림이 발생했다. PagerDuty가 당번 개발자에게 푸시 → 2분 후 전화를 걸었고, 2시 51분 확인(MTTA 4분). 담당자는 런북에 따라 카드사 연동 서킷브레이커를 열고 대체 PG로 트래픽을 전환했다. DB 파라미터 변경이 필요해 비상 접근 절차로 PAM에서 <code>emergency-dba</code> 세션을 발급받아 조치했고, 이 세션은 전량 녹화되어 다음 날 오전 변경관리위원회에서 사후 승인을 받았다. 3시 22분 복구 완료(MTTR 31분).</p><p>PagerDuty 에스컬레이션 정책을 Terraform으로 정의한 예:</p><pre><code>resource \"pagerduty_schedule\" \"payments_primary\" {\n  name      = \"Payments Primary On-call\"\n  time_zone = \"Asia/Seoul\"\n  layer {\n    name                         = \"Weekly rotation\"\n    start                        = \"2026-01-07T10:00:00+09:00\"\n    rotation_virtual_start       = \"2026-01-07T10:00:00+09:00\"\n    rotation_turn_length_seconds = 604800  # 7일\n    users = [for u in var.payment_engineers : u.id]\n  }\n}\n\nresource \"pagerduty_escalation_policy\" \"payments\" {\n  name      = \"Payments Escalation\"\n  num_loops = 2\n  rule {\n    escalation_delay_in_minutes = 5\n    target { type = \"schedule_reference\", id = pagerduty_schedule.payments_primary.id }\n  }\n  rule {\n    escalation_delay_in_minutes = 10\n    target { type = \"schedule_reference\", id = pagerduty_schedule.payments_backup.id }\n  }\n  rule {\n    escalation_delay_in_minutes = 15\n    target { type = \"user_reference\", id = var.sre_manager_id }\n    target { type = \"user_reference\", id = var.payments_lead_id }\n  }\n}\n\nresource \"pagerduty_service\" \"payment_api\" {\n  name                    = \"payment-api\"\n  escalation_policy       = pagerduty_escalation_policy.payments.id\n  alert_creation          = \"create_alerts_and_incidents\"\n  auto_resolve_timeout    = 14400\n  acknowledgement_timeout = 1800\n  incident_urgency_rule {\n    type    = \"use_support_hours\"\n    during_support_hours { type = \"constant\", urgency = \"high\" }\n    outside_support_hours { type = \"constant\", urgency = \"high\" }\n  }\n}</code></pre><p>비상 접근(break-glass) 요청 기록 예:</p><pre><code>{\n  \"request_id\": \"BG-2026-0712-004\",\n  \"requested_at\": \"2026-07-12T02:58:11+09:00\",\n  \"requester\": \"jihoon.park\",\n  \"incident_id\": \"INC-20260712-0031\",\n  \"account\": \"emergency-dba@prod-payments\",\n  \"reason\": \"결제 DB 커넥션 풀 파라미터 긴급 조정 (SLO 급속 소진)\",\n  \"granted_by\": \"PAM auto-approval (P1 incident linked)\",\n  \"session_recording\": \"pam://sessions/2026/07/12/9f31a2\",\n  \"expires_at\": \"2026-07-12T04:58:11+09:00\",\n  \"post_approval\": {\n    \"approved_by\": \"cab.chair\",\n    \"approved_at\": \"2026-07-12T10:15:00+09:00\",\n    \"review_result\": \"적절 — 조치 범위 내 사용 확인\"\n  }\n}</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='15' y='25' width='115' height='50' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='72' y='47' text-anchor='middle' fill='currentColor' font-size='11'>P1 알림 발생</text><text x='72' y='65' text-anchor='middle' fill='currentColor' font-size='10'>02:47</text><rect x='170' y='20' width='130' height='60' rx='8' fill='var(--dg-accent)' stroke='currentColor'/><text x='235' y='42' text-anchor='middle' fill='currentColor' font-size='11'>호출 도구</text><text x='235' y='60' text-anchor='middle' fill='currentColor' font-size='10'>중복제거 + 당번 조회</text><line x1='130' y1='50' x2='168' y2='50' stroke='currentColor' marker-end='url(#ar)'/><rect x='350' y='15' width='125' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='412' y='31' text-anchor='middle' fill='currentColor' font-size='10'>1차 당번 — 즉시</text><text x='412' y='47' text-anchor='middle' fill='currentColor' font-size='10'>푸시 → SMS → 전화</text><rect x='350' y='65' width='125' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='412' y='81' text-anchor='middle' fill='currentColor' font-size='10'>2차 백업 — 5분 후</text><text x='412' y='97' text-anchor='middle' fill='currentColor' font-size='10'>미확인 시</text><rect x='350' y='115' width='125' height='40' rx='5' fill='var(--dg-box)' stroke='currentColor'/><text x='412' y='131' text-anchor='middle' fill='currentColor' font-size='10'>3차 매니저 — 15분</text><text x='412' y='147' text-anchor='middle' fill='currentColor' font-size='10'>동시 호출</text><line x1='300' y1='45' x2='348' y2='35' stroke='currentColor' marker-end='url(#ar)'/><line x1='412' y1='55' x2='412' y2='63' stroke='currentColor' marker-end='url(#ar)'/><line x1='412' y1='105' x2='412' y2='113' stroke='currentColor' marker-end='url(#ar)'/><rect x='505' y='15' width='120' height='55' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='565' y='37' text-anchor='middle' fill='currentColor' font-size='11'>Acknowledge</text><text x='565' y='56' text-anchor='middle' fill='currentColor' font-size='10'>02:51 (MTTA 4분)</text><line x1='475' y1='35' x2='503' y2='35' stroke='currentColor' marker-end='url(#ar)'/><rect x='505' y='85' width='120' height='70' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='565' y='107' text-anchor='middle' fill='currentColor' font-size='10'>런북 실행</text><text x='565' y='125' text-anchor='middle' fill='currentColor' font-size='10'>워룸 자동 생성</text><text x='565' y='143' text-anchor='middle' fill='currentColor' font-size='10'>타임라인 기록</text><line x1='565' y1='70' x2='565' y2='83' stroke='currentColor' marker-end='url(#ar)'/><rect x='15' y='185' width='290' height='100' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='160' y='207' text-anchor='middle' fill='currentColor' font-size='11'>비상 접근 (break-glass)</text><text x='160' y='228' text-anchor='middle' fill='currentColor' font-size='10'>PAM에서 임시 특권 계정 발급</text><text x='160' y='246' text-anchor='middle' fill='currentColor' font-size='10'>전 세션 녹화 · 즉시 알림</text><text x='160' y='264' text-anchor='middle' fill='currentColor' font-size='10'>24~48h 내 사후 승인 필수</text><text x='160' y='280' text-anchor='middle' fill='currentColor' font-size='10'>→ ITGC 최대 관심 항목</text><rect x='330' y='185' width='295' height='100' rx='8' fill='var(--dg-box)' stroke='currentColor'/><text x='477' y='207' text-anchor='middle' fill='currentColor' font-size='11'>건강한 온콜의 조건</text><text x='477' y='228' text-anchor='middle' fill='currentColor' font-size='10'>교대당 사건 2건 이하 (초과 시 알림 튜닝)</text><text x='477' y='246' text-anchor='middle' fill='currentColor' font-size='10'>당직 수당 또는 대체휴무</text><text x='477' y='264' text-anchor='middle' fill='currentColor' font-size='10'>롤백·스케일아웃 독자 실행 권한</text><text x='477' y='280' text-anchor='middle' fill='currentColor' font-size='10'>교대 시 핸드오프 노트</text></svg>",
+      "keyTerms": [
+        {
+          "term": "온콜(On-call)",
+          "meaning": "정해진 기간 동안 장애에 1차 응답할 책임을 지는 당번"
+        },
+        {
+          "term": "에스컬레이션 정책",
+          "meaning": "응답이 없을 때 상위 담당자로 올리는 단계별 규칙"
+        },
+        {
+          "term": "Acknowledge(ack)",
+          "meaning": "알림을 인지했음을 표시하는 행위. 에스컬레이션 타이머를 멈춘다"
+        },
+        {
+          "term": "팔로우 더 선",
+          "meaning": "시간대가 다른 지역 팀이 이어받아 야간 근무를 없애는 방식"
+        },
+        {
+          "term": "MTTA / MTTR",
+          "meaning": "확인까지 걸린 시간 / 복구까지 걸린 시간"
+        },
+        {
+          "term": "비상 접근(Break-glass)",
+          "meaning": "긴급 시 사전 승인 없이 특권을 쓰되 사후 검토를 받는 절차"
+        },
+        {
+          "term": "핸드오프(Handoff)",
+          "meaning": "교대 시 진행 중 이슈와 주의사항을 다음 당번에게 넘기는 것"
+        },
+        {
+          "term": "중복 제거(Dedup key)",
+          "meaning": "같은 문제의 반복 알림을 하나의 인시던트로 합치는 키"
+        },
+        {
+          "term": "워룸(War room)",
+          "meaning": "장애 대응을 위해 임시로 만드는 전용 소통 채널"
+        }
+      ],
+      "pitfalls": [
+        "온콜 담당자에게 권한을 주지 않아, 새벽에 깨워놓고 결국 다른 사람을 다시 깨우게 만든다.",
+        "스케줄을 스프레드시트로 관리하다 휴가·교대 변경이 반영되지 않아 아무도 안 받는 알림이 생긴다.",
+        "에스컬레이션 마지막 단계가 없어서, 모두가 응답하지 않으면 알림이 그냥 허공에 사라진다.",
+        "당직 수당이나 보상 없이 온콜을 '당연한 업무'로 두어 핵심 인력이 이탈한다.",
+        "한 사람이 여러 팀의 온콜을 겸직해 실제로는 24시간 상시 대기 상태가 된다.",
+        "비상 접근 계정을 만들어두고 사후 승인 절차를 운영하지 않아, 감사에서 '승인 없는 운영 변경'으로 지적받는다.",
+        "인시던트를 Slack DM으로만 처리해 타임라인·조치 기록이 남지 않는다.",
+        "온콜 통계(교대당 호출 수)를 보지 않아 특정 서비스가 만성적으로 사람을 갈아 넣고 있는 걸 모른다.",
+        "신규 입사자를 교육 없이 곧바로 1차 온콜에 넣어 대응이 지연되고 본인도 소진된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 24시간 장애 대응 책임자를 식별할 수 있는 온콜 스케줄이 관리되고 이력이 보존되는지",
+          "[접근] 온콜 담당자에게 부여되는 긴급 권한(break-glass)의 발급·사용·회수 절차가 정의되고 사용 이력이 기록되는지",
+          "[접근] 비상 권한 사용 건에 대해 사후 승인과 적정성 검토가 정해진 기한 내에 수행되고 서명이 남는지",
+          "[변경] 장애 대응 중 수행된 긴급 변경이 사후 변경관리 절차(긴급 변경 RFC)로 등록·승인되는지",
+          "[운영] 인시던트별 발생·확인·조치·종결 시각과 대응자가 기록되어 추적 가능한지",
+          "[접근] 호출 도구(PagerDuty 등) 자체의 관리자 계정과 API 키가 통제되는지"
+        ],
+        "fss": [
+          "전자금융감독규정상 24시간 장애 대응 체계(비상연락망, 당직 체계)가 구축·운영되는지",
+          "장애 인지 및 보고 시각이 객관적으로 입증 가능한 기록으로 남는지 — 감독당국 보고 기한 준수의 근거",
+          "특권계정의 긴급 사용에 대한 통제(사전 승인 또는 사후 승인, 세션 기록)가 이루어지는지",
+          "비상 대응 인력의 연락 체계와 대체 인력 지정이 업무연속성계획과 정합성을 갖는지"
+        ],
+        "isms": [
+          "2.11.1 사고 예방 및 대응체계 구축 — 사고 대응 조직·역할·비상연락체계의 정의",
+          "2.11.5 사고 대응 및 복구 — 사고 인지부터 복구까지의 절차와 기록",
+          "2.5.5 특수 계정 및 권한 관리 — 비상 계정의 관리와 사용 이력 점검",
+          "2.5.6 접근권한 검토 — 온콜 관련 상시 권한의 최소화와 정기 검토",
+          "2.2.1 주요 직무자 지정 및 관리 — 장애 대응 주요 직무자의 지정과 관리"
+        ],
+        "evidence": [
+          "최근 6개월 온콜 스케줄 export(기간별 담당자)와 교대 변경 이력",
+          "에스컬레이션 정책 설정 화면 또는 IaC 코드",
+          "최근 분기 P1 인시던트 목록과 각각의 타임라인(발생/ack/복구/종결 시각, 대응자)",
+          "비상 접근 사용 내역(요청자, 사유, 연결된 인시던트 ID, 세션 녹화 링크, 사후 승인자와 승인일)",
+          "긴급 변경 RFC 목록과 사후 승인 기록",
+          "호출 도구 관리자 계정 목록과 SSO 연동 설정",
+          "온콜 부하 통계(교대당 호출 건수, MTTA/MTTR 추이) 및 개선 조치 기록"
+        ],
+        "auditorQuestions": [
+          "지난 주 토요일 새벽 3시에 결제 시스템 장애가 났다면 누가 책임자였습니까? 그것을 어떻게 확인합니까?",
+          "1차 담당자가 전화를 받지 않으면 어떻게 됩니까?",
+          "새벽에 운영 DB를 긴급히 수정해야 한다면 어떤 절차로 권한을 얻습니까?",
+          "지난 분기 비상 권한이 몇 번 사용되었고, 각각 사후 승인을 받았습니까?",
+          "장애 대응 중 오간 대화와 조치 내용은 어디에 남습니까?",
+          "온콜 담당자가 감당하는 호출 건수를 관리하고 계십니까?"
+        ],
+        "controlExample": "운영 서비스별 온콜 스케줄은 호출 도구에서 관리되며 P1 알림은 1차 담당자 미확인 시 5분·15분 단위로 백업 담당자와 관리자에게 자동 에스컬레이션된다. 장애 대응 중 필요한 운영 특권은 PAM의 비상 접근 절차로만 발급되어 전 세션이 녹화되고, 사용 건은 익영업일 내 변경관리위원회의 사후 승인과 적정성 검토를 거쳐 기록이 보관된다."
+      },
+      "related": [
+        "obs-alert-design",
+        "obs-incident-response",
+        "obs-severity-communication",
+        "obs-runbook-playbook",
+        "obs-postmortem",
+        "sec-pam",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "Google SRE Book — Being On-Call",
+        "PagerDuty Incident Response Documentation",
+        "Atlassian Opsgenie Documentation — Escalations and schedules",
+        "Increment — On-call practices"
+      ]
+    },
+    {
+      "id": "obs-incident-response",
+      "title": "인시던트 대응 프로세스",
+      "titleEn": "Incident Response Process",
+      "aliases": [
+        "장애대응",
+        "인시던트",
+        "incident management",
+        "IC",
+        "지휘관",
+        "장애 프로세스",
+        "war room"
+      ],
+      "tags": [
+        "observability",
+        "sre",
+        "incident",
+        "itsm"
+      ],
+      "level": "중급",
+      "oneLiner": "장애를 감지부터 종결까지 정해진 역할과 순서로 처리하는 절차",
+      "analogy": "화재 대응과 같다. 불이 나면 각자 물통을 들고 뛰는 게 아니라, 지휘관이 현장을 총괄하고 진압조는 불을 끄고 통신조는 주민에게 알린다. 역할이 정해져 있으면 30명이 모여도 혼란이 없고, 정해져 있지 않으면 5명만 있어도 아무도 결정을 못 내린다.",
+      "explanation": "<p><strong>인시던트 대응 프로세스</strong>는 장애가 발생했을 때 <strong>누가 무엇을 결정하고, 누가 실행하고, 누가 알리는지</strong>를 사전에 정해두는 체계다. 기술적 난이도보다 <strong>조직적 혼란</strong>이 복구를 더 지연시키는 경우가 훨씬 많기 때문에 필요하다.</p><p><strong>역할 분리가 핵심</strong>이다. 대규모 장애에서 잘 작동하는 표준 역할은 이렇다. <strong>인시던트 지휘관(IC, Incident Commander)</strong> — 상황을 총괄하고 의사결정을 내린다. <strong>IC는 직접 키보드를 잡지 않는다.</strong> 손을 대는 순간 전체 상황 파악이 끊긴다. <strong>운영 책임(Ops/Tech Lead)</strong> — 실제 조사와 조치를 수행한다. <strong>커뮤니케이션 책임(Comms)</strong> — 경영진·고객지원·상태 페이지 업데이트를 담당한다. <strong>서기(Scribe)</strong> — 타임라인을 기록한다. 작은 장애에서는 한 사람이 여러 역할을 겸하지만, <strong>역할이 명시적으로 선언</strong>되어야 한다(\"제가 IC 맡겠습니다\").</p><p><strong>단계는 다섯 개</strong>로 본다. <strong>(1) 탐지(Detect)</strong> — 모니터링 알림, 고객 문의, 내부 제보. 탐지 경로가 고객 문의뿐이라면 관측성에 구멍이 있는 것이다. <strong>(2) 분류(Triage)</strong> — 심각도를 판정하고 IC를 세우고 필요한 인력을 소집한다. <strong>(3) 완화(Mitigate)</strong> — <strong>원인 규명보다 서비스 회복이 우선</strong>이다. 롤백, 트래픽 전환, 기능 플래그 off, 스케일아웃으로 먼저 피를 멈춘다. <strong>(4) 해결(Resolve)</strong> — 근본 원인을 고치고 정상 상태를 확인한다. <strong>(5) 학습(Learn)</strong> — 포스트모템을 작성하고 개선 과제를 추적한다.</p><p><strong>\"완화 우선\" 원칙</strong>은 초심자가 가장 많이 어기는 규칙이다. 장애 중에 근본 원인을 찾겠다고 로그를 파고드는 동안 고객은 계속 돈을 잃는다. 직전 배포가 의심되면 <strong>원인을 몰라도 일단 롤백</strong>하는 것이 옳다. 원인 분석은 서비스가 복구된 뒤 여유 있게 한다.</p><p><strong>ITSM과의 관계</strong>를 정리해 둘 필요가 있다. ITIL 관점에서 <strong>인시던트 관리</strong>는 \"서비스를 최대한 빨리 정상으로 되돌리는 것\", <strong>문제 관리(Problem Management)</strong>는 \"근본 원인을 찾아 재발을 막는 것\"으로 분리된다. 장애 티켓(INC)과 문제 티켓(PRB)이 따로 존재하고, 장애 중 수행한 긴급 변경은 <strong>긴급 변경 요청(Emergency Change)</strong>으로 사후 등록된다. 이 세 가지 티켓의 연결고리가 감사에서 자주 확인된다.</p><p><strong>감사 관점에서 인시던트 프로세스는 ITGC [운영] 영역의 중심</strong>이다. 확인 포인트는 명확하다. 장애가 <strong>빠짐없이 기록</strong>되는가(작은 장애를 Slack에서만 처리하고 티켓을 안 만들면 누락이다). <strong>심각도 판정 기준</strong>이 문서화되어 있고 일관되게 적용되는가. 장애 중 수행된 <strong>운영 환경 변경이 사후 승인</strong>되는가. <strong>재발 방지 과제가 종결까지 추적</strong>되는가. 그리고 금융권이라면 <strong>감독당국 보고 기준</strong>에 해당하는 장애를 제때 보고했는가.</p>",
+      "howItWorks": "<ol><li><strong>탐지</strong> — 모니터링 알림이 온콜 담당자를 호출하거나, 고객센터·내부 사용자가 이상을 제보한다. 탐지 시각이 자동으로 기록된다.</li><li><strong>초기 판단</strong> — 온콜 담당자가 5분 내에 \"진짜 장애인가, 영향 범위는 어디까지인가\"를 1차 판단한다. 고객 영향이 확인되면 인시던트를 공식 선언한다.</li><li><strong>선언과 소집</strong> — 인시던트 티켓(INC)이 생성되고 심각도가 부여된다. 전용 채널(워룸)이 자동 생성되고, 심각도에 따라 정해진 인원이 자동 호출된다. 누군가 명시적으로 IC를 맡는다.</li><li><strong>상황 공유</strong> — IC가 정해진 주기(P1은 30분)로 현재 상태·영향·다음 조치를 요약해 공유한다. 이 요약이 그대로 경영진 보고와 상태 페이지 문구의 재료가 된다.</li><li><strong>완화</strong> — 팀이 서비스 회복을 최우선으로 조치한다. 직전 배포 롤백, 기능 플래그 비활성화, 트래픽 전환, 리소스 증설 등. 각 조치의 실행 시각과 결과가 타임라인에 기록된다.</li><li><strong>긴급 변경 처리</strong> — 운영 환경 변경이 필요하면 사전 정의된 긴급 변경 절차로 수행하고, 비상 권한은 PAM을 통해 발급받아 세션이 녹화된다.</li><li><strong>대외 커뮤니케이션</strong> — Comms 담당이 상태 페이지를 갱신하고 고객지원팀에 응대 문구를 배포한다. 금융권은 보고 기준 해당 여부를 이 시점에 판단한다.</li><li><strong>복구 확인</strong> — 지표가 정상 범위로 돌아온 것을 확인하고, 일정 시간 안정 상태를 관찰한 뒤 인시던트를 종결한다. 종결 시각이 기록된다.</li><li><strong>사후</strong> — 심각도 기준에 따라 포스트모템 작성이 의무화되고(P1은 5영업일 내), 근본 원인은 문제 티켓(PRB)으로, 개선 과제는 추적 가능한 백로그 항목으로 등록된다.</li><li><strong>검토</strong> — 월/분기 단위로 인시던트 통계(건수, 심각도 분포, MTTR, 반복 원인)를 리뷰하고 개선 과제 이행률을 점검한다.</li></ol>",
+      "example": "<p>가상 커머스 '마켓링크'에서 2026년 5월 20일 14시 12분, 주문 완료율이 급락했다. 온콜이 14시 15분 확인 후 P1을 선언하고 IC를 맡았다. 워룸에 결제·주문·플랫폼 담당이 소집됐고, 14시 20분 조사 결과 30분 전 배포된 주문 서비스 v2026.5.3이 의심됐다. <strong>원인을 규명하기 전에</strong> 14시 24분 롤백을 결정·실행했고 14시 31분 주문 완료율이 정상화됐다. 이후 여유 있게 분석한 결과 신규 쿠폰 검증 로직이 만료 쿠폰에 대해 예외를 던지는 버그였다. Comms 담당은 14시 22분 상태 페이지에 \"일부 주문 실패\" 공지를 올리고 14시 40분 복구를 공지했다. 총 영향 시간 19분, 실패 주문 2,840건은 배치로 재처리 안내를 발송했다.</p><p>인시던트 티켓의 핵심 필드 예:</p><pre><code>{\n  \"incident_id\": \"INC-20260520-0087\",\n  \"severity\": \"P1\",\n  \"title\": \"주문 완료율 급락 (쿠폰 검증 예외)\",\n  \"detected_at\":  \"2026-05-20T14:12:31+09:00\",\n  \"detected_by\":  \"alert:CheckoutSuccessRateDegraded\",\n  \"declared_at\":  \"2026-05-20T14:15:02+09:00\",\n  \"incident_commander\": \"sujin.lee\",\n  \"comms_lead\": \"minho.kang\",\n  \"mitigated_at\": \"2026-05-20T14:31:10+09:00\",\n  \"resolved_at\":  \"2026-05-20T14:52:00+09:00\",\n  \"customer_impact\": {\n    \"affected_orders\": 2840,\n    \"impact_window_min\": 19,\n    \"revenue_impact_krw\": 41200000\n  },\n  \"mitigation\": \"order-service v2026.5.3 → v2026.5.2 롤백\",\n  \"emergency_change\": \"ECR-2026-0520-012\",\n  \"root_cause_ticket\": \"PRB-2026-0142\",\n  \"postmortem_due\": \"2026-05-27\",\n  \"status_page_updates\": 2\n}</code></pre><p>심각도 판정 기준표 예:</p><pre><code>P1 (Critical) : 핵심 거래(결제·주문·로그인) 전면 불가 또는 성공률 &lt; 90%\n                / 데이터 유실·유출 의심 / 규제 보고 대상 가능성\n                → 즉시 호출, IC 지정, 30분 주기 보고, 상태페이지 공지\nP2 (High)     : 일부 기능 장애 또는 성능 심각 저하(p99 SLO 2배 초과)\n                / 이중화 한쪽 소실\n                → 업무시간 즉시, 야간은 다음 영업일, 60분 주기 보고\nP3 (Medium)   : 비핵심 기능 오류, 우회 가능, 소수 사용자 영향\n                → 티켓 처리, 정규 스프린트 반영\nP4 (Low)      : 사용자 영향 없음 (모니터링 노이즈, 내부 도구)\n\n승격 규칙: P2가 2시간 내 미해결이고 영향이 확대되면 P1으로 승격\n경영진 보고: P1 선언 즉시 CTO, 1시간 초과 시 CEO</code></pre>",
+      "diagram": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 300' font-family='system-ui, sans-serif' font-size='13'><defs><marker id='ar' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='currentColor'/></marker></defs><rect x='12' y='30' width='95' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='59' y='51' text-anchor='middle' fill='currentColor' font-size='11'>1. 탐지</text><text x='59' y='68' text-anchor='middle' fill='currentColor' font-size='10'>알림 · 제보</text><rect x='127' y='30' width='95' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='174' y='51' text-anchor='middle' fill='currentColor' font-size='11'>2. 분류</text><text x='174' y='68' text-anchor='middle' fill='currentColor' font-size='10'>심각도 · IC 지정</text><rect x='242' y='30' width='95' height='48' rx='6' fill='var(--dg-accent)' stroke='currentColor'/><text x='289' y='51' text-anchor='middle' fill='currentColor' font-size='11'>3. 완화</text><text x='289' y='68' text-anchor='middle' fill='currentColor' font-size='10'>회복 최우선</text><rect x='357' y='30' width='95' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='404' y='51' text-anchor='middle' fill='currentColor' font-size='11'>4. 해결</text><text x='404' y='68' text-anchor='middle' fill='currentColor' font-size='10'>근본 조치</text><rect x='472' y='30' width='95' height='48' rx='6' fill='var(--dg-box)' stroke='currentColor'/><text x='519' y='51' text-anchor='middle' fill='currentColor' font-size='11'>5. 학습</text><text x='519' y='68' text-anchor='middle' fill='currentColor' font-size='10'>포스트모템</text><line x1='107' y1='54' x2='125' y2='54' stroke='currentColor' marker-end='url(#ar)'/><line x1='222' y1='54' x2='240' y2='54' stroke='currentColor' marker-end='url(#ar)'/><line x1='337' y1='54' x2='355' y2='54' stroke='currentColor' marker-end='url(#ar)'/><line x1='452' y1='54' x2='470' y2='54' stroke='currentColor' marker-end='url(#ar)'/><text x='289' y='98' text-anchor='middle' fill='currentColor' font-size='10'>원인을 몰라도 롤백 — 피를 먼저 멈춘다</text><rect x='30' y='125' width='250' height='150' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='155' y='147' text-anchor='middle' fill='currentColor' font-size='12'>역할 분리</text><rect x='45' y='158' width='220' height='26' rx='4' fill='var(--dg-accent)' stroke='currentColor'/><text x='155' y='176' text-anchor='middle' fill='currentColor' font-size='10'>IC — 총괄·결정 (키보드 잡지 않음)</text><rect x='45' y='190' width='220' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='155' y='208' text-anchor='middle' fill='currentColor' font-size='10'>Ops — 조사·조치 실행</text><rect x='45' y='222' width='220' height='26' rx='4' fill='var(--dg-box)' stroke='currentColor'/><text x='155' y='240' text-anchor='middle' fill='currentColor' font-size='10'>Comms — 경영진·고객·상태페이지</text><text x='155' y='265' text-anchor='middle' fill='currentColor' font-size='10'>Scribe — 타임라인 기록</text><rect x='310' y='125' width='300' height='150' rx='10' fill='var(--dg-box)' stroke='currentColor'/><text x='460' y='147' text-anchor='middle' fill='currentColor' font-size='12'>남아야 할 기록 (감사 증적)</text><text x='460' y='170' text-anchor='middle' fill='currentColor' font-size='10'>INC 티켓 — 탐지/선언/완화/종결 시각</text><text x='460' y='190' text-anchor='middle' fill='currentColor' font-size='10'>ECR — 장애 중 긴급 변경의 사후 승인</text><text x='460' y='210' text-anchor='middle' fill='currentColor' font-size='10'>PRB — 근본 원인 문제 티켓</text><text x='460' y='230' text-anchor='middle' fill='currentColor' font-size='10'>개선 과제 — 종결까지 추적</text><text x='460' y='252' text-anchor='middle' fill='currentColor' font-size='10'>세 티켓이 서로 연결되어 있는지</text><text x='460' y='268' text-anchor='middle' fill='currentColor' font-size='10'>감사인이 반드시 확인한다</text></svg>",
+      "keyTerms": [
+        {
+          "term": "IC (Incident Commander)",
+          "meaning": "장애 대응을 총괄하고 결정을 내리는 역할. 직접 조치하지 않는다"
+        },
+        {
+          "term": "완화(Mitigation)",
+          "meaning": "원인 제거가 아니라 영향을 멈추는 조치. 롤백·트래픽 전환 등"
+        },
+        {
+          "term": "워룸(War room)",
+          "meaning": "장애 대응 전용 임시 소통 채널"
+        },
+        {
+          "term": "인시던트 관리 vs 문제 관리",
+          "meaning": "전자는 빠른 복구, 후자는 근본 원인 제거. ITIL에서 분리된 프로세스"
+        },
+        {
+          "term": "긴급 변경(Emergency Change)",
+          "meaning": "장애 대응을 위해 사전 승인 없이 수행하고 사후 승인받는 변경"
+        },
+        {
+          "term": "심각도(Severity)",
+          "meaning": "고객 영향 기준으로 정한 장애 등급. 대응 강도와 보고 대상을 결정한다"
+        },
+        {
+          "term": "타임라인(Timeline)",
+          "meaning": "발생부터 종결까지 시각별 사건·조치 기록. 포스트모템의 뼈대"
+        },
+        {
+          "term": "승격(Escalate)",
+          "meaning": "심각도를 올리거나 더 많은 인력을 소집하는 것"
+        },
+        {
+          "term": "기능 플래그(Feature flag)",
+          "meaning": "배포 없이 기능을 켜고 끌 수 있는 스위치. 가장 빠른 완화 수단"
+        }
+      ],
+      "pitfalls": [
+        "장애 중에 원인 규명에 매달려 복구가 30분 지연된다. 완화가 먼저다.",
+        "IC를 아무도 맡지 않아 열 명이 워룸에 있는데 아무 결정도 내려지지 않는다.",
+        "IC가 직접 터미널을 잡고 조치하다가 전체 상황 파악이 끊기고 보고가 멈춘다.",
+        "작은 장애를 Slack 대화로만 처리하고 티켓을 만들지 않아, 감사 때 '장애 이력이 없다'고 나오지만 실제로는 수십 건이 있었다.",
+        "장애 중 운영 DB를 직접 고쳐놓고 긴급 변경으로 사후 등록하지 않아 '승인 없는 변경'으로 지적받는다.",
+        "심각도 기준이 없어 같은 수준의 장애가 사람에 따라 P1이 되기도 P3이 되기도 한다.",
+        "포스트모템에서 나온 개선 과제가 백로그에 등록만 되고 아무도 완료를 추적하지 않아 같은 장애가 반복된다.",
+        "고객 영향 규모(건수, 금액)를 측정하지 않아 사후에 배상 범위나 보고 대상 여부를 판단할 수 없다.",
+        "상태 페이지 갱신을 잊어 고객센터에 문의가 폭주하고 대응 인력이 분산된다."
+      ],
+      "audit": {
+        "itgc": [
+          "[운영] 장애 관리 절차가 문서화되어 있고 심각도 판정 기준·보고 체계가 정의되어 있는지",
+          "[운영] 모든 장애가 티켓으로 기록되고 탐지·선언·복구·종결 시각과 대응자가 남는지 — 누락된 장애가 없음을 어떻게 보장하는지",
+          "[변경] 장애 대응 중 수행된 운영 환경 변경이 긴급 변경 절차로 사후 등록·승인되는지, 정규 변경 대비 비율이 과도하지 않은지",
+          "[접근] 장애 대응 중 사용된 비상 권한의 발급·사용·회수와 사후 검토가 이루어지는지",
+          "[운영] 재발 방지 과제가 담당자·기한과 함께 등록되고 완료까지 추적되는지",
+          "[운영] 장애가 재무보고에 영향을 준 경우(거래 누락, 중복 처리, 정산 오류) 회계팀과의 연계 절차가 있는지"
+        ],
+        "fss": [
+          "전자금융감독규정상 전자금융거래 장애 발생 시 감독당국 보고 의무(보고 대상·기한)를 인지하고 절차가 마련되어 있는지",
+          "장애 인지 시각과 보고 시각이 기록으로 입증 가능한지",
+          "이용자 피해 발생 시 통지·보상 절차가 정의되고 실행되는지",
+          "장애 대응 조직·비상연락망이 최신 상태로 유지되고 정기적으로 점검되는지",
+          "중대 장애에 대한 원인분석 및 재발방지대책이 경영진에게 보고되는지"
+        ],
+        "isms": [
+          "2.11.1 사고 예방 및 대응체계 구축 — 사고 유형별 대응 절차, 역할, 비상연락체계",
+          "2.11.5 사고 대응 및 복구 — 사고 인지·분석·대응·복구 및 기록 관리",
+          "2.11.2 취약점 점검 및 조치 / 2.11.4 사고 대응 훈련 및 개선 — 정기 훈련과 절차 개선",
+          "2.9.2 성능 및 장애관리 — 장애 기록, 원인 분석, 재발 방지",
+          "2.9.1 변경관리 — 긴급 변경의 사후 승인 절차"
+        ],
+        "evidence": [
+          "장애 관리 절차서와 심각도 판정 기준표(승인본)",
+          "최근 12개월 인시던트 목록(ID, 심각도, 탐지/선언/복구/종결 시각, IC, 영향 규모)",
+          "표본 P1 인시던트 1~3건의 전체 타임라인과 워룸 대화 기록",
+          "장애 중 수행된 긴급 변경 요청서(ECR)와 사후 승인 기록",
+          "인시던트 - 문제 티켓(PRB) - 개선 과제의 연결 관계를 보여주는 화면",
+          "개선 과제 이행 현황(등록 건수, 완료 건수, 지연 건수)",
+          "감독당국 보고 대상 판단 기록 및 실제 보고 문서(해당 시)",
+          "월/분기 장애 통계 및 경영진 보고 자료"
+        ],
+        "auditorQuestions": [
+          "지난 1년간 장애가 몇 건 있었고 그 목록을 보여주실 수 있습니까?",
+          "장애 티켓을 만들지 않고 넘어간 장애는 없습니까? 그것을 어떻게 보장합니까?",
+          "심각도는 누가 어떤 기준으로 판정합니까? 같은 상황에 다른 판정이 나오지 않습니까?",
+          "장애 중에 운영 시스템을 변경했다면 그 승인은 어떻게 받았습니까?",
+          "재발 방지 대책이 실제로 완료되었는지 누가 추적합니까? 지난 분기 이행률은 얼마입니까?",
+          "장애로 거래가 누락되거나 중복 처리된 경우 회계적으로 어떻게 처리합니까?",
+          "감독당국 보고 대상 장애인지는 누가 판단합니까?"
+        ],
+        "controlExample": "고객 영향이 있는 모든 장애는 심각도 판정 기준에 따라 인시던트 티켓으로 등록되며, P1 장애는 인시던트 지휘관 지정과 30분 주기 상황 보고가 의무화된다. 장애 대응 중 수행된 운영 환경 변경은 긴급 변경 요청으로 익영업일 내 사후 승인을 받고, 근본 원인과 재발 방지 과제는 문제 티켓으로 연결되어 담당자·기한과 함께 완료 시까지 월별로 이행 현황이 점검된다."
+      },
+      "related": [
+        "obs-severity-communication",
+        "obs-postmortem",
+        "obs-oncall-paging",
+        "obs-runbook-playbook",
+        "obs-alert-design",
+        "obs-status-page",
+        "obs-incident-evidence-sox",
+        "plat-change-management"
+      ],
+      "learnMore": [
+        "Google SRE Book — Managing Incidents",
+        "PagerDuty Incident Response Guide",
+        "ITIL 4 — Incident Management practice",
+        "전자금융감독규정 — 전자금융사고 보고"
+      ]
+    }
+  ]
+}
