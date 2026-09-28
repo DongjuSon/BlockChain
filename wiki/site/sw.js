@@ -1,7 +1,8 @@
-var CACHE_NAME = 'infra-wiki-v1';
+var CACHE_NAME = 'infra-wiki-v2';
 var APP_FILES = [
   './',
   './index.html',
+  './firebase-config.js',
   './wikidata.js',
   './manifest.webmanifest',
   './icon.svg',

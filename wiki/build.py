@@ -98,6 +98,22 @@ payload = json.dumps(bundle, ensure_ascii=False, separators=(',', ':'))
 with open(os.path.join(OUT, 'wikidata.js'), 'w', encoding='utf-8') as fh:
     fh.write('window.WIKI=' + payload + ';')
 
+firebase_fields = {
+    'apiKey': 'FIREBASE_API_KEY',
+    'appId': 'FIREBASE_APP_ID',
+    'authDomain': 'FIREBASE_AUTH_DOMAIN',
+    'databaseURL': 'FIREBASE_DATABASE_URL',
+    'projectId': 'FIREBASE_PROJECT_ID',
+    'storageBucket': 'FIREBASE_STORAGE_BUCKET',
+    'messagingSenderId': 'FIREBASE_MESSAGING_SENDER_ID',
+    'measurementId': 'FIREBASE_MEASUREMENT_ID',
+}
+firebase_config = {key: os.environ.get(env_name, '') for key, env_name in firebase_fields.items()}
+with open(os.path.join(OUT, 'firebase-config.js'), 'w', encoding='utf-8') as fh:
+    fh.write('window.FIREBASE_CONFIG = Object.freeze(')
+    fh.write(json.dumps(firebase_config, ensure_ascii=False, separators=(',', ':')))
+    fh.write(');\n')
+
 print(f'entries: {len(entries)}')
 print(f'categories: {len(cats)}')
 for c in cats:
